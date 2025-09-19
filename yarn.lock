@@ -10201,10 +10201,10 @@ react-native-html-to-pdf@0.12.0:
   resolved "https://registry.yarnpkg.com/react-native-html-to-pdf/-/react-native-html-to-pdf-0.12.0.tgz#2b467296f85c9c9783a7288b19722a7028dcbcb8"
   integrity sha512-Yb5WO9SfF86s5Yv9PqXQ7fZDr9zZOJ+6jtweT9zFLraPNHWX7pSxe2dSkeg3cGiNrib65ZXGN6ksHymfYLFSSg==
 
-react-native-iap@13.0.1:
-  version "13.0.1"
-  resolved "https://registry.yarnpkg.com/react-native-iap/-/react-native-iap-13.0.1.tgz#214984501691a1c6de97d8d1892d460e50c14a48"
-  integrity sha512-pctKN5tyIiqKiRTssD5YL3bHPU4RF84D67PmxAuxXtKOR3KqJqZ7iXTd6PFTdycHxedpN6+0Pvbo5/TCvZY/eQ==
+react-native-iap@12.16.3:
+  version "12.16.3"
+  resolved "https://registry.yarnpkg.com/react-native-iap/-/react-native-iap-12.16.3.tgz#17edc55f9839cc10307c89ea3b30248fca7ea467"
+  integrity sha512-iYyUWoWRyhBVQvuyasDPjqUfkHnNTXV6rsD4oYgQpJ8hNTyw4o60bmFq196sbjGlNLwfOFvu0GzcfGNJbcvXfQ==
 
 react-native-image-picker@4.10.3:
   version "4.10.3"
