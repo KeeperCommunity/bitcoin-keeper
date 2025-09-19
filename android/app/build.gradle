@@ -187,7 +187,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-    implementation files("../../node_modules/react-native-tor/android/libs/sifir_android.aar")
     implementation "androidx.work:work-runtime:2.7.0"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"

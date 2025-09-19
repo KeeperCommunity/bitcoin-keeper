@@ -1358,8 +1358,6 @@ PODS:
   - react-native-tcp-socket (5.6.2):
     - CocoaAsyncSocket
     - React-Core
-  - react-native-tor (0.1.8):
-    - React
   - React-nativeconfig (0.77.3)
   - React-NativeModulesApple (0.77.3):
     - glog
@@ -1948,7 +1946,6 @@ DEPENDENCIES:
   - react-native-rsa-native (from `../node_modules/react-native-rsa-native`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-tcp-socket (from `../node_modules/react-native-tcp-socket`)
-  - react-native-tor (from `../node_modules/react-native-tor`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -2139,8 +2136,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-tcp-socket:
     :path: "../node_modules/react-native-tcp-socket"
-  react-native-tor:
-    :path: "../node_modules/react-native-tor"
   React-nativeconfig:
     :path: "../node_modules/react-native/ReactCommon"
   React-NativeModulesApple:
@@ -2317,7 +2312,6 @@ SPEC CHECKSUMS:
   react-native-rsa-native: a7931cdda1f73a8576a46d7f431378c5550f0c38
   react-native-safe-area-context: df9763c5de6fa38883028e243a0b60123acb8858
   react-native-tcp-socket: 0a0455b843f9dfcad875ea6cfafeb05c0abb0a24
-  react-native-tor: dc46832ab810a21fb8954afa20b5aeb740ef93f5
   React-nativeconfig: f77b4627803bf7886a1f2e96b33b8af34e583cc4
   React-NativeModulesApple: dfa86c79c621f2a9cdb39636570c2e1623b71367
   React-perflogger: 1f83401f01544142b32151ef6c66870455c64994
