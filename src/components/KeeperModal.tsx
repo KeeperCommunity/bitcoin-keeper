@@ -6,10 +6,9 @@ import {
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
-import { hp, windowHeight, windowWidth, wp } from 'src/constants/responsive';
+import { hp, windowWidth, wp } from 'src/constants/responsive';
 import CloseGreen from 'src/assets/images/dark-close-icon.svg';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React, { useContext } from 'react';
+import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ResponsiveValue } from 'native-base/lib/typescript/components/types';
 import Text from 'src/components/KeeperText';
@@ -20,6 +19,7 @@ import Fonts from 'src/constants/Fonts';
 import InfoIcon from 'src/assets/images/info_icon.svg';
 import InfoIconDark from 'src/assets/images/info-Dark-icon.svg';
 import ThemedSvg from './ThemedSvg.tsx/ThemedSvg';
+import ModalWrapper from './Modal/ModalWrapper';
 
 type ModalProps = {
   visible: boolean;
@@ -72,24 +72,20 @@ function KeeperModal(props: ModalProps) {
     secondaryCallback = () => {},
     DarkCloseIcon = false,
     Content = () => null,
-    dismissible = true,
     learnMoreButton = false,
     learnMoreButtonPressed = () => {},
     learnMoreButtonText = null,
     learnButtonTextColor = 'light.white',
     learnButtonBackgroundColor = 'BrownNeedHelp',
     secButtonTextColor = 'headerText',
-    closeOnOverlayClick = true,
     showCloseIcon = true,
     showCurrencyTypeSwitch = false,
-    justifyContent = 'flex-end',
     loading = false,
     secondaryIcon = null,
     disable = false,
   } = props;
   const subTitleColor = ignored || textColor;
   const { bottom } = useSafeAreaInsets();
-  const bottomMargin = Platform.select<number>({ ios: bottom, android: 10 });
   const isKeyboardOpen = useKeyboard();
   const { height: screenHeight } = useWindowDimensions();
   const availableHeight = screenHeight - bottom - (isKeyboardOpen ? hp(200) : hp(100));
@@ -104,124 +100,105 @@ function KeeperModal(props: ModalProps) {
 
   const styles = getStyles(subTitleWidth);
   return (
-    <Modal
-      closeOnOverlayClick={closeOnOverlayClick}
-      isOpen={visible}
-      onClose={dismissible ? close : null}
-      size="xl"
-      _backdrop={{ bg: '#000', opacity: 0.8 }}
-      justifyContent={justifyContent}
-      pb={isKeyboardOpen ? '60%' : '0'}
-    >
-      <Modal.Content
-        borderRadius={10}
-        marginBottom={Math.max(5, bottomMargin)}
-        maxHeight={windowHeight < 680 ? '94%' : '90%'}
-        width="95%"
+    <ModalWrapper visible={visible} onSwipeComplete={close} position="bottom">
+      <Box
+        backgroundColor={
+          modalBackground === 'primaryBackground'
+            ? `${colorMode}.modalWhiteBackground`
+            : modalBackground
+        }
+        style={styles.container}
       >
-        <GestureHandlerRootView>
-          <Box
-            backgroundColor={
-              modalBackground === 'primaryBackground'
-                ? `${colorMode}.modalWhiteBackground`
-                : modalBackground
-            }
-            style={styles.container}
-          >
-            <Box>
-              {showCloseIcon ? (
-                <TouchableOpacity testID="btn_close_modal" style={styles.close} onPress={close}>
-                  {getCloseIcon()}
-                </TouchableOpacity>
-              ) : null}
-              {showCurrencyTypeSwitch ? (
-                <Box style={styles.currencySwitch}>
-                  <CurrencyTypeSwitch />
-                </Box>
-              ) : null}
-              {learnMoreButton && (
-                <TouchableOpacity
-                  style={styles.learnMoreButton}
-                  onPress={learnMoreButtonPressed}
-                  testID="btn_learnMore"
-                >
-                  <Box style={styles.learnMoreButtonContainer}>
-                    {isDarKMode ? <InfoIconDark /> : <InfoIcon />}
-                  </Box>
-                </TouchableOpacity>
-              )}
-              {title || subTitle ? (
-                <Modal.Header style={styles.headerContainer}>
-                  <Text
-                    testID="text_modal_title"
-                    style={styles.title}
-                    semiBold
-                    color={textColor === 'black' ? `${colorMode}.black` : textColor}
-                  >
-                    {title}
-                  </Text>
-                  {subTitle ? (
-                    <Text
-                      testID="text_modal_subtitle"
-                      style={styles.subTitle}
-                      color={subTitleColor === 'black' ? `${colorMode}.black` : subTitleColor}
-                    >
-                      {`${subTitle}`}
-                    </Text>
-                  ) : null}
-                </Modal.Header>
-              ) : null}
+        <Box>
+          {showCloseIcon ? (
+            <TouchableOpacity testID="btn_close_modal" style={styles.close} onPress={close}>
+              {getCloseIcon()}
+            </TouchableOpacity>
+          ) : null}
+          {showCurrencyTypeSwitch ? (
+            <Box style={styles.currencySwitch}>
+              <CurrencyTypeSwitch />
             </Box>
-            <ScrollView
-              style={{ maxHeight: maxModalHeight * 0.85 }}
-              showsVerticalScrollIndicator={false}
+          ) : null}
+          {learnMoreButton && (
+            <TouchableOpacity
+              style={styles.learnMoreButton}
+              onPress={learnMoreButtonPressed}
+              testID="btn_learnMore"
             >
-              <Modal.Body>
-                <Content />
-              </Modal.Body>
-              {buttonText && (
-                <Box
-                  style={[
-                    styles.footerContainer,
-                    secondaryButtonText
-                      ? { marginRight: 10, alignSelf: 'flex-end', paddingHorizontal: 0 }
-                      : { alignSelf: 'center', paddingHorizontal: '3%' },
-                  ]}
+              <Box style={styles.learnMoreButtonContainer}>
+                {isDarKMode ? <InfoIconDark /> : <InfoIcon />}
+              </Box>
+            </TouchableOpacity>
+          )}
+          {title || subTitle ? (
+            <Modal.Header style={styles.headerContainer}>
+              <Text
+                testID="text_modal_title"
+                style={styles.title}
+                semiBold
+                color={textColor === 'black' ? `${colorMode}.black` : textColor}
+              >
+                {title}
+              </Text>
+              {subTitle ? (
+                <Text
+                  testID="text_modal_subtitle"
+                  style={styles.subTitle}
+                  color={subTitleColor === 'black' ? `${colorMode}.black` : subTitleColor}
                 >
-                  {buttonText && (
-                    <Buttons
-                      primaryLoading={loading}
-                      primaryText={buttonText}
-                      primaryCallback={buttonCallback}
-                      primaryBackgroundColor={
-                        buttonBackground == 'greenButtonBackground'
-                          ? `${colorMode}.pantoneGreen`
-                          : buttonBackground
-                      }
-                      primaryTextColor={
-                        buttonTextColor == 'buttonText'
-                          ? `${colorMode}.buttonText`
-                          : buttonTextColor
-                      }
-                      secondaryCallback={secondaryCallback}
-                      secondaryText={secondaryButtonText}
-                      SecondaryIcon={secondaryIcon}
-                      secondaryTextColor={
-                        secButtonTextColor == 'headerText'
-                          ? `${colorMode}.textGreen`
-                          : secButtonTextColor
-                      }
-                      fullWidth={!secondaryButtonText}
-                      primaryDisable={disable}
-                    />
-                  )}
-                </Box>
+                  {`${subTitle}`}
+                </Text>
+              ) : null}
+            </Modal.Header>
+          ) : null}
+        </Box>
+        <ScrollView
+          style={{ maxHeight: maxModalHeight * 0.85 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Modal.Body>
+            <Content />
+          </Modal.Body>
+          {buttonText && (
+            <Box
+              style={[
+                styles.footerContainer,
+                secondaryButtonText
+                  ? { marginRight: 10, alignSelf: 'flex-end', paddingHorizontal: 0 }
+                  : { alignSelf: 'center', paddingHorizontal: '3%' },
+              ]}
+            >
+              {buttonText && (
+                <Buttons
+                  primaryLoading={loading}
+                  primaryText={buttonText}
+                  primaryCallback={buttonCallback}
+                  primaryBackgroundColor={
+                    buttonBackground == 'greenButtonBackground'
+                      ? `${colorMode}.pantoneGreen`
+                      : buttonBackground
+                  }
+                  primaryTextColor={
+                    buttonTextColor == 'buttonText' ? `${colorMode}.buttonText` : buttonTextColor
+                  }
+                  secondaryCallback={secondaryCallback}
+                  secondaryText={secondaryButtonText}
+                  SecondaryIcon={secondaryIcon}
+                  secondaryTextColor={
+                    secButtonTextColor == 'headerText'
+                      ? `${colorMode}.textGreen`
+                      : secButtonTextColor
+                  }
+                  fullWidth={!secondaryButtonText}
+                  primaryDisable={disable}
+                />
               )}
-            </ScrollView>
-          </Box>
-        </GestureHandlerRootView>
-      </Modal.Content>
-    </Modal>
+            </Box>
+          )}
+        </ScrollView>
+      </Box>
+    </ModalWrapper>
   );
 }
 

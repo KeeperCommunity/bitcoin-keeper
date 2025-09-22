@@ -16,6 +16,7 @@ import { joinQRs } from 'src/services/qr/bbqr/join';
 import { extractBBQRIndex, isHexadecimal } from 'src/utils/utilities';
 import { Psbt } from 'bitcoinjs-lib';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import CameraUnauthorized from './CameraUnauthorized';
 
 let decoder = new URRegistryDecoder();
 
@@ -206,13 +207,17 @@ function QRScanner({
         <Box style={styles.qrcontainer}>
           {hideCamera || isFocused ? (
             <>
-              <Camera
-                style={styles.cameraView}
-                device={device}
-                isActive={isFocused}
-                audio={false}
-                codeScanner={codeScanner}
-              />
+              {device ? (
+                <Camera
+                  style={styles.cameraView}
+                  device={device}
+                  isActive={isFocused}
+                  audio={false}
+                  codeScanner={codeScanner}
+                />
+              ) : (
+                <CameraUnauthorized />
+              )}
             </>
           ) : (
             <Box style={styles.cameraView} />
