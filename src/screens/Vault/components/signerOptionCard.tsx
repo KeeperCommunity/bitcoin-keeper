@@ -1,9 +1,8 @@
 import React from 'react';
 import { Box, useColorMode } from 'native-base';
-import { StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 
 type SignerOptionCardProps = {
   name: string;

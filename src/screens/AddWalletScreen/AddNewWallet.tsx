@@ -2,7 +2,7 @@ import { Box, HStack, useColorMode } from 'native-base';
 import React, { useContext, useState, useEffect } from 'react';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
-import { Pressable, StyleSheet, Vibration } from 'react-native';
+import { Pressable, StyleSheet, TouchableOpacity, Vibration } from 'react-native';
 import Text from 'src/components/KeeperText';
 import KeeperModal from 'src/components/KeeperModal';
 import ImportWalletIcon from 'src/assets/images/vault_icon.svg';
@@ -21,7 +21,6 @@ import UpgradeSubscription from '../InheritanceToolsAndTips/components/UpgradeSu
 import { MiniscriptTypes } from 'src/services/wallets/enums';
 import WalletUtilities from 'src/services/wallets/operations/utils';
 import useVault from 'src/hooks/useVault';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import useToastMessage from 'src/hooks/useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import Colors from 'src/theme/Colors';
