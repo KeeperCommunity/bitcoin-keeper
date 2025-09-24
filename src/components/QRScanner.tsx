@@ -1,6 +1,11 @@
 import { Box, HStack, useColorMode, VStack } from 'native-base';
 import { ActivityIndicator, StyleSheet } from 'react-native';
-import { Camera, useCameraDevices, useCodeScanner } from 'react-native-vision-camera';
+import {
+  Camera,
+  useCameraDevices,
+  useCameraPermission,
+  useCodeScanner,
+} from 'react-native-vision-camera';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { URRegistryDecoder } from 'src/services/qr/bc-ur-registry';
@@ -37,7 +42,7 @@ function QRScanner({
   const { translations } = useContext(LocalizationContext);
   const { error: errorText } = translations;
   const hasScannedRef = useRef(false);
-
+  const { hasPermission, requestPermission } = useCameraPermission();
   const devices = useCameraDevices();
   const device = devices.find((device) => device.position == 'back');
 
@@ -51,6 +56,10 @@ function QRScanner({
       };
     }, [])
   );
+
+  useEffect(() => {
+    if (!hasPermission) requestPermission();
+  }, []);
 
   // eslint-disable-next-line no-promise-executor-return
   const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -207,7 +216,9 @@ function QRScanner({
         <Box style={styles.qrcontainer}>
           {hideCamera || isFocused ? (
             <>
-              {device ? (
+              {!device || !hasPermission ? (
+                <CameraUnauthorized />
+              ) : (
                 <Camera
                   style={styles.cameraView}
                   device={device}
@@ -215,8 +226,6 @@ function QRScanner({
                   audio={false}
                   codeScanner={codeScanner}
                 />
-              ) : (
-                <CameraUnauthorized />
               )}
             </>
           ) : (
