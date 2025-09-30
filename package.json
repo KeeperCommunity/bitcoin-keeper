@@ -60,7 +60,7 @@
     "electrum-client": "git+https://github.com/bithyve/rn-electrum-client.git#76c0ea35e1a50c47f3a7f818d529ebd100161496",
     "events": "1.0.0",
     "idx": "2.5.6",
-    "libportal-react-native": "git+https://github.com/bithyve/libportal-react-native.git#3f9373785265f3e18218eefb8958109feec8f7c3",
+    "libportal-react-native": "git+https://github.com/bithyve/libportal-react-native.git#2ff681b0b725009768acadb35b2731fb1a402fa3",
     "lodash": "4.17.21",
     "moment": "2.29.4",
     "native-base": "3.4.28",

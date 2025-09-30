@@ -8337,9 +8337,9 @@ levn@^0.4.1:
     prelude-ls "^1.2.1"
     type-check "~0.4.0"
 
-"libportal-react-native@git+https://github.com/bithyve/libportal-react-native.git#3f9373785265f3e18218eefb8958109feec8f7c3":
+"libportal-react-native@git+https://github.com/bithyve/libportal-react-native.git#2ff681b0b725009768acadb35b2731fb1a402fa3":
   version "0.3.0"
-  resolved "git+https://github.com/bithyve/libportal-react-native.git#3f9373785265f3e18218eefb8958109feec8f7c3"
+  resolved "git+https://github.com/bithyve/libportal-react-native.git#2ff681b0b725009768acadb35b2731fb1a402fa3"
 
 lighthouse-logger@^1.0.0:
   version "1.4.2"
