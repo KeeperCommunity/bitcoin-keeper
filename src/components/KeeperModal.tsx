@@ -1,11 +1,5 @@
 import { Box, Modal, useColorMode } from 'native-base';
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  useWindowDimensions,
-} from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
 import CloseGreen from 'src/assets/images/dark-close-icon.svg';
 import React from 'react';
@@ -19,7 +13,7 @@ import Fonts from 'src/constants/Fonts';
 import InfoIcon from 'src/assets/images/info_icon.svg';
 import InfoIconDark from 'src/assets/images/info-Dark-icon.svg';
 import ThemedSvg from './ThemedSvg.tsx/ThemedSvg';
-import ModalWrapper from './Modal/ModalWrapper';
+import { default as RNModal } from 'react-native-modal';
 
 type ModalProps = {
   visible: boolean;
@@ -100,7 +94,7 @@ function KeeperModal(props: ModalProps) {
 
   const styles = getStyles(subTitleWidth);
   return (
-    <ModalWrapper visible={visible} onSwipeComplete={close} position="bottom">
+    <RNModal isVisible={visible} onSwipeComplete={close} style={styles.modalContainer}>
       <Box
         backgroundColor={
           modalBackground === 'primaryBackground'
@@ -198,7 +192,7 @@ function KeeperModal(props: ModalProps) {
           )}
         </ScrollView>
       </Box>
-    </ModalWrapper>
+    </RNModal>
   );
 }
 
@@ -206,6 +200,11 @@ export default KeeperModal;
 
 const getStyles = (subTitleWidth) =>
   StyleSheet.create({
+    modalContainer: {
+      justifyContent: 'flex-end',
+      marginHorizontal: 8,
+      marginBottom: 25,
+    },
     container: {
       borderRadius: 10,
       padding: '3%',

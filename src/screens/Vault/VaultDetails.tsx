@@ -463,7 +463,6 @@ function VaultDetails({ navigation, route }: ScreenProps) {
 
   return (
     <Box style={styles.wrapper} backgroundColor={`${colorMode}.primaryBackground`}>
-      <ActivityIndicatorView visible={syncing || loadingMiniscript} showLoader />
       <WalletDetailHeader
         settingCallBack={() => {
           if (!vault.archived) {
@@ -674,6 +673,7 @@ function VaultDetails({ navigation, route }: ScreenProps) {
         onError={(err) => showToast(err, <ToastErrorIcon />)}
         onCancel={() => {}}
       />
+      <ActivityIndicatorView visible={syncing || loadingMiniscript} showLoader />
     </Box>
   );
 }
