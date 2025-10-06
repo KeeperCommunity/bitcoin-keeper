@@ -52,13 +52,20 @@ function Text(props: KeeperTextProps) {
   };
 
   const passedStyles = Array.isArray(style) ? Object.assign({}, ...style) : style;
+  const lineHeight = passedStyles?.lineHeight
+    ? passedStyles?.lineHeight
+    : fontSize
+    ? fontSize * 1.5
+    : passedStyles?.fontSize
+    ? passedStyles?.fontSize * 1.5
+    : undefined;
 
   return (
     <NativeBaseText
       allowFontScaling={false}
       {...updatedProps}
       fontStyle={italic ? 'italic' : undefined}
-      style={[{ fontSize, fontWeight: computedFontWeight }, passedStyles]}
+      style={[{ fontSize, fontWeight: computedFontWeight, lineHeight }, passedStyles]}
     >
       {children}
     </NativeBaseText>

@@ -271,6 +271,12 @@ const themeColors = {
     PRIVATE: Colors.bodyText,
     PRIVATE_LIGHT: Colors.goldenGradient,
   },
+  inputTextColor: {
+    DARK: Colors.headerWhite,
+    LIGHT: Colors.primaryGreen,
+    PRIVATE: Colors.headerWhite,
+    PRIVATE_LIGHT: Colors.goldenGradient,
+  },
 };
 
 export default themeColors;
