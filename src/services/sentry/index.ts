@@ -3,7 +3,6 @@ import { errorBourndaryOptions } from 'src/screens/ErrorHandler';
 import config from 'src/utils/service-utilities/config';
 
 let Sentry: any = null;
-let routingInstrumentation: any = null;
 let sentryConfig: any = null;
 
 export const initSentrySDK = () => {
@@ -29,11 +28,6 @@ const getSentryConfig = () => {
     tracesSampleRate: 1.0,
     dsn: config.SENTRY_DNS,
     environment: 'LOCAL',
-    integrations: [
-      new Sentry.ReactNativeTracing({
-        routingInstrumentation,
-      }),
-    ],
   };
 };
 

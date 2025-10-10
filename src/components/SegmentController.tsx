@@ -91,7 +91,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    lineHeight: 13,
     marginBottom: hp(8),
   },
   subLabel: {

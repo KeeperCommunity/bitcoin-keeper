@@ -34,7 +34,7 @@ function TorSettings() {
     globalTorStatus,
   } = useContext(TorContext);
   const { translations } = useContext(LocalizationContext);
-  const { settings, common, error: errorText } = translations;
+  const { settings, common, error: errorText, wallet } = translations;
   const dispatch = useDispatch();
   const [showTorModal, setShowTorModal] = useState(false);
   const [showOrbotTorModal, setShowOrbotTorModal] = useState(false);
@@ -87,21 +87,8 @@ function TorSettings() {
   }, [torStatus]);
 
   const handleInAppTor = () => {
-    if (inAppTor === TorStatus.OFF || inAppTor === TorStatus.ERROR) {
-      setShowTorModal(true);
-      RestClient.setUseTor(true);
-      dispatch(setTorEnabled(true));
-    } else if (inAppTor === TorStatus.CONNECTED || inAppTor === TorStatus.CONNECTING) {
-      RestClient.setUseTor(false);
-      dispatch(setTorEnabled(false));
-      setShowTorModal(false);
-    } else if (orbotTorStatus === TorStatus.CONNECTED || orbotTorStatus === TorStatus.CHECKING) {
-      showToast(errorText.switchOffOrbit);
-      setTimeout(() => {
-        openOrbotApp();
-        setTorStatus(TorStatus.CHECK_STATUS);
-      }, 3000);
-    }
+    showToast(wallet.connectionErrorDesc);
+    return;
   };
 
   const handleOrbotTor = () => {

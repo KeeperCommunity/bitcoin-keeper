@@ -53,6 +53,7 @@ const WalletHeader: React.FC<Props> = ({
     title: {
       fontSize: 18,
       fontFamily: Fonts.LoraMedium,
+      flexGrow: 1,
     },
     subTitle: {
       fontSize: 14,
@@ -88,7 +89,7 @@ const WalletHeader: React.FC<Props> = ({
             </TouchableOpacity>
           )}
           {title && (
-            <Text color={titleColor} style={styles.title} medium>
+            <Text color={titleColor} style={styles.title} medium numberOfLines={1}>
               {title}
             </Text>
           )}
