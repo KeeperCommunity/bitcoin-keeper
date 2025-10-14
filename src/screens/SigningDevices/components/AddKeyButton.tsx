@@ -8,7 +8,15 @@ import AddWhite from 'src/assets/images/add-plus-white.svg';
 import { useContext } from 'react';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 
-export function AddKeyButton({ short = false, onPress }: { short?: boolean; onPress: () => void }) {
+export function AddKeyButton({
+  short = false,
+  onPress,
+  buttonText = null,
+}: {
+  short?: boolean;
+  onPress: () => void;
+  buttonText?: string;
+}) {
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
   const { translations } = useContext(LocalizationContext);
@@ -16,7 +24,7 @@ export function AddKeyButton({ short = false, onPress }: { short?: boolean; onPr
   return (
     <TouchableOpacity onPress={onPress} style={styles.addNewBtn} testID="btn_add_new_key">
       <Text color={`${colorMode}.textGreen`} bold style={styles.addNew}>
-        {short ? vaultTranslation.addAKey : vaultTranslation.addNewKey}
+        {buttonText ? buttonText : short ? vaultTranslation.addAKey : vaultTranslation.addNewKey}
       </Text>
       {isDarkMode ? <AddWhite /> : <AddGreen />}
     </TouchableOpacity>

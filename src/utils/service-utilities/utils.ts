@@ -321,6 +321,7 @@ export const parseTextforVaultConfig = (secret: string) => {
       .map((expression) => expression.trim());
 
     const signersDetailsList = keyExpressions.map((expression) => parseKeyExpression(expression));
+
     const parsedResponse: ParsedVauleText = {
       signersDetails: signersDetailsList,
       isMultisig: false,
@@ -353,6 +354,7 @@ export const parseTextforVaultConfig = (secret: string) => {
 
     const m = parseInt(keyExpressions.splice(0, 1)[0]);
     const n = signersDetailsList.length;
+
     if (!isAllowedScheme(m, n)) {
       throw Error('Unsupported schemes');
     }
@@ -371,6 +373,7 @@ export const parseTextforVaultConfig = (secret: string) => {
   if (secret.includes('Derivation')) {
     const text = removeEmptyLines(secret);
     const lines = text.split('\n');
+
     const signersDetailsList = [];
     let scheme;
     let derivationPath;
@@ -406,6 +409,7 @@ export const parseTextforVaultConfig = (secret: string) => {
   if (secret.includes('after(')) {
     const { signers, inheritanceKeys, emergencyKeys, importedKeyUsageCounts, initialTimelock } =
       parseEnhancedVaultMiniscript(secret);
+
     const multiMatch = secret.match(/(thresh|multi)\((\d+),/);
     const m = multiMatch ? parseInt(multiMatch[2]) : 1;
 
@@ -432,36 +436,42 @@ export const parseTextforVaultConfig = (secret: string) => {
 
     // Verify the miniscript generated matches the input
     const { miniscript, keyInfoMap } = miniscriptScheme;
+
     let walletPolicyDescriptor = miniscript;
     for (const keyId in keyInfoMap) {
       walletPolicyDescriptor = walletPolicyDescriptor.replace(`(${keyId}`, `(${keyInfoMap[keyId]}`);
       walletPolicyDescriptor = walletPolicyDescriptor.replace(`,${keyId}`, `,${keyInfoMap[keyId]}`);
     }
     const desc = `wsh(${walletPolicyDescriptor})`;
+
+    let cleanSecret = secret;
     if (secret.includes('#')) {
-      secret = secret.replace(/#.*$/, '');
+      cleanSecret = secret.replace(/#.*$/, '');
     }
-    if (desc !== secret) {
+
+    if (desc !== cleanSecret) {
       throw Error('Unsupported Miniscript configuration detected!');
     }
 
+    const allSigners = [
+      ...signers,
+      ...inheritanceKeys.map((ik) => ik.signer),
+      ...emergencyKeys
+        .filter(
+          (ek) => !signers.map((s) => s.masterFingerprint).includes(ek.signer.masterFingerprint)
+        )
+        .map((ek) => ek.signer),
+    ]
+      .filter(Boolean)
+      .map((key) => ({
+        xpub: key.xpub,
+        masterFingerprint: key.masterFingerprint,
+        path: key.derivationPath,
+        isMultisig: true,
+      }));
+
     const parsedResponse: ParsedVauleText = {
-      signersDetails: [
-        ...signers,
-        ...inheritanceKeys.map((ik) => ik.signer),
-        ...emergencyKeys
-          .filter(
-            (ek) => !signers.map((s) => s.masterFingerprint).includes(ek.signer.masterFingerprint)
-          )
-          .map((ek) => ek.signer),
-      ]
-        .filter(Boolean)
-        .map((key) => ({
-          xpub: key.xpub,
-          masterFingerprint: key.masterFingerprint,
-          path: key.derivationPath,
-          isMultisig: true,
-        })),
+      signersDetails: allSigners,
       isMultisig: true,
       scheme: {
         m,
@@ -486,7 +496,9 @@ function extractStagesWithAfter(script: string): { stage: string; afterValue: nu
   }));
 
   // Sort stages by afterValue in ascending order
-  return stages.sort((a, b) => a.afterValue - b.afterValue);
+  const sortedStages = stages.sort((a, b) => a.afterValue - b.afterValue);
+
+  return sortedStages;
 }
 
 function categorizeKeys(
@@ -496,32 +508,41 @@ function categorizeKeys(
   isOnlyInheritanceKeys: boolean
 ) {
   const keyRegex = /\[([A-F0-9]{8})[^\]]*\]/g;
-  const emergencyPattern = /v:pkh\(\[([A-F0-9]{8})[^\]]*\]/g;
+  // Fix emergency pattern to match v:pkh(...), or_c(pkh(...)), ,pk_h(...), and pk_h(...) patterns
+  const emergencyPattern = /(?:v:pkh?|or_c\(pkh?|,pk_h?|pk_h?)\(\[([A-F0-9]{8})[^\]]*\]/g;
 
   let inheritanceKeys: { signer: VaultSigner; timelock: number }[] = [];
   let emergencyKeys: { signer: VaultSigner; timelock: number }[] = [];
 
   const processedInheritanceKeys = new Set<string>();
+  const processedEmergencyKeys = new Set<string>();
 
   stages.forEach(({ stage, afterValue }) => {
     const stageKeys = [...stage.matchAll(keyRegex)].map((match) => match[1]);
-    const emergencyKeysInStage = [...stage.matchAll(emergencyPattern)].map((match) => match[1]);
+
+    // Test emergency pattern matching
+    const emergencyMatches = [...stage.matchAll(emergencyPattern)];
+
+    // Deduplicate emergency keys within this stage
+    const emergencyKeysInStage = [...new Set(emergencyMatches.map((match) => match[1]))];
 
     stageKeys.forEach((fingerprint) => {
       const isEmergency = emergencyKeysInStage.includes(fingerprint);
       const isRegular = regularKeysFingerprints.some((fp) => fp === fingerprint);
       const isAlreadyProcessed = processedInheritanceKeys.has(fingerprint);
+      const isEmergencyAlreadyProcessed = processedEmergencyKeys.has(fingerprint);
 
-      if (isEmergency) {
+      if (isEmergency && !isEmergencyAlreadyProcessed) {
         const signer = uniqueKeys.find((key) => key.masterFingerprint === fingerprint);
         if (signer) {
           if (isOnlyInheritanceKeys) {
             inheritanceKeys.push({ signer, timelock: afterValue });
           } else {
             emergencyKeys.push({ signer, timelock: afterValue });
+            processedEmergencyKeys.add(fingerprint);
           }
         }
-      } else if (!isRegular && !isAlreadyProcessed) {
+      } else if (!isRegular && !isAlreadyProcessed && !isEmergency) {
         const signer = uniqueKeys.find((key) => key.masterFingerprint === fingerprint);
         if (signer) {
           inheritanceKeys.push({ signer, timelock: afterValue });
@@ -543,6 +564,7 @@ function parseEnhancedVaultMiniscript(miniscript: string): {
 } {
   // Remove wsh() wrapper and checksum
   const innerScript = miniscript.replace('wsh(', '').replace(/\)#.*$/, '');
+
   const { bitcoinNetworkType } = store.getState().settings;
 
   // Extract all key expressions with derivation path and path restrictions
@@ -577,6 +599,7 @@ function parseEnhancedVaultMiniscript(miniscript: string): {
   );
 
   const stages = extractStagesWithAfter(innerScript);
+
   // Extract all key expressions from the entire innerScript
   const allKeyMatches = [...innerScript.matchAll(keyRegex)];
 
@@ -628,7 +651,6 @@ function parseEnhancedVaultMiniscript(miniscript: string): {
   );
 
   // Derive importedKeyUsageCounts from occurrences
-
   const importedKeyUsageCounts: Record<string, number> = {};
   keyOccurrences.forEach((occurrence) => {
     const match = occurrence.pathRestriction.match(/<(\d+);/);
@@ -657,19 +679,23 @@ function parseEnhancedVaultMiniscript(miniscript: string): {
     }
   });
 
-  return {
-    signers: uniqueKeys
-      .filter((key) => regularFingerprints.includes(key.masterFingerprint))
-      .sort(
-        (a, b) =>
-          regularFingerprints.indexOf(a.masterFingerprint) -
-          regularFingerprints.indexOf(b.masterFingerprint)
-      ),
+  const finalSigners = uniqueKeys
+    .filter((key) => regularFingerprints.includes(key.masterFingerprint))
+    .sort(
+      (a, b) =>
+        regularFingerprints.indexOf(a.masterFingerprint) -
+        regularFingerprints.indexOf(b.masterFingerprint)
+    );
+
+  const result = {
+    signers: finalSigners,
     inheritanceKeys,
     emergencyKeys,
     importedKeyUsageCounts,
     initialTimelock,
   };
+
+  return result;
 }
 
 export const urlParamsToObj = (url: string): any => {

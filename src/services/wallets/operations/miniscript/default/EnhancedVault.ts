@@ -195,8 +195,9 @@ export function generateEnhancedVaultElements(
         ];
 
   // Create phases for each unique timelock
-  const timelockPhases: Phase[] = Object.entries(signersByTimelock).map(
-    ([timelock, signers], phaseIndex) => {
+  const timelockPhases: Phase[] = Object.entries(signersByTimelock)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([timelock, signers], phaseIndex) => {
       // Separate inheritance and emergency signers
       const inheritanceSigners = signers.filter((s) =>
         s.keyInfo.identifier.startsWith(INHERITANCE_KEY_IDENTIFIER)
@@ -233,7 +234,9 @@ export function generateEnhancedVaultElements(
                 id: 1,
                 threshold: currentThreshold,
                 keys:
-                  currentThreshold === 1 ? inheritanceSigners.map((s) => s.keyInfo) : currentQuorum,
+                  currentThreshold === 1
+                    ? inheritanceSigners.map((s) => s.keyInfo)
+                    : [...currentQuorum],
               },
             ]
           : []),
@@ -252,8 +255,7 @@ export function generateEnhancedVaultElements(
         requiredPaths: 1,
         probability: probabilities[phaseIndex + 1],
       };
-    }
-  );
+    });
 
   const phases: Phase[] = [
     {

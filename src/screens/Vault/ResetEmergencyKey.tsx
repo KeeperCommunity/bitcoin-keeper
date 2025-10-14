@@ -1,4 +1,4 @@
-import { Box, useColorMode } from 'native-base';
+import { Box, ScrollView, useColorMode } from 'native-base';
 import React, { useContext, useState, useEffect } from 'react';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import { StyleSheet } from 'react-native';
@@ -11,10 +11,7 @@ import useSignerMap from 'src/hooks/useSignerMap';
 import { Signer, Vault } from 'src/services/wallets/interfaces/vault';
 import useToastMessage, { IToastCategory } from 'src/hooks/useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import { useDispatch } from 'react-redux';
 import WalletUtilities from 'src/services/wallets/operations/utils';
-import useVault from 'src/hooks/useVault';
-import { useAppSelector } from 'src/store/hooks';
 import { getKeyUID } from 'src/utils/utilities';
 import OptionPicker from 'src/components/OptionPicker';
 import { getSignerDescription } from 'src/hardware';
@@ -29,6 +26,7 @@ import {
 } from 'src/services/wallets/operations/miniscript/default/EnhancedVault';
 import WalletHeader from 'src/components/WalletHeader';
 import { isVaultUsingBlockHeightTimelock } from 'src/services/wallets/factories/VaultFactory';
+import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 
 function ResetEmergencyKey({ route }) {
   const {
@@ -37,7 +35,6 @@ function ResetEmergencyKey({ route }) {
     vault,
   }: { inheritanceKeys; initialTimelockDuration; vault: Vault } = route.params;
   const { colorMode } = useColorMode();
-  const navigation = useNavigation();
   const { signerMap } = useSignerMap();
   const { translations } = useContext(LocalizationContext);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, any>>({});
@@ -48,18 +45,12 @@ function ResetEmergencyKey({ route }) {
   const { vault: vaultText, error: errorTranslation } = translations;
   const { showToast } = useToastMessage();
   const [generatedVaultId, setGeneratedVaultId] = useState('');
-  const { allVaults } = useVault({ includeArchived: false });
-  const newVault = allVaults.filter((v) => v.id === generatedVaultId)[0];
   const [vaultCreating, setCreating] = useState(false);
   const [currentBlockHeight, setCurrentBlockHeight] = useState(null);
   const [currentMedianTimePast, setCurrentMedianTimePast] = useState(null);
   const [activationTimes, setActivationTimes] = useState<Record<string, string>>({});
-
-  const { relayVaultUpdate, relayVaultError, realyVaultErrorMessage } = useAppSelector(
-    (state) => state.bhr
-  );
-
-  const dispatch = useDispatch();
+  const box_background = ThemedColor({ name: 'msg_preview_background' });
+  const box_border = ThemedColor({ name: 'msg_preview_border' });
 
   const handleResetEmergencyKey = async () => {
     const hasAllSelections = emergencySigners
@@ -199,37 +190,44 @@ function ResetEmergencyKey({ route }) {
         subTitle={vaultText.resetEKDesc + (emergencySigners.length > 1 ? 's' : '')}
       />
       <Box style={styles.container}>
-        {signers.map((signer) => (
-          <Box key={getKeyUID(signer)} style={styles.contentContainer}>
-            <IKSInfocard
-              name={signer?.signerName}
-              description={getSignerDescription(signer)}
-              Icon={SDIcons({ type: signer?.type })?.Icon}
-              duration={activationTimes[getKeyUID(signer)]}
-            />
-            <Box style={styles.dropdownContainer}>
-              <Box>
-                <Text color={`${colorMode}.primaryText`} fontSize={15}>
-                  {vaultText.chooseNewActivationTimeTitle}
-                </Text>
-                <Text color={`${colorMode}.secondaryText`} fontSize={12}>
-                  {vaultText.chooseNewActivationTimeDesc}
-                </Text>
-              </Box>
-              <OptionPicker
-                label={vaultText.selectActivationTime}
-                options={EMERGENCY_TIMELOCK_DURATIONS}
-                selectedOption={selectedOptions[getKeyUID(signer)]}
-                onOptionSelect={(option) =>
-                  setSelectedOptions((prev) => ({
-                    ...prev,
-                    [getKeyUID(signer)]: option,
-                  }))
-                }
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {signers.map((signer) => (
+            <Box
+              key={getKeyUID(signer)}
+              style={styles.contentContainer}
+              backgroundColor={box_background}
+              borderColor={box_border}
+            >
+              <IKSInfocard
+                name={signer?.signerName}
+                description={getSignerDescription(signer)}
+                Icon={SDIcons({ type: signer?.type })?.Icon}
+                duration={activationTimes[getKeyUID(signer)]}
               />
+              <Box style={styles.dropdownContainer}>
+                <Box>
+                  <Text color={`${colorMode}.primaryText`} fontSize={15}>
+                    {vaultText.chooseNewActivationTimeTitle}
+                  </Text>
+                  <Text color={`${colorMode}.secondaryText`} fontSize={12}>
+                    {vaultText.chooseNewActivationTimeDesc}
+                  </Text>
+                </Box>
+                <OptionPicker
+                  label={vaultText.selectActivationTime}
+                  options={EMERGENCY_TIMELOCK_DURATIONS}
+                  selectedOption={selectedOptions[getKeyUID(signer)]}
+                  onOptionSelect={(option) =>
+                    setSelectedOptions((prev) => ({
+                      ...prev,
+                      [getKeyUID(signer)]: option,
+                    }))
+                  }
+                />
+              </Box>
             </Box>
-          </Box>
-        ))}
+          ))}
+        </ScrollView>
         <Box>
           <Buttons
             primaryLoading={vaultCreating}
@@ -270,12 +268,17 @@ export default ResetEmergencyKey;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: hp(40),
+    marginTop: hp(20),
     paddingHorizontal: wp(10),
+    marginBottom: hp(20),
   },
   contentContainer: {
     flex: 1,
-    gap: hp(30),
+    gap: hp(15),
+    marginBottom: hp(30),
+    padding: hp(16),
+    borderWidth: 1,
+    borderRadius: 10,
   },
   dropdownContainer: {
     gap: hp(15),

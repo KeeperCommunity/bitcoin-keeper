@@ -88,7 +88,9 @@ const onSignerSelect = (
   setHotWalletSelected,
   setHotWalletInstanceNum,
   vaultType,
-  showToast
+  showToast,
+  isReserveKeyFlow,
+  isEmergencyKeyFlow
 ) => {
   const amfXpub: signerXpubs[XpubTypes][0] = signer.signerXpubs[XpubTypes.AMF][0];
   const ssXpub: signerXpubs[XpubTypes][0] = signer.signerXpubs[XpubTypes.P2WPKH][0];
@@ -120,7 +122,9 @@ const onSignerSelect = (
     }
   } else {
     const maxKeys =
-      scheme?.miniscriptScheme?.usedMiniscriptTypes?.length > 0
+      isReserveKeyFlow || isEmergencyKeyFlow
+        ? 1
+        : scheme?.miniscriptScheme?.usedMiniscriptTypes?.length > 0
         ? Object.keys(scheme?.miniscriptScheme?.keyInfoMap || {}).length
         : scheme.n;
 
@@ -298,10 +302,10 @@ const handleSignerSelect = (
     setHotWalletSelected,
     setHotWalletInstanceNum,
     showToast,
+    isReserveKeyFlow,
+    isEmergencyKeyFlow,
   }
 ) => {
-  console.log('disabledMessage');
-  console.log(disabledMessage);
   if (disabledMessage) {
     setModalContent({
       name: getSignerNameFromType(signer.type),
@@ -340,7 +344,9 @@ const handleSignerSelect = (
     setHotWalletSelected,
     setHotWalletInstanceNum,
     vaultType,
-    showToast
+    showToast,
+    isReserveKeyFlow,
+    isEmergencyKeyFlow
   );
 };
 
@@ -779,6 +785,8 @@ function Signers({
                   setHotWalletSelected,
                   setHotWalletInstanceNum,
                   showToast,
+                  isReserveKeyFlow,
+                  isEmergencyKeyFlow,
                 }
               );
             }}
@@ -833,7 +841,9 @@ function Signers({
             setHotWalletSelected,
             setHotWalletInstanceNum,
             vaultType,
-            showToast
+            showToast,
+            isReserveKeyFlow,
+            isEmergencyKeyFlow
           );
         };
 
@@ -932,6 +942,8 @@ function Signers({
                   setHotWalletSelected,
                   setHotWalletInstanceNum,
                   showToast,
+                  isReserveKeyFlow,
+                  isEmergencyKeyFlow,
                 }
               );
             }}
@@ -964,8 +976,13 @@ function Signers({
       SignerType.MY_KEEPER
     );
 
+    const selectedFingerprintsSet = new Set(
+      selectedSignersFromParams.map((signer) => signer.masterFingerprint)
+    );
+
     const signerCards = signers
       .filter((signer) => !signer.archived)
+      .filter((signer) => !selectedFingerprintsSet.has(signer.masterFingerprint)) // Avoid selected signers from params
       .filter((signer) => signer.type !== SignerType.POLICY_SERVER) // Policy/Signing server cannot be used as an Emergency Key
       .map((signer) => {
         const disabledMessage = getDisabledMessage(
@@ -1010,6 +1027,8 @@ function Signers({
                   setHotWalletSelected,
                   setHotWalletInstanceNum,
                   showToast,
+                  isReserveKeyFlow,
+                  isEmergencyKeyFlow,
                 }
               );
             }}

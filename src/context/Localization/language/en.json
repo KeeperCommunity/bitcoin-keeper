@@ -177,7 +177,8 @@
     "lessInfo": "Less Info",
     "Buy": "Buy",
     "update": "Update",
-    "swapBtc": "Swap BTC"
+    "swapBtc": "Swap BTC",
+    "removeKey": "Remove Key"
   },
   "login": {
     "welcomeback": "Welcome Back",
@@ -709,7 +710,9 @@
     "keyUsedForVault": "Key is being used for Vault",
     "keysTryingToHide": "The Key you are trying to hide is used in one of the visible vaults.",
     "toHideKey": "To hide the key",
-    "toviewMobileKey": "To view Mobile Key seed words"
+    "toviewMobileKey": "To view Mobile Key seed words",
+    "AddAnotherInheritanceKey": "Add Another Inheritance Key",
+    "AddAnotherEmergencyKey": "Add Another Emergency Key"
   },
   "seed": {
     "EnterSeed": "Enter Seeds",
@@ -1970,6 +1973,8 @@
     "passwordError": "Please enter a valid password",
     "confirmPasswordError": "Confirm password is required",
     "passwordMatchError": "Password does not match",
+    "maximumInheritanceKeysReached": "You cannot add more than 5 inheritance keys",
+    "maximumEmergencyKeysReached": "You cannot add more than 5 emergency keys",
     "psbtNotMatch": "This PSBT does not match the current transaction",
     "psbtMissingSignature": "This PSBT does not include a signature for the selected signer"
   },
