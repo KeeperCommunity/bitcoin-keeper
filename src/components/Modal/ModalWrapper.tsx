@@ -1,5 +1,5 @@
 import React from 'react';
-import Modal from 'react-native-modal';
+import { Modal, View } from 'react-native';
 
 export interface Props {
   visible: boolean;
@@ -10,18 +10,21 @@ export interface Props {
 function ModalWrapper(props: Props) {
   return (
     <Modal
-      isVisible={props.visible}
-      onSwipeComplete={() => props.onSwipeComplete}
-      onDismiss={() => props.onSwipeComplete}
-      onBackButtonPress={() => props.onSwipeComplete}
-      onBackdropPress={() => props.onSwipeComplete}
-      style={{
-        justifyContent: props.position === 'center' ? 'center' : 'flex-end',
-        marginHorizontal: 15,
-        marginBottom: 25,
-      }}
+      visible={props.visible}
+      onRequestClose={() => props.onSwipeComplete}
+      transparent={true}
     >
-      {props.children}
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+          backgroundColor: '#00000043',
+        }}
+      >
+        {props.children}
+      </View>
     </Modal>
   );
 }
