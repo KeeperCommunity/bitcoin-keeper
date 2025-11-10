@@ -100,7 +100,7 @@ const SubscriptionList: React.FC<{
             <Text color={`${colorMode}.greenWhiteText`} style={styles.price}>
               {planDetails}{' '}
               {!isPleb && matchedPlan?.monthlyPlanDetails?.price && (
-                <Text fontSize={12} color={`${colorMode}.greenWhiteText`}>
+                <Text color={`${colorMode}.greenWhiteText`} style={styles.planPeriod}>
                   {isMonthly ? 'month' : 'yearly'}
                 </Text>
               )}
@@ -290,6 +290,11 @@ const styles = StyleSheet.create({
     paddingTop: hp(10),
     fontSize: 22,
     fontWeight: '700',
+    lineHeight: 22 * 1.6,
+  },
+  planPeriod: {
+    fontSize: 12,
+    lineHeight: 12 * 1.6,
   },
   btmCTR: {
     marginTop: 15,
