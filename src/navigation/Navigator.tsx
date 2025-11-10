@@ -60,6 +60,7 @@ import WalletDetailsSettings from 'src/screens/WalletDetails/WalletDetailsSettin
 import GenerateVaultDescriptor from 'src/screens/Vault/GenerateVaultDescriptor';
 import { AppContext } from 'src/context/AppContext';
 import SetupTapsigner from 'src/screens/SigningDevices/SetupTapsigner';
+import SetupSatochip from 'src/screens/SigningDevices/SetupSatochip';
 import SetupSeedWordSigner from 'src/screens/SigningDevices/SetupSeedWordSigner';
 import SetupOtherSDScreen from 'src/screens/SigningDevices/SetupOtherSDScreen';
 import SetupCollaborativeWallet from 'src/screens/SigningDevices/SetupCollaborativeWallet';
@@ -191,6 +192,8 @@ function LoginStack() {
       <Stack.Screen name="AddColdCardRecovery" component={SetupColdCard} />
       {/* Tap Signer  */}
       <Stack.Screen name="AddTapsignerRecovery" component={SetupTapsigner} />
+      {/* Satochip */}
+      <Stack.Screen name="AddSatochipRecovery" component={SetupSatochip} />
       {/* QR Based SDs */}
       <Stack.Screen options={{ gestureEnabled: false }} name="ScanQR" component={ScanQR} />
       {/* Channel Based SDs */}
@@ -215,6 +218,7 @@ function AppStack() {
         <Stack.Screen name="SignerCategoryList" component={SignerCategoryList} />
         <Stack.Screen name="SigningDeviceList" component={SigningDeviceList} />
         <Stack.Screen name="TapsignerAction" component={SetupTapsigner} />
+        <Stack.Screen name="SatochipAction" component={SetupSatochip} />
         <Stack.Screen name="SetupPortal" component={SetupPortal} />
         <Stack.Screen name="AddColdCard" component={SetupColdCard} />
         <Stack.Screen name="PassportConfigRecovery" component={PassportConfigRecovery} />

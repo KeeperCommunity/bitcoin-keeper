@@ -38,6 +38,9 @@ import SERVERLIGHT from 'src/assets/images/server_light.svg';
 import TAPSIGNERICON from 'src/assets/images/tapsigner_icon.svg';
 import TAPSIGNERICONLIGHT from 'src/assets/images/tapsigner_light.svg';
 import TAPSIGNERLOGO from 'src/assets/images/tapsigner_logo.svg';
+import SATOCHIPICON from 'src/assets/images/satochip_icon.svg';
+import SATOCHIPICONLIGHT from 'src/assets/images/satochip_light.svg';
+import SATOCHIPLOGO from 'src/assets/images/satochip_logo.svg';
 import TREZORICON from 'src/assets/images/trezor_icon.svg';
 import TREZORICONLIGHT from 'src/assets/images/trezor_light.svg';
 import TREZORLOGO from 'src/assets/images/trezor_logo.svg';
@@ -64,6 +67,8 @@ import SPECTERGREENLIGHT from 'src/assets/images/specter-green-light.svg';
 import SPECTERGREENDARK from 'src/assets/images/specter-green-dark.svg';
 import TAPSIGNERGREENLIGHT from 'src/assets/images/tapsigner-green-light.svg';
 import TAPSIGNERGREENDARK from 'src/assets/images/tapsigner-green-dark.svg';
+import SATOCHIPGREENLIGHT from 'src/assets/images/satochip-green-light.svg';
+import SATOCHIPGREENDARK from 'src/assets/images/satochip-green-dark.svg';
 import SERVERGREENLIGHT from 'src/assets/images/server-green-light.svg';
 import SERVERGREENDARK from 'src/assets/images/server-green-dark.svg';
 import MOBILEKEYGREENLIGHT from 'src/assets/images/mobile-key-green-light.svg';
@@ -179,8 +184,13 @@ export const SDIcons = ({ type, light = true, width = 20, height = 20 }: SDIconO
     case SignerType.TAPSIGNER:
       return {
         Icon: getColouredIcon(<TAPSIGNERICONLIGHT />, <TAPSIGNERICON />, light, width, height),
-
         Logo: <TAPSIGNERLOGO />,
+        type: SignerStorage.COLD,
+      };
+    case SignerType.SATOCHIP:
+      return {
+        Icon: getColouredIcon(<SATOCHIPICONLIGHT />, <SATOCHIPICON />, light, width, height),
+        Logo: <SATOCHIPLOGO />,
         type: SignerStorage.COLD,
       };
     case SignerType.TREZOR:
@@ -327,6 +337,17 @@ export const SDColoredIcons = (type: SignerType, light = true, width = 20, heigh
         Icon: getColouredIcon(
           <TAPSIGNERGREENLIGHT />,
           <TAPSIGNERGREENDARK />,
+          light,
+          width,
+          height
+        ),
+        type: SignerStorage.COLD,
+      };
+    case SignerType.SATOCHIP:
+      return {
+        Icon: getColouredIcon(
+          <SATOCHIPGREENLIGHT />,
+          <SATOCHIPGREENDARK />,
           light,
           width,
           height

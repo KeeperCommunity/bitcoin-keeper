@@ -23,6 +23,7 @@ const SignerContent = ({ navigation, handleModalClose }) => {
       isTrue: false,
     },
     { type: SignerType.TAPSIGNER, background: 'pantoneGreen', isTrue: true },
+    { type: SignerType.SATOCHIP, background: 'pantoneGreen', isTrue: true },
     { type: SignerType.JADE, background: 'brownBackground', isTrue: true },
     {
       type: SignerType.PASSPORT,

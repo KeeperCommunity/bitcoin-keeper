@@ -55,6 +55,7 @@ function SignerCategoryList() {
   const hardwareSigners = [
     { type: SignerType.COLDCARD, background: 'headerWhite', isTrue: false },
     { type: SignerType.TAPSIGNER, background: 'pantoneGreen', isTrue: true },
+    { type: SignerType.SATOCHIP, background: 'pantoneGreen', isTrue: true },
     { type: SignerType.JADE, background: 'brownBackground', isTrue: true },
     { type: SignerType.PASSPORT, background: 'headerWhite', isTrue: false },
     { type: SignerType.SPECTER, background: 'pantoneGreen', isTrue: false },

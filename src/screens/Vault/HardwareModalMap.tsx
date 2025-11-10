@@ -141,6 +141,7 @@ const getSignerContent = (
 ) => {
   const {
     tapsigner,
+    satochip,
     coldcard,
     ledger,
     bitbox,
@@ -582,6 +583,15 @@ const getSignerContent = (
         Instructions: [signerText.tapsignerInstruction3, signerText.tapsignerInstruction4],
         title: isHealthcheck ? signerText.VerifyTapsigner : tapsigner.SetupTitle,
         subTitle: tapsigner.SetupDescription,
+        options: [],
+      };
+    case SignerType.SATOCHIP:
+      return {
+        type: SignerType.SATOCHIP,
+        Illustration: <ThemedSvg name={'satochip_illustration'} />,
+        Instructions: [signerText.satochipInstruction3, signerText.satochipInstruction4],
+        title: isHealthcheck ? signerText.VerifySatochip : satochip.SetupTitle,
+        subTitle: satochip.SetupDescription,
         options: [],
       };
     case SignerType.PORTAL:
@@ -1062,6 +1072,31 @@ function HardwareModalMap({
     navigation.dispatch(
       CommonActions.navigate({
         name: 'TapsignerAction',
+        params: {
+          mode,
+          signer,
+          isMultisig,
+          accountNumber,
+          addSignerFlow,
+          Illustration,
+          Instructions,
+        },
+      })
+    );
+  };
+
+  const navigateToSatochipSetup = () => {
+    if (mode === InteracationMode.RECOVERY) {
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'AddSatochipRecovery',
+          params: { mode, signer, isMultisig, accountNumber: getAccountFromSigner(signer) },
+        })
+      );
+    }
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'SatochipAction',
         params: {
           mode,
           signer,
@@ -2075,6 +2110,8 @@ function HardwareModalMap({
     switch (type) {
       case SignerType.TAPSIGNER:
         return navigateToTapsignerSetup();
+      case SignerType.SATOCHIP:
+        return navigateToSatochipSetup();
       case SignerType.COLDCARD:
         if (keyGenerationMode === KeyGenerationMode.FILE) {
           return navigateToFileBasedSigner(type);

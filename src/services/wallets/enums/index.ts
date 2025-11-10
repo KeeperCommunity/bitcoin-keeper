@@ -90,6 +90,7 @@ export enum MiniscriptTypes {
 
 export enum SignerType {
   TAPSIGNER = 'TAPSIGNER',
+  SATOCHIP = 'SATOCHIP',
   KEEPER = 'KEEPER',
   MY_KEEPER = 'MY_KEEPER',
   TREZOR = 'TREZOR',

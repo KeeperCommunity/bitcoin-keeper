@@ -870,7 +870,7 @@ export const manipulateBitcoinPrices = (data) => {
 
 export const validatePSBT = (unsigned, signed, signer, errorText) => {
   if (
-    [SignerType.TAPSIGNER, SignerType.SPECTER, SignerType.SEEDSIGNER, SignerType.KRUX].includes(
+    [SignerType.TAPSIGNER, SignerType.SATOCHIP, SignerType.SPECTER, SignerType.SEEDSIGNER, SignerType.KRUX].includes(
       signer.type
     )
   )

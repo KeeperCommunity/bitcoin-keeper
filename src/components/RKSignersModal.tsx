@@ -6,11 +6,14 @@ import { CommonActions, useNavigation } from '@react-navigation/native';
 import {
   signTransactionWithColdCard,
   signTransactionWithPortal,
+  signTransactionWithSatochip,
   signTransactionWithSeedWords,
   signTransactionWithTapsigner,
 } from '../screens/SignTransaction/signWithSD';
 import useTapsignerModal from 'src/hooks/useTapsignerModal';
+import useSatochipModal from 'src/hooks/useSatochipModal';
 import { CKTapCard } from 'cktap-protocol-react-native';
+import { SatochipCard } from 'satochip-react-native';
 import useNfcModal from 'src/hooks/useNfcModal';
 import NfcPrompt from 'src/components/NfcPromptAndroid';
 import KeeperModal from 'src/components/KeeperModal';
@@ -65,6 +68,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   const [jadeModal, setJadeModal] = useState(false);
   const [specterModal, setSpecterModal] = useState(false);
   const [tapsignerModal, setTapsignerModal] = useState(false);
+  const [satochipModal, setSatochipModal] = useState(false);
   const [confirmPassVisible, setConfirmPassVisible] = useState(false);
   const [portalModal, setPortalModal] = useState(false);
   const [kruxModal, setKruxModal] = useState(false);
@@ -74,6 +78,8 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   const card = useRef(new CKTapCard()).current;
   const { withModal, nfcVisible: TSNfcVisible } = useTapsignerModal(card);
   const { withNfcModal, nfcVisible, closeNfc } = useNfcModal();
+  const satoCard = useRef(new SatochipCard()).current;
+  const { nfcVisible: satochipNfcVisible, withModal: satochipWithModal } = useSatochipModal(satoCard);
   const dispatch = useDispatch();
   const { showToast } = useToastMessage();
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
@@ -126,6 +132,9 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         break;
       case SignerType.TAPSIGNER:
         setTapsignerModal(true);
+        break;
+      case SignerType.SATOCHIP:
+        setSatochipModal(true);
         break;
       case SignerType.MY_KEEPER:
         setConfirmPassVisible(true);
@@ -287,6 +296,53 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
           ])
         );
         return signedPSBT;
+      } else if (SignerType.SATOCHIP === signerType) {
+
+        const currentKey = {
+            derivationPath: signer.signerXpubs[XpubTypes.P2WSH][0].derivationPath,
+        };
+        const inputs = getInputsFromPSBT(serializedPSBTEnvelop.serializedPSBT);
+        const inputsToSign = getInputsToSignFromPSBT(serializedPSBTEnvelop.serializedPSBT, signer);
+        const signingPayload = [
+            {
+                payloadTarget: signer.type,
+                inputsToSign,
+                inputs,
+            },
+        ];
+
+        const { signingPayload: signedPayload } = await signTransactionWithSatochip({
+            setSatochipModal,
+            signingPayload,
+            currentKey,
+            withModal: satochipWithModal,
+            defaultVault: {},
+            serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
+            card: satoCard,
+            pin: tapsignerCVC, // todo: use dedicated satochip PIN?
+            signer,
+        });
+        const psbt = bitcoin.Psbt.fromBase64(serializedPSBTEnvelop.serializedPSBT);
+        signedPayload[0].inputsToSign.forEach(
+            ({ inputIndex, signature, publicKey, sighashType }) => {
+                psbt.addSignedDigest(
+                    inputIndex,
+                    Buffer.from(publicKey, 'hex'),
+                    Buffer.from(signature, 'hex'),
+                    sighashType
+                );
+            }
+        );
+        const signedPSBT = psbt.toBase64();
+        dispatch(
+            healthCheckStatusUpdate([
+                {
+                    signerId: signer.masterFingerprint,
+                    status: hcStatusType.HEALTH_CHECK_SIGNING,
+                },
+            ])
+        );
+        return signedPSBT;
       } else if (SignerType.PORTAL === signerType) {
         const { signedSerializedPSBT } = await signTransactionWithPortal({
           setPortalModal,
@@ -376,7 +432,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   };
   return (
     <>
-      <NfcPrompt visible={nfcVisible || TSNfcVisible} close={closeNfc} />
+      <NfcPrompt visible={nfcVisible || TSNfcVisible || satochipNfcVisible} close={closeNfc} />
       {/* For MK  */}
       <KeeperModal
         visible={confirmPassVisible}
@@ -469,6 +525,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         activeXfp={vaultKeys.masterFingerprint}
         coldCardModal={coldCardModal}
         tapsignerModal={tapsignerModal}
+        satochipModal={satochipModal}
         ledgerModal={ledgerModal}
         otpModal={false}
         passwordModal={false}
@@ -496,6 +553,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         setLedgerModal={setLedgerModal}
         setPasswordModal={() => {}}
         setTapsignerModal={setTapsignerModal}
+        setSatochipModal={setSatochipModal}
         showOTPModal={() => {}}
         setPortalModal={setPortalModal}
         setKruxModal={setKruxModal}

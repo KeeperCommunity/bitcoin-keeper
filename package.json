@@ -50,6 +50,7 @@
     "buffer": "6.0.3",
     "buffer-reverse": "1.0.1",
     "cktap-protocol-react-native": "git+https://github.com/bithyve/cktap-protocol-react-native.git#7be02d23550e88a5a0b5790138734d34c688ef5d",
+    "satochip-react-native": "git+https://github.com/Toporin/satochip-react-native.git#main",
     "coinselect": "3.1.13",
     "compressing": "1.10.1",
     "constants": "0.0.2",
