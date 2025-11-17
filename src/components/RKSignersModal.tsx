@@ -5,6 +5,7 @@ import { ScriptTypes, SignerType, XpubTypes } from 'src/services/wallets/enums';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import {
   signTransactionWithColdCard,
+  signTransactionWithMobileKey,
   signTransactionWithPortal,
   signTransactionWithSeedWords,
   signTransactionWithTapsigner,
@@ -70,6 +71,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   const [kruxModal, setKruxModal] = useState(false);
   const [openOptionModal, setOpenOptionModal] = useState(false);
   const [details, setDetails] = useState(null);
+  const [passwordModal, setPasswordModal] = useState(false);
 
   const card = useRef(new CKTapCard()).current;
   const { withModal, nfcVisible: TSNfcVisible } = useTapsignerModal(card);
@@ -95,7 +97,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
     };
   });
 
-  const selectWalletModal = () => {
+  const selectWalletModal = async () => {
     switch (signerType) {
       case SignerType.COLDCARD:
         setColdCardModal(true);
@@ -141,17 +143,21 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
       case SignerType.KRUX:
         setKruxModal(true);
         break;
-      case SignerType.SEED_WORDS:
-        navigation.dispatch(
-          CommonActions.navigate({
-            name: 'EnterSeedScreen',
-            params: {
-              parentScreen: SIGNTRANSACTION,
-              xfp: vaultKeys.xfp,
-              onSuccess: signTransaction,
-            },
-          })
-        );
+      case SignerType.SEED_WORDS: {
+        if (vaultKeys.xpriv) setConfirmPassVisible(true);
+        else
+          navigation.dispatch(
+            CommonActions.navigate({
+              name: 'EnterSeedScreen',
+              params: {
+                parentScreen: SIGNTRANSACTION,
+                xfp: vaultKeys.xfp,
+                onSuccess: signTransaction,
+              },
+            })
+          );
+      }
+
       default:
         break;
     }
@@ -198,15 +204,41 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   }) => {
     try {
       if (SignerType.SEED_WORDS === signerType) {
-        const { signedSerializedPSBT } = await signTransactionWithSeedWords({
-          isRemoteKey: true,
-          signingPayload: {},
-          defaultVault: { signers: [signer], networkType: bitcoinNetworkType }, // replicating vault details in case of RK
-          seedBasedSingerMnemonic,
-          serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
-          xfp: {},
-          isMultisig: isMultisig,
-        });
+        const signSeedKeyWithPin = async () => {
+          const inputs = getInputsFromPSBT(serializedPSBTEnvelop.serializedPSBT);
+          const inputsToSign = getInputsToSignFromPSBT(
+            serializedPSBTEnvelop.serializedPSBT,
+            signer
+          );
+          const signingPayload = [
+            {
+              payloadTarget: signerType,
+              inputsToSign,
+              inputs,
+            },
+          ];
+          const signed = await signTransactionWithMobileKey({
+            isRemoteKey: true,
+            setPasswordModal,
+            signingPayload: signingPayload,
+            defaultVault: { signers: [vaultKeys], networkType: bitcoinNetworkType }, // replicating vault details in case of RK,
+            serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
+            xfp: vaultKeys.xfp,
+          });
+          return signed;
+        };
+
+        const { signedSerializedPSBT } = vaultKeys.xpriv
+          ? await signSeedKeyWithPin()
+          : await signTransactionWithSeedWords({
+              isRemoteKey: true,
+              signingPayload: {},
+              defaultVault: { signers: [signer], networkType: bitcoinNetworkType }, // replicating vault details in case of RK
+              seedBasedSingerMnemonic,
+              serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
+              xfp: {},
+              isMultisig: isMultisig,
+            });
         if (signedSerializedPSBT) {
           dispatch(
             healthCheckStatusUpdate([
@@ -373,6 +405,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
     xfp: signer.masterFingerprint,
     derivationPath: signer.signerXpubs[ScriptTypes.P2WSH][0].derivationPath,
     registeredVaults: [],
+    xpriv: signer.signerXpubs[ScriptTypes.P2WSH][0]?.xpriv,
   };
   return (
     <>
@@ -383,7 +416,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         closeOnOverlayClick={false}
         close={() => setConfirmPassVisible(false)}
         title={settings.EnterPasscodeTitle}
-        subTitle={settings.EnterPasscodeMobile}
+        subTitle={`Confirm passcode to sign with ${signer.signerName}`}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
@@ -471,7 +504,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         tapsignerModal={tapsignerModal}
         ledgerModal={ledgerModal}
         otpModal={false}
-        passwordModal={false}
+        passwordModal={passwordModal}
         passportModal={passportModal}
         seedSignerModal={seedSignerModal}
         keystoneModal={keystoneModal}
@@ -494,7 +527,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         setKeeperModal={() => {}}
         setColdCardModal={setColdCardModal}
         setLedgerModal={setLedgerModal}
-        setPasswordModal={() => {}}
+        setPasswordModal={setPasswordModal}
         setTapsignerModal={setTapsignerModal}
         showOTPModal={() => {}}
         setPortalModal={setPortalModal}
