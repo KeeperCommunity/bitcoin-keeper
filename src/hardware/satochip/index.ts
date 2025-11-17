@@ -6,7 +6,6 @@ import WalletUtilities from 'src/services/wallets/operations/utils';
 import {ScriptTypes, XpubTypes} from 'src/services/wallets/enums';
 import {VaultSigner, XpubDetailsType} from 'src/services/wallets/interfaces/vault';
 import NFC from 'src/services/nfc';
-import {CommonActions} from '@react-navigation/native';
 import {xpubToTpub} from 'src/hardware';
 
 const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, account) => {
@@ -87,19 +86,6 @@ export const getSatochipDetails = async (
   const { xpub, masterFingerprint, derivationPath, xpubDetails } = await getScriptSpecificDetails(card, pin, isTestnet, isMultisig, account);
 
   return { xpub, masterFingerprint, derivationPath, xpubDetails };
-};
-
-export const unlockRateLimit = async (card: SatochipCard) => {
-  console.log(`in satochip unlockRateLimit`);
-  //const status = await card.getStatus();
-  
-  // Satochip doesn't have the same rate limiting as Tapsigner
-  // but we keep this function for API compatibility
-  return { authDelay: 0 };
-};
-
-export const downloadBackup = async (card: SatochipCard, pin: string) => {
-  throw new Error('Backup functionality unsupported on Satochip: seed mnemonic must be saved before import!');
 };
 
 export const getCardInfo = async (card: SatochipCard) => {
@@ -213,21 +199,8 @@ export const readSatochip = async (card: SatochipCard, pin: string) => {
 };
 
 export const handleSatochipError = (error, navigation) => {
-  let errorMessage = null;
-  
-  if (error.toString().includes('PIN verification failed')) {
-    errorMessage = 'Please check the PIN entered and try again!';
-  } else if (error.toString().includes('PIN locked')) {
-    errorMessage = 'PIN is locked due to too many failed attempts. Please unlock the card and try again!';
-  } else if (error.toString().includes('Card not found')) {
-    errorMessage = 'Card not found. Please ensure the card is placed correctly on the device!';
-  } else if (error.toString().includes('Setup required')) {
-    errorMessage = 'Card setup required. Please complete the initial setup!';
-  } else if (error.toString() === 'Error' || error.toString() === '[Error]') {
-    errorMessage = 'Operation cancelled. Please try again.';
-  } else {
-    errorMessage = error?.message || null;
-  }
+  console.log(`index handleSatochipError error: ${error}`);
+  let errorMessage = error.toString();
 
   if (errorMessage) {
     if (Platform.OS === 'ios') NFC.showiOSErrorMessage(errorMessage);
@@ -236,9 +209,7 @@ export const handleSatochipError = (error, navigation) => {
     if (Platform.OS === 'ios') NFC.showiOSErrorMessage(errorMessage);
   }
 
-  if (errorMessage && errorMessage.includes('locked')) {
-    navigation.dispatch(CommonActions.navigate('UnlockSatochip'));
-  }
+  console.log(`index handleSatochipError errorMessage: ${errorMessage}`);
 
   return errorMessage;
 };

@@ -11,6 +11,8 @@ export type AppStackParams = {
   SignerCategoryList: undefined;
   TapsignerAction: undefined;
   SignWithTapsigner: undefined;
+  SatochipAction: undefined;
+  SignWithSatochip: undefined;
   AddColdCard: undefined;
   PassportConfigRecovery: undefined;
   AppSettings: undefined;
@@ -111,6 +113,7 @@ export type AppStackParams = {
   EnterSeedScreen: undefined;
   UnlockTapsigner: undefined;
   ChangeTapsignerPin: undefined;
+  ChangeSatochipPin: undefined;
   VaultConfigurationCreation: undefined;
   VaultSetup: {
     scheme: VaultScheme;
@@ -155,6 +158,7 @@ export type AppStackParams = {
   AddContact: undefined;
   EditContact: undefined;
   ManageTapsignerSettings: undefined;
+  ManageSatochipSettings: undefined;
   SetupPortal: undefined;
   SelectInitialTimelock: undefined;
   AddReserveKey: undefined;

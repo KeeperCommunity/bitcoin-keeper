@@ -6,9 +6,8 @@ import { SatochipCard } from 'satochip-react-native';
 
 import Text from 'src/components/KeeperText';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import { EntityKind, SignerStorage, SignerType, XpubTypes } from 'src/services/wallets/enums';
+import { SignerStorage, SignerType, XpubTypes } from 'src/services/wallets/enums';
 import {
-  downloadBackup,
   getCardInfo,
   getSatochipDetails,
   handleSatochipError,
@@ -41,7 +40,6 @@ import { setSigningDevices } from 'src/store/reducers/bhr';
 import useUnkownSigners from 'src/hooks/useUnkownSigners';
 import { InteracationMode } from '../Vault/HardwareModalMap';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
-import { exportFile } from 'src/services/fs';
 import KeeperModal from 'src/components/KeeperModal';
 import ErrorIcon from 'src/assets/images/error.svg';
 import ErrorDarkIcon from 'src/assets/images/error-dark.svg';
@@ -66,7 +64,7 @@ function SetupSatochip({ route }) {
     signer: signerTranslations,
     common,
     error: errorTranslations,
-    tapsigner: tapsignerTranslations, // Reusing tapsigner translations for now
+    satochip: satochipTranslations,
   } = translations;
   const card = useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
@@ -308,43 +306,9 @@ function SetupSatochip({ route }) {
     }
   }, [pin]);
 
-  const downloadSatochipBackup = useCallback(async () => {
-    try {
-      const { backup, cardId } = await withModal(async () => downloadBackup(card, pin))();
-      if (backup) {
-        if (Platform.OS === 'ios') NFC.showiOSMessage('Backup retrieved');
-        closeNfc();
-        card.endNfcSession();
-
-        const now = new Date();
-        const timestamp = now.toISOString().slice(0, 16).replace(/[-:]/g, '');
-        const fileName = `backup-${cardId.split('-')[0] || 'satochip'}-${timestamp}.json`;
-
-        await exportFile(
-          backup,
-          fileName,
-          (error) => showToast(error.message, <ToastErrorIcon />),
-          'base64'
-        );
-        navigation.dispatch(CommonActions.goBack());
-        showToast('Backup saved successfully', <TickIcon />);
-      } else {
-        if (Platform.OS === 'ios')
-          NFC.showiOSErrorMessage('Error while downloading backup');
-        else showToast('Error while downloading backup');
-      }
-    } catch (error) {
-      const errorMessage = handleSatochipError(error, navigation);
-      if (errorMessage) {
-        showToast(errorMessage, <ToastErrorIcon />, IToastCategory.DEFAULT, 3000, true);
-      }
-    } finally {
-      closeNfc();
-      card.endNfcSession();
-    }
-  }, [pin]);
-
   const checkSatochipSetupStatus = useCallback(async () => {
+
+    console.log('checkSatochipSetupStatus');
     try {
       const { cardId, path, backupsCount } = await withModal(async () => getCardInfo(card))();
 
@@ -476,8 +440,8 @@ function SetupSatochip({ route }) {
               return 'Verify SATOCHIP';
             case InteracationMode.SIGN_TRANSACTION:
               return 'Sign with SATOCHIP';
-            case InteracationMode.BACKUP_SIGNER:
-              return 'Save SATOCHIP Backup';
+            // case InteracationMode.BACKUP_SIGNER:
+            //   return 'Save SATOCHIP Backup';
             default:
               return 'Setting up SATOCHIP';
           }
@@ -545,8 +509,6 @@ function SetupSatochip({ route }) {
             switch (mode) {
               case InteracationMode.SIGN_TRANSACTION:
                 return common.sign;
-              case InteracationMode.BACKUP_SIGNER:
-                return signerTranslations.saveBackup;
               default:
                 return common.proceed;
             }
@@ -557,8 +519,6 @@ function SetupSatochip({ route }) {
                 return verifySatochip();
               case InteracationMode.SIGN_TRANSACTION:
                 return signWithSatochip();
-              case InteracationMode.BACKUP_SIGNER:
-                return downloadSatochipBackup();
               default:
                 return addSatochipWithProgress();
             }

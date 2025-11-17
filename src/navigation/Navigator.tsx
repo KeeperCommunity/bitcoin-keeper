@@ -67,6 +67,7 @@ import SetupCollaborativeWallet from 'src/screens/SigningDevices/SetupCollaborat
 import SetupSigningServer from 'src/screens/SigningDevices/SetupSigningServer';
 import UnlockTapsigner from 'src/screens/SigningDevices/UnlockTapsigner';
 import ChangeTapsignerPin from 'src/screens/SigningDevices/ChangeTapsignerPin';
+import ChangeSatochipPin from 'src/screens/SigningDevices/ChangeSatochipPin';
 import PrivacyAndDisplay from 'src/screens/AppSettings/PrivacyAndDisplay';
 import VaultConfigurationCreation from 'src/screens/Vault/VaultConfigurationRecreation';
 import AddNewWallet from 'src/screens/AddWalletScreen/AddNewWallet';
@@ -104,6 +105,7 @@ import AssociateContact from 'src/screens/Contact/AssociateContact';
 import AddContact from 'src/screens/Contact/AddContact';
 import EditContact from 'src/screens/Contact/EditContact';
 import ManageTapsignerSettings from 'src/screens/Vault/ManageTapsignerSettings';
+import ManageSatochipSettings from 'src/screens/Vault/ManageSatochipSettings';
 import SetupPortal from 'src/screens/SigningDevices/SetupPortal';
 import SelectWalletScreen from 'src/screens/Send/SelectWallet';
 import PSBTSendConfirmation from 'src/screens/Send/PSBTSendConfirmation';
@@ -321,6 +323,7 @@ function AppStack() {
         <Stack.Screen name="EnterSeedScreen" component={EnterSeedScreen} />
         <Stack.Screen name="UnlockTapsigner" component={UnlockTapsigner} />
         <Stack.Screen name="ChangeTapsignerPin" component={ChangeTapsignerPin} />
+        <Stack.Screen name="ChangeSatochipPin" component={ChangeSatochipPin} />
         <Stack.Screen name="VaultConfigurationCreation" component={VaultConfigurationCreation} />
         <Stack.Screen name="AssignSignerType" component={AssignSignerType} />
         <Stack.Screen name="AddNewWallet" component={AddNewWallet} />
@@ -335,6 +338,7 @@ function AppStack() {
         <Stack.Screen name="AddContact" component={AddContact} />
         <Stack.Screen name="EditContact" component={EditContact} />
         <Stack.Screen name="ManageTapsignerSettings" component={ManageTapsignerSettings} />
+        <Stack.Screen name="ManageSatochipSettings" component={ManageSatochipSettings} />
         <Stack.Screen name="SelectInitialTimelock" component={SelectInitialTimelock} />
         <Stack.Screen name="AddReserveKey" component={AddReserveKey} />
         <Stack.Screen name="AddEmergencyKey" component={AddEmergencyKey} />

@@ -375,6 +375,17 @@ function SignerAdvanceSettings({ route }: any) {
     );
   };
 
+  const openSatochipSettings = () => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'ManageSatochipSettings',
+        params: {
+          signer,
+        },
+      })
+    );
+  };
+
   // const signPSBTForExternalKeeperKey = async (serializedPSBT, resetQR) => {
   //   try {
   //     let signedSerialisedPSBT;
@@ -575,7 +586,8 @@ function SignerAdvanceSettings({ route }: any) {
   const isAppKey = signer.type === SignerType.KEEPER;
   const isMyAppKey = signer.type === SignerType.MY_KEEPER;
   const isTapsigner = signer.type === SignerType.TAPSIGNER;
-  const signersWithoutRegistration = isAppKey || isMyAppKey || isTapsigner;
+  const isSatochip = signer.type === SignerType.SATOCHIP;
+  const signersWithoutRegistration = isAppKey || isMyAppKey || isTapsigner || isSatochip;
   const isMobileKey = signer.type === SignerType.MY_KEEPER;
 
   const isOtherSD = signer.type === SignerType.UNKOWN_SIGNER;
@@ -685,6 +697,14 @@ function SignerAdvanceSettings({ route }: any) {
         title={signerTranslation.manageTapsigner}
         description={signerTranslation.manageTapsignerCard}
         callback={openTapsignerSettings}
+      />
+    ),
+    isSatochip && (
+      <OptionCard
+        key="manageSatochip"
+        title={signerTranslation.manageSatochip}
+        description={signerTranslation.manageSatochipCard}
+        callback={openSatochipSettings}
       />
     ),
     <OptionCard
