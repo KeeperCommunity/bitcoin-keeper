@@ -88,19 +88,43 @@ export const getSatochipDetails = async (
   return { xpub, masterFingerprint, derivationPath, xpubDetails };
 };
 
-export const getCardInfo = async (card: SatochipCard) => {
+export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
   const status = await card.getStatus();
-  console.log(`in satochip getCardInfo status: ${status}`);
+  console.log(`index getCardInfo status: ${status}`);
 
-  // const authentikey = await card.getAuthentikey();
+  // DEBUG: PIN required for authenticity check currently
+  if (pin){
+    await card.verifyPIN(0, pin);
+  }
 
-  // todo: check authenticity
+  // check authenticity
+  let isAuthentic: boolean = null;
+  let authenticityMsg: string = '';
+  try {
+    const resCertValid = await card.verifyCertificateChain();
+    if (resCertValid.isValid){
+      const resChalresp = await card.cardChallengeResponsePki();
+
+      if (resChalresp.success){
+        isAuthentic = true;
+        authenticityMsg = "Card is authentic";
+      } else {
+        isAuthentic = false;
+        authenticityMsg = resChalresp.error;
+      }
+    } else {
+      isAuthentic = false;
+      authenticityMsg = resCertValid.txtError;
+    }
+  } catch (error) {
+    console.log(`getCardInfo error: ${error}`);
+  }
 
   return {
-    backupsCount: 0, // unsupported
-    cardId: '00000000', // todo
-    birthHeight: 0, // Satochip doesn't track birth height like Tapsigner
-    path: status.setup_done ? 'initialized' : null, // todo
+    setupDone: status.setup_done,
+    isSeeded: status.is_seeded,
+    isAuthentic: isAuthentic,
+    authenticityMsg,
   };
 };
 
@@ -110,6 +134,14 @@ export const changePin = async (card: SatochipCard, oldPIN: string, newPIN: stri
   
   // Change PIN
   await card.changePIN(0, oldPIN, newPIN);
+  return;
+};
+
+export const resetSeed = async (card: SatochipCard, pin: string) => {
+  // Verify current PIN first
+  await card.verifyPIN(0, pin);
+  // reset seed
+  await card.resetSeed(pin);
   return;
 };
 
@@ -205,7 +237,7 @@ export const handleSatochipError = (error, navigation) => {
   if (errorMessage) {
     if (Platform.OS === 'ios') NFC.showiOSErrorMessage(errorMessage);
   } else {
-    const errorMessage = 'Something went wrong, please try again!';
+    errorMessage = 'Something went wrong, please try again!';
     if (Platform.OS === 'ios') NFC.showiOSErrorMessage(errorMessage);
   }
 

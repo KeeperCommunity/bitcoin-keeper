@@ -55,6 +55,17 @@ function ManageSatochipSettings({ route }: any) {
     );
   };
 
+  const onResetSatochipSeed = () => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'ResetSatochipSeed',
+        params: {
+          signer: signer,
+        },
+      })
+    );
+  };
+
   // TODO: factory reset?
 
   return (
@@ -68,6 +79,11 @@ function ManageSatochipSettings({ route }: any) {
           title={signerTranslations.changePIN}
           description={signerTranslations.changeCardPIN}
           callback={onChangeSatochipPin}
+        />
+        <OptionCard
+          title={signerTranslations.resetSeed}
+          description={signerTranslations.resetCardSeed}
+          callback={onResetSatochipSeed}
         />
       </ScrollView>
       <NfcPrompt visible={nfcVisible} close={closeNfc} />

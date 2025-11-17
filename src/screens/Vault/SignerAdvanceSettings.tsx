@@ -831,6 +831,14 @@ function SignerAdvanceSettings({ route }: any) {
           description: signerTranslation.tapsignerDes,
           FAQ: 'https://tapsigner.com/faq',
         };
+      case SignerType.SATOCHIP:
+        return {
+          title: 'SATOCHIP',
+          subTitle: signerTranslation.satochipInfo,
+          assert: <ThemedSvg name={'satochip_illustration'} />,
+          description: signerTranslation.satochipDes,
+          FAQ: 'https://satochip.io/faq',
+        };
       case SignerType.LEDGER:
         return {
           title: 'LEDGER',

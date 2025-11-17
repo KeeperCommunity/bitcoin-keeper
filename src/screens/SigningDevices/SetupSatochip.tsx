@@ -93,8 +93,10 @@ function SetupSatochip({ route }) {
   } = route.params;
   const { mapUnknownSigner } = useUnkownSigners();
   const [statusModalVisible, setStatusModalVisible] = useState(false);
-  const [satochipDerivationPath, setSatochipDerivationPath] = useState(null);
-  const [satochipBackupsCount, setSatochipBackupsCount] = useState(null);
+  const [satochipSetupDone, setSatochipSetupDone] = useState(null);
+  const [satochipIsSeeded, setSatochipIsSeeded] = useState(null);
+  const [satochipIsAuthentic, setSatochipIsAuthentic] = useState(null);
+  const [satochipStatusCode, setSatochipStatusCode] = useState(null);
   const isDarkMode = colorMode === 'dark';
   const isHealthCheck = mode === InteracationMode.HEALTH_CHECK;
   const [infoModal, setInfoModal] = useState(false);
@@ -286,7 +288,10 @@ function SetupSatochip({ route }) {
   const signWithSatochip = useCallback(async () => {
     try {
       console.log(`signWithSatochip start pin: ${pin}`);
-      const signedSerializedPSBT = await signTransaction({ satochipPin: pin });
+
+      //const signedSerializedPSBT = await signTransaction({ satochipPin: pin }); // TODO: debug
+      const signedSerializedPSBT = await withModal(async () => signTransaction({ satochipPin: pin }))();
+
       if (Platform.OS === 'ios') NFC.showiOSMessage('SATOCHIP signed successfully');
       if (isRemoteKey && signedSerializedPSBT) {
         setSignedPSBT(signedSerializedPSBT);
@@ -297,6 +302,7 @@ function SetupSatochip({ route }) {
     } catch (error) {
       console.error(`signWithSatochip error: ${error}`);
       const errorMessage = handleSatochipError(error, navigation);
+      console.error(`signWithSatochip errorMessage: ${errorMessage}`);
       if (errorMessage) {
         showToast(errorMessage, <ToastErrorIcon />, IToastCategory.DEFAULT, 3000, true);
       }
@@ -308,28 +314,18 @@ function SetupSatochip({ route }) {
 
   const checkSatochipSetupStatus = useCallback(async () => {
 
-    console.log('checkSatochipSetupStatus');
+    console.log(`checkSatochipSetupStatus start pin: ${pin}`);
     try {
-      const { cardId, path, backupsCount } = await withModal(async () => getCardInfo(card))();
 
-      if (cardId) {
-        if (Platform.OS === 'ios') NFC.showiOSMessage('SATOCHIP info retrieved');
-        closeNfc();
-        card.endNfcSession();
+      // if pin is defined, use it to verify PIN, as required for authenticity check
+      const { setupDone, isSeeded, isAuthentic, authenticityMsg } = await withModal(async () => getCardInfo(card, pin))();
 
-        if (path) {
-          setSatochipDerivationPath(path);
-          setSatochipBackupsCount(backupsCount);
-        } else {
-          setSatochipDerivationPath(null);
-          setSatochipBackupsCount(null);
-        }
-        setStatusModalVisible(true);
-      } else {
-        if (Platform.OS === 'ios')
-          NFC.showiOSErrorMessage('Error fetching SATOCHIP info');
-        else showToast('Error fetching SATOCHIP info');
-      }
+      setSatochipSetupDone(setupDone);
+      setSatochipIsSeeded(isSeeded);
+      setSatochipIsAuthentic(isAuthentic);
+      setSatochipStatusCode(authenticityMsg);
+      setStatusModalVisible(true);
+
     } catch (error) {
       const errorMessage = handleSatochipError(error, navigation);
       if (errorMessage) {
@@ -339,7 +335,7 @@ function SetupSatochip({ route }) {
       closeNfc();
       card.endNfcSession();
     }
-  }, []);
+  }, [pin]);
 
   function StatusModalContent() {
     return (
@@ -361,30 +357,32 @@ function SetupSatochip({ route }) {
               SATOCHIP
             </Text>
             <Text fontSize={13}>{`${common.status}: ${
-              satochipDerivationPath
-                ? signerTranslations.AlreadyInitialized
+              satochipSetupDone
+                ? satochipIsSeeded 
+                  ? satochipTranslations.satochipAlreadySetupAndSeeded 
+                  : satochipTranslations.satochipAlreadySetupButNotSeeded
                 : signerTranslations.Uninitialized
             }`}</Text>
           </Box>
         </Box>
         <Box marginTop={hp(10)} marginBottom={hp(40)}>
-          {satochipDerivationPath ? (
-            <Box
-              style={styles.warningContainer}
-              backgroundColor={`${colorMode}.errorToastBackground`}
-              borderColor={`${colorMode}.alertRed`}
-            >
-              <Box style={styles.warningIcon}>
-                {colorMode === 'light' ? <ErrorIcon /> : <ErrorDarkIcon />}
-              </Box>
-              <Text style={styles.warningText}>
-                {`SATOCHIP already exists ${
-                  satochipBackupsCount ? 'and backed up ' : ''
-                }proceed only if trusted`}
-              </Text>
-            </Box>
+          {satochipIsAuthentic ? (
+            <Text style={styles.statusText}>{satochipTranslations.satochipIsAuthentic}</Text>
           ) : (
-            <Text style={styles.statusText}>{signerTranslations.NotBeenInitializedBottomText}</Text>
+              <Box
+                style={styles.warningContainer}
+                backgroundColor={`${colorMode}.errorToastBackground`}
+                borderColor={`${colorMode}.alertRed`}
+              >
+                <Box style={styles.warningIcon}>
+                  {colorMode === 'light' ? <ErrorIcon /> : <ErrorDarkIcon />}
+                </Box>
+                <Text style={styles.warningText}>
+                  {`SATOCHIP is not authentic ${
+                    satochipStatusCode ? 'error code:' + satochipStatusCode: ''
+                  } proceed only if trusted`}
+                </Text>
+              </Box>
           )}
         </Box>
         <Buttons
@@ -440,8 +438,6 @@ function SetupSatochip({ route }) {
               return 'Verify SATOCHIP';
             case InteracationMode.SIGN_TRANSACTION:
               return 'Sign with SATOCHIP';
-            // case InteracationMode.BACKUP_SIGNER:
-            //   return 'Save SATOCHIP Backup';
             default:
               return 'Setting up SATOCHIP';
           }

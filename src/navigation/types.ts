@@ -114,6 +114,7 @@ export type AppStackParams = {
   UnlockTapsigner: undefined;
   ChangeTapsignerPin: undefined;
   ChangeSatochipPin: undefined;
+  ResetSatochipSeed: undefined;
   VaultConfigurationCreation: undefined;
   VaultSetup: {
     scheme: VaultScheme;
