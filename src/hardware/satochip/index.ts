@@ -137,6 +137,15 @@ export const changePin = async (card: SatochipCard, oldPIN: string, newPIN: stri
   return;
 };
 
+export const importSeed = async (card: SatochipCard, pin: string, seedBytes: Buffer) => {
+  // Verify current PIN first
+  await card.verifyPIN(0, pin);
+  // import seed
+  await card.importSeed(seedBytes);
+
+  return;
+};
+
 export const resetSeed = async (card: SatochipCard, pin: string) => {
   // Verify current PIN first
   await card.verifyPIN(0, pin);
