@@ -1,28 +1,16 @@
 import { useColorMode } from 'native-base';
 import { CommonActions, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useContext, useRef, useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useContext, useRef } from 'react';
+import { StyleSheet } from 'react-native';
 import { Signer } from 'src/services/wallets/interfaces/vault';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import OptionCard from 'src/components/OptionCard';
 import { hp, wp } from 'src/constants/responsive';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { ScrollView } from 'react-native-gesture-handler';
-import { InteracationMode } from './HardwareModalMap';
-import KeeperModal from 'src/components/KeeperModal';
-import HexagonIcon from 'src/components/HexagonIcon';
-import Colors from 'src/theme/Colors';
-import Text from 'src/components/KeeperText';
-import Buttons from 'src/components/Buttons';
-import SATOCHIPICONLIGHT from 'src/assets/images/satochip_light.svg';
 import useSatochipModal from 'src/hooks/useSatochipModal';
 import { SatochipCard } from 'satochip-react-native';
 import NfcPrompt from 'src/components/NfcPromptAndroid';
-import NFC from 'src/services/nfc';
-import { getCardInfo, handleSatochipError } from 'src/hardware/satochip';
-import useToastMessage, { IToastCategory } from 'src/hooks/useToastMessage';
-import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import { getAccountFromSigner } from 'src/utils/utilities';
 import WalletHeader from 'src/components/WalletHeader';
 
 function ManageSatochipSettings({ route }: any) {
@@ -36,11 +24,10 @@ function ManageSatochipSettings({ route }: any) {
   const signer: Signer = signerFromParam;
 
   const { translations } = useContext(LocalizationContext);
-  const { signer: signerTranslations, common } = translations;
+  const { signer: signerTranslations } = translations;
 
   const card = useRef(new SatochipCard()).current;
-  const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
-  const { showToast } = useToastMessage();
+  const { nfcVisible, closeNfc } = useSatochipModal(card);
 
   const navigation: any = useNavigation();
 
@@ -55,19 +42,6 @@ function ManageSatochipSettings({ route }: any) {
     );
   };
 
-  const onResetSatochipSeed = () => {
-    navigation.dispatch(
-      CommonActions.navigate({
-        name: 'ResetSatochipSeed',
-        params: {
-          signer: signer,
-        },
-      })
-    );
-  };
-
-  // TODO: factory reset?
-
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <WalletHeader title={signerTranslations.manageSatochip} />
@@ -79,11 +53,6 @@ function ManageSatochipSettings({ route }: any) {
           title={signerTranslations.changePIN}
           description={signerTranslations.changeCardPIN}
           callback={onChangeSatochipPin}
-        />
-        <OptionCard
-          title={signerTranslations.resetSeed}
-          description={signerTranslations.resetCardSeed}
-          callback={onResetSatochipSeed}
         />
       </ScrollView>
       <NfcPrompt visible={nfcVisible} close={closeNfc} />

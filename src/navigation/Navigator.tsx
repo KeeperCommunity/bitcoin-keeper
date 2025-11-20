@@ -69,7 +69,6 @@ import UnlockTapsigner from 'src/screens/SigningDevices/UnlockTapsigner';
 import ChangeTapsignerPin from 'src/screens/SigningDevices/ChangeTapsignerPin';
 import SatochipSetupPin from 'src/screens/SigningDevices/SatochipSetupPin';
 import ChangeSatochipPin from 'src/screens/SigningDevices/ChangeSatochipPin';
-import ResetSatochipSeed from 'src/screens/SigningDevices/ResetSatochipSeed';
 import ResetSatochipSeedNew from 'src/screens/SigningDevices/ResetSatochipSeedNew';
 import ImportSatochipSeed from 'src/screens/SigningDevices/ImportSatochipSeed';
 import SatochipSeedImportModal from 'src/screens/SigningDevices/SatochipSeedImportModal';
@@ -330,7 +329,6 @@ function AppStack() {
         <Stack.Screen name="ChangeTapsignerPin" component={ChangeTapsignerPin} />
         <Stack.Screen name="SatochipSetupPin" component={SatochipSetupPin} />
         <Stack.Screen name="ChangeSatochipPin" component={ChangeSatochipPin} />
-        <Stack.Screen name="ResetSatochipSeed" component={ResetSatochipSeed} />
         <Stack.Screen name="ResetSatochipSeedNew" component={ResetSatochipSeedNew} />
         <Stack.Screen name="ImportSatochipSeed" component={ImportSatochipSeed} />
         <Stack.Screen name="SatochipSeedImportModal" component={SatochipSeedImportModal} />
