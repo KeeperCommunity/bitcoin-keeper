@@ -366,9 +366,9 @@ function SetupSatochip({ route }) {
           </Box>
         </Box>
         <Box marginTop={hp(10)} marginBottom={hp(40)}>
-          {satochipIsAuthentic ? (
+          {satochipIsAuthentic === true ? (
             <Text style={styles.statusText}>{satochipTranslations.satochipIsAuthentic}</Text>
-          ) : (
+          ) : satochipIsAuthentic === false ? (
               <Box
                 style={styles.warningContainer}
                 backgroundColor={`${colorMode}.errorToastBackground`}
@@ -383,6 +383,19 @@ function SetupSatochip({ route }) {
                   } proceed only if trusted`}
                 </Text>
               </Box>
+          ) : (
+            <Box
+              style={styles.warningContainer}
+              backgroundColor={`${colorMode}.errorToastBackground`}
+              borderColor={`${colorMode}.alertRed`}
+            >
+              <Box style={styles.warningIcon}>
+                {colorMode === 'light' ? <ErrorIcon /> : <ErrorDarkIcon />}
+              </Box>
+              <Text style={styles.warningText}>
+                {`Enter PIN code above to check card authenticity`}
+              </Text>
+            </Box>
           )}
         </Box>
         <Buttons
@@ -435,14 +448,14 @@ function SetupSatochip({ route }) {
         title={(() => {
           switch (mode) {
             case InteracationMode.HEALTH_CHECK:
-              return 'Verify SATOCHIP';
+              return signerTranslations.VerifySatochip; //'Verify SATOCHIP';
             case InteracationMode.SIGN_TRANSACTION:
-              return 'Sign with SATOCHIP';
+              return signerTranslations.SignWithSatochip; //'Sign with SATOCHIP';
             default:
-              return 'Setting up SATOCHIP';
+              return signerTranslations.SettingUpSatochip; //'Setting up SATOCHIP';
           }
         })()}
-        subTitle='Enter SATOCHIP PIN to proceed'
+        subTitle={signerTranslations.EnterSatochipPinSubtitle} //'Enter SATOCHIP PIN to proceed'
         rightComponent={
           !isHealthCheck ? (
             <TouchableOpacity style={styles.infoIcon} onPress={() => setInfoModal(true)}>
@@ -486,12 +499,44 @@ function SetupSatochip({ route }) {
         >
           <Box flexDirection="row">
             <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
-              Check initial setup status
+              {satochipTranslations.checkInitialSetupStatus}
             </Text>
             <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
           </Box>
         </TouchableOpacity>
       )}
+
+      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
+        <TouchableOpacity
+          onPress={() => {
+            if (pin.length < 4) {
+              showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
+              return;
+            }
+
+            console.log(`setupSatochip pin: ${pin}`);
+
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: 'ImportSatochipSeed',
+                params: {
+                  pin,
+                  setupSatochipParams: route.params,
+                },
+              })
+            );
+          }}
+          testID="importSatochipSeed"
+        >
+          <Box flexDirection="row">
+            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
+              {satochipTranslations.importSeed}
+            </Text>
+            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+      )}
+
       <KeyPadView
         onPressNumber={onPressHandler}
         onDeletePressed={onDeletePressed}

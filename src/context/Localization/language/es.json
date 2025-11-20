@@ -802,7 +802,13 @@
     "enteredWrongPin": "You might have entered the wrong pin too many times",
     "getSatochipReady": "Get your SATOCHIP ready",
     "saochipSeedReset": "Your seed has been reset successfully",
-    "clickToContinueReset": "Click continue and scan your SATOCHIP to reset the seed. This action is IRREVERSIBLE!"
+    "clickToContinueReset": "Click continue and scan your SATOCHIP to reset the seed. This action is IRREVERSIBLE!",
+    "importSeed": "Import BIP39 Seed",
+    "importSeedTitle": "Import BIP39 Seed to SATOCHIP",
+    "importSeedDescription": "You are about to import a BIP39 seed to your SATOCHIP.",
+    "importSeedSuccess": "Seed imported successfully",
+    "importSeedFailed": "Failed to import seed",
+    "enterPinFirst": "Please enter your SATOCHIP PIN first"
   },
   "coldcard": {
     "Associate": "Associate",

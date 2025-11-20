@@ -69,6 +69,8 @@ import UnlockTapsigner from 'src/screens/SigningDevices/UnlockTapsigner';
 import ChangeTapsignerPin from 'src/screens/SigningDevices/ChangeTapsignerPin';
 import ChangeSatochipPin from 'src/screens/SigningDevices/ChangeSatochipPin';
 import ResetSatochipSeed from 'src/screens/SigningDevices/ResetSatochipSeed';
+import ImportSatochipSeed from 'src/screens/SigningDevices/ImportSatochipSeed';
+import SatochipSeedImportModal from 'src/screens/SigningDevices/SatochipSeedImportModal';
 import PrivacyAndDisplay from 'src/screens/AppSettings/PrivacyAndDisplay';
 import VaultConfigurationCreation from 'src/screens/Vault/VaultConfigurationRecreation';
 import AddNewWallet from 'src/screens/AddWalletScreen/AddNewWallet';
@@ -326,6 +328,8 @@ function AppStack() {
         <Stack.Screen name="ChangeTapsignerPin" component={ChangeTapsignerPin} />
         <Stack.Screen name="ChangeSatochipPin" component={ChangeSatochipPin} />
         <Stack.Screen name="ResetSatochipSeed" component={ResetSatochipSeed} />
+        <Stack.Screen name="ImportSatochipSeed" component={ImportSatochipSeed} />
+        <Stack.Screen name="SatochipSeedImportModal" component={SatochipSeedImportModal} />
         <Stack.Screen name="VaultConfigurationCreation" component={VaultConfigurationCreation} />
         <Stack.Screen name="AssignSignerType" component={AssignSignerType} />
         <Stack.Screen name="AddNewWallet" component={AddNewWallet} />
