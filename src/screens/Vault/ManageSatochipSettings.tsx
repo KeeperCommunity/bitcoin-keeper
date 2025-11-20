@@ -24,7 +24,7 @@ function ManageSatochipSettings({ route }: any) {
   const signer: Signer = signerFromParam;
 
   const { translations } = useContext(LocalizationContext);
-  const { signer: signerTranslations } = translations;
+  const { signer: signerTranslations, satochip: satochipTranslations } = translations;
 
   const card = useRef(new SatochipCard()).current;
   const { nfcVisible, closeNfc } = useSatochipModal(card);
@@ -35,6 +35,17 @@ function ManageSatochipSettings({ route }: any) {
     navigation.dispatch(
       CommonActions.navigate({
         name: 'ChangeSatochipPin',
+        params: {
+          signer: signer,
+        },
+      })
+    );
+  };
+
+  const onSatochipVerifyAuthenticity = () => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'SatochipVerifyAuthenticity',
         params: {
           signer: signer,
         },
@@ -53,6 +64,11 @@ function ManageSatochipSettings({ route }: any) {
           title={signerTranslations.changePIN}
           description={signerTranslations.changeCardPIN}
           callback={onChangeSatochipPin}
+        />
+        <OptionCard
+          title={satochipTranslations.verifyAuthenticity}
+          description={""}
+          callback={onSatochipVerifyAuthenticity}
         />
       </ScrollView>
       <NfcPrompt visible={nfcVisible} close={closeNfc} />

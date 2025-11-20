@@ -1,8 +1,8 @@
 import { Platform, StyleSheet } from 'react-native';
 import { Box, useColorMode } from 'native-base';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { SatochipCard } from 'satochip-react-native';
-import { setupCard, handleSatochipError } from 'src/hardware/satochip';
+import {getCardInfo, handleSatochipError} from 'src/hardware/satochip';
 import Buttons from 'src/components/Buttons';
 import NFC from 'src/services/nfc';
 import NfcPrompt from 'src/components/NfcPromptAndroid';
@@ -17,24 +17,23 @@ import { ScrollView } from 'react-native-gesture-handler';
 import KeeperModal from 'src/components/KeeperModal';
 import SatochipSetupImage from 'src/assets/images/SatochipSetup.svg';
 import SuccessIllustration from 'src/assets/images/illustration.svg';
-import AlertIllustration from 'src/assets/images/alert_illustration.svg';
 import { hp, wp } from 'src/constants/responsive';
 import { KeeperPasswordInput } from 'src/components/KeeperPasswordInput';
 import WalletHeader from 'src/components/WalletHeader';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import AlertIllustration from "../../assets/images/alert_illustration.svg";
 
 const INPUTS = {
-  NEW_PIN: 'NEW_PIN',
-  CONFIRM_PIN: 'CONFIRM_PIN',
+  PIN: 'PIN',
 };
 
-function SatochipSetupPin({ route, navigation}) {
+function SatochipVerifyAuthenticity() {
   const { colorMode } = useColorMode();
+  const navigation = useNavigation();
   const card = React.useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
-  const [newPIN, setNewPIN] = useState('');
-  const [confPIN, setConfPIN] = useState('');
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [PIN, setPIN] = useState('');
+  const [showPinModal, setShowPinModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [activeInput, setActiveInput] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -42,44 +41,34 @@ function SatochipSetupPin({ route, navigation}) {
   const [ctaDisabled, setCtaDisabled] = useState(true);
   const { translations } = useContext(LocalizationContext);
   const {
-    error: errorTranslation,
     satochip: satochipTranslation,
     signer: signerTranslation,
     common,
   } = translations;
 
   const onPressHandler = (digit) => {
-    const temp =
-      (activeInput === INPUTS.NEW_PIN ? newPIN : confPIN) || '';
+    const temp = PIN;
     const newTemp = digit === 'x' ? temp.slice(0, -1) : temp + digit;
-    switch (activeInput) {
-      case INPUTS.NEW_PIN:
-        setNewPIN(newTemp);
-        break;
-      case INPUTS.CONFIRM_PIN:
-        setConfPIN(newTemp);
-        break;
-      default:
-        break;
-    }
+    setPIN(newTemp);
   };
 
   const onDeletePressed = () => {
-    const currentInput = activeInput;
-    if (currentInput) {
-      const inputVal =
-        currentInput === INPUTS.NEW_PIN ? newPIN : confPIN;
-      const newInputVal = inputVal.slice(0, inputVal.length - 1);
-      if (currentInput === INPUTS.NEW_PIN) setNewPIN(newInputVal);
-      else setConfPIN(newInputVal);
-    }
+    const inputVal = PIN;
+    const newInputVal = inputVal.slice(0, inputVal.length - 1);
+    setPIN(newInputVal);
   };
 
-  const setupPinAction = React.useCallback(async () => {
+  const activateVerifyAuthenticityAction = React.useCallback(async () => {
     try {
-      await withModal(async () => setupCard(card, newPIN))();
-      setSuccess(true);
-      if (Platform.OS === 'ios') NFC.showiOSMessage(satochipTranslation.satochipSetupSuccess);
+
+      const { isAuthentic, authenticityMsg } = await withModal(async () => getCardInfo(card, PIN))();
+      if (isAuthentic){
+        setSuccess(true);
+      } else {
+        setSuccess(false);
+        setErrorMsg(authenticityMsg);
+      }
+      if (Platform.OS === 'ios') NFC.showiOSMessage(satochipTranslation.satochipVerified);
     } catch (error) {
       setSuccess(false);
       const errorMessage = handleSatochipError(error, navigation);
@@ -87,11 +76,11 @@ function SatochipSetupPin({ route, navigation}) {
         setErrorMsg(errorMessage);
       }
     } finally {
-      setShowResultModal(true)
+      setShowResultModal(true);
       closeNfc();
       card.endNfcSession();
     }
-  }, [newPIN]);
+  }, [PIN]);
 
   function ConfirmContent() {
     return (
@@ -101,8 +90,8 @@ function SatochipSetupPin({ route, navigation}) {
         </Box>
         <Box style={styles.modalTextCtr}>
           <Box style={styles.dot} backgroundColor={`${colorMode}.primaryText`} />
-          <Text color={`${colorMode}.greenText`} style={styles.modalText}>
-            {satochipTranslation.cardSetupConfirm}
+          <Text color={`${colorMode}.textGreen`} style={styles.modalText}>
+            {satochipTranslation.clickToContinueVerify}
           </Text>
         </Box>
       </>
@@ -128,36 +117,26 @@ function SatochipSetupPin({ route, navigation}) {
   useEffect(() => {
     setCtaDisabled(
       !(
-        newPIN?.length > 3 &&
-        newPIN?.length <=16 &&
-        confPIN?.length > 3 &&
-        confPIN?.length <=16 &&
-        newPIN === confPIN
+        PIN?.length > 3 &&
+        PIN?.length <= 16
       )
     );
-  }, [newPIN, confPIN]);
+  }, [PIN]);
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <WalletHeader
-        title={satochipTranslation.satochipSetupTitle}
-        subTitle={satochipTranslation.changePinDescription}
+        title={satochipTranslation.verifyAuthenticity}
+        subTitle={satochipTranslation.verifyAuthenticityDescription}
       />
       <ScrollView showsVerticalScrollIndicator={false}>
         <Box style={styles.btnContainer}>
           <FieldWithLabel
-            label={signerTranslation.newPin}
-            placeholder={signerTranslation.newPin}
-            value={newPIN}
-            onPress={() => setActiveInput(INPUTS.NEW_PIN)}
-            isActive={activeInput === INPUTS.NEW_PIN}
-          />
-          <FieldWithLabel
-            label={signerTranslation.confirmPin}
-            placeholder={signerTranslation.confirmPin}
-            value={confPIN}
-            onPress={() => setActiveInput(INPUTS.CONFIRM_PIN)}
-            isActive={activeInput === INPUTS.CONFIRM_PIN}
+            label={signerTranslation.existingPin}
+            placeholder={signerTranslation.existingPin}
+            value={PIN}
+            onPress={() => setActiveInput(INPUTS.PIN)}
+            isActive={activeInput === INPUTS.PIN}
           />
         </Box>
       </ScrollView>
@@ -171,51 +150,49 @@ function SatochipSetupPin({ route, navigation}) {
       <Box style={styles.ctaContainer}>
         <Buttons
           primaryText={common.continue}
-          primaryCallback={() => setShowConfirmationModal(true)}
+          primaryCallback={() => setShowPinModal(true)}
           primaryDisable={ctaDisabled}
           fullWidth
         />
       </Box>
 
-      {/*action confirmation dialog*/}
+      {/* confirm modal*/}
       <KeeperModal
-        visible={showConfirmationModal}
-        close={() => setShowConfirmationModal(false)}
+        visible={showPinModal}
+        close={() => setShowPinModal(false)}
         showCloseIcon={false}
-        title={satochipTranslation.changePinTitle}
+        title={satochipTranslation.verifyAuthenticity}
         subTitle={satochipTranslation.SetupDescription}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonText={common.continue}
         secondaryButtonText={common.cancel}
-        secondaryCallback={() => setShowConfirmationModal(false)}
+        secondaryCallback={() => setShowPinModal(false)}
         buttonCallback={() => {
-          setShowConfirmationModal(false);
-          setupPinAction();
+          setShowPinModal(false);
+          activateVerifyAuthenticityAction();
         }}
         Content={ConfirmContent}
       />
 
-      {/*result modal */}
+      {/* result modal*/}
       <KeeperModal
         visible={showResultModal}
         close={() => setShowResultModal(false)}
         showCloseIcon={false}
-        title={success? satochipTranslation.satochipSetupTitle : satochipTranslation.satochipSetupFail}
-        subTitle={success? satochipTranslation.satochipSetupSuccess : errorMsg}
+        title={success ? satochipTranslation.satochipVerified : satochipTranslation.verificationFail}
+        subTitle={success ? satochipTranslation.satochipIsAuthentic : errorMsg}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonText={common.Okay}
         buttonCallback={() => {
-          console.log('Pressed pin activated btn');
           setShowResultModal(false);
           navigation.dispatch(CommonActions.goBack());
         }}
         Content={ResultContent}
       />
-
       <NfcPrompt visible={nfcVisible} close={closeNfc} />
     </ScreenWrapper>
   );
@@ -235,7 +212,7 @@ const FieldWithLabel = ({ label, value, onPress, isActive, placeholder }) => {
   );
 };
 
-export default SatochipSetupPin;
+export default SatochipVerifyAuthenticity;
 
 const styles = StyleSheet.create({
   btnContainer: {

@@ -142,8 +142,8 @@ function SatochipSeedImportModal({ route, navigation }) {
       <Box style={styles.bottomContainerView}>
         <Buttons
           primaryCallback={performSeedImport}
-          primaryText={'Import Seed'}
-          secondaryText={'Cancel?'}
+          primaryText={satochipTranslations.importSeedButton}
+          secondaryText={common.cancel}
           fullWidth={true}
           secondaryCallback={handleResultClose}
           primaryLoading={false} // todo?
