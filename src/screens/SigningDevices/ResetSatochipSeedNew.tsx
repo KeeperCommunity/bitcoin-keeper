@@ -1,47 +1,32 @@
 import { Platform, StyleSheet } from 'react-native';
 import { Box, useColorMode } from 'native-base';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 import { SatochipCard } from 'satochip-react-native';
-import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import { handleSatochipError, resetSeed } from 'src/hardware/satochip';
 import Buttons from 'src/components/Buttons';
 import NFC from 'src/services/nfc';
 import NfcPrompt from 'src/components/NfcPromptAndroid';
 import React, { useContext, useEffect, useState } from 'react';
 import useSatochipModal from 'src/hooks/useSatochipModal';
-import useToastMessage, { IToastCategory } from 'src/hooks/useToastMessage';
-import TickIcon from 'src/assets/images/icon_tick.svg';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import Text from 'src/components/KeeperText';
-import KeyPadView from 'src/components/AppNumPad/KeyPadView';
-import DeleteDarkIcon from 'src/assets/images/delete.svg';
-import DeleteIcon from 'src/assets/images/deleteLight.svg';
-import { ScrollView } from 'react-native-gesture-handler';
 import KeeperModal from 'src/components/KeeperModal';
 import SatochipSetupImage from 'src/assets/images/SatochipSetup.svg';
 import SuccessIllustration from 'src/assets/images/illustration.svg';
 import { hp, wp } from 'src/constants/responsive';
-import { KeeperPasswordInput } from 'src/components/KeeperPasswordInput';
 import WalletHeader from 'src/components/WalletHeader';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import AlertIllustration from "../../assets/images/alert_illustration.svg";
 
-const INPUTS = {
-  PIN: 'PIN',
-};
-
-function ResetSatochipSeed() {
+function ResetSatochipSeed({ route, navigation }) {
   const { colorMode } = useColorMode();
-  const navigation = useNavigation();
   const card = React.useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
-  const [PIN, setPIN] = useState('');
   const [showPinModal, setShowPinModal] = useState(false);
-  const [showActivatedModal, setShowActivatedModal] = useState(false);
-  const [activeInput, setActiveInput] = useState(null);
-
-  const [ctaDisabled, setCtaDisabled] = useState(true);
-
-  const { showToast } = useToastMessage();
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+   const [ctaDisabled, setCtaDisabled] = useState(true);
   const { translations } = useContext(LocalizationContext);
   const {
     satochip: satochipTranslation,
@@ -49,38 +34,31 @@ function ResetSatochipSeed() {
     common,
   } = translations;
 
-  const onPressHandler = (digit) => {
-    const temp = PIN;
-    const newTemp = digit === 'x' ? temp.slice(0, -1) : temp + digit;
-    setPIN(newTemp);
-  };
+  const { pin } = route.params || {};
 
-  const onDeletePressed = () => {
-    const inputVal = PIN;
-    const newInputVal = inputVal.slice(0, inputVal.length - 1);
-    setPIN(newInputVal);
+  const handleCancel = () => {
+    navigation.goBack();
   };
 
   const activateSeedResetAction = React.useCallback(async () => {
     try {
-      await withModal(async () => resetSeed(card, PIN))();
-      navigation.dispatch(CommonActions.goBack());
+      await withModal(async () => resetSeed(card, pin))();
+      setSuccess(true);
       if (Platform.OS === 'ios') NFC.showiOSMessage(satochipTranslation.satochipSeedResetSuccess);
-      showToast(satochipTranslation.satochipSeedResetSuccess, <TickIcon />);
-
-
     } catch (error) {
+      setSuccess(false);
       const errorMessage = handleSatochipError(error, navigation);
       if (errorMessage) {
-        showToast(errorMessage, <ToastErrorIcon />, IToastCategory.DEFAULT, 3000, true);
+        setErrorMsg(errorMessage);
       }
     } finally {
+      setShowResultModal(true);
       closeNfc();
       card.endNfcSession();
     }
-  }, [PIN]);
+  }, [pin]);
 
-  function ActivatePinContent() {
+  function confirmationContent() {
     return (
       <>
         <Box style={styles.modalIllustration}>
@@ -95,47 +73,40 @@ function ResetSatochipSeed() {
       </>
     );
   }
-  function PinActivatedContent() {
-    return (
-      <Box style={styles.modalIllustration}>
-        <SuccessIllustration />
-      </Box>
-    );
+
+  function ResultContent() {
+    if (success) {
+      return (
+        <Box style={styles.modalIllustration}>
+          <SuccessIllustration/>
+        </Box>
+      );
+    } else {
+      return (
+        <Box style={styles.modalIllustration}>
+          <AlertIllustration/>
+        </Box>
+      );
+    }
   }
 
   useEffect(() => {
     setCtaDisabled(
       !(
-        PIN?.length > 3 &&
-        PIN?.length <= 16
+        pin?.length > 3 &&
+        pin?.length <= 16
       )
     );
-  }, [PIN]);
+  }, [pin]);
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <WalletHeader
-        title={signerTranslation.resetSeed}
-        subTitle={signerTranslation.resetSeedWarning}
+        title={satochipTranslation.resetSeed}
+        subTitle={satochipTranslation.resetSeedWarning}
+        onPressHandler={handleCancel}
       />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Box style={styles.btnContainer}>
-          <FieldWithLabel
-            label={signerTranslation.existingPin}
-            placeholder={signerTranslation.existingPin}
-            value={PIN}
-            onPress={() => setActiveInput(INPUTS.PIN)}
-            isActive={activeInput === INPUTS.PIN}
-          />
-        </Box>
-      </ScrollView>
 
-      <KeyPadView
-        onPressNumber={onPressHandler}
-        onDeletePressed={onDeletePressed}
-        keyColor={colorMode === 'light' ? '#041513' : '#FFF'}
-        ClearIcon={colorMode === 'dark' ? <DeleteIcon /> : <DeleteDarkIcon />}
-      />
       <Box style={styles.ctaContainer}>
         <Buttons
           primaryText={common.continue}
@@ -144,6 +115,7 @@ function ResetSatochipSeed() {
           fullWidth
         />
       </Box>
+
       <KeeperModal
         visible={showPinModal}
         close={() => setShowPinModal(false)}
@@ -155,49 +127,38 @@ function ResetSatochipSeed() {
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonText={common.continue}
         secondaryButtonText={common.cancel}
-        secondaryCallback={() => setShowPinModal(false)}
+        secondaryCallback={() => {
+          setShowPinModal(false);
+          handleCancel();
+        }}
         buttonCallback={() => {
           setShowPinModal(false);
           activateSeedResetAction();
-          //   setShowActivatedModal(true);
         }}
-        Content={ActivatePinContent}
+        Content={confirmationContent}
       />
+
+      {/* result dialog */}
       <KeeperModal
-        visible={showActivatedModal}
-        close={() => setShowActivatedModal(false)}
+        visible={showResultModal} // TODO: update translation + activate on success/fail?
+        close={() => setShowResultModal(false)}
         showCloseIcon={false}
-        title={signerTranslation.pinActivated}
-        subTitle={satochipTranslation.pinChangedSuccess}
+        title={success? satochipTranslation.satochipSeedResetTitle : satochipTranslation.satochipSeedResetFail}
+        subTitle={success ? satochipTranslation.satochipSeedResetSuccess : errorMsg}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonText={common.Okay}
         buttonCallback={() => {
-          console.log('Pressed pin activated btn');
-          setShowActivatedModal(false);
+          setShowResultModal(false);
           navigation.dispatch(CommonActions.goBack());
         }}
-        Content={PinActivatedContent}
+        Content={ResultContent}
       />
       <NfcPrompt visible={nfcVisible} close={closeNfc} />
     </ScreenWrapper>
   );
 }
-
-const FieldWithLabel = ({ label, value, onPress, isActive, placeholder }) => {
-  return (
-    <Box marginTop={4}>
-      <Text>{label}</Text>
-      <KeeperPasswordInput
-        value={value}
-        onPress={onPress}
-        isActive={isActive}
-        placeholder={placeholder}
-      />
-    </Box>
-  );
-};
 
 export default ResetSatochipSeed;
 

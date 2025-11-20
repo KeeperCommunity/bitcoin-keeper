@@ -1,28 +1,24 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useRef, useState } from 'react';
 import {Platform, StyleSheet} from 'react-native';
 import { Box, useColorMode } from 'native-base';
 import { CommonActions } from '@react-navigation/native';
 import { SatochipCard } from 'satochip-react-native';
 import * as bip39 from 'bip39';
-
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import KeeperModal from 'src/components/KeeperModal';
 import Text from 'src/components/KeeperText';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { importSeed, handleSatochipError } from 'src/hardware/satochip';
 import useSatochipModal from 'src/hooks/useSatochipModal';
-import useToastMessage from 'src/hooks/useToastMessage';
 import NfcPrompt from 'src/components/NfcPromptAndroid';
 import NFC from 'src/services/nfc';
 import TickIcon from 'src/assets/images/icon_tick.svg';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
-import Breadcrumbs from "../../components/Breadcrumbs";
 import Buttons from "../../components/Buttons";
-import {ConciergeTag} from "../../models/enums/ConciergeTag";
 import {hp, wp} from "../../constants/responsive";
 import Colors from "../../theme/Colors";
 import WalletHeader from "../../components/WalletHeader";
+import {InteracationMode} from "../Vault/HardwareModalMap";
 
 function SatochipSeedImportModal({ route, navigation }) {
   const { colorMode } = useColorMode();
@@ -32,16 +28,13 @@ function SatochipSeedImportModal({ route, navigation }) {
     common,
   } = translations;
 
-  const { pin, mnemonic, setupSatochipParams } = route.params || {};
-  console.log(`SatochipSeedImportModal pin: ${pin}`);
+  const { pin, mnemonic } = route.params || {};
+  console.log(`SatochipSeedImportModal pin: ${pin}`); // TOOD remove!
   console.log(`SatochipSeedImportModal mnemonic: ${mnemonic}`);
   
   const card = useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
-  const { showToast } = useToastMessage();
-
-  const [isProcessing, setIsProcessing] = useState(true);
-  const [resultModal, setResultModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -49,13 +42,10 @@ function SatochipSeedImportModal({ route, navigation }) {
     console.log(`SatochipSeedImportModal performSeedImport START`);
     try {
       if (!mnemonic || !bip39.validateMnemonic(mnemonic)) {
-        console.log(`SatochipSeedImportModal performSeedImport Wrong mnemonic!!`);
         throw new Error('Invalid mnemonic phrase');
       }
 
       const seedBytes = bip39.mnemonicToSeedSync(mnemonic);
-      console.log(`SatochipSeedImportModal performSeedImport seedBytes: ${seedBytes.toString('hex')}`);
-      
       await withModal(async () => importSeed(card, pin, seedBytes))();
 
       setImportSuccess(true);
@@ -74,63 +64,26 @@ function SatochipSeedImportModal({ route, navigation }) {
       }
       
     } finally {
-      console.error('SatochipSeedImportModal performSeedImport finally');
-      setIsProcessing(false);
-      setResultModal(true);
+      console.log('SatochipSeedImportModal performSeedImport finally');
+      setShowResultModal(true);
       closeNfc();
       card.endNfcSession();
     }
   }, [pin, mnemonic]);
-  // }, [pin, mnemonic, withModal, closeNfc]);
-
-  // useEffect(() => {
-  //   // Start the import process immediately when component mounts
-  //   performSeedImport();
-  // }, [performSeedImport]);
 
   const handleResultClose = () => {
     console.log(`SatochipSeedImportModal handleResultClose START`);
-    console.log('Navigation state:', navigation.getState());
-    console.log('Available routes:', navigation.getParent()?.getState());
+    setShowResultModal(false);
 
-    setResultModal(false);
-    
-    // if (importSuccess) {
-    //   showToast(satochipTranslations.importSeedSuccess, <TickIcon />);
-    // }
-
-
-    // Before passing, ensure params are serializable
-    // const safeParams = {
-    //   // Only include primitive values and plain objects
-    //   id: setupSatochipParams?.id,
-    //   name: setupSatochipParams?.name,
-    //   // Avoid passing functions, class instances, etc.
-    // };
-
-    // Navigate back to the SetupSatochip screen using reset navigation
-    // to remove all intermediate screens from the stack
-    // navigation.dispatch(
-    //   CommonActions.reset({
-    //     index: 0,
-    //     routes: [
-    //       //{ name: 'Home' },
-    //       {
-    //         name: 'SetupSatochip',
-    //         params: safeParams, //setupSatochipParams || {},
-    //       },
-    //     ],
-    //   })
-    // );
-
-    // Simply navigate back to SetupSatochip
-    // navigation.navigate('SetupSatochip', setupSatochipParams || {});
-    navigation.navigate('SatochipAction', {});
-    //navigation.navigate('Home', {});
-
-    // Or if you need to go back multiple screens:
-    // navigation.pop(2); // Go back 2 screens
-    // navigation.navigate('SetupSatochip', setupSatochipParams || {});
+    // Navigate back to the Add Satochip Key
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'SatochipAction',
+        params: {
+          mode: InteracationMode.VAULT_ADDITION,
+        },
+      })
+    );
 
   };
 
@@ -178,23 +131,15 @@ function SatochipSeedImportModal({ route, navigation }) {
       <WalletHeader
         title={satochipTranslations.importSeedTitle}
         subTitle={satochipTranslations.importSeedDescription}
-        onPressHandler={handleCancel}
+        onPressHandler={handleResultClose}
       />
 
 
       {/* NFC Processing UI */}
       <NfcPrompt visible={nfcVisible} close={closeNfc} />
-      
-      {/* Loading Indicator */}
-      {/*<ActivityIndicatorView */}
-      {/*  showLoader={true} */}
-      {/*  visible={isProcessing} */}
-      {/*  title={satochipTranslations.importSeedInProgress}*/}
-      {/*  subTitle={common.pleaseWait}*/}
-      {/*/>*/}
 
+      {/* import button */}
       <Box style={styles.bottomContainerView}>
-        {/* import button */}
         <Buttons
           primaryCallback={performSeedImport}
           primaryText={'Import Seed'}
@@ -207,12 +152,10 @@ function SatochipSeedImportModal({ route, navigation }) {
 
       {/* Result Modal */}
       <KeeperModal
-        visible={resultModal}
+        visible={showResultModal}
         close={handleResultClose}
-        title={importSuccess ? satochipTranslations.importSeedSuccess : satochipTranslations.importSeedFailed}
-        subTitle={importSuccess 
-          ? satochipTranslations.importSeedSuccess 
-          : satochipTranslations.importSeedFailed}
+        title={importSuccess ? satochipTranslations.importSeedTitle : satochipTranslations.importSeedFailed}
+        subTitle={importSuccess ? satochipTranslations.importSeedSuccess : errorMessage}
         buttonText={common.Okay}
         buttonCallback={handleResultClose}
         modalBackground={`${colorMode}.modalWhiteBackground`}

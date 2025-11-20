@@ -12,6 +12,7 @@ import WalletHeader from 'src/components/WalletHeader';
 import HexagonIcon from 'src/components/HexagonIcon';
 import SATOCHIPICONLIGHT from 'src/assets/images/satochip_light.svg';
 import Colors from 'src/theme/Colors';
+import {InteracationMode} from "../Vault/HardwareModalMap";
 
 function ImportSatochipSeed({ route, navigation }) {
   const { colorMode } = useColorMode();
@@ -28,10 +29,12 @@ function ImportSatochipSeed({ route, navigation }) {
 
   const handleContinue = () => {
     console.log(`ImportSatochipSeed handleContinue START`);
+
     navigation.dispatch(
       CommonActions.navigate({
         name: 'EnterSeedScreen',
         params: {
+          mode: InteracationMode.VAULT_IMPORT_SEED,
           isImport: true,
           isUSDTWallet: false,
           importSeedCta: async (mnemonic: string) => {

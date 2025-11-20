@@ -128,6 +128,12 @@ export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
   };
 };
 
+export const setupCard = async (card: SatochipCard, newPIN: string) => {
+  // do setup
+  await card.setup(newPIN, 5)
+  return;
+};
+
 export const changePin = async (card: SatochipCard, oldPIN: string, newPIN: string) => {
   // Verify current PIN first
   await card.verifyPIN(0, oldPIN);
@@ -138,11 +144,14 @@ export const changePin = async (card: SatochipCard, oldPIN: string, newPIN: stri
 };
 
 export const importSeed = async (card: SatochipCard, pin: string, seedBytes: Buffer) => {
+  console.log(`index importSeed: pin: ${pin}`);
+  console.log(`index importSeed: seedBytes: ${seedBytes.toString('hex')}`);
   // Verify current PIN first
   await card.verifyPIN(0, pin);
+  console.log(`index importSeed: pin verified!`);
   // import seed
   await card.importSeed(seedBytes);
-
+  console.log(`index importSeed: seed imported!`);
   return;
 };
 

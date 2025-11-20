@@ -490,6 +490,7 @@ function SetupSatochip({ route }) {
           </Text>
         </ScrollView>
       </MockWrapper>
+
       {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
         <TouchableOpacity
           onPress={() => {
@@ -500,6 +501,30 @@ function SetupSatochip({ route }) {
           <Box flexDirection="row">
             <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
               {satochipTranslations.checkInitialSetupStatus}
+            </Text>
+            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+      )}
+
+      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
+        <TouchableOpacity
+          onPress={() => {
+
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: 'SatochipSetupPin',
+                params: {
+                  setupSatochipParams: route.params,
+                },
+              })
+            );
+          }}
+          testID="satochipSetupPin"
+        >
+          <Box flexDirection="row">
+            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
+              {satochipTranslations.setupNewCard}
             </Text>
             <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
           </Box>
@@ -531,6 +556,35 @@ function SetupSatochip({ route }) {
           <Box flexDirection="row">
             <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
               {satochipTranslations.importSeed}
+            </Text>
+            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+      )}
+
+      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
+        <TouchableOpacity
+          onPress={() => {
+            if (pin.length < 4) {
+              showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
+              return;
+            }
+
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: 'ResetSatochipSeedNew',
+                params: {
+                  pin,
+                  setupSatochipParams: route.params,
+                },
+              })
+            );
+          }}
+          testID="resetSatochipSeed"
+        >
+          <Box flexDirection="row">
+            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
+              {satochipTranslations.resetSeed}
             </Text>
             <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
           </Box>

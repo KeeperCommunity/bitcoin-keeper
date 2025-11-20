@@ -125,6 +125,7 @@ export const enum InteracationMode {
   SIGN_TRANSACTION = 'SIGN_TRANSACTION',
   BACKUP_SIGNER = 'BACKUP_SIGNER',
   SIGNED_MESSAGE = 'SIGNED_MESSAGE',
+  VAULT_IMPORT_SEED = 'VAULT_IMPORT_SEED',
 }
 
 const getSignerContent = (
@@ -1086,14 +1087,14 @@ function HardwareModalMap({
   };
 
   const navigateToSatochipSetup = () => {
-    if (mode === InteracationMode.RECOVERY) {
-      navigation.dispatch(
-        CommonActions.navigate({
-          name: 'AddSatochipRecovery',
-          params: { mode, signer, isMultisig, accountNumber: getAccountFromSigner(signer) },
-        })
-      );
-    }
+    // if (mode === InteracationMode.RECOVERY) {
+    //   navigation.dispatch(
+    //     CommonActions.navigate({
+    //       name: 'AddSatochipRecovery',
+    //       params: { mode, signer, isMultisig, accountNumber: getAccountFromSigner(signer) },
+    //     })
+    //   );
+    // }
     navigation.dispatch(
       CommonActions.navigate({
         name: 'SatochipAction',

@@ -113,6 +113,7 @@ export type AppStackParams = {
   EnterSeedScreen: undefined;
   UnlockTapsigner: undefined;
   ChangeTapsignerPin: undefined;
+  SatochipSetupPin: undefined;
   ChangeSatochipPin: undefined;
   ResetSatochipSeed: undefined;
   VaultConfigurationCreation: undefined;
