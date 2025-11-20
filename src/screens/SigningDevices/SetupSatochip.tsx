@@ -572,7 +572,7 @@ function SetupSatochip({ route }) {
 
             navigation.dispatch(
               CommonActions.navigate({
-                name: 'ResetSatochipSeedNew',
+                name: 'ResetSatochipSeed',
                 params: {
                   pin,
                   setupSatochipParams: route.params,

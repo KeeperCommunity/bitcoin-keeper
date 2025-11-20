@@ -76,20 +76,6 @@ function ImportSatochipSeed({ route, navigation }) {
             icon={<SATOCHIPICONLIGHT />}
           />
         </Box>
-
-        {/*<Box style={styles.descriptionContainer}>*/}
-        {/*  <Text style={styles.descriptionText} color={`${colorMode}.secondaryText`}>*/}
-        {/*    {satochipTranslations.importSeedDescription}*/}
-        {/*  </Text>*/}
-        {/*  */}
-        {/*  /!*<Box style={[styles.warningContainer, { *!/*/}
-        {/*  /!*  backgroundColor: colorMode === 'light' ? 'rgba(245, 142, 111, 0.1)' : 'rgba(245, 142, 111, 0.2)',*!/*/}
-        {/*  /!*}]}>*!/*/}
-        {/*  /!*  <Text style={styles.warningText} color={`${colorMode}.alertRed`}>*!/*/}
-        {/*  /!*    {satochipTranslations.importSeedWarning}*!/*/}
-        {/*  /!*  </Text>*!/*/}
-        {/*  /!*</Box>*!/*/}
-        {/*</Box>*/}
       </Box>
 
       <Box style={styles.buttonContainer}>
