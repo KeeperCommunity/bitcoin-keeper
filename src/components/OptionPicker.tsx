@@ -108,7 +108,7 @@ function SelectableDropdown({ label, options, selectedOption, onOptionSelect }: 
         close={() => setIsOpen(false)}
         showCloseIcon={false}
         Content={() => optionsContent}
-        modalBackground={optioncontainer_background}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
       />
     </Box>
   );

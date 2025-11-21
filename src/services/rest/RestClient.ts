@@ -1,4 +1,3 @@
-import Tor, { RequestResponse } from 'react-native-tor';
 import axios, { AxiosResponse } from 'axios';
 
 import DeviceInfo from 'react-native-device-info';
@@ -6,9 +5,6 @@ import { Platform } from 'react-native';
 import config from 'src/utils/service-utilities/config';
 
 const { HEXA_ID } = config;
-const tor = Tor({
-  stopDaemonOnBackground: true,
-});
 
 enum TorStatus {
   OFF = 'OFF',
@@ -53,17 +49,7 @@ class RestClient {
   }
 
   async setUseTor(useTor: boolean) {
-    try {
-      RestClient.useTor = useTor;
-      if (useTor) {
-        this.initTor();
-      } else {
-        await tor.stopIfRunning();
-        this.updateTorStatus(TorStatus.OFF);
-      }
-    } catch (error) {
-      this.updateTorStatus(TorStatus.ERROR);
-    }
+    this.updateTorStatus(TorStatus.ERROR);
   }
 
   private updateTorStatus(status: TorStatus, message = '') {
@@ -71,65 +57,11 @@ class RestClient {
     this.notify(status, message);
   }
 
-  getCommonHeaders(): object {
-    return RestClient.headers;
-  }
-
   getTorStatus(): TorStatus {
     return RestClient.torStatus;
   }
 
-  getTorPort(): number | null {
-    return RestClient.torPort;
-  }
-
-  private async initTor() {
-    try {
-      this.updateTorStatus(TorStatus.CONNECTING);
-      const port = await tor.startIfNotStarted();
-      if (port) {
-        console.log('Tor started on PORT: ', port);
-        RestClient.torPort = port;
-        this.updateTorStatus(TorStatus.CONNECTED, `Tor started on PORT: ${port}`);
-      } else {
-        this.updateTorStatus(TorStatus.ERROR, 'Failed to connect to tor daemon');
-      }
-    } catch (error) {
-      console.log('tor connect error', error);
-      await tor.stopIfRunning();
-      this.updateTorStatus(TorStatus.ERROR, error.message);
-    }
-  }
-
-  getCircularReplacer() {
-    const seen = new WeakSet();
-    return (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) {
-          return;
-        }
-        seen.add(value);
-      }
-      return value;
-    };
-  }
-
-  async post(
-    path: string,
-    body: object,
-    headers?: object
-  ): Promise<AxiosResponse | RequestResponse> {
-    if (RestClient.useTor && RestClient.torStatus === TorStatus.CONNECTED) {
-      return tor.post(
-        path,
-        JSON.stringify(body, this.getCircularReplacer()),
-        {
-          ...RestClient.headers,
-          ...headers,
-        },
-        true
-      );
-    }
+  async post(path: string, body: object, headers?: object): Promise<AxiosResponse> {
     return axios.post(path, body, {
       headers: {
         ...RestClient.headers,
@@ -138,17 +70,7 @@ class RestClient {
     });
   }
 
-  async get(path: string, headers?: object): Promise<AxiosResponse | RequestResponse> {
-    if (RestClient.useTor && RestClient.torStatus === TorStatus.CONNECTED) {
-      return tor.get(
-        path,
-        {
-          ...RestClient.headers,
-          ...headers,
-        },
-        true
-      );
-    }
+  async get(path: string, headers?: object): Promise<AxiosResponse> {
     return axios.get(path, {
       headers: {
         ...RestClient.headers,
@@ -159,4 +81,4 @@ class RestClient {
 }
 
 export default new RestClient();
-export { tor, TorStatus };
+export { TorStatus };

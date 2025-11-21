@@ -27,9 +27,6 @@ jest.mock('react-native-reanimated', () => {
   return Reanimated;
 });
 
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
-jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
-
 jest.mock('@react-native-firebase/messaging', () =>
   jest.fn().mockImplementation(() => ({
     hasPermission: jest.fn(() => Promise.resolve(true)),

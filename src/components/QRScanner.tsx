@@ -1,7 +1,11 @@
 import { Box, HStack, useColorMode, VStack } from 'native-base';
 import { ActivityIndicator, StyleSheet } from 'react-native';
-import { RNCamera } from 'react-native-camera';
-import CameraUnauthorized from './CameraUnauthorized';
+import {
+  Camera,
+  useCameraDevices,
+  useCameraPermission,
+  useCodeScanner,
+} from 'react-native-vision-camera';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { URRegistryDecoder } from 'src/services/qr/bc-ur-registry';
@@ -9,7 +13,7 @@ import { decodeURBytes } from 'src/services/qr';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
 import UploadImage from './UploadImage';
 import { ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
-import { QRreader } from 'react-native-qr-decode-image-camera';
+import RNQRGenerator from 'rn-qr-generator';
 import useToastMessage from 'src/hooks/useToastMessage';
 import Text from './KeeperText';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
@@ -17,6 +21,7 @@ import { joinQRs } from 'src/services/qr/bbqr/join';
 import { extractBBQRIndex, isHexadecimal } from 'src/utils/utilities';
 import { Psbt } from 'bitcoinjs-lib';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import CameraUnauthorized from './CameraUnauthorized';
 
 let decoder = new URRegistryDecoder();
 
@@ -37,6 +42,9 @@ function QRScanner({
   const { translations } = useContext(LocalizationContext);
   const { error: errorText } = translations;
   const hasScannedRef = useRef(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const devices = useCameraDevices();
+  const device = devices.find((device) => device.position == 'back');
 
   const { showToast } = useToastMessage();
 
@@ -48,6 +56,10 @@ function QRScanner({
       };
     }, [])
   );
+
+  useEffect(() => {
+    if (!hasPermission) requestPermission();
+  }, []);
 
   // eslint-disable-next-line no-promise-executor-return
   const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -176,8 +188,14 @@ function QRScanner({
         } else if (response.errorCode === 'others') {
           showToast(response.errorMessage);
         } else {
-          const data = await QRreader(response.assets[0].uri);
-          onBarCodeRead({ data });
+          RNQRGenerator.detect({
+            uri: response.assets[0].uri,
+          })
+            .then((response) => {
+              const { values } = response;
+              onBarCodeRead({ data: values[0] });
+            })
+            .catch((error) => console.log('Cannot detect QR code in image', error));
         }
       } catch (_) {
         showToast(errorText.invalidOrNoRelatedQR);
@@ -185,19 +203,31 @@ function QRScanner({
     });
   };
 
+  const codeScanner = useCodeScanner({
+    codeTypes: ['qr', 'ean-13'],
+    onCodeScanned: (codes) => {
+      onBarCodeRead({ data: codes[0].value });
+    },
+  });
+
   return (
     <Box>
       <VStack style={styles.centerColumn}>
         <Box style={styles.qrcontainer}>
           {hideCamera || isFocused ? (
-            <RNCamera
-              autoFocus="on"
-              style={styles.cameraView}
-              captureAudio={false}
-              onBarCodeRead={onBarCodeRead}
-              useNativeZoom
-              notAuthorizedView={<CameraUnauthorized />}
-            />
+            <>
+              {!device || !hasPermission ? (
+                <CameraUnauthorized />
+              ) : (
+                <Camera
+                  style={styles.cameraView}
+                  device={device}
+                  isActive={isFocused}
+                  audio={false}
+                  codeScanner={codeScanner}
+                />
+              )}
+            </>
           ) : (
             <Box style={styles.cameraView} />
           )}
