@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import { Box, useColorMode } from 'native-base';
 import Text from 'src/components/KeeperText';
@@ -15,6 +15,8 @@ import RampNetwork from 'src/assets/images/ramp-network.svg';
 import RampNetworkDark from 'src/assets/images/ramp-dark-logo.svg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import MultiSendSvg from 'src/assets/images/@.svg';
+import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import useToastMessage from 'src/hooks/useToastMessage';
 
 function BuyBitcoinScreen({ route }) {
   const { colorMode } = useColorMode();
@@ -25,19 +27,26 @@ function BuyBitcoinScreen({ route }) {
 
   const { wallet } = route.params;
   const receivingAddress = wallet.specs.receivingAddress;
+  const [loading, setLoading] = useState(false);
+  const { showToast } = useToastMessage();
 
   const buyBitCoinHexagonBackgroundColor = ThemedColor({
     name: 'buyBitCoinHexagonBackgroundColor',
   });
-  const buyWithRamp = (address: string) => {
+  const buyWithRamp = async (address: string) => {
+    setLoading(true);
     try {
       if (currencyCode === 'GBP' || getCountry() === 'UK') {
         Linking.openURL('https://rampnetwork.com/buy#');
       } else {
-        Linking.openURL(fetchRampReservation({ receiveAddress: address }));
+        const url = await fetchRampReservation(address);
+        Linking.openURL(url.toString());
       }
     } catch (error) {
       console.log(error);
+      showToast('Error while fetching ramp url');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,6 +97,7 @@ function BuyBitcoinScreen({ route }) {
           fullWidth
         />
       </Box>
+      <ActivityIndicatorView visible={loading} />
     </ScreenWrapper>
   );
 }

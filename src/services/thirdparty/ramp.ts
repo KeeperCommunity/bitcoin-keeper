@@ -1,18 +1,18 @@
-import config from 'src/utils/service-utilities/config';
+import Relay from '../backend/Relay';
+import dbManager from 'src/storage/realm/dbManager';
+import { RealmSchema } from 'src/storage/realm/enum';
+const app: any = dbManager.getObjectByIndex(RealmSchema.KeeperApp);
 
-const finalURL = `https://www.bitcoinkeeper.app/${config.ENVIRONMENT.toLowerCase()}/ramp/`;
-
-export const fetchRampReservation = ({ receiveAddress }) => {
+export const fetchRampReservation = async (userAddress: string) => {
   try {
-    const url = `${config.RAMP_BASE_URL}?\
-hostAppName=${'Bitcoin Keeper'}&\
-userAddress=${receiveAddress}&\
-hostLogoUrl=${'https://static.wixstatic.com/media/6aee8c_164a4e8d6d7246468071075485eb1259~mv2.png/v1/fill/w_328,h_144,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/keeper%20logo.png'}&\
-swapAsset=BTC&\
-hostApiKey=${config.RAMP_REFERRAL_CODE}&\
-finalUrl=${finalURL}
-`;
-    return url;
+    const res = await Relay.getRampUrl({
+      userAddress,
+      appId: app.id,
+      publicKey: app.publicId,
+      swapAsset: 'BTC',
+      flow: 'ONRAMP',
+    });
+    return res.url;
   } catch (error) {
     console.log('error generating Ramp link ', error);
     return {
@@ -21,41 +21,56 @@ finalUrl=${finalURL}
   }
 };
 
-
-export const fetchSellBtcLink = () => {
-  const url = `${config.RAMP_BASE_URL}?\
-hostAppName=${'Bitcoin Keeper'}&\
-hostLogoUrl=${'https://static.wixstatic.com/media/6aee8c_164a4e8d6d7246468071075485eb1259~mv2.png/v1/fill/w_328,h_144,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/keeper%20logo.png'}&\
-swapAsset=BTC&\
-hostApiKey=${config.RAMP_REFERRAL_CODE}&\
-finalUrl=${finalURL}&\
-defaultFlow=OFFRAMP
-`;
-  return url;
+export const fetchSellBtcLink = async () => {
+  try {
+    const res = await Relay.getRampUrl({
+      userAddress: '',
+      appId: app.id,
+      publicKey: app.publicId,
+      swapAsset: 'BTC',
+      flow: 'OFFRAMP',
+    });
+    return res.url;
+  } catch (error) {
+    console.log('error generating Ramp link ', error);
+    return {
+      error,
+    };
+  }
 };
 
-export const fetchBuyUsdtLink = ({ receiveAddress }) => {
-  const url = `${config.RAMP_BASE_URL}?\
-hostAppName=${'Bitcoin Keeper'}&\
-userAddress=${receiveAddress}&\
-hostLogoUrl=${'https://static.wixstatic.com/media/6aee8c_164a4e8d6d7246468071075485eb1259~mv2.png/v1/fill/w_328,h_144,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/keeper%20logo.png'}&\
-swapAsset=TRON_USDT&\
-hostApiKey=${config.RAMP_REFERRAL_CODE}&\
-finalUrl=${finalURL}
-`;
-  return url;
-};
-export const fetchSellUsdtLink = () => {
-  const url = `${config.RAMP_BASE_URL}?\
-hostAppName=${'Bitcoin Keeper'}&\
-hostLogoUrl=${'https://static.wixstatic.com/media/6aee8c_164a4e8d6d7246468071075485eb1259~mv2.png/v1/fill/w_328,h_144,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/keeper%20logo.png'}&\
-swapAsset=TRON_USDT&\
-hostApiKey=${config.RAMP_REFERRAL_CODE}&\
-finalUrl=${finalURL}
-defaultFlow=OFFRAMP
-`;
-  return url;
+export const fetchBuyUsdtLink = async (userAddress: string) => {
+  try {
+    const res = await Relay.getRampUrl({
+      userAddress,
+      appId: app.id,
+      publicKey: app.publicId,
+      swapAsset: 'TRON_USDT',
+      flow: 'ONRAMP',
+    });
+    return res.url;
+  } catch (error) {
+    console.log('error generating Ramp link ', error);
+    return {
+      error,
+    };
+  }
 };
 
-
-
+export const fetchSellUsdtLink = async () => {
+  try {
+    const res = await Relay.getRampUrl({
+      userAddress: '',
+      appId: app.id,
+      publicKey: app.publicId,
+      swapAsset: 'TRON_USDT',
+      flow: 'OFFRAMP',
+    });
+    return res.url;
+  } catch (error) {
+    console.log('error generating Ramp link ', error);
+    return {
+      error,
+    };
+  }
+};

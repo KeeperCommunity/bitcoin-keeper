@@ -756,4 +756,27 @@ export default class Relay {
     }
     return res ? res.data || res.json : null;
   };
+  public static getRampUrl = async ({
+    userAddress,
+    appId,
+    publicKey,
+    swapAsset,
+    flow,
+  }): Promise<{
+    url: string;
+    signature: string;
+    timestamp: number;
+    queryString: string;
+  }> => {
+    let res;
+    try {
+      res = await RestClient.get(
+        `${RELAY}getRampUrl?appId=${appId}&publicKey=${publicKey}&userAddress=${userAddress}&swapAsset=${swapAsset}&flow=${flow}`
+      );
+    } catch (err) {
+      if (err?.message) throw new Error(err.message);
+      if (err?.code) throw new Error(err.code);
+    }
+    return res ? res.data || res.json : null;
+  };
 }
