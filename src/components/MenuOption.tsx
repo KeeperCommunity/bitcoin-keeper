@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    width: '75%',
+    width: '95%',
   },
 });
 

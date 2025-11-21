@@ -31,8 +31,8 @@ function KeeperQRCode({
           {...(logoBackgroundColor ? { logoBackgroundColor } : {})}
           size={size}
           ecl={ecl}
-          logo={privateTheme ? KeeperPrivateNewLogo : KeeperNewLogo}
-          logoSize={showLogo ? size * 0.2 : 0}
+          logo={showLogo ? (privateTheme ? KeeperPrivateNewLogo : KeeperNewLogo) : undefined}
+          logoSize={size * 0.2}
         />
       )}
     </Box>

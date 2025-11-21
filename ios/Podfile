@@ -1,3 +1,6 @@
+# Disable New Architecture
+ENV['RCT_NEW_ARCH_ENABLED'] = '0'
+
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
@@ -5,7 +8,7 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, 13.4
+platform :ios, 15.1
 prepare_react_native_project!
 # If you are using a `react-native-flipper` your iOS build will fail when `NO_FLIPPER=1` is set.
 # because `react-native-flipper` depends on (FlipperKit,...) that will be excluded
@@ -31,6 +34,8 @@ def common_pods
 
   use_react_native!(
     :path => config[:reactNativePath],
+    :fabric_enabled => false, # 👈 disable Fabric (part of new arch)
+    :new_arch_enabled => false, # 👈 disable New Architecture
     # Enables Flipper.
     #
     # Note that if you have use_frameworks! enabled, Flipper will not work and
@@ -54,7 +59,7 @@ post_install do |installer|
   # Set deployment target to 13.4 for all targets
   installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
       end  
   end
 

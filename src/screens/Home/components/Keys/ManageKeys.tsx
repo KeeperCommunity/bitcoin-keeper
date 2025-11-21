@@ -71,7 +71,7 @@ const ManageKeys = ({ addedSigner }) => {
       if (relaySignersUpdate) {
         setInProgress(false);
         if (realySignersAdded && navigation.isFocused()) {
-          setKeyAddedModalVisible(true);
+          setTimeout(() => setKeyAddedModalVisible(true), 500);
         }
         dispatch(resetSignersUpdateState());
       }

@@ -51,6 +51,7 @@ function AssociateContact({ route }) {
   const dispatch = useDispatch();
   const { showToast } = useToastMessage();
   const placeholderTextColor = ThemedColor({ name: 'placeholderTextColor' });
+  const inputTextColor = ThemedColor({ name: 'inputTextColor' });
 
   useEffect(() => {
     try {
@@ -141,7 +142,7 @@ function AssociateContact({ route }) {
           >
             <ThemedSvg name={'search_icon'} width={wp(15)} height={hp(15)} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: inputTextColor }]}
               placeholderTextColor={placeholderTextColor}
               placeholder={common.search}
               value={search}

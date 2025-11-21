@@ -1,6 +1,6 @@
 import { Box, ScrollView, useColorMode } from 'native-base';
 import React, { useContext, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import { useDispatch } from 'react-redux';
 import Buttons from 'src/components/Buttons';
 import Text from 'src/components/KeeperText';
@@ -15,6 +15,7 @@ import KeeperTextInput from 'src/components/KeeperTextInput';
 import useIsSmallDevices from 'src/hooks/useSmallDevices';
 import { RealmSchema } from 'src/storage/realm/enum';
 import dbManager from 'src/storage/realm/dbManager';
+const { height } = Dimensions.get('window');
 
 export const CloudBackupPassword = ({ navigation }: any) => {
   const { colorMode } = useColorMode();
@@ -75,6 +76,7 @@ export const CloudBackupPassword = ({ navigation }: any) => {
             />
           </Box>
           {errorMessage && <Text color={`${colorMode}.alertRed`}>{errorMessage}</Text>}
+          <Box height={height / 6} />
         </ScrollView>
 
         <Buttons primaryCallback={onSavePassword} primaryText={common.confirm} fullWidth />

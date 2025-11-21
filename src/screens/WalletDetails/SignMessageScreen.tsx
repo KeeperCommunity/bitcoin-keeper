@@ -1,6 +1,6 @@
 import { Box, Input, KeyboardAvoidingView, ScrollView, useColorMode } from 'native-base';
 import React, { useContext, useState } from 'react';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { Colors } from 'react-native/Libraries/NewAppScreen';
 import Buttons from 'src/components/Buttons';
 import KeeperTextInput from 'src/components/KeeperTextInput';
@@ -25,7 +25,6 @@ import { InteracationMode } from '../Vault/HardwareModalMap';
 import CircleIconWrapper from 'src/components/CircleIconWrapper';
 import QRComms from 'src/assets/images/qr_comms.svg';
 import ImportIcon from 'src/assets/images/import.svg';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import Text from 'src/components/KeeperText';
 import { exportFile, importFile } from 'src/services/fs';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
