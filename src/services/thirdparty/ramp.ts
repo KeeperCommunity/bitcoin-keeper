@@ -8,7 +8,6 @@ export const fetchRampReservation = async (userAddress: string) => {
     const res = await Relay.getRampUrl({
       userAddress,
       appId: app.id,
-      publicKey: app.publicId,
       swapAsset: 'BTC',
       flow: 'ONRAMP',
     });
@@ -26,7 +25,6 @@ export const fetchSellBtcLink = async () => {
     const res = await Relay.getRampUrl({
       userAddress: '',
       appId: app.id,
-      publicKey: app.publicId,
       swapAsset: 'BTC',
       flow: 'OFFRAMP',
     });
@@ -44,7 +42,6 @@ export const fetchBuyUsdtLink = async (userAddress: string) => {
     const res = await Relay.getRampUrl({
       userAddress,
       appId: app.id,
-      publicKey: app.publicId,
       swapAsset: 'TRON_USDT',
       flow: 'ONRAMP',
     });
@@ -62,7 +59,6 @@ export const fetchSellUsdtLink = async () => {
     const res = await Relay.getRampUrl({
       userAddress: '',
       appId: app.id,
-      publicKey: app.publicId,
       swapAsset: 'TRON_USDT',
       flow: 'OFFRAMP',
     });

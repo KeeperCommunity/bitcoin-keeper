@@ -759,7 +759,6 @@ export default class Relay {
   public static getRampUrl = async ({
     userAddress,
     appId,
-    publicKey,
     swapAsset,
     flow,
   }): Promise<{
@@ -771,7 +770,7 @@ export default class Relay {
     let res;
     try {
       res = await RestClient.get(
-        `${RELAY}getRampUrl?appId=${appId}&publicKey=${publicKey}&userAddress=${userAddress}&swapAsset=${swapAsset}&flow=${flow}`
+        `${RELAY}getRampUrl?appId=${appId}&userAddress=${userAddress}&swapAsset=${swapAsset}&flow=${flow}`
       );
     } catch (err) {
       if (err?.message) throw new Error(err.message);
