@@ -203,6 +203,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
     seedBasedSingerMnemonic,
     tapsignerCVC,
     portalCVC,
+    satochipPin,
     signedSerializedPSBT,
   }) => {
     try {
@@ -297,7 +298,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         );
         return signedPSBT;
       } else if (SignerType.SATOCHIP === signerType) {
-
+        console.log(`RKSignersModal signTransaction satochipPin: ${satochipPin}`);
         const currentKey = {
             derivationPath: signer.signerXpubs[XpubTypes.P2WSH][0].derivationPath,
         };
@@ -319,7 +320,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
             defaultVault: {},
             serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
             card: satoCard,
-            pin: tapsignerCVC, // todo: use dedicated satochip PIN?
+            pin: satochipPin,
             signer,
         });
         const psbt = bitcoin.Psbt.fromBase64(serializedPSBTEnvelop.serializedPSBT);

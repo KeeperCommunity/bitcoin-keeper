@@ -289,8 +289,8 @@ function SetupSatochip({ route }) {
     try {
       console.log(`signWithSatochip start pin: ${pin}`);
 
-      //const signedSerializedPSBT = await signTransaction({ satochipPin: pin }); // TODO: debug
-      const signedSerializedPSBT = await withModal(async () => signTransaction({ satochipPin: pin }))();
+      const signedSerializedPSBT = await signTransaction({ satochipPin: pin });
+      //const signedSerializedPSBT = await withModal(async () => signTransaction({ satochipPin: pin }))();
 
       if (Platform.OS === 'ios') NFC.showiOSMessage('SATOCHIP signed successfully');
       if (isRemoteKey && signedSerializedPSBT) {
