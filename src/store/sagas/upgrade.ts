@@ -90,15 +90,13 @@ function* updateVersionHistoryWorker({
       appId: app.id,
       version: newVersion,
     });
-    if (response.updated) {
-      yield call(dbManager.createObject, RealmSchema.VersionHistory, {
-        version: `${newVersion}(${DeviceInfo.getBuildNumber()})`,
-        date: new Date().toString(),
-        title: `Upgraded from ${previousVersion} to ${newVersion}`,
-      });
-      messaging().unsubscribeFromTopic(getReleaseTopic(previousVersion));
-      messaging().subscribeToTopic(getReleaseTopic(newVersion));
-    }
+    yield call(dbManager.createObject, RealmSchema.VersionHistory, {
+      version: `${newVersion}(${DeviceInfo.getBuildNumber()})`,
+      date: new Date().toString(),
+      title: `Upgraded from ${previousVersion} to ${newVersion}`,
+    });
+    messaging().unsubscribeFromTopic(getReleaseTopic(previousVersion));
+    messaging().subscribeToTopic(getReleaseTopic(newVersion));
   } catch (error) {
     console.log({ error });
   }

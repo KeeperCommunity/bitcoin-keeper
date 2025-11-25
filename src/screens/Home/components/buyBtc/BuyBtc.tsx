@@ -23,6 +23,7 @@ import UsdtWalletLogo from 'src/assets/images/usdt-wallet-logo.svg';
 import { useUSDTWallets } from 'src/hooks/useUSDTWallets';
 import { fetchSellBtcLink, fetchSellUsdtLink } from 'src/services/thirdparty/ramp';
 import Buttons from 'src/components/Buttons';
+import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 
 const BuyBtc = () => {
   const { colorMode } = useColorMode();
@@ -49,6 +50,7 @@ const BuyBtc = () => {
   const allWallets = [...wallets, ...allVaults];
   const { usdtWallets } = useUSDTWallets();
   const [usdtPrice, setUsdtPrice] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadBtcPrice();
@@ -203,9 +205,17 @@ const BuyBtc = () => {
           </Text>
         )}
         buttonText={common.confirm}
-        buttonCallback={() => {
-          Linking.openURL(fetchSellBtcLink());
-          setVisibleSellBtc(false);
+        buttonCallback={async () => {
+          try {
+            setLoading(true);
+            setVisibleSellBtc(false);
+            const url = await fetchSellBtcLink();
+            Linking.openURL(url.toString());
+          } catch (error) {
+            showToast('Error while fetching ramp url');
+          } finally {
+            setLoading(false);
+          }
         }}
       />
       <KeeperModal
@@ -225,11 +235,20 @@ const BuyBtc = () => {
           </Text>
         )}
         buttonText={common.confirm}
-        buttonCallback={() => {
-          Linking.openURL(fetchSellUsdtLink());
-          setVisibleSellUsdt(false);
+        buttonCallback={async () => {
+          try {
+            setLoading(true);
+            setVisibleSellUsdt(false);
+            const url = await fetchSellUsdtLink();
+            Linking.openURL(url.toString());
+          } catch (error) {
+            showToast('Error while fetching ramp url');
+          } finally {
+            setLoading(false);
+          }
         }}
       />
+      <ActivityIndicatorView visible={loading} />
     </View>
   );
 };
