@@ -41,6 +41,7 @@ import TAPSIGNERLOGO from 'src/assets/images/tapsigner_logo.svg';
 import SATOCHIPICON from 'src/assets/images/satochip_icon.svg';
 import SATOCHIPICONLIGHT from 'src/assets/images/satochip_light.svg';
 import SATOCHIPLOGO from 'src/assets/images/satochip_logo.svg';
+import SATOCHIPLOGOWHITE from 'src/assets/images/satochip_logo_white.svg';
 import TREZORICON from 'src/assets/images/trezor_icon.svg';
 import TREZORICONLIGHT from 'src/assets/images/trezor_light.svg';
 import TREZORLOGO from 'src/assets/images/trezor_logo.svg';
@@ -190,7 +191,7 @@ export const SDIcons = ({ type, light = true, width = 20, height = 20 }: SDIconO
     case SignerType.SATOCHIP:
       return {
         Icon: getColouredIcon(<SATOCHIPICONLIGHT />, <SATOCHIPICON />, light, width, height),
-        Logo: <SATOCHIPLOGO />,
+        Logo: colorMode === 'dark' ? <SATOCHIPLOGOWHITE /> : <SATOCHIPLOGO />,
         type: SignerStorage.COLD,
       };
     case SignerType.TREZOR:
