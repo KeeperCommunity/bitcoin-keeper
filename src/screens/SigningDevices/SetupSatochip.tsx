@@ -306,6 +306,8 @@ function SetupSatochip({ route }) {
       if (errorMessage) {
         showToast(errorMessage, <ToastErrorIcon />, IToastCategory.DEFAULT, 3000, true);
       }
+      // propagate error higher since nfc modal cannot be closed from here
+      throw new Error(errorMessage);
     } finally {
       closeNfc();
       card.endNfcSession();

@@ -79,7 +79,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   const { withModal, nfcVisible: TSNfcVisible } = useTapsignerModal(card);
   const { withNfcModal, nfcVisible, closeNfc } = useNfcModal();
   const satoCard = useRef(new SatochipCard()).current;
-  const { nfcVisible: satochipNfcVisible, withModal: satochipWithModal } = useSatochipModal(satoCard);
+  const { nfcVisible: satochipNfcVisible, withModal: satochipWithModal, closeNfc: closeSatochipNfc } = useSatochipModal(satoCard);
   const dispatch = useDispatch();
   const { showToast } = useToastMessage();
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
@@ -317,6 +317,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
             signingPayload,
             currentKey,
             withModal: satochipWithModal,
+            closeNfc: closeSatochipNfc,
             defaultVault: {},
             serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
             card: satoCard,

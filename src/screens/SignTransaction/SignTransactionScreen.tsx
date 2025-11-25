@@ -375,6 +375,7 @@ function SignTransactionScreen() {
                 signingPayload,
                 currentKey,
                 withModal: withSatochipModal,
+                closeNfc: closeSatochipNfc,
                 defaultVault,
                 serializedPSBT,
                 card: satochipCard,
@@ -403,7 +404,6 @@ function SignTransactionScreen() {
               ])
             );
           } catch (error) {
-            closeTSNfc();
             throw error;
           }
         } else if (SignerType.COLDCARD === signerType) {

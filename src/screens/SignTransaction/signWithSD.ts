@@ -64,6 +64,7 @@ export const signTransactionWithSatochip = async ({
  signingPayload,
  currentKey,
  withModal,
+ closeNfc,
  defaultVault,
  serializedPSBT,
  card,
@@ -87,19 +88,25 @@ export const signTransactionWithSatochip = async ({
     return { signedSerializedPSBT, signingPayload: null };
   }
   return withModal(async () => {
-    console.log(`signWithSD signTransactionWithSatochip pin: ${pin}`)
-    const signedInput = await signWithSatochip(
-      card,
-      signer.masterFingerprint,
-      inputsToSign,
-      pin,
-      currentKey,
-      isTestnet()
-    );
-    signingPayload.forEach((payload) => {
-      payload.inputsToSign = signedInput;
-    });
-    return { signingPayload, signedSerializedPSBT: null };
+    try {
+      console.log(`signWithSD signTransactionWithSatochip pin: ${pin}`)
+      const signedInput = await signWithSatochip(
+        card,
+        signer.masterFingerprint,
+        inputsToSign,
+        pin,
+        currentKey,
+        isTestnet()
+      );
+      signingPayload.forEach((payload) => {
+        payload.inputsToSign = signedInput;
+      });
+      return {signingPayload, signedSerializedPSBT: null};
+    } catch (error) {
+      console.log(`signWithSD signTransactionWithSatochip error: ${error}`);
+      closeNfc();
+      throw error;
+    }
   })();
 };
 
