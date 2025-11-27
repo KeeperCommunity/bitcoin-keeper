@@ -157,16 +157,16 @@ function ConfirmWalletDetails({ route }) {
       <Box w="100%">
         <Buttons
           primaryCallback={() => {
-            navigation.replace('ChoosePlan');
+            // navigation.replace('ChoosePlan');
             dispatch(resetWalletStateFlags());
           }}
           primaryText={choosePlan.viewSubscription}
           activeOpacity={0.5}
-          secondaryCallback={() => {
-            dispatch(resetWalletStateFlags());
-            navigation.replace('ChoosePlan');
-          }}
-          secondaryText={common.cancel}
+          // secondaryCallback={() => {
+          //   dispatch(resetWalletStateFlags());
+          //   navigation.replace('ChoosePlan');
+          // }}
+          // secondaryText={common.cancel}
           paddingHorizontal={wp(30)}
         />
       </Box>

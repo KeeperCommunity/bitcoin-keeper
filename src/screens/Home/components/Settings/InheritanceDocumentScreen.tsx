@@ -36,7 +36,8 @@ const InheritanceDocumentScreen = () => {
             <UpgradeCTA
               title={'Upgrade'}
               backgroundColor={Colors.GreenishGrey}
-              onPress={() => navigation.dispatch(CommonActions.navigate('ChoosePlan'))}
+              // onPress={() => navigation.dispatch(CommonActions.navigate('ChoosePlan'))}
+              onPress={() => {}}
             />
           </Box>
         )}

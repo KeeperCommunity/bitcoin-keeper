@@ -77,9 +77,11 @@ function LoginScreen({ navigation, route }) {
   const [loginData] = useState(getSecurityTip());
   const [torStatus, settorStatus] = useState<TorStatus>(RestClient.getTorStatus());
   const retryTime = Number((Date.now() - lastLoginFailedAt) / 1000);
-  const isOnPleb = useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L1;
-  const isKeeperPrivate =
-    useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L4;
+  // const isOnPleb = useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L1;
+  // const isKeeperPrivate =
+  //   useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L4;
+  const isOnPleb = false;
+  const isKeeperPrivate = false;
   const { automaticCloudBackup } = useAppSelector((state) => state.bhr);
 
   const login_button_backGround = ThemedColor({ name: 'login_button_backGround' });
@@ -453,17 +455,17 @@ function LoginScreen({ navigation, route }) {
 
   const campaignNavigation = () => {
     updateFCM();
-    navigation.reset({
-      index: 3,
-      routes: [
-        {
-          name: 'App',
-          state: {
-            routes: [{ name: 'Home' }, { name: 'ChoosePlan', params: { showDiscounted: true } }],
-          },
-        },
-      ],
-    });
+    // navigation.reset({
+    //   index: 3,
+    //   routes: [
+    //     {
+    //       name: 'App',
+    //       state: {
+    //         routes: [{ name: 'Home' }, { name: 'ChoosePlan', params: { showDiscounted: true } }],
+    //       },
+    //     },
+    //   ],
+    // });
     setShowCampaignModal(false);
   };
 
@@ -589,7 +591,7 @@ function LoginScreen({ navigation, route }) {
           setLoginError(false);
           setLogging(false);
           dispatch(setRecepitVerificationError(false));
-          resetToPleb();
+          // resetToPleb();
         }}
       />
       <KeeperModal

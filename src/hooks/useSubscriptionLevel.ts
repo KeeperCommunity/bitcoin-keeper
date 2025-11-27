@@ -6,7 +6,8 @@ import { AppSubscriptionLevel } from 'src/models/enums/SubscriptionTier';
 
 const useSubscriptionLevel = () => {
   const keeper: KeeperApp = useQuery(RealmSchema.KeeperApp).map(getJSONFromRealmObject)[0];
-  const level: AppSubscriptionLevel = keeper.subscription.level;
+  // const level: AppSubscriptionLevel = keeper.subscription.level;
+  const level: AppSubscriptionLevel = AppSubscriptionLevel.L3;
   return { level };
 };
 

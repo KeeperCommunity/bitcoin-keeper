@@ -70,7 +70,8 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
 
   const getAppData = (): { isPleb: boolean; appId: string } => {
     const tempApp = appData.map(getJSONFromRealmObject)[0];
-    const isPleb = tempApp.subscription.name.toUpperCase() === SubscriptionTier.L1.toUpperCase();
+    // const isPleb = tempApp.subscription.name.toUpperCase() === SubscriptionTier.L1.toUpperCase();
+    const isPleb = false;
     const appId = tempApp.id.toString();
     return { isPleb, appId };
   };
@@ -295,7 +296,7 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
           params: { ticketId: parseInt(ticketId), ticketStatus },
         });
     } else if (data?.notificationType === notificationType.CAMPAIGN) {
-      navigation.dispatch(CommonActions.navigate('ChoosePlan', { showDiscounted: true }));
+      // navigation.dispatch(CommonActions.navigate('ChoosePlan', { showDiscounted: true }));
     }
   };
 

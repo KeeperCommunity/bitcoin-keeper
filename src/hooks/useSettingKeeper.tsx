@@ -218,7 +218,8 @@ export const useSettingKeeper = () => {
       title: settings.personalCloudBackup,
       description: inheritancePlanning.personalCloudDescp,
       icon: <CloudIcon width={16} height={12} />,
-      onRightPress: () => navigation.navigate('ChoosePlan'),
+      // onRightPress: () => navigation.navigate('ChoosePlan'),
+      onRightPress: () => {},
       rightIcon: isOnL2Above ? null : <UpgradeIcon width={64} height={20} />,
       onPress: () => navigation.navigate('CloudBackup'),
       isDiamond: true,
@@ -235,9 +236,7 @@ export const useSettingKeeper = () => {
       ) : (
         <UpgradeIcon width={64} height={20} />
       ),
-      onRightPress: isOnL2Above
-        ? toggleDebounce(() => toggleAutomaticBackupMode())
-        : () => navigation.navigate('ChoosePlan'),
+      onRightPress: toggleDebounce(() => toggleAutomaticBackupMode()),
       isDiamond: false,
       isHodler: true,
     },
@@ -305,7 +304,8 @@ export const useSettingKeeper = () => {
       description: inheritancePlanning.canaryWalletDesp,
       icon: <CanaryIcon width={14} height={14} />,
       rightIcon: isOnL2Above ? null : <UpgradeIcon width={64} height={20} />,
-      onRightPress: () => navigation.navigate('ChoosePlan'),
+      // onRightPress: () => navigation.navigate('ChoosePlan'),
+      onRightPress: {},
       onPress: () => navigation.navigate('CanaryWallets'),
       isDiamond: false,
       isHodler: true,

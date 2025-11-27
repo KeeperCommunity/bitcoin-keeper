@@ -736,7 +736,8 @@ function SignerAdvanceSettings({ route }: any) {
         title={walletTranslation.canaryWallet}
         description={walletTranslation.onChainKeyAlert}
         callback={handleCanaryWallet}
-        disabled={isOnL1}
+        // disabled={isOnL1}
+        disabled={false}
         rightComponent={
           isOnL1 &&
           (() => {
@@ -775,7 +776,8 @@ function SignerAdvanceSettings({ route }: any) {
         callback={() => {
           isOnL4 && navigation.navigate('AdditionalUsers', { signer });
         }}
-        disabled={!isOnL4}
+        // disabled={!isOnL4}
+        disabled={false}
         rightComponent={
           !isOnL4 &&
           (() => {

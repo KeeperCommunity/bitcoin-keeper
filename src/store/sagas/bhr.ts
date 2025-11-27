@@ -374,13 +374,20 @@ function* getAppImageWorker({ payload }) {
       icon: 'assets/ic_pleb.svg',
       receipt: '',
     };
+    const dhSubscription = {
+      productId: SubscriptionTier.L3,
+      name: SubscriptionTier.L3,
+      level: AppSubscriptionLevel.L3,
+      icon: 'assets/ic_diamond_hands.svg',
+      receipt: '',
+    };
     yield call(
       recoverApp,
       primaryMnemonic,
       primarySeed,
       encryptionKey,
       appID,
-      plebSubscription,
+      dhSubscription,
       appImage,
       allVaultImages,
       labels,
@@ -1086,7 +1093,8 @@ export const deleteBackupWatcher = createWatcher(deleteBackupWorker, DELETE_BACK
 export function* checkBackupCondition() {
   const { pendingAllBackup, automaticCloudBackup } = yield select((state: RootState) => state.bhr);
   const { subscription }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-  if (automaticCloudBackup && subscription.level === AppSubscriptionLevel.L1 && !pendingAllBackup) {
+  // if (automaticCloudBackup && subscription.level === AppSubscriptionLevel.L1 && !pendingAllBackup) {
+  if (automaticCloudBackup && !pendingAllBackup) {
     yield put(setAutomaticCloudBackup(false));
     return true;
   }

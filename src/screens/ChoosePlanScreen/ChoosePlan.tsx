@@ -335,7 +335,7 @@ function ChoosePlan() {
           dbManager.updateObjectById(RealmSchema.KeeperApp, id, {
             subscription: updatedSubscription,
           });
-          if (response.level === AppSubscriptionLevel.L1) disptach(setAutomaticCloudBackup(false));
+          // if (response.level === AppSubscriptionLevel.L1) disptach(setAutomaticCloudBackup(false));
           disptach(setSubscription(subscription.name));
           setShowUpgradeModal(true);
         } else {

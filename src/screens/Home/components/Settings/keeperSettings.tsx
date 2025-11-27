@@ -59,7 +59,7 @@ const KeeperSettings = ({ route }) => {
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
-      <PlebContainer
+      {/* <PlebContainer
         title={currentPlan.title}
         subtitle={currentPlan.subtitle}
         description={currentPlan.description}
@@ -71,7 +71,7 @@ const KeeperSettings = ({ route }) => {
         }}
         icon={currentPlan.icon}
         showDot={false}
-      />
+      /> */}
       <InheritanceDocument
         title={signerText.inheritanceDocuments}
         borderColor={InheritanceDocument_border}

@@ -167,7 +167,7 @@ const HomeScreenHeader: React.FC<HomeScreenHeaderProps> = ({
     },
     [uaiType.CAMPAIGN]: () => {
       dispatch(uaiActioned({ uaiId: localLatestUnseenUai.id, action: false }));
-      navigtaion.dispatch(CommonActions.navigate('ChoosePlan', { showDiscounted: true }));
+      // navigtaion.dispatch(CommonActions.navigate('ChoosePlan', { showDiscounted: true }));
     },
   };
 
