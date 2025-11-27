@@ -288,11 +288,9 @@ function LoginScreen({ navigation, route }) {
         navigation.reset({ index: 0, routes: [{ name: 'NewKeeperApp' }] });
       }
       dispatch(credsAuthenticated(false));
-      if (isKeeperPrivate) {
-        const res = await Relay.getAccountManagerDetails(appId);
-        if (res) dispatch(setAccountManagerDetails(res));
-        else dispatch(setAccountManagerDetails(null));
-      }
+      const res = await Relay.getAccountManagerDetails(appId);
+      if (res) dispatch(setAccountManagerDetails(res));
+      else dispatch(setAccountManagerDetails(null));
     }
   };
 

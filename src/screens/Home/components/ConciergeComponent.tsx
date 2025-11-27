@@ -1,6 +1,6 @@
 import { Box, useColorMode } from 'native-base';
 import React, { useContext } from 'react';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Buttons from 'src/components/Buttons';
 import CircleIconWrapper from 'src/components/CircleIconWrapper';
 import Text from 'src/components/KeeperText';
@@ -13,6 +13,8 @@ import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { useNavigation } from '@react-navigation/native';
 import ConciergeWhiteIcon from 'src/assets/images/concierge-white-icon.svg';
 import AdvisorWhiteIcon from 'src/assets/images/advisor-white-icon.svg';
+import { AccountManagerCard } from 'src/screens/KeeperConcierge/components/AccountManagerCard';
+import { useAppSelector } from 'src/store/hooks';
 
 type ConciergeItem = {
   title: string;
@@ -29,6 +31,7 @@ const ConciergeComponent = ({ route }) => {
   const { translations } = useContext(LocalizationContext);
   const { concierge: conciergeText } = translations;
   const navigation = useNavigation();
+  const { accountManagerDetails } = useAppSelector((state) => state?.concierge);
 
   const conciergeData: ConciergeItem[] = [
     {
@@ -54,7 +57,8 @@ const ConciergeComponent = ({ route }) => {
   ];
 
   return (
-    <Box style={styles.container}>
+    <ScrollView style={styles.container}>
+      {accountManagerDetails && <AccountManagerCard data={accountManagerDetails} />}
       {conciergeData.map((item, index) => (
         <Box
           key={index}
@@ -87,7 +91,7 @@ const ConciergeComponent = ({ route }) => {
           </Box>
         </Box>
       ))}
-    </Box>
+    </ScrollView>
   );
 };
 
