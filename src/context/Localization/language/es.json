@@ -177,7 +177,8 @@
     "lessInfo": "Less Info",
     "Buy": "Buy",
     "update": "Update",
-    "swapBtc": "Swap BTC"
+    "swapBtc": "Swap BTC",
+    "disclaimer": "Keeper is a community-led, open-source bitcoin wallet. It does not provide financial or investment advice."
   },
   "login": {
     "welcomeback": "Welcome Back",
@@ -962,7 +963,7 @@
     "publicServerNote": "It’s recommended to use your own Electrum server to protect your privacy",
     "connectToServer": "Connect to Server",
     "assistedServerBackup": "Assisted Server Backup",
-    "assistedServerBackupSubtitle": "Securely back up encrypted data on Keeper server",
+    "assistedServerBackupSubtitle": "Back up encrypted data using a community-run Keeper server.",
     "assistedServerDeleteBackupSubtitle": "Do you also want to delete the existing assisted server backup?",
     "assistedServerDeleteBackupModalCTA": "Delete",
     "assistedServerDeleteBackupModalSecondaryCTA": "Only disable",
@@ -995,7 +996,9 @@
     "multiUserTitle": "Multi User Mode",
     "multiUserSubTitle": "Setup multiple app users",
     "multiUserScreenHeader": "Add New Keeper User",
-    "multiUserScreenTitle1": "Keeper allows you to create multiple users of the app, each completely separated with its own 4-digit PIN. When you log in, just enter the PIN of the user you want to access and the app will load for it."
+    "multiUserScreenTitle1": "Keeper allows you to create multiple users of the app, each completely separated with its own 4-digit PIN. When you log in, just enter the PIN of the user you want to access and the app will load for it.",
+    "supportDeveloperTitle": "Support the developer(s)",
+    "supportDeveloperSubTitle": "Send a small tip to support ongoing development."
   },
   "onboarding": {
     "security": "security",
@@ -1565,7 +1568,7 @@
     "inheritanceKeyCtaTitle": "Create vault with Inheritance Key",
     "inheritanceKeyCtaNotes": "Please provide detailed explanations and support to your heir via the inheritance document templates",
     "secureUsageTips": "Secure Usage Tips",
-    "secureUsageTipsDesp": "Recommendations while transacting",
+    "secureUsageTipsDesp": "Usage recommendations",
     "safeKeepingTips": "Keys Safekeeping Tips",
     "safeKeepingTipsDesp": "Key storage best practices",
     "thoroughVeirifcationTitle": "Thorough Verification of Transaction Details",
@@ -1761,12 +1764,12 @@
     "scheduleOnboardingCall": "Schedule Onboarding Call",
     "scheduleCallWithExpert": "Schedule a call with our experts today.",
     "supportTeam": "Support Team",
-    "askQuestion": "Ask us a question.",
-    "submitTicket": "Submit a ticket to get all your queries answered.",
+    "askQuestion": "Ask a question.",
+    "submitTicket": "Submit a ticket to reach the Keeper team.",
     "takeMeThere": "Take me there",
     "hireAdvisor": "Find an Advisor",
-    "whiteGlovedService": "White gloved services for comprehensive bitcoin management.",
-    "connetWithAdvisor": "Connect with an Advisor",
+    "whiteGlovedService": "Connect with independent bitcoin advisors.",
+    "connetWithAdvisor": "View Advisors",
     "MeetAdvisors": "Meet Our Advisors",
     "searchExprt": "Search for an Expert",
     "meetExperts": "Meet Our Experts",

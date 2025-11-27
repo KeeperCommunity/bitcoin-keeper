@@ -127,6 +127,11 @@ const KeeperSettings = ({ route }) => {
             link="https://primal.net/p/npub1mlzukkwhuhl3y7wd6kw20fz6s99l8d0uqtj4sskhvaaud8rwcuuszt2t6p"
           />
         </Box>
+
+        <Text style={styles.disclaimer} color={`${colorMode}.termsText`} testID="disclaimer">
+          {common.disclaimer}
+        </Text>
+
         <Box style={styles.bottomLinkWrapper} backgroundColor={`${colorMode}.primaryBackground`}>
           <Pressable
             onPress={() => openLink(`${KEEPER_WEBSITE_BASE_URL}/terms-of-service/`)}
@@ -173,9 +178,7 @@ const styles = StyleSheet.create({
     width: windowWidth * 0.88,
     flexDirection: 'row',
     gap: wp(10),
-
     justifyContent: 'center',
-    marginBottom: hp(10),
   },
 
   bottomLinkWrapper: {
@@ -188,5 +191,11 @@ const styles = StyleSheet.create({
   bottomLinkText: {
     fontSize: 13,
     letterSpacing: 0.13,
+  },
+  disclaimer: {
+    maxWidth: '99%',
+    fontSize: 11,
+    textAlign: 'center',
+    marginVertical: hp(10),
   },
 });

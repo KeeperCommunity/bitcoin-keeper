@@ -273,6 +273,13 @@ export const useSettingKeeper = () => {
       onPress: () => navigation.navigate('SettingApp'),
       isDiamond: false,
     },
+    {
+      title: settings.supportDeveloperTitle,
+      description: settings.supportDeveloperSubTitle,
+      icon: <AppSetIcon width={11} height={14} />,
+      onPress: () => {}, // TODO
+      isDiamond: false,
+    },
   ].filter(Boolean);
   const keysAndwallet = [
     {
