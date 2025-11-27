@@ -5,6 +5,8 @@ import { SubscriptionTier } from 'src/models/enums/SubscriptionTier';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { NetworkType } from 'src/services/wallets/enums';
 import * as bitcoinJS from 'bitcoinjs-lib';
+import { reduxStorage } from 'src/storage';
+import persistReducer from 'redux-persist/es/persistReducer';
 
 const initialState: {
   loginMethod: LoginMethod;
@@ -22,6 +24,7 @@ const initialState: {
   bitcoinNetwork: bitcoinJS.Network;
   bitcoinNetworkType: NetworkType;
   appWideLoading: boolean;
+  showTipModal: boolean;
 } = {
   loginMethod: LoginMethod.PIN,
   themeMode: ThemeMode.LIGHT,
@@ -38,6 +41,7 @@ const initialState: {
   bitcoinNetwork: null,
   bitcoinNetworkType: null,
   appWideLoading: false,
+  showTipModal: false,
 };
 
 const settingsSlice = createSlice({
@@ -84,6 +88,9 @@ const settingsSlice = createSlice({
     setAppWideLoading(state, action: PayloadAction<boolean>) {
       state.appWideLoading = action.payload;
     },
+    setShowTipModal(state, action: PayloadAction<boolean>) {
+      state.showTipModal = action.payload;
+    },
   },
 });
 
@@ -100,6 +107,13 @@ export const {
   setSubscription,
   setBitcoinNetwork,
   setAppWideLoading,
+  setShowTipModal,
 } = settingsSlice.actions;
 
-export default settingsSlice.reducer;
+const conciergePersistConfig = {
+  key: 'settings',
+  storage: reduxStorage,
+  blacklist: ['showTipModal'],
+};
+
+export default persistReducer(conciergePersistConfig, settingsSlice.reducer);

@@ -15,6 +15,7 @@ import { persistor, store } from './src/store/store';
 import NotificationHandler from 'src/hooks/useNotificationHandler';
 import { SentryWrapper } from 'src/services/sentry';
 import ThemeContextProvider from 'src/context/ThemeContext';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 LogBox.ignoreLogs([
   "[react-native-gesture-handler] Seems like you're using an old API with gesture components, check out new Gestures system!",
@@ -50,7 +51,9 @@ function App() {
           <AppContextProvider>
             <TorContextProvider>
               <AndroidProvider>
-                <Navigator />
+                <BottomSheetModalProvider>
+                  <Navigator />
+                </BottomSheetModalProvider>
               </AndroidProvider>
             </TorContextProvider>
           </AppContextProvider>

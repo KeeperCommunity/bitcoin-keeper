@@ -165,6 +165,7 @@ import { SwapDetails } from 'src/screens/Home/components/buyBtc/Swap/SwapDetails
 import { SwapHistory } from 'src/screens/Home/components/buyBtc/Swap/SwapHistory';
 import { SwapHistoryDetail } from 'src/screens/Home/components/buyBtc/Swap/SwapHistoryDetail';
 import { SwapAllHistory } from 'src/screens/Home/components/buyBtc/Swap/SwapAllHistory';
+import { TipBottomSheet } from 'src/components/Modal/TipBottomSheet';
 
 function LoginStack() {
   const Stack = createNativeStackNavigator();
@@ -408,6 +409,7 @@ function Navigator() {
         title="please wait"
         subTitle="loading"
       />
+      <TipBottomSheet />
     </NavigationContainer>
   );
 }

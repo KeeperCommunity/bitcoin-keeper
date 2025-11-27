@@ -52,7 +52,7 @@ import {
 } from 'src/store/reducers/bhr';
 import useToastMessage from './useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import { setThemeMode } from 'src/store/reducers/settings';
+import { setShowTipModal, setThemeMode } from 'src/store/reducers/settings';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { credsAuthenticated } from 'src/store/reducers/login';
 import usePlan from './usePlan';
@@ -276,7 +276,7 @@ export const useSettingKeeper = () => {
       title: settings.supportDeveloperTitle,
       description: settings.supportDeveloperSubTitle,
       icon: <AppSetIcon width={11} height={14} />,
-      onPress: () => {}, // TODO
+      onPress: () => dispatch(setShowTipModal(true)),
       isDiamond: false,
     },
   ].filter(Boolean);
