@@ -182,6 +182,7 @@ export type AppStackParams = {
   SignMessageScreen: undefined;
   CloudBackupPassword: undefined;
   ImportedWalletSetup: undefined;
+  SendTip: undefined;
 };
 
 // Usage:

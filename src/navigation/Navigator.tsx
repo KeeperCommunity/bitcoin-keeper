@@ -166,6 +166,7 @@ import { SwapHistory } from 'src/screens/Home/components/buyBtc/Swap/SwapHistory
 import { SwapHistoryDetail } from 'src/screens/Home/components/buyBtc/Swap/SwapHistoryDetail';
 import { SwapAllHistory } from 'src/screens/Home/components/buyBtc/Swap/SwapAllHistory';
 import { TipBottomSheet } from 'src/components/Modal/TipBottomSheet';
+import { SendTip } from 'src/screens/Send/SendTip';
 
 function LoginStack() {
   const Stack = createNativeStackNavigator();
@@ -362,6 +363,7 @@ function AppStack() {
         <Stack.Screen name="SwapHistory" component={SwapHistory} />
         <Stack.Screen name="SwapHistoryDetail" component={SwapHistoryDetail} />
         <Stack.Screen name="SwapAllHistory" component={SwapAllHistory} />
+        <Stack.Screen name="SendTip" component={SendTip} />
       </Stack.Navigator>
     </RealmProvider>
   );

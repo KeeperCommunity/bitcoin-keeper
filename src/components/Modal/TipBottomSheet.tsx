@@ -13,6 +13,7 @@ import { hp, wp } from 'src/constants/responsive';
 import Fonts from 'src/constants/Fonts';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import Text from '../KeeperText';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 
 type TipBottomSheetProps = {};
 
@@ -26,6 +27,7 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
   const styles = getStyles(theme, insets);
   const { colorMode } = useColorMode();
   const isDarKMode = colorMode === 'dark';
+  const navigation = useNavigation();
 
   useEffect(() => {
     if (showTipModal) {
@@ -36,6 +38,11 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
   }, [showTipModal]);
 
   const onDismiss = () => dispatch(setShowTipModal(false));
+
+  const navigateToPay = () => {
+    onDismiss();
+    navigation.dispatch(CommonActions.navigate('SendTip'));
+  };
 
   return (
     <BottomSheetModal
@@ -66,7 +73,12 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
               <Text style={styles.subTitleTxt}>{settings.supportDeveloperSubTitle}</Text>
             </View>
           </View>
-          <Buttons primaryText="Tip Now" secondaryText="Not Now" secondaryCallback={onDismiss} />
+          <Buttons
+            primaryText="Tip Now"
+            secondaryText="Not Now"
+            secondaryCallback={onDismiss}
+            primaryCallback={navigateToPay}
+          />
         </Box>
       </BottomSheetView>
     </BottomSheetModal>
