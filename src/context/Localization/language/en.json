@@ -1033,7 +1033,8 @@
     "subscribeWithDesktopDesc4": "/desktop to sign with this signer",
     "registerWithKeeper": "Register with Keeper Desktop App",
     "continuesigntransWithDesktop": "Please continue signing the transaction from the Keeper Desktop App",
-    "signingWithDesktop": "Sign with Keeper Desktop App"
+    "signingWithDesktop": "Sign with Keeper Desktop App",
+    "keeperPrivateSubTitle": "Experience exclusive white-glove service with personalized attention and tailored solutions"
   },
   "BackupWallet": {
     "confirmSeedWord": "Confirm Backup",

@@ -25,6 +25,7 @@ import usePlan from 'src/hooks/usePlan';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 import { useAppSelector } from 'src/store/hooks';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
+import KeeperPrivateCard from './Component/KeeperPrivateCard';
 
 const KeeperSettings = ({ route }) => {
   const { colorMode } = useColorMode();
@@ -72,6 +73,7 @@ const KeeperSettings = ({ route }) => {
         icon={currentPlan.icon}
         showDot={false}
       /> */}
+      <KeeperPrivateCard />
       <InheritanceDocument
         title={signerText.inheritanceDocuments}
         borderColor={InheritanceDocument_border}
