@@ -28,6 +28,7 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
   const { colorMode } = useColorMode();
   const isDarKMode = colorMode === 'dark';
   const navigation = useNavigation();
+  const { tipAddress } = useAppSelector((state) => state.settings);
 
   useEffect(() => {
     if (showTipModal) {
@@ -37,11 +38,11 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
     }
   }, [showTipModal]);
 
-  const onDismiss = () => dispatch(setShowTipModal(false));
+  const onDismiss = () => dispatch(setShowTipModal({ status: false }));
 
   const navigateToPay = () => {
+    navigation.dispatch(CommonActions.navigate({ name: 'SendTip', params: { tipAddress } }));
     onDismiss();
-    navigation.dispatch(CommonActions.navigate('SendTip'));
   };
 
   return (

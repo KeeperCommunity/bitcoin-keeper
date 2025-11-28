@@ -1,5 +1,6 @@
 import config from 'react-native-config';
 import { EntityKind, WalletType } from '../../services/wallets/enums';
+import { Address, devAddress, prodAddress } from '../../constants/address';
 
 export enum APP_STAGE {
   DEVELOPMENT = 'DEVELOPMENT',
@@ -94,6 +95,8 @@ class Configuration {
 
   public LETS_EXCHANGE_AFFILIATE_ID: string = DEFAULT_CONFIG.LETS_EXCHANGE_AFFILIATE_ID;
 
+  public ADDRESS: Address;
+
   constructor() {
     this.ENVIRONMENT = config.ENVIRONMENT?.trim()
       ? config.ENVIRONMENT.trim()
@@ -106,6 +109,8 @@ class Configuration {
 
     this.HEXA_ID =
       this.ENVIRONMENT === APP_STAGE.PRODUCTION ? this.HEXA_ID_MAINNET : this.HEXA_ID_TESTNET;
+
+    this.ADDRESS = this.ENVIRONMENT === APP_STAGE.PRODUCTION ? prodAddress : devAddress;
   }
 
   public isDevMode = () => {

@@ -49,6 +49,7 @@ import KeeperModal from 'src/components/KeeperModal';
 import Instruction from 'src/components/Instruction';
 import ColdCardUSBInstruction from '../Vault/components/ColdCardUSBInstruction';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { setShowTipModal } from 'src/store/reducers/settings';
 
 function ScanAndInstruct({ onBarCodeRead, mode, receivingAddress }) {
   const { colorMode } = useColorMode();
@@ -256,6 +257,7 @@ function ConnectChannel() {
         );
         navigation.dispatch(CommonActions.goBack());
         showToast(`${signer.signerName} ${errorText.verifiedSuccesFully}`, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       };
 
       const handleFailure = () => {

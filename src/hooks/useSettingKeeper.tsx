@@ -60,6 +60,7 @@ import KeeperModal from 'src/components/KeeperModal';
 import { wp } from 'src/constants/responsive';
 import Buttons from 'src/components/Buttons';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import config from 'src/utils/service-utilities/config';
 
 export const useSettingKeeper = () => {
   const dispatch = useAppDispatch();
@@ -117,6 +118,9 @@ export const useSettingKeeper = () => {
     if (backupAllSuccess && isFocused) {
       dispatch(setBackupAllSuccess(false));
       dispatch(setAutomaticCloudBackup(true));
+      setTimeout(() => {
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.assistServer }));
+      }, 1000);
     }
   }, [backupAllSuccess]);
 
@@ -276,7 +280,7 @@ export const useSettingKeeper = () => {
       title: settings.supportDeveloperTitle,
       description: settings.supportDeveloperSubTitle,
       icon: <AppSetIcon width={11} height={14} />,
-      onPress: () => dispatch(setShowTipModal(true)),
+      onPress: () => dispatch(setShowTipModal({ status: true, address: config.ADDRESS.settings })),
       isDiamond: false,
     },
   ].filter(Boolean);

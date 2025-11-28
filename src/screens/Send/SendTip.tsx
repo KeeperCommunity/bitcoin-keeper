@@ -1,4 +1,4 @@
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { Box, useColorMode } from 'native-base';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
@@ -34,12 +34,10 @@ import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import MiniscriptPathSelector, {
   MiniscriptPathSelectorRef,
 } from 'src/components/MiniscriptPathSelector';
+import config from 'src/utils/service-utilities/config';
 
-const receiverAddress = 'tb1qkeqxjh8w62fthw2fp8uj0q7g2270f54ld5wnqx';
-
-type SendTipProps = {};
-
-export const SendTip = (props: SendTipProps) => {
+export const SendTip = () => {
+  const { tipAddress = config.ADDRESS.settings }: any = useRoute().params;
   const { colorMode } = useColorMode();
   const navigation = useNavigation();
   const { showToast } = useToastMessage();
@@ -206,7 +204,7 @@ export const SendTip = (props: SendTipProps) => {
         CommonActions.navigate('SendConfirmation', {
           sender: selectedWallet,
           internalRecipients: [null],
-          addresses: [receiverAddress],
+          addresses: [tipAddress],
           amounts: [amountToSend],
           note: 'Tip to developer',
           selectedUTXOs: [],
@@ -230,7 +228,7 @@ export const SendTip = (props: SendTipProps) => {
     amountToSend;
     const recipients = [];
     recipients.push({
-      address: receiverAddress,
+      address: tipAddress,
       amount: amountToSend,
       name: '',
     });

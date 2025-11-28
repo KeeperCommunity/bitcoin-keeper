@@ -7,6 +7,7 @@ import { NetworkType } from 'src/services/wallets/enums';
 import * as bitcoinJS from 'bitcoinjs-lib';
 import { reduxStorage } from 'src/storage';
 import persistReducer from 'redux-persist/es/persistReducer';
+import config from 'src/utils/service-utilities/config';
 
 const initialState: {
   loginMethod: LoginMethod;
@@ -25,6 +26,7 @@ const initialState: {
   bitcoinNetworkType: NetworkType;
   appWideLoading: boolean;
   showTipModal: boolean;
+  tipAddress: string;
 } = {
   loginMethod: LoginMethod.PIN,
   themeMode: ThemeMode.LIGHT,
@@ -42,6 +44,7 @@ const initialState: {
   bitcoinNetworkType: null,
   appWideLoading: false,
   showTipModal: false,
+  tipAddress: null,
 };
 
 const settingsSlice = createSlice({
@@ -88,8 +91,9 @@ const settingsSlice = createSlice({
     setAppWideLoading(state, action: PayloadAction<boolean>) {
       state.appWideLoading = action.payload;
     },
-    setShowTipModal(state, action: PayloadAction<boolean>) {
-      state.showTipModal = action.payload;
+    setShowTipModal(state, action: PayloadAction<{ status: boolean; address?: string }>) {
+      state.showTipModal = action.payload.status;
+      state.tipAddress = action.payload.address ?? null;
     },
   },
 });
