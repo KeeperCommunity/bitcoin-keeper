@@ -33,6 +33,8 @@ import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
 import { updateOneTimeBackupStatus } from 'src/store/reducers/account';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 function ExportSeedScreen({ route, navigation }) {
   const { colorMode } = useColorMode();
@@ -242,6 +244,7 @@ function ExportSeedScreen({ route, navigation }) {
                     );
                     navigation.dispatch(CommonActions.goBack());
                     showToast(seedTranslation.mobileKeyVerified, <TickIcon />);
+                    dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
                   }
                   if (signer.type === SignerType.SEED_WORDS) {
                     dispatch(
@@ -254,6 +257,7 @@ function ExportSeedScreen({ route, navigation }) {
                     );
                     navigation.dispatch(CommonActions.goBack());
                     showToast(seedTranslation.seedWordVerified, <TickIcon />);
+                    dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
                   }
                   if (signer.type === SignerType.MY_KEEPER) {
                     dispatch(
@@ -276,6 +280,7 @@ function ExportSeedScreen({ route, navigation }) {
                     dispatch(refillMobileKey(vaultSigner));
                     navigation.dispatch(CommonActions.goBack());
                     showToast(seedTranslation.keeperVerified, <TickIcon />);
+                    dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
                   }
                 } else if (isFromAssistedKey) {
                   if (isSS) {

@@ -18,6 +18,8 @@ import useVault from './useVault';
 import WalletUtilities from 'src/services/wallets/operations/utils';
 import { Alert } from 'react-native';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 const useConfigRecovery = () => {
   const { relayVaultError, relayVaultUpdate } = useAppSelector((state) => state.bhr);
@@ -68,6 +70,7 @@ const useConfigRecovery = () => {
             };
             dispatch(addNewVault({ newVaultInfo: vaultInfo }));
             setGeneratedVaultId(generatedVaultId);
+            dispatch(setShowTipModal({ status: true, address: config.ADDRESS.multiSigImport }));
           })
         );
       } catch (err) {

@@ -51,6 +51,8 @@ import { CTACardDotted } from 'src/components/CTACardDotted';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import HexagonIcon from 'src/components/HexagonIcon';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 // eslint-disable-next-line react/prop-types
 function ConfirmWalletDetails({ route }) {
@@ -367,6 +369,9 @@ function ConfirmWalletDetails({ route }) {
         ],
       };
       navigation.dispatch(CommonActions.reset(navigationState));
+      if (vaultType !== VaultType.SINGE_SIG) {
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.multiSigCreate }));
+      } 
     }, 50);
   };
 
