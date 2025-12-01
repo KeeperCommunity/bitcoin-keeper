@@ -72,12 +72,14 @@ export const getSatochipDetails = async (
   account: number
 ) => {
   const status = await card.getStatus();
-  console.log(`in satochip getSatochipDetails status: ${status}`);
+  console.log(`satochip/index.ts getSatochipDetails status: ${status}`);
 
   if (!status.setup_done) {
-    // If not set up, perform initial setup
-    const maxTries = 5;
-    await card.setup(pin, maxTries);
+    throw Error("SATOCHIP not setup. Set a new PIN and seed in the setup options.");
+  }
+
+  if (!status.is_seeded) {
+    throw Error("SATOCHIP not seeded. Import a seed in the setup options.");
   }
   
   // Verify PIN for operations
@@ -90,9 +92,18 @@ export const getSatochipDetails = async (
 
 export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
   const status = await card.getStatus();
-  console.log(`index getCardInfo status: ${status}`);
+  console.log(`satochip/index getCardInfo status: ${status}`);
 
-  // DEBUG: PIN required for authenticity check currently
+  if (!status.setup_done){
+    return {
+      setupDone: false,
+      isSeeded: false,
+      isAuthentic: false,
+      authenticityMsg: 'Card setup required!',
+    };
+  }
+
+  // PIN required for authenticity check currently
   if (pin){
     await card.verifyPIN(0, pin);
   }
@@ -104,7 +115,6 @@ export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
     const resCertValid = await card.verifyCertificateChain();
     if (resCertValid.isValid){
       const resChalresp = await card.cardChallengeResponsePki();
-
       if (resChalresp.success){
         isAuthentic = true;
         authenticityMsg = "Card is authentic";
@@ -117,7 +127,9 @@ export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
       authenticityMsg = resCertValid.txtError;
     }
   } catch (error) {
-    console.log(`getCardInfo error: ${error}`);
+    console.error('satochip/index getCardInfo Chain validation error: ', error);
+    isAuthentic = false;
+    authenticityMsg = error.message || error;
   }
 
   return {

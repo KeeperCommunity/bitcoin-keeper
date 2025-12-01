@@ -26,7 +26,7 @@ function ResetSatochipSeed({ route, navigation }) {
   const [showResultModal, setShowResultModal] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-   const [ctaDisabled, setCtaDisabled] = useState(true);
+  const [ctaDisabled, setCtaDisabled] = useState(true);
   const { translations } = useContext(LocalizationContext);
   const {
     satochip: satochipTranslation,

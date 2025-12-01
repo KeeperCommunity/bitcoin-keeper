@@ -826,7 +826,9 @@
     "satochipSetupTitle": "Card setup",
     "cardSetupConfirm": "Click continue and scan your SATOCHIP to setup card.",
     "satochipSetupSuccess": "Your card has been setup successfully! You can now import a BIP39 seed.",
-    "satochipSetupFail": "Failed to setup card"
+    "satochipSetupFail": "Failed to setup card",
+    "satochipNotSetup": "SATOCHIP not setup. Set a new PIN and seed in the setup options.",
+    "satochipNotSeeded": "SATOCHIP not seeded. Import a seed in the setup options."
   },
   "coldcard": {
     "Associate": "Associate",
