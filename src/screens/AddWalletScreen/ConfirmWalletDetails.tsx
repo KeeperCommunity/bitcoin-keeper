@@ -369,9 +369,10 @@ function ConfirmWalletDetails({ route }) {
         ],
       };
       navigation.dispatch(CommonActions.reset(navigationState));
-      if (vaultType !== VaultType.SINGE_SIG) {
+      if (vaultType == VaultType.MINISCRIPT)
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.miniscript }));
+      else if (vaultType !== VaultType.SINGE_SIG)
         dispatch(setShowTipModal({ status: true, address: config.ADDRESS.multiSigCreate }));
-      } 
     }, 50);
   };
 
