@@ -998,7 +998,10 @@
     "multiUserScreenHeader": "Add New Keeper User",
     "multiUserScreenTitle1": "Keeper allows you to create multiple users of the app, each completely separated with its own 4-digit PIN. When you log in, just enter the PIN of the user you want to access and the app will load for it.",
     "supportDeveloperTitle": "Support the developer(s)",
-    "supportDeveloperSubTitle": "Send a small tip to support ongoing development."
+    "supportDeveloperSubTitle": "Send a small tip to support ongoing development.",
+    "sendTipTitle": "Send Tip",
+    "sendTipSubTitle": "Send tip to appreciate the developers",
+    "selectTipWalletSubtitle": "Select a wallet to send funds from"
   },
   "onboarding": {
     "security": "security",

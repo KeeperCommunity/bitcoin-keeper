@@ -66,6 +66,8 @@ export const SendTip = () => {
     common,
     error: errorText,
     vault: vaultTranslation,
+    settings,
+    home,
   } = useContext(LocalizationContext).translations;
   const [selectedWallet, setSelectedWallet] = useState<Wallet | Vault>(null);
   const isDarkMode = colorMode === 'dark';
@@ -192,6 +194,7 @@ export const SendTip = () => {
         sender: {},
         handleSelectWallet,
         selectedWalletIdFromParams: selectedWallet?.id,
+        subTitle: settings.selectTipWalletSubtitle,
       })
     );
   };
@@ -209,6 +212,7 @@ export const SendTip = () => {
           params: {
             sender: {},
             handleSelectWallet,
+            subTitle: settings.selectTipWalletSubtitle,
           },
         })
       );
@@ -326,7 +330,7 @@ export const SendTip = () => {
         keyboardVerticalOffset={Platform.select({ ios: 8, android: 500 })}
         style={styles.scrollViewWrapper}
       >
-        <WalletHeader title={'Send Tip'} subTitle={'Send tip to appreciate the developers'} />
+        <WalletHeader title={settings.sendTipTitle} subTitle={settings.sendTipSubTitle} />
 
         <ScrollView
           style={styles.scrollViewWrapper}
@@ -391,7 +395,7 @@ export const SendTip = () => {
                       />
                     ))}
                     <KeeperTextInput
-                      placeholder={'Enter custom amount'}
+                      placeholder={home.AddAmount}
                       inpuBackgroundColor={`${colorMode}.textInputBackground`}
                       inpuBorderColor={`${colorMode}.dullGreyBorder`}
                       height={50}
