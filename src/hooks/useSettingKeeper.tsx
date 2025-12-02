@@ -30,6 +30,7 @@ import KeeperPrivateIcon from 'src/assets/images/KeeperPrivateIcon.svg';
 import KeeperPrivateIconWhite from 'src/assets/images/KeeperPrivateIconWhite.svg';
 import PrivateManageWallet from 'src/assets/privateImages/manage-wallet-icon.svg';
 import MultiUserIcon from 'src/assets/images/MultiUserIcon.svg';
+import SupportDeveloperIcon from 'src/assets/images/supportDeveloper.svg';
 
 import Switch from 'src/components/Switch/Switch';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -279,7 +280,7 @@ export const useSettingKeeper = () => {
     {
       title: settings.supportDeveloperTitle,
       description: settings.supportDeveloperSubTitle,
-      icon: <AppSetIcon width={11} height={14} />,
+      icon: <SupportDeveloperIcon width={11} height={14} />,
       onPress: () => dispatch(setShowTipModal({ status: true, address: config.ADDRESS.settings })),
       isDiamond: false,
     },

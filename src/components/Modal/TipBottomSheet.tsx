@@ -1,6 +1,6 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import React, { useContext, useEffect, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { useAppSelector } from 'src/store/hooks';
 import Buttons from '../Buttons';
@@ -14,6 +14,7 @@ import Fonts from 'src/constants/Fonts';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import Text from '../KeeperText';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import CloseGreen from 'src/assets/images/dark-close-icon.svg';
 
 type TipBottomSheetProps = {};
 
@@ -62,15 +63,21 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
           pressBehavior={'none'}
         />
       )}
+      handleComponent={null}
     >
       <BottomSheetView>
+        <TouchableOpacity testID="btn_close_modal" style={styles.close} onPress={onDismiss}>
+          <CloseGreen />
+        </TouchableOpacity>
         <Box style={styles.ctr}>
           <View style={styles.row}>
             <View style={styles.illustrationCtr}>
               <HeartIcon />
             </View>
             <View>
-              <Text style={styles.titleTxt}>{settings.supportDeveloperTitle}</Text>
+              <Text style={styles.titleTxt} color={`${colorMode}.textGreen`}>
+                {settings.supportDeveloperTitle}
+              </Text>
               <Text style={styles.subTitleTxt}>{settings.supportDeveloperSubTitle}</Text>
             </View>
           </View>
@@ -91,6 +98,7 @@ const getStyles = (theme, insets) =>
     ctr: {
       flex: 1,
       padding: wp(20),
+      paddingTop: hp(30),
     },
     row: { flexDirection: 'row', gap: wp(10) },
     illustrationCtr: {
@@ -101,12 +109,18 @@ const getStyles = (theme, insets) =>
     titleTxt: {
       fontSize: 18,
       marginBottom: hp(3),
-      fontFamily: Fonts.InterBold,
+      fontFamily: Fonts.LoraMedium,
     },
     subTitleTxt: {
       fontSize: 14,
       marginBottom: hp(3),
       fontFamily: Fonts.InterRegular,
       maxWidth: '99%',
+    },
+    close: {
+      position: 'absolute',
+      right: 20,
+      top: 28,
+      zIndex: 999,
     },
   });

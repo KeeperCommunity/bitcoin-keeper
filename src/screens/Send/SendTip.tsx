@@ -1,7 +1,14 @@
 import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { Box, useColorMode } from 'native-base';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
+import {
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Pressable,
+  TouchableOpacity,
+} from 'react-native';
 import { useDispatch } from 'react-redux';
 import Buttons from 'src/components/Buttons';
 import KeeperTextInput from 'src/components/KeeperTextInput';
@@ -35,6 +42,18 @@ import MiniscriptPathSelector, {
   MiniscriptPathSelectorRef,
 } from 'src/components/MiniscriptPathSelector';
 import config from 'src/utils/service-utilities/config';
+import EquivalentGreen from 'src/assets/images/equivalent-green.svg';
+import EquivalentGrey from 'src/assets/images/equivalent-grey.svg';
+import CurrencyInfo from '../Home/components/CurrencyInfo';
+import useBalance from 'src/hooks/useBalance';
+import CurrencyKind from 'src/models/enums/CurrencyKind';
+import { BtcToSats, SatsToBtc } from 'src/constants/Bitcoin';
+
+const PRESET = [
+  { id: 0, amount: 5000 },
+  { id: 1, amount: 25000 },
+  { id: 2, amount: 100000 },
+];
 
 export const SendTip = () => {
   const { tipAddress = config.ADDRESS.settings }: any = useRoute().params;
@@ -51,7 +70,7 @@ export const SendTip = () => {
   const [selectedWallet, setSelectedWallet] = useState<Wallet | Vault>(null);
   const isDarkMode = colorMode === 'dark';
   const HexagonIconColor = ThemedColor({ name: 'HexagonIcon' });
-  const [amountToSend, setAmountToSend] = useState(1000);
+  const [amountToSend, setAmountToSend] = useState(null);
   const sendPhaseOneState = useAppSelector((state) => state.sendAndReceive.sendPhaseOne);
   const [showTimeLockModal, setShowTimeLockModal] = useState(false);
   const [timeUntilTimeLockExpires, setTimeUntilTimeLockExpires] = useState<string | null>(null);
@@ -59,6 +78,7 @@ export const SendTip = () => {
   const [currentMedianTimePast, setCurrentMedianTimePast] = useState<number | null>(null);
   const miniscriptPathSelectorRef = useRef<MiniscriptPathSelectorRef>(null);
   const miniscriptSelectedSatisfierRef = useRef(null);
+  const { satsEnabled } = useAppSelector((state) => state.settings);
 
   const walletBalance = useMemo(() => {
     return (
@@ -199,13 +219,13 @@ export const SendTip = () => {
 
   const navigateToNext = () => {
     if (selectedWallet) {
-      console.log('Navigate to wallet screen');
+      const amt = satsEnabled ? amountToSend : BtcToSats(amountToSend);
       navigation.dispatch(
         CommonActions.navigate('SendConfirmation', {
           sender: selectedWallet,
           internalRecipients: [null],
           addresses: [tipAddress],
-          amounts: [amountToSend],
+          amounts: [parseInt(amt)],
           note: 'Tip to developer',
           selectedUTXOs: [],
           parentScreen: undefined,
@@ -225,11 +245,10 @@ export const SendTip = () => {
       showToast(errorText.enterValidAmount);
       return;
     }
-    amountToSend;
     const recipients = [];
     recipients.push({
       address: tipAddress,
-      amount: amountToSend,
+      amount: satsEnabled ? amountToSend : BtcToSats(amountToSend),
       name: '',
     });
 
@@ -244,7 +263,7 @@ export const SendTip = () => {
   };
 
   const continueToSend = () => {
-    if (walletBalance < amountToSend) {
+    if ((satsEnabled ? walletBalance : SatsToBtc(walletBalance)) < amountToSend) {
       showToast(errorText.insufficientBalance);
       return;
     }
@@ -315,26 +334,26 @@ export const SendTip = () => {
           contentContainerStyle={isSmallDevice && { paddingBottom: hp(100) }}
         >
           <Box style={styles.container}>
-            <Box style={styles.inputWrapper}>
-              <Box style={styles.sendToWalletContainer}>
-                <Pressable onPress={handleSelectWalletPress}>
-                  <Box
-                    flexDirection="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    style={styles.sendToWalletWrapper}
-                  >
-                    <Text color={`${colorMode}.primaryText`}>Select spending wallet</Text>
-                    {!selectedWallet ? (
-                      <ArrowIcon opacity={1} />
-                    ) : isDarkMode ? (
-                      <RemoveIconDark />
-                    ) : (
-                      <RemoveIcon />
-                    )}
-                  </Box>
-                </Pressable>
-                {selectedWallet && (
+            <Box style={styles.sendToWalletContainer}>
+              <Pressable onPress={handleSelectWalletPress}>
+                <Box
+                  flexDirection="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  style={styles.sendToWalletWrapper}
+                >
+                  <Text color={`${colorMode}.primaryText`}>Select spending wallet</Text>
+                  {!selectedWallet ? (
+                    <ArrowIcon opacity={1} />
+                  ) : isDarkMode ? (
+                    <RemoveIconDark />
+                  ) : (
+                    <RemoveIcon />
+                  )}
+                </Box>
+              </Pressable>
+              {selectedWallet && (
+                <>
                   <Pressable onPress={navigateToSelectWallet}>
                     <Box
                       flexDirection="row"
@@ -358,8 +377,36 @@ export const SendTip = () => {
                       <Text color={`${colorMode}.greenText`}>Change Wallet</Text>
                     </Box>
                   </Pressable>
-                )}
-              </Box>
+                  <Box
+                    backgroundColor={`${colorMode}.boxSecondaryBackground`}
+                    borderColor={`${colorMode}.dashedButtonBorderColor`}
+                    style={{ marginTop: hp(20) }}
+                  >
+                    {PRESET.map((item) => (
+                      <OptionItem
+                        colorMode={colorMode}
+                        onPress={(amount) => setAmountToSend(amount)}
+                        amount={item.amount}
+                        key={item.id}
+                      />
+                    ))}
+                    <KeeperTextInput
+                      placeholder={'Enter custom amount'}
+                      inpuBackgroundColor={`${colorMode}.textInputBackground`}
+                      inpuBorderColor={`${colorMode}.dullGreyBorder`}
+                      height={50}
+                      value={amountToSend?.toString()}
+                      keyboardType="numeric"
+                      onChangeText={(text) => {
+                        const numericValue = text.replace(/[^0-9/.]/g, '');
+                        setAmountToSend(numericValue);
+                      }}
+                      blurOnSubmit={true}
+                      paddingLeft={5}
+                    />
+                  </Box>
+                </>
+              )}
             </Box>
           </Box>
         </ScrollView>
@@ -369,39 +416,10 @@ export const SendTip = () => {
         <Buttons
           primaryCallback={continueToSend}
           primaryText={common.proceed}
-          primaryDisable={!selectedWallet}
+          primaryDisable={!selectedWallet || !amountToSend}
           fullWidth
         />
       </Box>
-
-      {/* <KeeperModal
-        visible={showAdvancedSettingsModal}
-        title={settings.SingerSettingsTitle}
-        close={() => setShowAdvancedSettingsModal(false)}
-        buttonText={common.done}
-        buttonCallback={() => {
-          setShowAdvancedSettingsModal(false);
-        }}
-        secondaryButtonText={common.cancel}
-        Content={() => (
-          <Box>
-            <Text>{settings.numberOfRecipients}</Text>
-            <NumberInput
-              value={localTotalRecipients}
-              onDecrease={() => {
-                if (localTotalRecipients > 1) {
-                  updateTotalRecipients(localTotalRecipients - 1);
-                }
-              }}
-              onIncrease={() => {
-                if (localTotalRecipients < 50) {
-                  updateTotalRecipients(localTotalRecipients + 1);
-                }
-              }}
-            />
-          </Box>
-        )}
-      /> */}
       <KeeperModal
         visible={showTimeLockModal}
         close={() => {
@@ -454,12 +472,6 @@ const styles = StyleSheet.create({
   sendToWalletWrapper: {
     marginTop: windowHeight > 680 ? hp(10) : hp(10),
   },
-  scannerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: wp(11),
-    paddingVertical: hp(14),
-  },
   walletDetails: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -468,9 +480,7 @@ const styles = StyleSheet.create({
   sendToWalletContainer: {
     gap: 10,
   },
-  disabledButton: {
-    opacity: 0.5,
-  },
+
   delayModalContainer: {
     flex: 1,
     alignItems: 'center',
@@ -491,4 +501,50 @@ const styles = StyleSheet.create({
   buttonContainer: {
     marginTop: hp(15),
   },
+  optionCTR: {
+    flexDirection: 'row',
+    paddingVertical: wp(10),
+    paddingHorizontal: wp(15),
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: wp(16),
+    borderRadius: 12,
+    borderWidth: 1.2,
+    marginBottom: hp(10),
+  },
 });
+
+const OptionItem = ({ onPress, amount, colorMode }) => {
+  const isDarkMode = colorMode === 'dark';
+  const { getFiatCurrencyIcon, getCustomConvertedBalance } = useBalance();
+  const { satsEnabled } = useAppSelector((state) => state.settings);
+  return (
+    <TouchableOpacity onPress={() => onPress(satsEnabled ? amount : SatsToBtc(amount))}>
+      <Box
+        style={styles.optionCTR}
+        backgroundColor={`${colorMode}.boxSecondaryBackground`}
+        borderColor={`${colorMode}.separator`}
+      >
+        <CurrencyInfo
+          hideAmounts={false}
+          amount={amount}
+          fontSize={14}
+          satsFontSize={14}
+          color={`${colorMode}.black`}
+          variation={!isDarkMode ? 'dark' : 'light'}
+        />
+        <Box style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {isDarkMode ? <EquivalentGrey /> : <EquivalentGreen />}
+          <Box marginLeft={1}>{getFiatCurrencyIcon('light')}</Box>
+          <Text color={`${colorMode}.secondaryText`} fontSize={14} medium>
+            {getCustomConvertedBalance(
+              satsEnabled ? amount : SatsToBtc(amount),
+              CurrencyKind.BITCOIN,
+              CurrencyKind.FIAT
+            )}
+          </Text>
+        </Box>
+      </Box>
+    </TouchableOpacity>
+  );
+};
