@@ -140,7 +140,6 @@ import { AddMultipleXpub } from 'src/screens/AddSigner/AddMultipleXpub';
 import AppStateHandler from './AppStateHandler';
 import AdditionalUsers from 'src/screens/Vault/AdditionalUsers';
 import SetupAdditionalServerKey from 'src/screens/SigningDevices/SetupAdditionalServerKey';
-import { DiscountedPlanScreen } from 'src/screens/ChoosePlanScreen/DiscountedPlanScreen';
 import { MultiUserScreen } from 'src/screens/AppSettings/MultiUserScreen';
 import { AddMultipleXpubFiles } from 'src/screens/AddSigner/AddMultipleXpubFiles';
 import { SignMessageScreen } from 'src/screens/WalletDetails/SignMessageScreen';
@@ -348,7 +347,6 @@ function AppStack() {
         <Stack.Screen name="ShareQR" component={ShareQR} />
         <Stack.Screen name="PurchaseWithChannel" component={PurchaseWithChannel} />
         <Stack.Screen name="AddMultipleXpub" component={AddMultipleXpub} />
-        <Stack.Screen name="DiscountedPlanScreen" component={DiscountedPlanScreen} />
         <Stack.Screen name="MultiUserScreen" component={MultiUserScreen} />
         <Stack.Screen name="AddMultipleXpubFiles" component={AddMultipleXpubFiles} />
         <Stack.Screen name="SignMessageScreen" component={SignMessageScreen} />
