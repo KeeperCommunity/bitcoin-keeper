@@ -127,6 +127,7 @@ export const signTransactionWithColdCard = async ({
 };
 
 export const signTransactionWithMobileKey = async ({
+  isRemoteKey = false,
   setPasswordModal,
   signingPayload,
   defaultVault,
@@ -134,9 +135,13 @@ export const signTransactionWithMobileKey = async ({
   xfp,
 }) => {
   setPasswordModal(false);
-  const inputs = idx(signingPayload, (_) => _[0].inputs);
+  const inputs = isRemoteKey
+    ? getInputsFromPSBT(serializedPSBT)
+    : idx(signingPayload, (_) => _[0].inputs);
   if (!inputs) throw new Error('Invalid signing payload, inputs missing');
-  const [signer] = defaultVault.signers.filter((signer) => signer.xfp === xfp);
+  const [signer] = isRemoteKey
+    ? [defaultVault.signers[0]]
+    : defaultVault.signers.filter((signer) => signer.xfp === xfp);
   const { signedSerializedPSBT } = WalletOperations.internallySignVaultPSBT(
     defaultVault,
     serializedPSBT,

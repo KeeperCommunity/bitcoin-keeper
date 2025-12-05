@@ -60,8 +60,10 @@ function STModalContent({ navigateToScanPSBT, setData, setStModal, readFromNFC }
       label: `${isIos ? 'Airdrop / ' : ''}File`,
       icon: <AirDropIcon />,
       onPress: () => {
-        selectFile();
         setStModal(false);
+        setTimeout(() => {
+          selectFile();
+        }, 100);
       },
     },
 

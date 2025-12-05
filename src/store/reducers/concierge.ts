@@ -1,4 +1,6 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
+import { persistReducer } from 'redux-persist';
+import { reduxStorage } from 'src/storage';
 
 export type conciergeUser = {
   id: string;
@@ -114,4 +116,10 @@ export const {
   setAccountManagerDetails,
 } = conciergeSlice.actions;
 
-export default conciergeSlice.reducer;
+const conciergePersistConfig = {
+  key: 'concierge',
+  storage: reduxStorage,
+  blacklist: ['onboardingModal'],
+};
+
+export default persistReducer(conciergePersistConfig, conciergeSlice.reducer);

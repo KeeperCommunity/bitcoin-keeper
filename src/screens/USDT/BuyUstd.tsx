@@ -1,5 +1,5 @@
 import { Box, useColorMode } from 'native-base';
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import WalletHeader from 'src/components/WalletHeader';
@@ -15,6 +15,8 @@ import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { useAppSelector } from 'src/store/hooks';
 import { getCountry } from 'react-native-localize';
 import { fetchBuyUsdtLink } from 'src/services/thirdparty/ramp';
+import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import useToastMessage from 'src/hooks/useToastMessage';
 
 const BuyUstd = ({ route }) => {
   const { usdtWallet } = route.params;
@@ -27,16 +29,23 @@ const BuyUstd = ({ route }) => {
   const { translations } = useContext(LocalizationContext);
   const { common, usdtWalletText } = translations;
   const { currencyCode } = useAppSelector((state) => state.settings);
+  const [loading, setLoading] = useState(false);
+  const { showToast } = useToastMessage();
 
-  const onProceed = () => {
+  const onProceed = async () => {
+    setLoading(true);
     try {
       if (currencyCode === 'GBP' || getCountry() === 'UK') {
         Linking.openURL('https://rampnetwork.com/buy#');
       } else {
-        Linking.openURL(fetchBuyUsdtLink({ receiveAddress }));
+        const url = await fetchBuyUsdtLink(receiveAddress);
+        Linking.openURL(url.toString());
       }
     } catch (error) {
       console.log(error);
+      showToast('Error while fetching ramp url');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,6 +87,7 @@ const BuyUstd = ({ route }) => {
         <Text>{usdtWalletText.understandRampPayment}</Text>
         <Buttons primaryText={common.proceed} primaryCallback={onProceed} fullWidth />
       </Box>
+      <ActivityIndicatorView visible={loading} />
     </ScreenWrapper>
   );
 };

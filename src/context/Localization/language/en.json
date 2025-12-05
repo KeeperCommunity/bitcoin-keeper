@@ -1909,7 +1909,7 @@
     "canaryWalletFailed": "Canary Vault creation failed",
     "canaryVaultFailed": "Canary wallet creation failed",
     "importedWalletFailed": "Wallet import failed!",
-    "vaultAlreadyExists": "A vault already exists with similar configuration!",
+    "vaultAlreadyExists": "Vault {0} already exists",
     "unableToDeleteAssistedServer": "Unable to delete backup from Assisted Server, Please try again later.",
     "processFailed": "Process Failed",
     "ErrorMappingUnknownSigner": "Error mapping unknown signer to signer",

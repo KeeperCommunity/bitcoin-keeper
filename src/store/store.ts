@@ -61,7 +61,7 @@ export type AppDispatch = typeof store.dispatch;
 const persistConfig = {
   key: 'root',
   storage: reduxStorage,
-  blacklist: ['login', 'bhr', 'sendAndReceive', 'utxos'],
+  blacklist: ['login', 'bhr', 'sendAndReceive', 'utxos', 'concierge'],
   version: 3, // redux persist migration version(initiate to the latest migration version once the migration state is written)
   migrate: createMigrate(reduxPersistMigrations, {
     debug: false,
