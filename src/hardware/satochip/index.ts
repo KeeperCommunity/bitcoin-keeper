@@ -8,6 +8,11 @@ import {VaultSigner, XpubDetailsType} from 'src/services/wallets/interfaces/vaul
 import NFC from 'src/services/nfc';
 import {xpubToTpub} from 'src/hardware';
 
+// used to verify signatures
+import ecc from 'src/services/wallets/operations/taproot-utils/noble_ecc';
+import ECPairFactory from 'ecpair';
+const ECPair = ECPairFactory(ecc);
+
 const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, account) => {
   console.log(`in satochip getScriptSpecificDetails`);
 
@@ -81,7 +86,7 @@ export const getSatochipDetails = async (
   if (!status.is_seeded) {
     throw Error("SATOCHIP not seeded. Import a seed in the setup options.");
   }
-  
+
   // Verify PIN for operations
   await card.verifyPIN(0, pin);
 
@@ -149,7 +154,7 @@ export const setupCard = async (card: SatochipCard, newPIN: string) => {
 export const changePin = async (card: SatochipCard, oldPIN: string, newPIN: string) => {
   // Verify current PIN first
   await card.verifyPIN(0, oldPIN);
-  
+
   // Change PIN
   await card.changePIN(0, oldPIN, newPIN);
   return;
@@ -219,32 +224,42 @@ export const signWithSatochip = async (
   console.log(`index signWithSatochip after xfp check`);
   try {
     for (const input of inputsToSign) {
-      const digest = Buffer.from(input.digest, 'hex');
-      const keypath = signer.derivationPath + input.subPath;
-      console.log(`index signWithSatochip digest: ${digest.toString('hex')}`);
+
+      let keypath = "";
+      if (signer.derivationPath.endsWith("/") || input.subPath.startsWith("/")){
+        keypath = signer.derivationPath + input.subPath;
+      } else {
+        keypath = signer.derivationPath + "/" + input.subPath;
+      }
+      console.log(`index signWithSatochip keypath: ${keypath}`);
+      validateBip32Path(keypath);
 
       // derive extended key
       const {pubkey, chaincode} = await card.getExtendedKey(keypath);
+      console.log(`index signWithSatochip EXPECTED pubkey: ${input.publicKey}`);
       console.log(`index signWithSatochip pubkey: ${pubkey.toString('hex')}`);
       console.log(`index signWithSatochip chaincode: ${chaincode.toString('hex')}`);
 
       // Sign the digest using Satochip
+      const digest = Buffer.from(input.digest, 'hex');
+      console.log(`index signWithSatochip digest: ${digest.toString('hex')}`);
       const dersigBytes =  await card.signTransactionHash(0xff, digest);
       console.log(`index signWithSatochip dersigBytes: ${dersigBytes.toString('hex')}`);
+
+      //DEBUG: verify signature
+      const isVerified = ECPair.fromPublicKey(pubkey).verify(digest, dersigBytes);
+      console.log(`index signWithSatochip isVerified: ${isVerified}`);
 
       // convert DER signature to compact signature
       const sigBytes = converDerSignatureTo64bytesSignature(dersigBytes);
       console.log(`index signWithSatochip sigBytes: ${sigBytes.toString('hex')}`);
 
-      //const signature = await card.signDigest(keypath, digest, input.sighashType);
+      //DEBUG: verify converted signature against bitcoinjs-lib expectations
+      const isConvertedSigVerified = ECPair.fromPublicKey(pubkey).verify(digest, sigBytes);
+      console.log(`index signWithSatochip isConvertedSigVerified: ${isConvertedSigVerified}`);
+
       input.signature = sigBytes.toString('hex');
-
-      console.log(`index signWithSatochip input: ${input}`);
-      console.log(JSON.stringify(input, null, 2));
     }
-
-    console.log(`index signWithSatochip inputsToSign: ${inputsToSign}`);
-    console.log(JSON.stringify(inputsToSign, null, 2));
 
     return inputsToSign;
   } catch (e) {
@@ -280,62 +295,80 @@ export const handleSatochipError = (error, navigation) => {
  * convert a DER-encoded signature to 64-byte signature (r,s)
  *
  * @param sigin - the signature in DER format (70-72 bytes)
- * @returns Buffer containing the compact signature (65-byte format)
+ * @returns Buffer containing the compact signature (64-byte format)
  */
 const converDerSignatureTo64bytesSignature = (sigin: Buffer) => {
+  console.log(`In parser converDerSignatureTo64bytesSignature input: ${sigin.toString('hex')}`);
 
-    console.log(`In parser converDerSignatureTo64bytesSignature`);
+  // Validate DER format
+  if (sigin[0] !== 0x30) {
+    throw new Error("converDerSignatureTo64bytesSignature: wrong first byte!");
+  }
 
-    // Parse input
-    const first = sigin[0];
-    if (first !== 0x30) {
-      throw new Error("converDerSignatureTo64bytesSignature: wrong first byte!");
-    }
+  const totalLength = sigin[1];
+  console.log(`Total length: ${totalLength}`);
 
-    const lt = sigin[1];
-    const check = sigin[2];
-    if (check !== 0x02) {
-      throw new Error("converDerSignatureTo64bytesSignature: check byte should be 0x02");
-    }
+  // Extract r component
+  if (sigin[2] !== 0x02) {
+    throw new Error("converDerSignatureTo64bytesSignature: r should start with 0x02");
+  }
 
-    // Extract r
-    const rBytes = Buffer.alloc(32);
-    const lr = sigin[3];
-    for (let i = 0; i < 32; i++) {
-      const tmp = sigin[4 + lr - 1 - i];
-      if (lr >= (i + 1)) {
-        rBytes[31 - i] = tmp;
-      } else {
-        rBytes[31 - i] = 0;
-      }
-    }
+  const rLength = sigin[3];
+  console.log(`R length: ${rLength}`);
 
-    // Extract s
-    const check2 = sigin[4 + lr];
-    if (check2 !== 0x02) {
-      throw new Error("converDerSignatureTo64bytesSignature: second check byte should be 0x02");
-    }
+  // Extract r bytes manually to avoid Buffer compatibility issues
+  const rBytes = Buffer.alloc(32);
+  const rStart = 4;
 
-    const ls = sigin[5 + lr];
-    if (lt !== (lr + ls + 4)) {
-      throw new Error("converDerSignatureTo64bytesSignature: wrong lt value");
-    }
+  // Handle leading zero in r if present
+  let rDataStart = rStart;
+  let rDataLength = rLength;
+  if (rLength === 33 && sigin[rStart] === 0x00) {
+    rDataStart = rStart + 1;
+    rDataLength = 32;
+  }
 
-    const sBytes = Buffer.alloc(32);
-    for (let i = 0; i < 32; i++) {
-      const tmp = sigin[5 + lr + ls - i];
-      if (ls >= (i + 1)) {
-        sBytes[31 - i] = tmp;
-      } else {
-        sBytes[31 - i] = 0;
-      }
-    }
+  // Copy r data, right-aligned in 32-byte buffer
+  const rOffset = 32 - rDataLength;
+  for (let i = 0; i < rDataLength; i++) {
+    rBytes[rOffset + i] = sigin[rDataStart + i];
+  }
 
-    const sBytesNormalized = enforceLowS(sBytes);
+  // Extract s component
+  const sOffset = 4 + rLength;
+  if (sigin[sOffset] !== 0x02) {
+    throw new Error("converDerSignatureTo64bytesSignature: s should start with 0x02");
+  }
 
-  return Buffer.concat([rBytes, sBytesNormalized]);
+  const sLength = sigin[sOffset + 1];
+  console.log(`S length: ${sLength}`);
+
+  // Extract s bytes manually
+  const sRawBytes = Buffer.alloc(32);
+  const sStart = sOffset + 2;
+
+  // Handle leading zero in s if present
+  let sDataStart = sStart;
+  let sDataLength = sLength;
+  if (sLength === 33 && sigin[sStart] === 0x00) {
+    sDataStart = sStart + 1;
+    sDataLength = 32;
+  }
+
+  // Copy s data, right-aligned in 32-byte buffer
+  const sOffsetInBuffer = 32 - sDataLength;
+  for (let i = 0; i < sDataLength; i++) {
+    sRawBytes[sOffsetInBuffer + i] = sigin[sDataStart + i];
+  }
+
+  // Apply BIP62 low-S rule
+  const sBytes = enforceLowS(sRawBytes);
+
+  console.log(`R bytes: ${rBytes.toString('hex')}`);
+  console.log(`S bytes: ${sBytes.toString('hex')}`);
+
+  return Buffer.concat([rBytes, sBytes]);
 };
-
 
 const CURVE_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
 const HALF_CURVE_ORDER = CURVE_ORDER / 2n;
@@ -352,4 +385,43 @@ function enforceLowS(sBytes: Buffer): Buffer {
   const hex = s.toString(16).padStart(64, '0');
 
   return Buffer.from(hex, 'hex');
+}
+
+// validate bip32path
+function validateBip32Path(path: string): void {
+  // Complete pattern matching the entire structure
+  const regex = /^m\/(\d+'?\/)*(\d+'?\/?)?$/;
+
+  // Breaking down the pattern:
+  //   ^ - Start of string
+  // m\/ - Literal "m/" (required)
+  // (\d+'?\/)* - Zero or more occurrences of: digits, optional quote, slash
+  // (\d+'?\/?)? - Optional last segment with digits, optional quote, optional slash
+  // $ - End of string
+
+  // // Valid examples
+  // console.log("DEBUG: should be TRUE");
+  // console.log(regex.test("m/"));              // true
+  // console.log(regex.test("m/0/1/"));          // true
+  // console.log(regex.test("m/0/1"));           // true
+  // console.log(regex.test("m/0'/1'/"));        // true
+  // console.log(regex.test("m/56540/645541'/")); // true
+  // console.log(regex.test("m/123"));           // true
+  // console.log(regex.test("m/123'"));          // true
+  //
+  // // Invalid examples
+  // console.log("DEBUG: should be FALSE");
+  // console.log(regex.test("0/1/"));            // false (missing m/)
+  // console.log(regex.test("/0/1/"));           // false (missing m)
+  // console.log(regex.test("m/abc/1/"));        // false (non-digits)
+  // console.log(regex.test("m/0/1/'"));        // false (quote in the end)
+  // console.log(regex.test("m/0/1\\"));        // false (backslash in the end)
+  // console.log(regex.test("m/'0/1/"));        // false (quote before digits)
+  // console.log(regex.test("m/0''/1/"));        // false (double quotes)
+  // console.log(regex.test("m/0'//1//"));        // true (double slash)
+  // console.log(regex.test("m/0'1/"));        // false (missing slash)
+
+  if (!regex.test(path)) {
+    throw new Error(`Invalid format: "${path}" - must match regex: [m/]<digits>[']/<digits>[']/...`);
+  }
 }
