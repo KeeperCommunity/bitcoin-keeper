@@ -9,12 +9,11 @@ import NFC from 'src/services/nfc';
 import {xpubToTpub} from 'src/hardware';
 
 // used to verify signatures
-import ecc from 'src/services/wallets/operations/taproot-utils/noble_ecc';
-import ECPairFactory from 'ecpair';
-const ECPair = ECPairFactory(ecc);
+// import ecc from 'src/services/wallets/operations/taproot-utils/noble_ecc';
+// import ECPairFactory from 'ecpair';
+// const ECPair = ECPairFactory(ecc);
 
 const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, account) => {
-  console.log(`in satochip getScriptSpecificDetails`);
 
   const xpubDetails: XpubDetailsType = {};
 
@@ -22,41 +21,30 @@ const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, accoun
 
   // fetch P2WPKH details
   const singleSigPath = WalletUtilities.getDerivationForScriptType(ScriptTypes.P2WPKH, account);
-  console.log(`in satochip getScriptSpecificDetails singleSigPath: ${singleSigPath}`);
 
   //const convertedSingleSigPath = singleSigPath.split("'").join('h');
   await card.verifyPIN(0, pin);
   const singleSigExtendedKey = await card.getExtendedKey(singleSigPath);
-  console.log(`in satochip getScriptSpecificDetails pubkey: ${singleSigExtendedKey.pubkey.toString('hex')}`);
-  console.log(`in satochip getScriptSpecificDetails chaincode: ${singleSigExtendedKey.chaincode.toString('hex')}`);
 
   let singleSigXpub = await card.getXpub(singleSigPath,'p2wpkh'); // using mainnet
-  console.log(`in satochip getScriptSpecificDetails singleSigXpub: ${singleSigXpub}`);
   if (isTestnet) {
     singleSigXpub = xpubToTpub(singleSigXpub);
-    console.log(`in satochip getScriptSpecificDetails singleSigXpub: ${singleSigXpub}`);
   }
   xpubDetails[XpubTypes.P2WPKH] = { xpub: singleSigXpub, derivationPath: singleSigPath };
 
   // fetch P2WSH details
   const multiSigPath = WalletUtilities.getDerivationForScriptType(ScriptTypes.P2WSH, account);
-  console.log(`in satochip getScriptSpecificDetails singleSigPath: ${singleSigPath}`);
 
   const multiSigExtendedKey = await card.getExtendedKey(multiSigPath);
-  console.log(`in satochip getScriptSpecificDetails pubkey: ${multiSigExtendedKey.pubkey.toString('hex')}`);
-  console.log(`in satochip getScriptSpecificDetails chaincode: ${multiSigExtendedKey.chaincode.toString('hex')}`);
 
   let multiSigXpub = await card.getXpub(multiSigPath,'p2wsh', !isTestnet); // using mainnet
-  console.log(`in satochip getScriptSpecificDetails multiSigXpub: ${multiSigXpub}`);
   if (isTestnet) {
     multiSigXpub = xpubToTpub(multiSigXpub);
-    console.log(`in satochip getScriptSpecificDetails multiSigXpub: ${multiSigXpub}`);
   }
   xpubDetails[XpubTypes.P2WSH] = { xpub: multiSigXpub, derivationPath: multiSigPath };
 
   // fetch master fingerprint
   const xfp = await card.getMasterXfp();
-  console.log(`in satochip getScriptSpecificDetails xfp: ${xfp}`);
 
   const xpub = isMultisig ? multiSigXpub : singleSigXpub;
   const derivationPath = isMultisig ? multiSigPath : singleSigPath;
@@ -77,7 +65,6 @@ export const getSatochipDetails = async (
   account: number
 ) => {
   const status = await card.getStatus();
-  console.log(`satochip/index.ts getSatochipDetails status: ${status}`);
 
   if (!status.setup_done) {
     throw Error("SATOCHIP not setup. Set a new PIN and seed in the setup options.");
@@ -97,7 +84,6 @@ export const getSatochipDetails = async (
 
 export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
   const status = await card.getStatus();
-  console.log(`satochip/index getCardInfo status: ${status}`);
 
   if (!status.setup_done){
     return {
@@ -161,14 +147,10 @@ export const changePin = async (card: SatochipCard, oldPIN: string, newPIN: stri
 };
 
 export const importSeed = async (card: SatochipCard, pin: string, seedBytes: Buffer) => {
-  console.log(`index importSeed: pin: ${pin}`);
-  console.log(`index importSeed: seedBytes: ${seedBytes.toString('hex')}`);
   // Verify current PIN first
   await card.verifyPIN(0, pin);
-  console.log(`index importSeed: pin verified!`);
   // import seed
   await card.importSeed(seedBytes);
-  console.log(`index importSeed: seed imported!`);
   return;
 };
 
@@ -196,24 +178,14 @@ export const signWithSatochip = async (
   isTestnet: boolean
 ) => {
   // select applet
-  console.log(`index signWithSatochip select applet`);
   await card.selectApplet();
   // Verify PIN first
-  console.log(`index signWithSatochip pin: ${pin}`);
   await card.verifyPIN(0, pin);
-  console.log(`index signWithSatochip pin verified!`);
 
   // Verify we're using the correct card
   if (cardMfp) {
-    console.log(`index signWithSatochip cardMfp: ${cardMfp}`);
-
     // fetch master fingerprint
     const xfp = await card.getMasterXfp();
-    console.log(`index signWithSatochip xfp: ${xfp}`);
-
-    // const authentikey = await card.getAuthentikey();
-    // const cardFingerprint = authentikey.fingerprint.toString('hex').toUpperCase();
-
     if (xfp.toUpperCase() !== cardMfp.toUpperCase()) {
       throw Error(
         'Wrong SATOCHIP used, please ensure you use the same one selected for signing.'
@@ -221,7 +193,6 @@ export const signWithSatochip = async (
     }
   }
 
-  console.log(`index signWithSatochip after xfp check`);
   try {
     for (const input of inputsToSign) {
 
@@ -231,32 +202,25 @@ export const signWithSatochip = async (
       } else {
         keypath = signer.derivationPath + "/" + input.subPath;
       }
-      console.log(`index signWithSatochip keypath: ${keypath}`);
       validateBip32Path(keypath);
 
       // derive extended key
       const {pubkey, chaincode} = await card.getExtendedKey(keypath);
-      console.log(`index signWithSatochip EXPECTED pubkey: ${input.publicKey}`);
-      console.log(`index signWithSatochip pubkey: ${pubkey.toString('hex')}`);
-      console.log(`index signWithSatochip chaincode: ${chaincode.toString('hex')}`);
 
       // Sign the digest using Satochip
       const digest = Buffer.from(input.digest, 'hex');
-      console.log(`index signWithSatochip digest: ${digest.toString('hex')}`);
       const dersigBytes =  await card.signTransactionHash(0xff, digest);
-      console.log(`index signWithSatochip dersigBytes: ${dersigBytes.toString('hex')}`);
 
-      //DEBUG: verify signature
-      const isVerified = ECPair.fromPublicKey(pubkey).verify(digest, dersigBytes);
-      console.log(`index signWithSatochip isVerified: ${isVerified}`);
+      // //DEBUG: verify DER signature
+      // const isVerified = ECPair.fromPublicKey(pubkey).verify(digest, dersigBytes);
+      // console.log(`index signWithSatochip isVerified: ${isVerified}`);
 
       // convert DER signature to compact signature
       const sigBytes = converDerSignatureTo64bytesSignature(dersigBytes);
-      console.log(`index signWithSatochip sigBytes: ${sigBytes.toString('hex')}`);
 
-      //DEBUG: verify converted signature against bitcoinjs-lib expectations
-      const isConvertedSigVerified = ECPair.fromPublicKey(pubkey).verify(digest, sigBytes);
-      console.log(`index signWithSatochip isConvertedSigVerified: ${isConvertedSigVerified}`);
+      // //DEBUG: verify converted signature against bitcoinjs-lib expectations
+      // const isConvertedSigVerified = ECPair.fromPublicKey(pubkey).verify(digest, sigBytes);
+      // console.log(`index signWithSatochip isConvertedSigVerified: ${isConvertedSigVerified}`);
 
       input.signature = sigBytes.toString('hex');
     }
@@ -276,7 +240,6 @@ export const readSatochip = async (card: SatochipCard, pin: string) => {
 };
 
 export const handleSatochipError = (error, navigation) => {
-  console.log(`index handleSatochipError error: ${error}`);
   let errorMessage = error.toString();
 
   if (errorMessage) {
@@ -285,8 +248,6 @@ export const handleSatochipError = (error, navigation) => {
     errorMessage = 'Something went wrong, please try again!';
     if (Platform.OS === 'ios') NFC.showiOSErrorMessage(errorMessage);
   }
-
-  console.log(`index handleSatochipError errorMessage: ${errorMessage}`);
 
   return errorMessage;
 };
@@ -298,15 +259,11 @@ export const handleSatochipError = (error, navigation) => {
  * @returns Buffer containing the compact signature (64-byte format)
  */
 const converDerSignatureTo64bytesSignature = (sigin: Buffer) => {
-  console.log(`In parser converDerSignatureTo64bytesSignature input: ${sigin.toString('hex')}`);
 
   // Validate DER format
   if (sigin[0] !== 0x30) {
     throw new Error("converDerSignatureTo64bytesSignature: wrong first byte!");
   }
-
-  const totalLength = sigin[1];
-  console.log(`Total length: ${totalLength}`);
 
   // Extract r component
   if (sigin[2] !== 0x02) {
@@ -314,7 +271,6 @@ const converDerSignatureTo64bytesSignature = (sigin: Buffer) => {
   }
 
   const rLength = sigin[3];
-  console.log(`R length: ${rLength}`);
 
   // Extract r bytes manually to avoid Buffer compatibility issues
   const rBytes = Buffer.alloc(32);
@@ -341,7 +297,6 @@ const converDerSignatureTo64bytesSignature = (sigin: Buffer) => {
   }
 
   const sLength = sigin[sOffset + 1];
-  console.log(`S length: ${sLength}`);
 
   // Extract s bytes manually
   const sRawBytes = Buffer.alloc(32);
@@ -364,9 +319,6 @@ const converDerSignatureTo64bytesSignature = (sigin: Buffer) => {
   // Apply BIP62 low-S rule
   const sBytes = enforceLowS(sRawBytes);
 
-  console.log(`R bytes: ${rBytes.toString('hex')}`);
-  console.log(`S bytes: ${sBytes.toString('hex')}`);
-
   return Buffer.concat([rBytes, sBytes]);
 };
 
@@ -377,9 +329,7 @@ function enforceLowS(sBytes: Buffer): Buffer {
   let s = BigInt('0x' + sBytes.toString('hex'));
 
   if (s > HALF_CURVE_ORDER) {
-    console.log(`Enforce low s (BIP62) sBytes: ${sBytes.toString('hex')}`)
     s = CURVE_ORDER - s;
-    console.log(`Enforce low s (BIP62) sBytesNormalized: ${s.toString(16).padStart(64, '0')}`)
   }
 
   const hex = s.toString(16).padStart(64, '0');
@@ -398,28 +348,6 @@ function validateBip32Path(path: string): void {
   // (\d+'?\/)* - Zero or more occurrences of: digits, optional quote, slash
   // (\d+'?\/?)? - Optional last segment with digits, optional quote, optional slash
   // $ - End of string
-
-  // // Valid examples
-  // console.log("DEBUG: should be TRUE");
-  // console.log(regex.test("m/"));              // true
-  // console.log(regex.test("m/0/1/"));          // true
-  // console.log(regex.test("m/0/1"));           // true
-  // console.log(regex.test("m/0'/1'/"));        // true
-  // console.log(regex.test("m/56540/645541'/")); // true
-  // console.log(regex.test("m/123"));           // true
-  // console.log(regex.test("m/123'"));          // true
-  //
-  // // Invalid examples
-  // console.log("DEBUG: should be FALSE");
-  // console.log(regex.test("0/1/"));            // false (missing m/)
-  // console.log(regex.test("/0/1/"));           // false (missing m)
-  // console.log(regex.test("m/abc/1/"));        // false (non-digits)
-  // console.log(regex.test("m/0/1/'"));        // false (quote in the end)
-  // console.log(regex.test("m/0/1\\"));        // false (backslash in the end)
-  // console.log(regex.test("m/'0/1/"));        // false (quote before digits)
-  // console.log(regex.test("m/0''/1/"));        // false (double quotes)
-  // console.log(regex.test("m/0'//1//"));        // true (double slash)
-  // console.log(regex.test("m/0'1/"));        // false (missing slash)
 
   if (!regex.test(path)) {
     throw new Error(`Invalid format: "${path}" - must match regex: [m/]<digits>[']/<digits>[']/...`);

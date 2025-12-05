@@ -287,10 +287,7 @@ function SetupSatochip({ route }) {
 
   const signWithSatochip = useCallback(async () => {
     try {
-      console.log(`signWithSatochip start pin: ${pin}`);
-
       const signedSerializedPSBT = await signTransaction({ satochipPin: pin });
-      //const signedSerializedPSBT = await withModal(async () => signTransaction({ satochipPin: pin }))();
 
       if (Platform.OS === 'ios') NFC.showiOSMessage('SATOCHIP signed successfully');
       if (isRemoteKey && signedSerializedPSBT) {
@@ -300,9 +297,7 @@ function SetupSatochip({ route }) {
         navigation.goBack();
       }
     } catch (error) {
-      console.error(`signWithSatochip error: ${error}`);
       const errorMessage = handleSatochipError(error, navigation);
-      console.error(`signWithSatochip errorMessage: ${errorMessage}`);
       if (errorMessage) {
         showToast(errorMessage, <ToastErrorIcon />, IToastCategory.DEFAULT, 3000, true);
       }
@@ -315,8 +310,6 @@ function SetupSatochip({ route }) {
   }, [pin]);
 
   const checkSatochipSetupStatus = useCallback(async () => {
-
-    console.log(`checkSatochipSetupStatus start pin: ${pin}`);
     try {
 
       // if pin is defined, use it to verify PIN, as required for authenticity check
@@ -540,8 +533,6 @@ function SetupSatochip({ route }) {
               showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
               return;
             }
-
-            console.log(`setupSatochip pin: ${pin}`);
 
             navigation.dispatch(
               CommonActions.navigate({

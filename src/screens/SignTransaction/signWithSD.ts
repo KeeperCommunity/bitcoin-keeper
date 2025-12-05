@@ -71,7 +71,6 @@ export const signTransactionWithSatochip = async ({
  pin,
  signer,
 }) => {
-  console.log(`signWithSD signTransactionWithSatochip pin: ${pin}`)
   setSatochipModal(false);
   const { inputsToSign } = signingPayload[0];
   // AMF flow for signing
@@ -89,7 +88,6 @@ export const signTransactionWithSatochip = async ({
   }
   return withModal(async () => {
     try {
-      console.log(`signWithSD signTransactionWithSatochip pin: ${pin}`)
       const signedInput = await signWithSatochip(
         card,
         signer.masterFingerprint,
@@ -103,7 +101,6 @@ export const signTransactionWithSatochip = async ({
       });
       return {signingPayload, signedSerializedPSBT: null};
     } catch (error) {
-      console.log(`signWithSD signTransactionWithSatochip error: ${error}`);
       closeNfc();
       throw error;
     }

@@ -209,7 +209,6 @@ function SatochipSetupPin({ route, navigation}) {
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonText={common.Okay}
         buttonCallback={() => {
-          console.log('Pressed pin activated btn');
           setShowResultModal(false);
           navigation.dispatch(CommonActions.goBack());
         }}

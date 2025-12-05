@@ -317,11 +317,6 @@ function SignTransactionScreen() {
       portalCVC?: string;
       satochipPin?: string;
     } = {}) => {
-      console.log(`SignTransactionScreen xfp: ${xfp}`);
-      console.log(`SignTransactionScreen seedBasedSingerMnemonic: ${seedBasedSingerMnemonic}`);
-      console.log(`SignTransactionScreen tapsignerCVC: ${tapsignerCVC}`);
-      console.log(`SignTransactionScreen portalCVC: ${portalCVC}`);
-      console.log(`SignTransactionScreen satochipPin: ${satochipPin}`);
       const activeId = xfp || activeXfp;
       const currentKey = vaultKeys.filter((vaultKey) => vaultKey.xfp === activeId)[0];
       const signer = signerMap[getKeyUID(currentKey)];
@@ -368,7 +363,6 @@ function SignTransactionScreen() {
           }
         } else if (SignerType.SATOCHIP === signerType) {
           try {
-            console.log(`SignTransactionScreen satochipPin: ${satochipPin}`);
             const { signingPayload: signedPayload, signedSerializedPSBT } =
               await signTransactionWithSatochip({
                 setSatochipModal,
@@ -382,10 +376,6 @@ function SignTransactionScreen() {
                 pin: satochipPin,
                 signer,
               });
-            console.log(`SignTransactionScreen signedPayload: ${signedPayload}`);
-            console.log(JSON.stringify(signedPayload, null, 2));
-            console.log(`SignTransactionScreen signedSerializedPSBT: ${signedSerializedPSBT}`);
-            console.log(JSON.stringify(signedSerializedPSBT, null, 2));
             validatePSBT(
               serializedPSBTEnvelop.serializedPSBT,
               signedSerializedPSBT,

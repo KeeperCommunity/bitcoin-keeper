@@ -298,7 +298,6 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         );
         return signedPSBT;
       } else if (SignerType.SATOCHIP === signerType) {
-        console.log(`RKSignersModal signTransaction satochipPin: ${satochipPin}`);
         const currentKey = {
             derivationPath: signer.signerXpubs[XpubTypes.P2WSH][0].derivationPath,
         };
