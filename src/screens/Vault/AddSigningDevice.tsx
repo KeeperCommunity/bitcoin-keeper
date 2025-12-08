@@ -301,19 +301,6 @@ const handleSignerSelect = (
     showToast,
   }
 ) => {
-
-  //SATOCHIP DEBUG
-  console.log(`selected: ${selected}`);
-  console.log(`signer: ${signer}`);
-  console.log(JSON.stringify(signer, null, 2));
-  console.log(`signer.type: ${signer.type}`);
-  console.log(`vaultType: ${vaultType}`);
-  console.log(`setModalContent: ${setModalContent}`);
-  console.log(`setShowSignerModal: ${setShowSignerModal}`);
-  console.log(`onSignerSelect: ${onSignerSelect}`);
-
-  // ENDBUG
-
   console.log('disabledMessage');
   console.log(disabledMessage);
   if (disabledMessage) {
@@ -330,7 +317,6 @@ const handleSignerSelect = (
   }
 
   if (!selected && signer?.type === SignerType.KEEPER && vaultType === VaultType.MINISCRIPT) {
-    console.log(`in if condition1`);
     setModalContent({
       name: getSignerNameFromType(signer.type),
       title: 'Verify with Key Holder',
@@ -344,7 +330,6 @@ const handleSignerSelect = (
     setShowSignerModal(true);
   }
 
-  console.log(`after if condition1`);
   onSignerSelect(
     selected,
     signer,

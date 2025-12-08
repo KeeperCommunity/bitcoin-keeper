@@ -3,7 +3,6 @@ import { Box, useColorMode } from 'native-base';
 import { StyleSheet } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
 
-import Text from 'src/components/KeeperText';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import Buttons from 'src/components/Buttons';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -24,11 +23,7 @@ function ImportSatochipSeed({ route, navigation }) {
 
   const { pin, setupSatochipParams } = route.params || {};
 
-  // DEBUG
-  console.log(`ImportSatochipSeed pin: ${pin}`);
-
   const handleContinue = () => {
-    console.log(`ImportSatochipSeed handleContinue START`);
 
     navigation.dispatch(
       CommonActions.navigate({

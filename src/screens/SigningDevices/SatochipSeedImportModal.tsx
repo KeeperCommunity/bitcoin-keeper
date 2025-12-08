@@ -29,9 +29,6 @@ function SatochipSeedImportModal({ route, navigation }) {
   } = translations;
 
   const { pin, mnemonic } = route.params || {};
-  console.log(`SatochipSeedImportModal pin: ${pin}`); // TOOD remove!
-  console.log(`SatochipSeedImportModal mnemonic: ${mnemonic}`);
-  
   const card = useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
   const [showResultModal, setShowResultModal] = useState(false);
@@ -39,7 +36,6 @@ function SatochipSeedImportModal({ route, navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
 
   const performSeedImport = useCallback(async () => {
-    console.log(`SatochipSeedImportModal performSeedImport START`);
     try {
       if (!mnemonic || !bip39.validateMnemonic(mnemonic)) {
         throw new Error('Invalid mnemonic phrase');
@@ -54,7 +50,6 @@ function SatochipSeedImportModal({ route, navigation }) {
       }
       
     } catch (error) {
-      console.error('SatochipSeedImportModal performSeedImport error:', error);
       const errorMsg = handleSatochipError(error, navigation);
       setErrorMessage(errorMsg || satochipTranslations.importSeedFailed);
       setImportSuccess(false);
@@ -64,7 +59,6 @@ function SatochipSeedImportModal({ route, navigation }) {
       }
       
     } finally {
-      console.log('SatochipSeedImportModal performSeedImport finally');
       setShowResultModal(true);
       closeNfc();
       card.endNfcSession();
@@ -72,7 +66,6 @@ function SatochipSeedImportModal({ route, navigation }) {
   }, [pin, mnemonic]);
 
   const handleResultClose = () => {
-    console.log(`SatochipSeedImportModal handleResultClose START`);
     setShowResultModal(false);
 
     // Navigate back to the Add Satochip Key

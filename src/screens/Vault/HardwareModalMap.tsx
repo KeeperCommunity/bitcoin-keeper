@@ -1087,14 +1087,6 @@ function HardwareModalMap({
   };
 
   const navigateToSatochipSetup = () => {
-    // if (mode === InteracationMode.RECOVERY) {
-    //   navigation.dispatch(
-    //     CommonActions.navigate({
-    //       name: 'AddSatochipRecovery',
-    //       params: { mode, signer, isMultisig, accountNumber: getAccountFromSigner(signer) },
-    //     })
-    //   );
-    // }
     navigation.dispatch(
       CommonActions.navigate({
         name: 'SatochipAction',
