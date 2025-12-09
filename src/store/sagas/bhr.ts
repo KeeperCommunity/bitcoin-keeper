@@ -1040,12 +1040,6 @@ function* backupAllSignersAndVaultsWorker() {
     });
     yield put(setBackupAllSuccess(true));
     yield put(setPendingAllBackup(false));
-    yield put(
-      setHomeToastMessage({
-        message: 'Assisted server backup completed successfully',
-        isError: false,
-      })
-    );
     return true;
   } catch (error) {
     yield put(setBackupAllFailure(true));

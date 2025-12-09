@@ -178,7 +178,9 @@
     "Buy": "Buy",
     "update": "Update",
     "swapBtc": "Swap BTC",
-    "disclaimer": "Keeper is a community-led, open-source bitcoin wallet. It does not provide financial or investment advice."
+    "disclaimer": "Keeper is a community-led, open-source bitcoin wallet. It does not provide financial or investment advice.",
+    "maybeLater": "Maybe later",
+    "noThanks": "No thanks"
   },
   "login": {
     "welcomeback": "Welcome Back",
@@ -997,11 +999,14 @@
     "multiUserSubTitle": "Setup multiple app users",
     "multiUserScreenHeader": "Add New Keeper User",
     "multiUserScreenTitle1": "Keeper allows you to create multiple users of the app, each completely separated with its own 4-digit PIN. When you log in, just enter the PIN of the user you want to access and the app will load for it.",
-    "supportDeveloperTitle": "Support the developer(s)",
+    "supportDeveloperTitle": "Support the Developers",
+    "supportDeveloperTitle2": "This feature is now free",
     "supportDeveloperSubTitle": "Send a small tip to support ongoing development.",
+    "supportDeveloperSubTitle2": "Keeper is a community-led project. If this functionality helped you, consider supporting the developer who built it.",
     "sendTipTitle": "Send Tip",
-    "sendTipSubTitle": "Send tip to appreciate the developers",
-    "selectTipWalletSubtitle": "Select a wallet to send funds from"
+    "sendTipSubTitle": "Your tip goes straight to the developers who built this feature. It helps keep Keeper strong and community-led.",
+    "selectTipWalletSubtitle": "Select a wallet to send funds from",
+    "tipNow": "Tip Now"
   },
   "onboarding": {
     "security": "security",

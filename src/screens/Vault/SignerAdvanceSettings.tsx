@@ -246,7 +246,9 @@ function SignerAdvanceSettings({ route }: any) {
         }
 
         dispatch(addNewVault({ newVaultInfo: vaultInfo }));
-        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
+        setTimeout(() => {
+          dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
+        }, 2000);
         return vaultInfo;
       } catch (err) {
         captureError(err);

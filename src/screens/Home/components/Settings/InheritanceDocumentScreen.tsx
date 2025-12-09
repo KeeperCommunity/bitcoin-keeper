@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useCallback, useContext, useRef } from 'react';
 import { Box, useColorMode } from 'native-base';
 import { StyleSheet } from 'react-native';
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -11,7 +11,10 @@ import Text from 'src/components/KeeperText';
 import Colors from 'src/theme/Colors';
 import { hp, wp } from 'src/constants/responsive';
 import { UpgradeCTA } from 'src/components/UpgradeCTA';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
+import { useDispatch } from 'react-redux';
 
 const InheritanceDocumentScreen = () => {
   const { colorMode } = useColorMode();
@@ -19,7 +22,17 @@ const InheritanceDocumentScreen = () => {
   const { signer: signerText, inheritancePlanning } = translations;
   const { inheritanceDocument } = useSettingKeeper();
   const { isOnL3Above } = usePlan();
-  const navigation = useNavigation();
+  const dispatch = useDispatch();
+
+  const hasFocusedOnce = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (hasFocusedOnce.current)
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.inheritanceDoc }));
+      else hasFocusedOnce.current = true;
+    }, [])
+  );
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>

@@ -48,6 +48,9 @@ import CurrencyInfo from '../Home/components/CurrencyInfo';
 import useBalance from 'src/hooks/useBalance';
 import CurrencyKind from 'src/models/enums/CurrencyKind';
 import { BtcToSats, SatsToBtc } from 'src/constants/Bitcoin';
+import useWallets from 'src/hooks/useWallets';
+import useVault from 'src/hooks/useVault';
+import Colors from 'src/theme/Colors';
 
 const PRESET = [
   { id: 0, amount: 5000 },
@@ -81,6 +84,8 @@ export const SendTip = () => {
   const miniscriptPathSelectorRef = useRef<MiniscriptPathSelectorRef>(null);
   const miniscriptSelectedSatisfierRef = useRef(null);
   const { satsEnabled } = useAppSelector((state) => state.settings);
+  const { wallets } = useWallets({});
+  const { allVaults } = useVault({ includeArchived: false, getHiddenWallets: false });
 
   const walletBalance = useMemo(() => {
     return (
@@ -175,6 +180,11 @@ export const SendTip = () => {
       } else showToast(sendPhaseOneState.failedErrorMessage);
     }
   }, [sendPhaseOneState]);
+
+  useEffect(() => {
+    if (allVaults.length) setSelectedWallet(allVaults[0]);
+    else if (wallets.length) setSelectedWallet(wallets[0]);
+  }, []);
 
   const getSmallWalletIcon = (wallet) => {
     if (wallet.entityKind === EntityKind.VAULT) {
@@ -386,14 +396,16 @@ export const SendTip = () => {
                     borderColor={`${colorMode}.dashedButtonBorderColor`}
                     style={{ marginTop: hp(20) }}
                   >
-                    {PRESET.map((item) => (
-                      <OptionItem
-                        colorMode={colorMode}
-                        onPress={(amount) => setAmountToSend(amount)}
-                        amount={item.amount}
-                        key={item.id}
-                      />
-                    ))}
+                    <Box style={styles.optionsCtr}>
+                      {PRESET.map((item) => (
+                        <OptionItem
+                          colorMode={colorMode}
+                          onPress={(amount) => setAmountToSend(amount)}
+                          amount={item.amount}
+                          key={item.id}
+                        />
+                      ))}
+                    </Box>
                     <KeeperTextInput
                       placeholder={home.AddAmount}
                       inpuBackgroundColor={`${colorMode}.textInputBackground`}
@@ -506,15 +518,20 @@ const styles = StyleSheet.create({
     marginTop: hp(15),
   },
   optionCTR: {
-    flexDirection: 'row',
     paddingVertical: wp(10),
     paddingHorizontal: wp(15),
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: wp(16),
+    gap: hp(3),
     borderRadius: 12,
     borderWidth: 1.2,
     marginBottom: hp(10),
+    flex: 1,
+  },
+  optionsCtr: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    flexWrap: 'wrap',
   },
 });
 
@@ -532,15 +549,19 @@ const OptionItem = ({ onPress, amount, colorMode }) => {
         <CurrencyInfo
           hideAmounts={false}
           amount={amount}
-          fontSize={14}
-          satsFontSize={14}
+          fontSize={wp(12)}
+          satsFontSize={wp(12)}
           color={`${colorMode}.black`}
           variation={!isDarkMode ? 'dark' : 'light'}
         />
         <Box style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {isDarkMode ? <EquivalentGrey /> : <EquivalentGreen />}
-          <Box marginLeft={1}>{getFiatCurrencyIcon('light')}</Box>
-          <Text color={`${colorMode}.secondaryText`} fontSize={14} medium>
+          {isDarkMode ? (
+            <EquivalentGrey height={10} width={10} />
+          ) : (
+            <EquivalentGreen height={10} width={10} />
+          )}
+          <Box marginLeft={1}>{getFiatCurrencyIcon('grey')}</Box>
+          <Text color={Colors.secondaryLightGrey} fontSize={wp(11)} medium>
             {getCustomConvertedBalance(
               satsEnabled ? amount : SatsToBtc(amount),
               CurrencyKind.BITCOIN,

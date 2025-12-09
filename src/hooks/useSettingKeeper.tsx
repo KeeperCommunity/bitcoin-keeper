@@ -30,7 +30,7 @@ import KeeperPrivateIcon from 'src/assets/images/KeeperPrivateIcon.svg';
 import KeeperPrivateIconWhite from 'src/assets/images/KeeperPrivateIconWhite.svg';
 import PrivateManageWallet from 'src/assets/privateImages/manage-wallet-icon.svg';
 import MultiUserIcon from 'src/assets/images/MultiUserIcon.svg';
-import SupportDeveloperIcon from 'src/assets/images/supportDeveloper.svg';
+import InheritanceDocumentIcon from 'src/assets/images/inheritanceDocumentIcon.svg';
 
 import Switch from 'src/components/Switch/Switch';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -277,13 +277,6 @@ export const useSettingKeeper = () => {
       onPress: () => navigation.navigate('SettingApp'),
       isDiamond: false,
     },
-    {
-      title: settings.supportDeveloperTitle,
-      description: settings.supportDeveloperSubTitle,
-      icon: <SupportDeveloperIcon width={11} height={14} />,
-      onPress: () => dispatch(setShowTipModal({ status: true, address: config.ADDRESS.settings })),
-      isDiamond: false,
-    },
   ].filter(Boolean);
   const keysAndwallet = [
     {
@@ -336,6 +329,13 @@ export const useSettingKeeper = () => {
       description: inheritancePlanning.safeKeepingTipsDesp,
       icon: <InheritanceTipsIcon width={13} height={16} />,
       onPress: () => navigation.navigate('SafeKeepingTips'),
+      isDiamond: false,
+    },
+    {
+      title: signerText.inheritanceDocuments,
+      description: signerText.bitcoinSecurity,
+      icon: <InheritanceDocumentIcon width={14} height={14} />,
+      onPress: () => navigation.dispatch(CommonActions.navigate('InheritanceDocumentScreen')),
       isDiamond: false,
     },
   ];

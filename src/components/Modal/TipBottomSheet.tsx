@@ -1,43 +1,25 @@
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import React, { useContext, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useContext } from 'react';
+import { StyleSheet } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { useAppSelector } from 'src/store/hooks';
-import Buttons from '../Buttons';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import HeartIcon from 'src/assets/images/heart.svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Box, useColorMode, useTheme } from 'native-base';
-import Colors from 'src/theme/Colors';
-import { hp, wp } from 'src/constants/responsive';
-import Fonts from 'src/constants/Fonts';
+import { Box, useColorMode } from 'native-base';
 import { setShowTipModal } from 'src/store/reducers/settings';
-import Text from '../KeeperText';
 import { CommonActions, useNavigation } from '@react-navigation/native';
-import CloseGreen from 'src/assets/images/dark-close-icon.svg';
+import KeeperModal from '../KeeperModal';
+import config from 'src/utils/service-utilities/config';
 
 type TipBottomSheetProps = {};
 
 export const TipBottomSheet = (props: TipBottomSheetProps) => {
-  const modalRef = useRef(null);
   const dispatch = useDispatch();
   const { showTipModal } = useAppSelector((state) => state.settings);
-  const { settings } = useContext(LocalizationContext).translations;
-  const insets = useSafeAreaInsets();
-  const theme = useTheme();
-  const styles = getStyles(theme, insets);
+  const { settings, common } = useContext(LocalizationContext).translations;
   const { colorMode } = useColorMode();
-  const isDarKMode = colorMode === 'dark';
   const navigation = useNavigation();
   const { tipAddress } = useAppSelector((state) => state.settings);
-
-  useEffect(() => {
-    if (showTipModal) {
-      requestAnimationFrame(() => modalRef.current?.present());
-    } else {
-      modalRef.current?.dismiss();
-    }
-  }, [showTipModal]);
+  const fromSettings = tipAddress == config.ADDRESS.settings;
 
   const onDismiss = () => dispatch(setShowTipModal({ status: false }));
 
@@ -47,80 +29,35 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
   };
 
   return (
-    <BottomSheetModal
-      ref={modalRef}
-      index={0}
-      onDismiss={onDismiss}
-      backgroundStyle={{
-        backgroundColor: isDarKMode ? Colors.SecondaryBlack : Colors.primaryCream,
-      }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          opacity={0.5}
-          pressBehavior={'none'}
-        />
-      )}
-      handleComponent={null}
-    >
-      <BottomSheetView>
-        <TouchableOpacity testID="btn_close_modal" style={styles.close} onPress={onDismiss}>
-          <CloseGreen />
-        </TouchableOpacity>
-        <Box style={styles.ctr}>
-          <View style={styles.row}>
-            <View style={styles.illustrationCtr}>
-              <HeartIcon />
-            </View>
-            <View>
-              <Text style={styles.titleTxt} color={`${colorMode}.textGreen`}>
-                {settings.supportDeveloperTitle}
-              </Text>
-              <Text style={styles.subTitleTxt}>{settings.supportDeveloperSubTitle}</Text>
-            </View>
-          </View>
-          <Buttons
-            primaryText="Tip Now"
-            secondaryText="Not Now"
-            secondaryCallback={onDismiss}
-            primaryCallback={navigateToPay}
-          />
-        </Box>
-      </BottomSheetView>
-    </BottomSheetModal>
+    showTipModal && (
+      <KeeperModal
+        visible={showTipModal}
+        title={fromSettings ? settings.supportDeveloperTitle : settings.supportDeveloperTitle2}
+        subTitle={
+          fromSettings ? settings.supportDeveloperSubTitle : settings.supportDeveloperSubTitle2
+        }
+        close={onDismiss}
+        showCloseIcon={false}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        buttonText={settings.tipNow}
+        buttonCallback={navigateToPay}
+        secondaryButtonText={fromSettings ? common.maybeLater : common.noThanks}
+        secondaryCallback={onDismiss}
+        Content={() => (
+          <Box style={styles.illustration}>
+            <HeartIcon />
+          </Box>
+        )}
+      />
+    )
   );
 };
 
-const getStyles = (theme, insets) =>
-  StyleSheet.create({
-    ctr: {
-      flex: 1,
-      padding: wp(20),
-      paddingTop: hp(30),
-    },
-    row: { flexDirection: 'row', gap: wp(10) },
-    illustrationCtr: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: hp(50),
-    },
-    titleTxt: {
-      fontSize: 18,
-      marginBottom: hp(3),
-      fontFamily: Fonts.LoraMedium,
-    },
-    subTitleTxt: {
-      fontSize: 14,
-      marginBottom: hp(3),
-      fontFamily: Fonts.InterRegular,
-      maxWidth: '99%',
-    },
-    close: {
-      position: 'absolute',
-      right: 20,
-      top: 28,
-      zIndex: 999,
-    },
-  });
+const styles = StyleSheet.create({
+  illustration: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

@@ -44,7 +44,7 @@ const PlebContainer: React.FC<PlebContainerProps> = ({
               )}
             </Text>
             {description && (
-              <Text fontSize={12} color={subtitleColor}>
+              <Text fontSize={12} color={subtitleColor} style={{ maxWidth: '99%' }}>
                 {description}
               </Text>
             )}

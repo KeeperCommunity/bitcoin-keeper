@@ -70,7 +70,9 @@ const useConfigRecovery = () => {
             };
             dispatch(addNewVault({ newVaultInfo: vaultInfo }));
             setGeneratedVaultId(generatedVaultId);
-            dispatch(setShowTipModal({ status: true, address: config.ADDRESS.multiSigImport }));
+            setTimeout(() => {
+              dispatch(setShowTipModal({ status: true, address: config.ADDRESS.multiSigImport }));
+            }, 1000);
           })
         );
       } catch (err) {

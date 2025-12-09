@@ -207,7 +207,7 @@ export const getFiatIcon = (currencyCode: string, type: 'light' | 'green' | 'dar
       styles.color = Colors.TagDark3;
       break;
     case 'grey':
-      styles.color = Colors.headerWhite;
+      styles.color = Colors.secondaryLightGrey;
       styles.opacity = 0.7;
       break;
     default:

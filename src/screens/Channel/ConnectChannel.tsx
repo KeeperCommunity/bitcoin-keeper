@@ -256,7 +256,6 @@ function ConnectChannel() {
           ])
         );
         navigation.dispatch(CommonActions.goBack());
-        showToast(`${signer.signerName} ${errorText.verifiedSuccesFully}`, <TickIcon />);
         dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       };
 
