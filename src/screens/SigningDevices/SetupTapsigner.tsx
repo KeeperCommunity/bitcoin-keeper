@@ -603,8 +603,8 @@ function SetupTapsigner({ route }) {
       <KeeperModal
         visible={openOptionModal}
         close={() => setOpenOptionModal(false)}
-        title={signerTranslations.signTransaction}
-        subTitle={signerTranslations.selectSignOption}
+        title="Share Transaction"
+        subTitle="Select how you want to share the transaction"
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
