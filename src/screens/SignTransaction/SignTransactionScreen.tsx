@@ -213,6 +213,7 @@ function SignTransactionScreen() {
     await Relay.createZendeskTicket({
       desc: tipMessage.trim(),
       conciergeUser,
+      isTip: true,
     });
     setBroadcasting(false);
     setVisibleModal(true);

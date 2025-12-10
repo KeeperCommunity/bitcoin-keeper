@@ -5,13 +5,17 @@ import { hp } from 'src/constants/responsive';
 import { StyleSheet } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { useAppSelector } from 'src/store/hooks';
+const TIP_FIELD_ID = 32435958308509;
 
 const TicketList = () => {
   const { tickets } = useAppSelector((state) => state.concierge);
   const navigation = useNavigation();
-  const handlePress = (ticketId, ticketStatus) => {
+  const handlePress = (ticketId, ticketStatus, isTipTicket) => {
     navigation.dispatch(
-      CommonActions.navigate({ name: 'TicketDetails', params: { ticketId, ticketStatus } })
+      CommonActions.navigate({
+        name: 'TicketDetails',
+        params: { ticketId, ticketStatus, isTipTicket },
+      })
     );
   };
 
@@ -22,7 +26,12 @@ const TicketList = () => {
           <TicketItem
             key={index}
             ticket={ticket}
-            handlePress={() => handlePress(ticket.id, ticket.status)}
+            handlePress={() => {
+              const isTipTicket = ticket.custom_fields.find(
+                (field) => field.id === TIP_FIELD_ID
+              ).value;
+              handlePress(ticket.id, ticket.status, isTipTicket);
+            }}
           />
         ))}
       </VStack>

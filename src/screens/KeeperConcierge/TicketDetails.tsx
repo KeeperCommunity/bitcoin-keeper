@@ -42,7 +42,7 @@ const TicketNote = ({ note, closed = false }) => {
 };
 
 const TicketDetails = ({ route }) => {
-  const { ticketId, ticketStatus } = route.params;
+  const { ticketId, ticketStatus, isTipTicket } = route.params;
   const { conciergeUser } = useAppSelector((store) => store.concierge);
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
@@ -168,7 +168,9 @@ const TicketDetails = ({ route }) => {
         <TicketNote
           closed={ticketClosed}
           note={
-            ticketClosed
+            isTipTicket == 'true'
+              ? 'The team has received your message and is thankful for your tip.'
+              : ticketClosed
               ? 'Issue resolved. Thank you for contacting our tech team. Your feedback is valued.'
               : 'Hi! Acknowledging your message. Someone from the team will get back to you shortly.'
           }

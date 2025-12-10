@@ -85,7 +85,7 @@ export const SendTip = () => {
   const { wallets } = useWallets({});
   const { allVaults } = useVault({ includeArchived: false, getHiddenWallets: false });
   const { getUsdInSats } = useBalance();
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState('Thanks for Bitcoin Keeper.');
   const { conciergeUser, conciergeLoading } = useAppSelector((store) => store.concierge);
 
   const walletBalance = useMemo(() => {
@@ -251,7 +251,7 @@ export const SendTip = () => {
           transactionPriority: 'low',
           customFeePerByte: 0,
           miniscriptSelectedSatisfier: miniscriptSelectedSatisfierRef.current,
-          tipMessage: `Tip: $${amountToSend} \nMessage: ${msg}`,
+          tipMessage: `${msg} \nAmount tipped: ${Math.round(getUsdInSats(amountToSend))} sats`,
         })
       );
     }

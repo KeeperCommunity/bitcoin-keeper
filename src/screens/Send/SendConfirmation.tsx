@@ -549,6 +549,7 @@ function SendConfirmation({ route }) {
     await Relay.createZendeskTicket({
       desc: tipMessage.trim(),
       conciergeUser,
+      isTip: true,
     });
     setProgress(false);
     setVisibleModal(true);
