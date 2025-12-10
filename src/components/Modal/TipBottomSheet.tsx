@@ -5,7 +5,7 @@ import { useAppSelector } from 'src/store/hooks';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import HeartIcon from 'src/assets/images/heart.svg';
 import { Box, useColorMode } from 'native-base';
-import { setShowTipModal } from 'src/store/reducers/settings';
+import { setShowTipModal, dismissTipFlow } from 'src/store/reducers/settings';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import KeeperModal from '../KeeperModal';
 import config from 'src/utils/service-utilities/config';
@@ -23,7 +23,23 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
 
   const onDismiss = () => dispatch(setShowTipModal({ status: false }));
 
+  const onNoThanks = () => {
+    if (tipAddress) {
+      const flowIdentifier = config.getTipFlowIdentifier(tipAddress);
+      if (flowIdentifier) {
+        dispatch(dismissTipFlow(flowIdentifier));
+      }
+    }
+    onDismiss();
+  };
+
   const navigateToPay = () => {
+    if (!fromSettings) {
+      const flowIdentifier = config.getTipFlowIdentifier(tipAddress);
+      if (flowIdentifier) {
+        dispatch(dismissTipFlow(flowIdentifier));
+      }
+    }
     navigation.dispatch(CommonActions.navigate({ name: 'SendTip', params: { tipAddress } }));
     onDismiss();
   };
@@ -44,7 +60,7 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
         buttonText={settings.tipNow}
         buttonCallback={navigateToPay}
         secondaryButtonText={fromSettings ? common.maybeLater : common.noThanks}
-        secondaryCallback={onDismiss}
+        secondaryCallback={fromSettings ? onDismiss : onNoThanks}
         Content={() => (
           <Box style={styles.illustration}>
             <HeartIcon />

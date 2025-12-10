@@ -2,12 +2,12 @@ export const devAddress: Address = {
   settings: 'tb1q8rarxyjt9pumj8gsx770d4tmcced6ewpzjtjtp',
   assistServer: 'tb1qtp5xngklpc9d9qajeps5zwaud0g2g5hj6tpefp',
   inheritanceDoc: 'tb1qs58amjlnhk40frgtjysve0s2hmfem7zk6heps5',
-  health: 'tb1qs58amjlnhk40frgtjysve0s2hmfem7zk6heps5',
-  canary: 'tb1qs58amjlnhk40frgtjysve0s2hmfem7zk6heps5',
+  health: 'tb1qn0wfzc6unwe6v40uhs5qh7uwxmc4d6ccah3qlc',
+  canary: 'tb1qar3j32pgkp7u4qwwy86h9usw0cnl7h9ke5qvrj',
   miniscript: 'tb1q5uhyrlsc28e656smvrm94pcgltlxgu9jvqgpnz',
-  serverKey: 'tb1qs58amjlnhk40frgtjysve0s2hmfem7zk6heps5',
-  multiSigCreate: 'tb1qs58amjlnhk40frgtjysve0s2hmfem7zk6heps5',
-  multiSigImport: 'tb1qs58amjlnhk40frgtjysve0s2hmfem7zk6heps5',
+  serverKey: 'tb1q07whu33jt5tdn7wq27cfs9za4hcfka5wpvux5t',
+  multiSigCreate: 'tb1q99g4g3mjqhs6yxremus8mu5c5tewgwn35wn087',
+  multiSigImport: 'tb1qsacf8e5xwh6ctx2yntgjyv3atwqh0erud58vv5',
 };
 
 export const prodAddress: Address = {

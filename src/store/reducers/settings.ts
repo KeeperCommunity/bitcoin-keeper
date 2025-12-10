@@ -27,6 +27,7 @@ const initialState: {
   appWideLoading: boolean;
   showTipModal: boolean;
   tipAddress: string;
+  dismissedTipFlows: string[];
 } = {
   loginMethod: LoginMethod.PIN,
   themeMode: ThemeMode.LIGHT,
@@ -45,6 +46,7 @@ const initialState: {
   appWideLoading: false,
   showTipModal: false,
   tipAddress: null,
+  dismissedTipFlows: [],
 };
 
 const settingsSlice = createSlice({
@@ -92,8 +94,20 @@ const settingsSlice = createSlice({
       state.appWideLoading = action.payload;
     },
     setShowTipModal(state, action: PayloadAction<{ status: boolean; address?: string }>) {
+      const flowIdentifier = config.getTipFlowIdentifier(action.payload.address);
+      if (flowIdentifier && state.dismissedTipFlows.includes(flowIdentifier)) {
+        state.showTipModal = false;
+        state.tipAddress = null;
+        return;
+      }
       state.showTipModal = action.payload.status;
       state.tipAddress = action.payload.address ?? null;
+    },
+    dismissTipFlow(state, action: PayloadAction<string>) {
+      const flowIdentifier = action.payload;
+      if (flowIdentifier && !state.dismissedTipFlows.includes(flowIdentifier)) {
+        state.dismissedTipFlows.push(flowIdentifier);
+      }
     },
   },
 });
@@ -112,6 +126,7 @@ export const {
   setBitcoinNetwork,
   setAppWideLoading,
   setShowTipModal,
+  dismissTipFlow,
 } = settingsSlice.actions;
 
 const conciergePersistConfig = {

@@ -116,6 +116,29 @@ class Configuration {
   public isDevMode = () => {
     return this.ENVIRONMENT === APP_STAGE.DEVELOPMENT;
   };
+
+  public getTipFlowIdentifier(address: string): keyof Address | null {
+    if (!address) return null;
+    const addressKeys: (keyof Address)[] = [
+      'settings',
+      'assistServer',
+      'inheritanceDoc',
+      'health',
+      'canary',
+      'miniscript',
+      'serverKey',
+      'multiSigCreate',
+      'multiSigImport',
+    ];
+
+    for (const key of addressKeys) {
+      if (this.ADDRESS[key] === address) {
+        return key;
+      }
+    }
+
+    return null;
+  }
 }
 
 export default new Configuration();
