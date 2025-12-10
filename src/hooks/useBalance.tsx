@@ -39,6 +39,8 @@ const useBalance = () => {
   const getFiatCurrencyIcon = (variation: 'light' | 'green' | 'dark' | 'grey') =>
     getFiatIcon(currencyCode, variation);
 
+  const getUsdInSats = (usd: number) => getConvertedAmt(usd, exchangeRates, 'USD', 'BITCOIN', true);
+
   return {
     getBalance,
     getSatUnit,
@@ -46,6 +48,7 @@ const useBalance = () => {
     getFiatCurrencyIcon,
     getConvertedBalance,
     getCustomConvertedBalance,
+    getUsdInSats,
   };
 };
 

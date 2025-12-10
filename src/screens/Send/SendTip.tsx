@@ -22,13 +22,10 @@ import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import WalletSmallIcon from 'src/assets/images/daily-wallet-small.svg';
 import CollaborativeSmallIcon from 'src/assets/images/collaborative-icon-small.svg';
 import VaultSmallIcon from 'src/assets/images/vault-icon-small.svg';
-import ArrowIcon from 'src/assets/images/icon_arrow.svg';
-import RemoveIcon from 'src/assets/images/remove-green-icon.svg';
-import RemoveIconDark from 'src/assets/images/remove-white-icon.svg';
 import Text from 'src/components/KeeperText';
 import HexagonIcon from 'src/components/HexagonIcon';
 import { EntityKind, MiniscriptTypes, VaultType } from 'src/services/wallets/enums';
-import { hp, windowHeight, wp } from 'src/constants/responsive';
+import { hp, windowHeight, windowWidth, wp } from 'src/constants/responsive';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import { sendPhaseOneReset } from 'src/store/reducers/send_and_receive';
 import { sendPhaseOne } from 'src/store/sagaActions/send_and_receive';
@@ -44,18 +41,19 @@ import MiniscriptPathSelector, {
 import config from 'src/utils/service-utilities/config';
 import EquivalentGreen from 'src/assets/images/equivalent-green.svg';
 import EquivalentGrey from 'src/assets/images/equivalent-grey.svg';
-import CurrencyInfo from '../Home/components/CurrencyInfo';
 import useBalance from 'src/hooks/useBalance';
-import CurrencyKind from 'src/models/enums/CurrencyKind';
-import { BtcToSats, SatsToBtc } from 'src/constants/Bitcoin';
+import { SatsToBtc } from 'src/constants/Bitcoin';
 import useWallets from 'src/hooks/useWallets';
 import useVault from 'src/hooks/useVault';
 import Colors from 'src/theme/Colors';
+import { formatSatsCompact } from 'src/utils/utilities';
+import { loadConciergeUser } from 'src/store/sagaActions/concierge';
+import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 
 const PRESET = [
-  { id: 0, amount: 5000 },
-  { id: 1, amount: 25000 },
-  { id: 2, amount: 100000 },
+  { id: 0, dollars: 10 },
+  { id: 1, dollars: 100 },
+  { id: 2, dollars: 1000 },
 ];
 
 export const SendTip = () => {
@@ -86,12 +84,19 @@ export const SendTip = () => {
   const { satsEnabled } = useAppSelector((state) => state.settings);
   const { wallets } = useWallets({});
   const { allVaults } = useVault({ includeArchived: false, getHiddenWallets: false });
+  const { getUsdInSats } = useBalance();
+  const [msg, setMsg] = useState('');
+  const { conciergeUser, conciergeLoading } = useAppSelector((store) => store.concierge);
 
   const walletBalance = useMemo(() => {
     return (
       selectedWallet?.specs?.balances?.confirmed + selectedWallet?.specs?.balances?.unconfirmed || 0
     );
   }, [selectedWallet]);
+
+  useEffect(() => {
+    if (conciergeUser == null) dispatch(loadConciergeUser());
+  }, []);
 
   useEffect(() => {
     if (selectedWallet?.type === VaultType.MINISCRIPT) {
@@ -233,20 +238,20 @@ export const SendTip = () => {
 
   const navigateToNext = () => {
     if (selectedWallet) {
-      const amt = satsEnabled ? amountToSend : BtcToSats(amountToSend);
       navigation.dispatch(
         CommonActions.navigate('SendConfirmation', {
           sender: selectedWallet,
           internalRecipients: [null],
           addresses: [tipAddress],
-          amounts: [parseInt(amt)],
-          note: 'Tip to developer',
+          amounts: [Math.round(getUsdInSats(amountToSend))],
+          note: 'Tip to the developer',
           selectedUTXOs: [],
           parentScreen: undefined,
           date: new Date(),
           transactionPriority: 'low',
           customFeePerByte: 0,
           miniscriptSelectedSatisfier: miniscriptSelectedSatisfierRef.current,
+          tipMessage: `Tip: $${amountToSend} \nMessage: ${msg}`,
         })
       );
     }
@@ -262,7 +267,7 @@ export const SendTip = () => {
     const recipients = [];
     recipients.push({
       address: tipAddress,
-      amount: satsEnabled ? amountToSend : BtcToSats(amountToSend),
+      amount: Math.round(getUsdInSats(amountToSend)),
       name: '',
     });
 
@@ -356,14 +361,7 @@ export const SendTip = () => {
                   alignItems="center"
                   style={styles.sendToWalletWrapper}
                 >
-                  <Text color={`${colorMode}.primaryText`}>Select spending wallet</Text>
-                  {!selectedWallet ? (
-                    <ArrowIcon opacity={1} />
-                  ) : isDarkMode ? (
-                    <RemoveIconDark />
-                  ) : (
-                    <RemoveIcon />
-                  )}
+                  <Text color={`${colorMode}.primaryText`}>Spending wallet</Text>
                 </Box>
               </Pressable>
               {selectedWallet && (
@@ -401,7 +399,7 @@ export const SendTip = () => {
                         <OptionItem
                           colorMode={colorMode}
                           onPress={(amount) => setAmountToSend(amount)}
-                          amount={item.amount}
+                          dollars={item.dollars}
                           key={item.id}
                         />
                       ))}
@@ -417,6 +415,16 @@ export const SendTip = () => {
                         const numericValue = text.replace(/[^0-9/.]/g, '');
                         setAmountToSend(numericValue);
                       }}
+                      blurOnSubmit={true}
+                      paddingLeft={5}
+                    />
+                    <KeeperTextInput
+                      placeholder={'Message to developer'}
+                      inpuBackgroundColor={`${colorMode}.textInputBackground`}
+                      inpuBorderColor={`${colorMode}.dullGreyBorder`}
+                      height={50}
+                      value={msg}
+                      onChangeText={setMsg}
                       blurOnSubmit={true}
                       paddingLeft={5}
                     />
@@ -458,6 +466,7 @@ export const SendTip = () => {
           onCancel={() => {}}
         />
       )}
+      <ActivityIndicatorView visible={conciergeLoading} />
     </ScreenWrapper>
   );
 };
@@ -535,38 +544,28 @@ const styles = StyleSheet.create({
   },
 });
 
-const OptionItem = ({ onPress, amount, colorMode }) => {
+const OptionItem = ({ onPress, dollars, colorMode }) => {
   const isDarkMode = colorMode === 'dark';
-  const { getFiatCurrencyIcon, getCustomConvertedBalance } = useBalance();
-  const { satsEnabled } = useAppSelector((state) => state.settings);
+  const { getUsdInSats } = useBalance();
+  const minWidth = windowWidth / 4;
   return (
-    <TouchableOpacity onPress={() => onPress(satsEnabled ? amount : SatsToBtc(amount))}>
+    <TouchableOpacity onPress={() => onPress(dollars)}>
       <Box
-        style={styles.optionCTR}
+        style={[styles.optionCTR, { minWidth }]}
         backgroundColor={`${colorMode}.boxSecondaryBackground`}
         borderColor={`${colorMode}.separator`}
       >
-        <CurrencyInfo
-          hideAmounts={false}
-          amount={amount}
-          fontSize={wp(12)}
-          satsFontSize={wp(12)}
-          color={`${colorMode}.black`}
-          variation={!isDarkMode ? 'dark' : 'light'}
-        />
-        <Box style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Box>
+          <Text fontSize={12}>{'$' + dollars}</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', alignItems: 'center', gap: wp(2) }}>
           {isDarkMode ? (
             <EquivalentGrey height={10} width={10} />
           ) : (
             <EquivalentGreen height={10} width={10} />
           )}
-          <Box marginLeft={1}>{getFiatCurrencyIcon('grey')}</Box>
           <Text color={Colors.secondaryLightGrey} fontSize={wp(11)} medium>
-            {getCustomConvertedBalance(
-              satsEnabled ? amount : SatsToBtc(amount),
-              CurrencyKind.BITCOIN,
-              CurrencyKind.FIAT
-            )}
+            {formatSatsCompact(getUsdInSats(dollars)) + ' sats'}
           </Text>
         </Box>
       </Box>
