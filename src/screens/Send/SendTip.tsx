@@ -8,6 +8,7 @@ import {
   ScrollView,
   Pressable,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import Buttons from 'src/components/Buttons';
@@ -25,7 +26,7 @@ import VaultSmallIcon from 'src/assets/images/vault-icon-small.svg';
 import Text from 'src/components/KeeperText';
 import HexagonIcon from 'src/components/HexagonIcon';
 import { EntityKind, MiniscriptTypes, VaultType } from 'src/services/wallets/enums';
-import { hp, windowHeight, windowWidth, wp } from 'src/constants/responsive';
+import { hp, windowWidth, wp } from 'src/constants/responsive';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import { sendPhaseOneReset } from 'src/store/reducers/send_and_receive';
 import { sendPhaseOne } from 'src/store/sagaActions/send_and_receive';
@@ -49,6 +50,7 @@ import Colors from 'src/theme/Colors';
 import { formatSatsCompact } from 'src/utils/utilities';
 import { loadConciergeUser } from 'src/store/sagaActions/concierge';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import Fonts from 'src/constants/Fonts';
 
 const PRESET = [
   { id: 0, dollars: 10 },
@@ -68,12 +70,12 @@ export const SendTip = () => {
     error: errorText,
     vault: vaultTranslation,
     settings,
-    home,
   } = useContext(LocalizationContext).translations;
   const [selectedWallet, setSelectedWallet] = useState<Wallet | Vault>(null);
   const isDarkMode = colorMode === 'dark';
   const HexagonIconColor = ThemedColor({ name: 'HexagonIcon' });
-  const [amountToSend, setAmountToSend] = useState(null);
+  const [amountToSend, setAmountToSend] = useState();
+  console.log('🚀 ~ SendTip ~ amountToSend:', amountToSend);
   const sendPhaseOneState = useAppSelector((state) => state.sendAndReceive.sendPhaseOne);
   const [showTimeLockModal, setShowTimeLockModal] = useState(false);
   const [timeUntilTimeLockExpires, setTimeUntilTimeLockExpires] = useState<string | null>(null);
@@ -87,6 +89,7 @@ export const SendTip = () => {
   const { getUsdInSats } = useBalance();
   const [msg, setMsg] = useState('Thanks for Bitcoin Keeper.');
   const { conciergeUser, conciergeLoading } = useAppSelector((store) => store.concierge);
+  const inputRef = useRef(null);
 
   const walletBalance = useMemo(() => {
     return (
@@ -215,24 +218,9 @@ export const SendTip = () => {
   };
 
   const handleSelectWallet = (wallet) => {
-    setSelectedWallet(wallet);
-    miniscriptSelectedSatisfierRef.current = null;
-  };
-
-  const handleSelectWalletPress = () => {
-    if (!selectedWallet) {
-      navigation.dispatch(
-        CommonActions.navigate({
-          name: 'SelectWallet',
-          params: {
-            sender: {},
-            handleSelectWallet,
-            subTitle: settings.selectTipWalletSubtitle,
-          },
-        })
-      );
-    } else {
-      setSelectedWallet(null);
+    if (wallet) {
+      setSelectedWallet(wallet);
+      miniscriptSelectedSatisfierRef.current = null;
     }
   };
 
@@ -345,7 +333,7 @@ export const SendTip = () => {
         keyboardVerticalOffset={Platform.select({ ios: 8, android: 500 })}
         style={styles.scrollViewWrapper}
       >
-        <WalletHeader title={settings.sendTipTitle} subTitle={settings.sendTipSubTitle} />
+        <WalletHeader title={settings.sendTipTitle} />
 
         <ScrollView
           style={styles.scrollViewWrapper}
@@ -353,17 +341,24 @@ export const SendTip = () => {
           contentContainerStyle={isSmallDevice && { paddingBottom: hp(100) }}
         >
           <Box style={styles.container}>
+            <Box
+              style={styles.subTitle}
+              backgroundColor={`${colorMode}.boxSecondaryBackground`}
+              borderColor={`${colorMode}.separator`}
+            >
+              <Text fontSize={14} style={{ textAlign: 'center' }}>
+                {settings.sendTipSubTitle}
+              </Text>
+              <Text
+                color={`${colorMode}.primaryText`}
+                fontSize={16}
+                semiBold
+                style={{ textAlign: 'center', marginTop: hp(10), fontFamily: Fonts.InterBold }}
+              >
+                Spending wallet
+              </Text>
+            </Box>
             <Box style={styles.sendToWalletContainer}>
-              <Pressable onPress={handleSelectWalletPress}>
-                <Box
-                  flexDirection="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  style={styles.sendToWalletWrapper}
-                >
-                  <Text color={`${colorMode}.primaryText`}>Spending wallet</Text>
-                </Box>
-              </Pressable>
               {selectedWallet && (
                 <>
                   <Pressable onPress={navigateToSelectWallet}>
@@ -382,11 +377,13 @@ export const SendTip = () => {
                             backgroundColor={HexagonIconColor}
                           />
                         </Box>
-                        <Text color={`${colorMode}.primaryText`}>
+                        <Text color={`${colorMode}.primaryText`} fontSize={16}>
                           {selectedWallet?.presentationData.name}
                         </Text>
                       </Box>
-                      <Text color={`${colorMode}.greenText`}>Change Wallet</Text>
+                      <Text color={`${colorMode}.greenText`} fontSize={16}>
+                        Change Wallet
+                      </Text>
                     </Box>
                   </Pressable>
                   <Box
@@ -404,20 +401,42 @@ export const SendTip = () => {
                         />
                       ))}
                     </Box>
-                    <KeeperTextInput
-                      placeholder={home.AddAmount}
-                      inpuBackgroundColor={`${colorMode}.textInputBackground`}
-                      inpuBorderColor={`${colorMode}.dullGreyBorder`}
-                      height={50}
-                      value={amountToSend?.toString()}
-                      keyboardType="numeric"
-                      onChangeText={(text) => {
-                        const numericValue = text.replace(/[^0-9/.]/g, '');
-                        setAmountToSend(numericValue);
-                      }}
-                      blurOnSubmit={true}
-                      paddingLeft={5}
-                    />
+                    <Box>
+                      <Text
+                        fontSize={10}
+                        style={{ alignSelf: 'center' }}
+                        color={`${colorMode}.secondaryLightGrey`}
+                        medium
+                      >
+                        Enter custom amount
+                      </Text>
+                      <Pressable
+                        style={styles.inputWrapper}
+                        onPress={() => inputRef.current.focus()}
+                      >
+                        <Text fontSize={25} color={`${colorMode}.primaryText`}>
+                          $
+                        </Text>
+                        <TextInput
+                          ref={inputRef}
+                          placeholder="0"
+                          style={{
+                            fontSize: 32,
+                            fontFamily: Fonts.InterRegular,
+                            color: isDarkMode ? Colors.bodyText : Colors.SecondaryBlack,
+                          }}
+                          placeholderTextColor={
+                            isDarkMode ? Colors.bodyText : Colors.SecondaryBlack
+                          }
+                          value={amountToSend ? amountToSend.toString() : ''}
+                          keyboardType="numeric"
+                          onChangeText={(text) => {
+                            const numericValue = text.replace(/[^0-9/.]/g, '');
+                            setAmountToSend(numericValue);
+                          }}
+                        />
+                      </Pressable>
+                    </Box>
                     <KeeperTextInput
                       placeholder={'Message to developer'}
                       inpuBackgroundColor={`${colorMode}.textInputBackground`}
@@ -478,11 +497,15 @@ const styles = StyleSheet.create({
   scrollViewWrapper: {
     flex: 1,
   },
+  subTitle: {
+    padding: wp(20),
+    borderRadius: 12,
+    borderWidth: 1.2,
+  },
   inputWrapper: {
-    alignSelf: 'center',
-    width: '100%',
-    paddingLeft: wp(11),
-    paddingRight: wp(21),
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   walletContainer: {
     flexDirection: 'row',
@@ -495,7 +518,8 @@ const styles = StyleSheet.create({
     marginTop: hp(5),
   },
   sendToWalletWrapper: {
-    marginTop: windowHeight > 680 ? hp(10) : hp(10),
+    marginTop: hp(20),
+    paddingHorizontal: wp(0),
   },
   walletDetails: {
     flexDirection: 'row',
