@@ -4,7 +4,6 @@ import { Image, Linking, StyleSheet, TouchableOpacity } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { hp, wp } from 'src/constants/responsive';
 import { capitalizeEachWord } from 'src/utils/utilities';
-import { screenWidth } from 'react-native-gifted-charts/src/utils';
 
 //
 import CalendlyIcon from 'src/assets/images/link_calendly.svg';
@@ -84,9 +83,8 @@ export const AccountManagerCard = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    width: screenWidth,
-    paddingHorizontal: wp(20),
-    marginTop: hp(30),
+    width: '100%',
+    marginBottom: hp(20),
   },
   linkBox: {
     flexDirection: 'column',

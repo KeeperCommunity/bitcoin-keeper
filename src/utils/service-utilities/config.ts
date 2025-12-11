@@ -1,5 +1,6 @@
 import config from 'react-native-config';
 import { EntityKind, WalletType } from '../../services/wallets/enums';
+import { Address, devAddress, prodAddress } from '../../constants/address';
 
 export enum APP_STAGE {
   DEVELOPMENT = 'DEVELOPMENT',
@@ -94,6 +95,8 @@ class Configuration {
 
   public LETS_EXCHANGE_AFFILIATE_ID: string = DEFAULT_CONFIG.LETS_EXCHANGE_AFFILIATE_ID;
 
+  public ADDRESS: Address;
+
   constructor() {
     this.ENVIRONMENT = config.ENVIRONMENT?.trim()
       ? config.ENVIRONMENT.trim()
@@ -106,11 +109,36 @@ class Configuration {
 
     this.HEXA_ID =
       this.ENVIRONMENT === APP_STAGE.PRODUCTION ? this.HEXA_ID_MAINNET : this.HEXA_ID_TESTNET;
+
+    this.ADDRESS = this.ENVIRONMENT === APP_STAGE.PRODUCTION ? prodAddress : devAddress;
   }
 
   public isDevMode = () => {
     return this.ENVIRONMENT === APP_STAGE.DEVELOPMENT;
   };
+
+  public getTipFlowIdentifier(address: string): keyof Address | null {
+    if (!address) return null;
+    const addressKeys: (keyof Address)[] = [
+      'settings',
+      'assistServer',
+      'inheritanceDoc',
+      'health',
+      'canary',
+      'miniscript',
+      'serverKey',
+      'multiSigCreate',
+      'multiSigImport',
+    ];
+
+    for (const key of addressKeys) {
+      if (this.ADDRESS[key] === address) {
+        return key;
+      }
+    }
+
+    return null;
+  }
 }
 
 export default new Configuration();

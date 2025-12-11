@@ -30,7 +30,7 @@ import { captureError } from 'src/services/sentry';
 import { getAccountFromSigner, getKeyUID } from 'src/utils/utilities';
 import useSignerMap from 'src/hooks/useSignerMap';
 import { getSignerNameFromType } from 'src/hardware';
-import { KEEPER_KNOWLEDGEBASE } from 'src/utils/service-utilities/config';
+import config, { KEEPER_KNOWLEDGEBASE } from 'src/utils/service-utilities/config';
 import PasscodeVerifyModal from 'src/components/Modal/PasscodeVerify';
 import { NewVaultInfo } from 'src/store/sagas/wallets';
 import { addNewVault, refillMobileKey } from 'src/store/sagaActions/vaults';
@@ -64,6 +64,7 @@ import HardwareModalMap, { InteracationMode } from './HardwareModalMap';
 import RegisterSignerContent from './components/RegisterSignerContent';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
+import { setShowTipModal } from 'src/store/reducers/settings';
 
 const { width } = Dimensions.get('screen');
 
@@ -245,6 +246,9 @@ function SignerAdvanceSettings({ route }: any) {
         }
 
         dispatch(addNewVault({ newVaultInfo: vaultInfo }));
+        setTimeout(() => {
+          dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
+        }, 2000);
         return vaultInfo;
       } catch (err) {
         captureError(err);
@@ -736,7 +740,8 @@ function SignerAdvanceSettings({ route }: any) {
         title={walletTranslation.canaryWallet}
         description={walletTranslation.onChainKeyAlert}
         callback={handleCanaryWallet}
-        disabled={isOnL1}
+        // disabled={isOnL1}
+        disabled={false}
         rightComponent={
           isOnL1 &&
           (() => {
@@ -775,7 +780,8 @@ function SignerAdvanceSettings({ route }: any) {
         callback={() => {
           isOnL4 && navigation.navigate('AdditionalUsers', { signer });
         }}
-        disabled={!isOnL4}
+        // disabled={!isOnL4}
+        disabled={false}
         rightComponent={
           !isOnL4 &&
           (() => {

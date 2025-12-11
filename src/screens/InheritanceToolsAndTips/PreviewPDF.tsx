@@ -33,6 +33,7 @@ function PreviewPDF({ route }: any) {
       ],
     });
   };
+
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <WalletHeader

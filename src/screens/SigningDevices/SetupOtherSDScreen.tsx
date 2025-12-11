@@ -40,6 +40,8 @@ import { captureError } from 'src/services/sentry';
 import { HCESession, HCESessionContext } from 'react-native-hce';
 import idx from 'idx';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import config from 'src/utils/service-utilities/config';
+import { setShowTipModal } from 'src/store/reducers/settings';
 
 function SetupOtherSDScreen({ route }) {
   const { colorMode } = useColorMode();
@@ -103,6 +105,7 @@ function SetupOtherSDScreen({ route }) {
             ])
           );
           showToast(signerText.otherSignerVerified, <TickIcon />);
+          dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
         } else {
           dispatch(
             healthCheckStatusUpdate([
@@ -185,6 +188,7 @@ function SetupOtherSDScreen({ route }) {
                   ])
                 );
                 showToast(signerText.otherSignerVerified, <TickIcon />);
+                dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
               } else {
                 showToast(common.somethingWrong, <ToastErrorIcon />);
               }

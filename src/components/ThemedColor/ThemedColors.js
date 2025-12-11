@@ -277,6 +277,12 @@ const themeColors = {
     PRIVATE: Colors.headerWhite,
     PRIVATE_LIGHT: Colors.goldenGradient,
   },
+  sendTipCardBg: {
+    DARK: Colors.secondaryBlack,
+    LIGHT: Colors.MistSlate,
+    PRIVATE: Colors.secondaryBlack,
+    PRIVATE_LIGHT: Colors.MistSlate,
+  },
 };
 
 export default themeColors;
