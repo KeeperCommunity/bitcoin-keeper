@@ -8,7 +8,6 @@ import {
   ScrollView,
   Pressable,
   TouchableOpacity,
-  TextInput,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import Buttons from 'src/components/Buttons';
@@ -51,6 +50,7 @@ import { formatSatsCompact } from 'src/utils/utilities';
 import { loadConciergeUser } from 'src/store/sagaActions/concierge';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 import Fonts from 'src/constants/Fonts';
+import TipIllustration2 from 'src/assets/images/TipIllustration2.svg';
 
 const PRESET = [
   { id: 0, dollars: 10 },
@@ -75,7 +75,6 @@ export const SendTip = () => {
   const isDarkMode = colorMode === 'dark';
   const HexagonIconColor = ThemedColor({ name: 'HexagonIcon' });
   const [amountToSend, setAmountToSend] = useState();
-  console.log('🚀 ~ SendTip ~ amountToSend:', amountToSend);
   const sendPhaseOneState = useAppSelector((state) => state.sendAndReceive.sendPhaseOne);
   const [showTimeLockModal, setShowTimeLockModal] = useState(false);
   const [timeUntilTimeLockExpires, setTimeUntilTimeLockExpires] = useState<string | null>(null);
@@ -87,9 +86,8 @@ export const SendTip = () => {
   const { wallets } = useWallets({});
   const { allVaults } = useVault({ includeArchived: false, getHiddenWallets: false });
   const { getUsdInSats } = useBalance();
-  const [msg, setMsg] = useState('Thanks for Bitcoin Keeper.');
+  const [msg, setMsg] = useState(settings.tipDefaultMessage);
   const { conciergeUser, conciergeLoading } = useAppSelector((store) => store.concierge);
-  const inputRef = useRef(null);
 
   const walletBalance = useMemo(() => {
     return (
@@ -232,7 +230,7 @@ export const SendTip = () => {
           internalRecipients: [null],
           addresses: [tipAddress],
           amounts: [Math.round(getUsdInSats(amountToSend))],
-          note: 'Tip to the developer',
+          note: settings.tipToDeveloper,
           selectedUTXOs: [],
           parentScreen: undefined,
           date: new Date(),
@@ -325,6 +323,8 @@ export const SendTip = () => {
     );
   }, [timeUntilTimeLockExpires]);
 
+  const cardBgColor = ThemedColor({ name: 'sendTipCardBg' });
+
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <KeyboardAvoidingView
@@ -343,46 +343,56 @@ export const SendTip = () => {
           <Box style={styles.container}>
             <Box
               style={styles.subTitle}
-              backgroundColor={`${colorMode}.boxSecondaryBackground`}
-              borderColor={`${colorMode}.separator`}
+              backgroundColor={cardBgColor}
+              borderColor={`${colorMode}.solidGreyBorder`}
             >
-              <Text fontSize={14} style={{ textAlign: 'center' }}>
-                {settings.sendTipSubTitle}
+              <TipIllustration2 />
+
+              <Text
+                color={`${colorMode}.secondaryText`}
+                fontSize={14}
+                semiBold
+                style={{
+                  marginTop: hp(16),
+                  marginBottom: hp(6),
+                  fontFamily: Fonts.InterBold,
+                }}
+              >
+                {settings.keeperCommunityLedTitle}
               </Text>
               <Text
-                color={`${colorMode}.primaryText`}
-                fontSize={16}
-                semiBold
-                style={{ textAlign: 'center', marginTop: hp(10), fontFamily: Fonts.InterBold }}
+                fontSize={12}
+                style={{
+                  textAlign: 'center',
+                  fontFamily: Fonts.InterRegular,
+                }}
               >
-                Spending wallet
+                {settings.tipSupportDescription}
               </Text>
             </Box>
             <Box style={styles.sendToWalletContainer}>
               {selectedWallet && (
                 <>
-                  <Pressable onPress={navigateToSelectWallet}>
-                    <Box
-                      flexDirection="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      style={styles.sendToWalletWrapper}
-                    >
+                  <Pressable style={styles.sendToWalletWrapper} onPress={navigateToSelectWallet}>
+                    <Text fontSize={12} semiBold style={{ fontFamily: Fonts.InterBold }}>
+                      {settings.sendingFromWallet}
+                    </Text>
+                    <Box flexDirection="row" justifyContent="space-between" alignItems="center">
                       <Box style={styles.walletDetails}>
                         <Box>
                           <HexagonIcon
-                            width={29}
+                            width={26}
                             height={26}
                             icon={getSmallWalletIcon(selectedWallet)}
                             backgroundColor={HexagonIconColor}
                           />
                         </Box>
-                        <Text color={`${colorMode}.primaryText`} fontSize={16}>
+                        <Text color={`${colorMode}.primaryText`} fontSize={12}>
                           {selectedWallet?.presentationData.name}
                         </Text>
                       </Box>
-                      <Text color={`${colorMode}.greenText`} fontSize={16}>
-                        Change Wallet
+                      <Text color={`${colorMode}.primaryText`} fontSize={12}>
+                        {settings.changeWallet}
                       </Text>
                     </Box>
                   </Pressable>
@@ -402,50 +412,37 @@ export const SendTip = () => {
                       ))}
                     </Box>
                     <Box>
-                      <Text
-                        fontSize={10}
-                        style={{ alignSelf: 'center' }}
-                        color={`${colorMode}.secondaryLightGrey`}
-                        medium
-                      >
-                        Enter custom amount
+                      <Text fontSize={12} medium>
+                        {settings.customAmount}
                       </Text>
-                      <Pressable
-                        style={styles.inputWrapper}
-                        onPress={() => inputRef.current.focus()}
-                      >
-                        <Text fontSize={25} color={`${colorMode}.primaryText`}>
-                          $
-                        </Text>
-                        <TextInput
-                          ref={inputRef}
-                          placeholder="0"
-                          style={{
-                            fontSize: 32,
-                            fontFamily: Fonts.InterRegular,
-                            color: isDarkMode ? Colors.bodyText : Colors.SecondaryBlack,
-                          }}
-                          placeholderTextColor={
-                            isDarkMode ? Colors.bodyText : Colors.SecondaryBlack
-                          }
-                          value={amountToSend ? amountToSend.toString() : ''}
-                          keyboardType="numeric"
-                          onChangeText={(text) => {
-                            const numericValue = text.replace(/[^0-9/.]/g, '');
-                            setAmountToSend(numericValue);
-                          }}
-                        />
-                      </Pressable>
+                      <KeeperTextInput
+                        placeholder={'$0.00'}
+                        inpuBackgroundColor={`${colorMode}.textInputBackground`}
+                        inpuBorderColor={`${colorMode}.dullGreyBorder`}
+                        height={hp(50)}
+                        value={amountToSend ? amountToSend.toString() : ''}
+                        onChangeText={(text) => {
+                          const numericValue = text.replace(/[^0-9/.]/g, '');
+                          setAmountToSend(numericValue);
+                        }}
+                        paddingLeft={5}
+                        keyboardType="numeric"
+                      />
                     </Box>
+
+                    <Text fontSize={12} medium>
+                      {settings.sendNoteToDevelopers}
+                    </Text>
                     <KeeperTextInput
-                      placeholder={'Message to developer'}
+                      placeholder={settings.messageToDeveloper}
                       inpuBackgroundColor={`${colorMode}.textInputBackground`}
                       inpuBorderColor={`${colorMode}.dullGreyBorder`}
-                      height={50}
+                      height={hp(90)}
                       value={msg}
                       onChangeText={setMsg}
-                      blurOnSubmit={true}
                       paddingLeft={5}
+                      multiline={true}
+                      style={{ verticalAlign: 'top' }}
                     />
                   </Box>
                 </>
@@ -492,7 +489,7 @@ export const SendTip = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: hp(30),
+    marginTop: hp(20),
   },
   scrollViewWrapper: {
     flex: 1,
@@ -501,6 +498,7 @@ const styles = StyleSheet.create({
     padding: wp(20),
     borderRadius: 12,
     borderWidth: 1.2,
+    alignItems: 'center',
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -519,7 +517,7 @@ const styles = StyleSheet.create({
   },
   sendToWalletWrapper: {
     marginTop: hp(20),
-    paddingHorizontal: wp(0),
+    gap: hp(10),
   },
   walletDetails: {
     flexDirection: 'row',
@@ -551,7 +549,7 @@ const styles = StyleSheet.create({
     marginTop: hp(15),
   },
   optionCTR: {
-    paddingVertical: wp(10),
+    paddingVertical: wp(18),
     paddingHorizontal: wp(15),
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -560,11 +558,13 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     marginBottom: hp(10),
     flex: 1,
+    borderStyle: 'dashed',
   },
   optionsCtr: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
     flexWrap: 'wrap',
+    marginBottom: hp(10),
   },
 });
 
@@ -576,8 +576,8 @@ const OptionItem = ({ onPress, dollars, colorMode }) => {
     <TouchableOpacity onPress={() => onPress(dollars)}>
       <Box
         style={[styles.optionCTR, { minWidth }]}
-        backgroundColor={`${colorMode}.boxSecondaryBackground`}
-        borderColor={`${colorMode}.separator`}
+        backgroundColor={Colors.MistSlate}
+        borderColor={Colors.primaryGreen}
       >
         <Box>
           <Text fontSize={12}>{'$' + dollars}</Text>

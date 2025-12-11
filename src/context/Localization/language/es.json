@@ -1004,9 +1004,17 @@
     "supportDeveloperSubTitle": "Send a small tip to support ongoing development.",
     "supportDeveloperSubTitle2": "Keeper is a community-led project. If this functionality helped you, consider supporting the developer who built it.",
     "sendTipTitle": "Send Tip",
-    "sendTipSubTitle": "Your tip goes straight to the developers who built this feature. It helps keep Keeper strong and community-led.",
     "selectTipWalletSubtitle": "Select a wallet to send funds from",
-    "tipNow": "Tip Now"
+    "tipNow": "Tip Now",
+    "tipDefaultMessage": "Thanks. Great work at Keeper",
+    "tipToDeveloper": "Tip to the developer",
+    "keeperCommunityLedTitle": "Keeper is now fully community-led",
+    "tipSupportDescription": "Your tip supports the developers to keep the project independent, maintained and gradually evolving.",
+    "sendingFromWallet": "Sending from wallet",
+    "changeWallet": "Change Wallet",
+    "customAmount": "Custom amount",
+    "sendNoteToDevelopers": "Send a note to the developers",
+    "messageToDeveloper": "Message to developer"
   },
   "onboarding": {
     "security": "security",

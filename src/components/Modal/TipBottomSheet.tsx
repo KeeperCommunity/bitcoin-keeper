@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { useAppSelector } from 'src/store/hooks';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
-import HeartIcon from 'src/assets/images/heart.svg';
+import TipIllustration from 'src/assets/images/TipIllustration.svg';
 import { Box, useColorMode } from 'native-base';
 import { setShowTipModal, dismissTipFlow } from 'src/store/reducers/settings';
 import { CommonActions, useNavigation } from '@react-navigation/native';
@@ -63,7 +63,7 @@ export const TipBottomSheet = (props: TipBottomSheetProps) => {
         secondaryCallback={fromSettings ? onDismiss : onNoThanks}
         Content={() => (
           <Box style={styles.illustration}>
-            <HeartIcon />
+            <TipIllustration />
           </Box>
         )}
       />
