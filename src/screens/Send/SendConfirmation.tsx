@@ -283,6 +283,15 @@ function SendConfirmation({ route }) {
         )
     ) {
       setAmountChangedAlertVisible(true);
+      const newMsg = updateSatsAmountInMsg(
+        tipMessage,
+        (
+          txRecipientsOptions?.[transactionPriority] ||
+          customTxRecipientsOptions?.[transactionPriority]
+        )?.map((recipient) => recipient.amount)[0]
+      );
+      // @ts-ignore
+      navigation.setParams({ tipMessage: newMsg });
     }
   }, [transactionPriority, amounts]);
 
@@ -1045,3 +1054,13 @@ const styles = StyleSheet.create({
     marginBottom: hp(5),
   },
 });
+
+function updateSatsAmountInMsg(message: string, newAmount) {
+  try {
+    const satsRegex = /(\d+)\s*sats/i;
+    return message.replace(satsRegex, `${newAmount} sats`);
+  } catch (error) {
+    console.log('🚀 ~ updateSatsAmountInMsg ~ error:', error);
+    return message;
+  }
+}

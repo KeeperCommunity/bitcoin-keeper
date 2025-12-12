@@ -82,7 +82,6 @@ export const SendTip = () => {
   const [currentMedianTimePast, setCurrentMedianTimePast] = useState<number | null>(null);
   const miniscriptPathSelectorRef = useRef<MiniscriptPathSelectorRef>(null);
   const miniscriptSelectedSatisfierRef = useRef(null);
-  const { satsEnabled } = useAppSelector((state) => state.settings);
   const { wallets } = useWallets({});
   const { allVaults } = useVault({ includeArchived: false, getHiddenWallets: false });
   const { getUsdInSats } = useBalance();
@@ -268,7 +267,7 @@ export const SendTip = () => {
   };
 
   const continueToSend = () => {
-    if ((satsEnabled ? walletBalance : SatsToBtc(walletBalance)) < amountToSend) {
+    if (walletBalance < Math.round(getUsdInSats(amountToSend))) {
       showToast(errorText.insufficientBalance);
       return;
     }

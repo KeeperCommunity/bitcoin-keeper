@@ -144,6 +144,7 @@ const TicketDetails = ({ route }) => {
   };
 
   const addNewComment = async () => {
+    if (!newDesc) return; 
     setLoading(true);
     try {
       const res = await Relay.addZendeskComment(ticketId, conciergeUser.id, newDesc);
