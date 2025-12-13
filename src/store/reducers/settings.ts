@@ -95,7 +95,7 @@ const settingsSlice = createSlice({
     },
     setShowTipModal(state, action: PayloadAction<{ status: boolean; address?: string }>) {
       const flowIdentifier = config.getTipFlowIdentifier(action.payload.address);
-      if (flowIdentifier && state.dismissedTipFlows.includes(flowIdentifier)) {
+      if (flowIdentifier && state.dismissedTipFlows?.includes(flowIdentifier)) {
         state.showTipModal = false;
         state.tipAddress = null;
         return;
@@ -105,8 +105,10 @@ const settingsSlice = createSlice({
     },
     dismissTipFlow(state, action: PayloadAction<string>) {
       const flowIdentifier = action.payload;
-      if (flowIdentifier && !state.dismissedTipFlows.includes(flowIdentifier)) {
-        state.dismissedTipFlows.push(flowIdentifier);
+      if (flowIdentifier && !state.dismissedTipFlows?.includes(flowIdentifier)) {
+        state.dismissedTipFlows == undefined
+          ? (state.dismissedTipFlows = [flowIdentifier])
+          : state.dismissedTipFlows.push(flowIdentifier);
       }
     },
   },

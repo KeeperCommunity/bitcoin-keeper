@@ -64,7 +64,6 @@ import HardwareModalMap, { InteracationMode } from './HardwareModalMap';
 import RegisterSignerContent from './components/RegisterSignerContent';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
-import { setShowTipModal } from 'src/store/reducers/settings';
 
 const { width } = Dimensions.get('screen');
 
@@ -246,9 +245,6 @@ function SignerAdvanceSettings({ route }: any) {
         }
 
         dispatch(addNewVault({ newVaultInfo: vaultInfo }));
-        setTimeout(() => {
-          dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
-        }, 2000);
         return vaultInfo;
       } catch (err) {
         captureError(err);
