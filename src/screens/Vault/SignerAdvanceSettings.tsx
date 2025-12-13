@@ -770,27 +770,12 @@ function SignerAdvanceSettings({ route }: any) {
       <OptionCard
         key="AdditionalUsers"
         title={signingServer.additionalUsers}
-        description={`${signingServer.AddMultipleUsers}${
-          !isOnL4 ? `${signingServer.unlockKeeperPrivate}` : ''
-        }`}
+        description={`${signingServer.AddMultipleUsers}`}
         callback={() => {
-          isOnL4 && navigation.navigate('AdditionalUsers', { signer });
+          navigation.navigate('AdditionalUsers', { signer });
         }}
         // disabled={!isOnL4}
         disabled={false}
-        rightComponent={
-          !isOnL4 &&
-          (() => {
-            return (
-              <TouchableOpacity
-                style={{ marginTop: hp(25) }}
-                onPress={() => navigation.navigate('ChoosePlan')}
-              >
-                <UpgradeIcon style={styles.upgradeIcon} width={64} height={20} />
-              </TouchableOpacity>
-            );
-          })
-        }
       />
     ),
   ].filter(Boolean);
