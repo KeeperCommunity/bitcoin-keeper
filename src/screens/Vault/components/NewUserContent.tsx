@@ -1,10 +1,9 @@
 import { Box, useColorMode } from 'native-base';
 import React, { useContext, useEffect, useState } from 'react';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import Text from 'src/components/KeeperText';
 import KeeperTextInput from 'src/components/KeeperTextInput';
 import RightArrowIcon from 'src/assets/images/icon_arrow.svg';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import { hp, wp } from 'src/constants/responsive';
 import debounce from 'lodash.debounce';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
