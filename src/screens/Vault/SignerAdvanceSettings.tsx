@@ -64,7 +64,6 @@ import HardwareModalMap, { InteracationMode } from './HardwareModalMap';
 import RegisterSignerContent from './components/RegisterSignerContent';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
-import { setShowTipModal } from 'src/store/reducers/settings';
 
 const { width } = Dimensions.get('screen');
 
@@ -246,9 +245,6 @@ function SignerAdvanceSettings({ route }: any) {
         }
 
         dispatch(addNewVault({ newVaultInfo: vaultInfo }));
-        setTimeout(() => {
-          dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
-        }, 2000);
         return vaultInfo;
       } catch (err) {
         captureError(err);
@@ -774,27 +770,12 @@ function SignerAdvanceSettings({ route }: any) {
       <OptionCard
         key="AdditionalUsers"
         title={signingServer.additionalUsers}
-        description={`${signingServer.AddMultipleUsers}${
-          !isOnL4 ? `${signingServer.unlockKeeperPrivate}` : ''
-        }`}
+        description={`${signingServer.AddMultipleUsers}`}
         callback={() => {
-          isOnL4 && navigation.navigate('AdditionalUsers', { signer });
+          navigation.navigate('AdditionalUsers', { signer });
         }}
         // disabled={!isOnL4}
         disabled={false}
-        rightComponent={
-          !isOnL4 &&
-          (() => {
-            return (
-              <TouchableOpacity
-                style={{ marginTop: hp(25) }}
-                onPress={() => navigation.navigate('ChoosePlan')}
-              >
-                <UpgradeIcon style={styles.upgradeIcon} width={64} height={20} />
-              </TouchableOpacity>
-            );
-          })
-        }
       />
     ),
   ].filter(Boolean);

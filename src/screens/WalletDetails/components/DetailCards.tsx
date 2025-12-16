@@ -7,8 +7,6 @@ import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { EntityKind } from 'src/services/wallets/enums';
 import { CommonActions, useNavigation } from '@react-navigation/native';
-import { useGetInUK } from 'src/hooks/useGetInUK';
-import { useIsRampAvailable } from 'src/hooks/useIsRampAvailable';
 
 interface Props {
   setShowMore?: (value: boolean) => void;
@@ -29,10 +27,8 @@ const DetailCards = ({
 }: Props) => {
   const { colorMode } = useColorMode();
   const { translations } = useContext(LocalizationContext);
-  const { wallet: walletTranslations, usdtWalletText, buyBTC: buyBTCText, common } = translations;
+  const { usdtWalletText, buyBTC: buyBTCText, common } = translations;
   const navigation = useNavigation();
-  const { sanitizeBuyText } = useGetInUK();
-  const { isRampAvailable } = useIsRampAvailable();
 
   const CardsData = [
     {
@@ -58,18 +54,6 @@ const DetailCards = ({
         receiveCallback?.();
       },
       disableOption: disabled,
-    },
-    isRampAvailable && {
-      id: 3,
-      icon: 'buy_Btc_icon',
-      title:
-        wallet?.entityKind === EntityKind.USDT_WALLET
-          ? sanitizeBuyText(usdtWalletText.buyUSdt)
-          : sanitizeBuyText(walletTranslations.buyBitCoin),
-      callback: () => {
-        buyCallback?.();
-      },
-      disableOption: false,
     },
     {
       id: 4,
