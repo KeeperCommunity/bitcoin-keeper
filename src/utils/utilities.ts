@@ -900,3 +900,26 @@ export const validatePSBT = (unsigned, signed, signer, errorText) => {
     throw new Error(errorText.psbtMissingSignature);
   }
 };
+
+export const formatSatsCompact = (sats, decimals = 1) => {
+  const fixed = decimals;
+  const units = [
+    { value: 1e9, symbol: 'B' }, // Billion
+    { value: 1e6, symbol: 'M' }, // Million
+    { value: 1e3, symbol: 'K' }, // Thousand
+  ];
+
+  const unit = units.find((u) => sats >= u.value) || { value: 1, symbol: '' };
+
+  if (unit.value === 1) {
+    return sats.toLocaleString();
+  }
+
+  const scaledValue = sats / unit.value;
+
+  const formattedValue = scaledValue.toFixed(fixed);
+
+  const trimmedValue = formattedValue.replace(/\.0+$/, '');
+
+  return trimmedValue + unit.symbol;
+};

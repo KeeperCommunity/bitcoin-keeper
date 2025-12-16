@@ -21,7 +21,8 @@ export const SUBSCRIPTION_SCHEME_MAP = {
 
 const usePlan = () => {
   const keeper: KeeperApp = useQuery(RealmSchema.KeeperApp).map(getJSONFromRealmObject)[0];
-  const plan = keeper.subscription.name.toUpperCase();
+  // const plan = keeper.subscription.name.toUpperCase();
+  const plan = SubscriptionTier.L3.toUpperCase();
 
   const isOnL1 = plan === SubscriptionTier.L1.toUpperCase();
   const isOnL2 = plan === SubscriptionTier.L2.toUpperCase();

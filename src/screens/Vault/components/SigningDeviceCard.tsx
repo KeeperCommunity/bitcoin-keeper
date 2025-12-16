@@ -72,7 +72,7 @@ const SigningDeviceCard = ({
   const shouldUpgrade = message.includes('upgrade');
 
   const navigateToUpgrade = () => {
-    navigation.navigate('ChoosePlan');
+    // navigation.navigate('ChoosePlan');
   };
 
   return (

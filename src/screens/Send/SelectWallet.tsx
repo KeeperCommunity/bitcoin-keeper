@@ -26,6 +26,7 @@ type SelectWalletParams = {
   handleSelectWallet: (wallet: Wallet | Vault) => void;
   selectedWalletIdFromParams?: string;
   sender: Wallet | Vault;
+  subTitle?: string;
 };
 
 type Props = NativeStackScreenProps<
@@ -100,7 +101,7 @@ function WalletItem({
 }
 
 function SelectWalletScreen({ route }: Props) {
-  const { handleSelectWallet, selectedWalletIdFromParams, sender } = route.params;
+  const { handleSelectWallet, selectedWalletIdFromParams, sender, subTitle = null } = route.params;
   const { colorMode } = useColorMode();
   const navigation = useNavigation();
   const { wallets } = useWallets({ getAll: true });
@@ -128,7 +129,7 @@ function SelectWalletScreen({ route }: Props) {
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <WalletHeader
         title={walletText.selectWalletTitle}
-        subTitle={walletText.selectWalletSubtitle}
+        subTitle={subTitle || walletText.selectWalletSubtitle}
       />
       <ScrollView style={styles.walletListContainer} showsVerticalScrollIndicator={false}>
         <Box style={styles.walletList}>

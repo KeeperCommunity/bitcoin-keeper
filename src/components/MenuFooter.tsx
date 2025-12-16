@@ -11,16 +11,13 @@ import Text from './KeeperText';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ThemedSvg from './ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from './ThemedColor/ThemedColor';
-import BtcLogoGrey from 'src/assets/images/Btc-Logo-grey.svg';
-import { useIsRampAvailable } from 'src/hooks/useIsRampAvailable';
 
 const MenuFooter = ({ selectedOption, onOptionChange }) => {
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
   const { translations } = useContext(LocalizationContext);
-  const { wallet: walletTranslation, buyBTC: buyBTCTranslation } = translations;
+  const { wallet: walletTranslation } = translations;
   const selectedFooterColor = ThemedColor({ name: 'footer_selected_option' });
-  const { isRampAvailable } = useIsRampAvailable();
 
   const menuOptions = [
     {
@@ -32,11 +29,6 @@ const MenuFooter = ({ selectedOption, onOptionChange }) => {
       name: walletTranslation.keys,
       defaultIcon: <KeyIcon />,
       selectedIcon: <ThemedSvg name={'footer_Key'} />,
-    },
-    isRampAvailable && {
-      name: buyBTCTranslation.acquire,
-      defaultIcon: <BtcLogoGrey width={wp(26)} height={hp(26)} />,
-      selectedIcon: <ThemedSvg name={'footer_buy_btc'} width={wp(26)} height={hp(26)} />,
     },
     {
       name: walletTranslation.concierge,

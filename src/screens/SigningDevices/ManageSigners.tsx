@@ -397,7 +397,8 @@ function SignersList({
       if (signer.type === SignerType.POLICY_SERVER) hasSigningServer = true;
     }
 
-    if (!isSigningServerShellCreated && !hasSigningServer && level >= AppSubscriptionLevel.L2) {
+    // if (!isSigningServerShellCreated && !hasSigningServer && level >= AppSubscriptionLevel.L2) {
+    if (!isSigningServerShellCreated && !hasSigningServer) {
       shellKeys.push(generateShellAssistedKey(SignerType.POLICY_SERVER));
     }
 

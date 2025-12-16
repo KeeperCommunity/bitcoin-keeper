@@ -67,6 +67,7 @@ import SendingCardIcon from 'src/assets/images/vault_icon.svg';
 import WalletIcon from 'src/assets/images/daily_wallet.svg';
 import MultiSendSvg from 'src/assets/images/@.svg';
 import useExchangeRates from 'src/hooks/useExchangeRates';
+import Relay from 'src/services/backend/Relay';
 
 export interface SendConfirmationRouteParams {
   sender: Wallet | Vault;
@@ -81,6 +82,7 @@ export interface SendConfirmationRouteParams {
   transactionPriority: TxPriority;
   customFeePerByte: number;
   miniscriptSelectedSatisfier?: MiniscriptTxSelectedSatisfier;
+  tipMessage: string;
 }
 
 export interface tnxDetailsProps {
@@ -111,12 +113,13 @@ function SendConfirmation({ route }) {
     transactionPriority: initialTransactionPriority,
     customFeePerByte: initialCustomFeePerByte,
     miniscriptSelectedSatisfier,
+    tipMessage = '',
   }: SendConfirmationRouteParams = route.params;
   const navigation = useNavigation();
   const exchangeRates = useExchangeRates();
   const { currencyCode } = useAppSelector((state) => state.settings);
   const BtcPrice = exchangeRates?.[currencyCode];
-
+  const { conciergeUser } = useAppSelector((state) => state?.concierge);
   const txFeeInfo = useAppSelector((state) => state.sendAndReceive.transactionFeeInfo);
   const txRecipientsOptions = useAppSelector(
     (state) => state.sendAndReceive.sendPhaseOne?.outputs?.txRecipients
@@ -280,6 +283,15 @@ function SendConfirmation({ route }) {
         )
     ) {
       setAmountChangedAlertVisible(true);
+      const newMsg = updateSatsAmountInMsg(
+        tipMessage,
+        (
+          txRecipientsOptions?.[transactionPriority] ||
+          customTxRecipientsOptions?.[transactionPriority]
+        )?.map((recipient) => recipient.amount)[0]
+      );
+      // @ts-ignore
+      navigation.setParams({ tipMessage: newMsg });
     }
   }, [transactionPriority, amounts]);
 
@@ -448,6 +460,7 @@ function SendConfirmation({ route }) {
           amounts,
           addresses,
           internalRecipients,
+          tipMessage,
         })
       );
       setProgress(false);
@@ -526,8 +539,11 @@ function SendConfirmation({ route }) {
 
   useEffect(() => {
     if (walletSendSuccessful) {
-      setProgress(false);
-      setVisibleModal(true);
+      if (tipMessage.length) createZendeskTipTicket();
+      else {
+        setProgress(false);
+        setVisibleModal(true);
+      }
     }
   }, [walletSendSuccessful]);
 
@@ -537,6 +553,16 @@ function SendConfirmation({ route }) {
       showToast(`${errorText.failedToSendTransaction} ${failedSendPhaseTwoErrorMessage}`);
     }
   }, [sendPhaseTwoFailed]);
+
+  const createZendeskTipTicket = async () => {
+    await Relay.createZendeskTicket({
+      desc: tipMessage.trim(),
+      conciergeUser,
+      isTip: true,
+    });
+    setProgress(false);
+    setVisibleModal(true);
+  };
 
   const toogleFeesInsightModal = () => {
     if (highFeeAlertVisible) {
@@ -1028,3 +1054,13 @@ const styles = StyleSheet.create({
     marginBottom: hp(5),
   },
 });
+
+function updateSatsAmountInMsg(message: string, newAmount) {
+  try {
+    const satsRegex = /(\d+)\s*sats/i;
+    return message.replace(satsRegex, `${newAmount} sats`);
+  } catch (error) {
+    console.log('🚀 ~ updateSatsAmountInMsg ~ error:', error);
+    return message;
+  }
+}

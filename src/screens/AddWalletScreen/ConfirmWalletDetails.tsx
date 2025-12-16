@@ -51,6 +51,8 @@ import { CTACardDotted } from 'src/components/CTACardDotted';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import HexagonIcon from 'src/components/HexagonIcon';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 // eslint-disable-next-line react/prop-types
 function ConfirmWalletDetails({ route }) {
@@ -157,16 +159,16 @@ function ConfirmWalletDetails({ route }) {
       <Box w="100%">
         <Buttons
           primaryCallback={() => {
-            navigation.replace('ChoosePlan');
+            // navigation.replace('ChoosePlan');
             dispatch(resetWalletStateFlags());
           }}
           primaryText={choosePlan.viewSubscription}
           activeOpacity={0.5}
-          secondaryCallback={() => {
-            dispatch(resetWalletStateFlags());
-            navigation.replace('ChoosePlan');
-          }}
-          secondaryText={common.cancel}
+          // secondaryCallback={() => {
+          //   dispatch(resetWalletStateFlags());
+          //   navigation.replace('ChoosePlan');
+          // }}
+          // secondaryText={common.cancel}
           paddingHorizontal={wp(30)}
         />
       </Box>
@@ -367,6 +369,13 @@ function ConfirmWalletDetails({ route }) {
         ],
       };
       navigation.dispatch(CommonActions.reset(navigationState));
+      const address =
+        vaultType === VaultType.MINISCRIPT
+          ? config.ADDRESS.miniscript
+          : vaultType !== VaultType.SINGE_SIG
+          ? config.ADDRESS.multiSigCreate
+          : null;
+      if (address) setTimeout(() => dispatch(setShowTipModal({ status: true, address })), 2000);
     }, 50);
   };
 

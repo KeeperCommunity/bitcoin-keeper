@@ -44,7 +44,7 @@ const PlebContainer: React.FC<PlebContainerProps> = ({
               )}
             </Text>
             {description && (
-              <Text fontSize={12} color={subtitleColor}>
+              <Text fontSize={12} color={subtitleColor} style={{ maxWidth: '99%' }}>
                 {description}
               </Text>
             )}
@@ -69,6 +69,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    alignSelf: 'center',
   },
   title: {
     marginBottom: 2,

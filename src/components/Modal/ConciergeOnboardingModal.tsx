@@ -11,6 +11,7 @@ import QueryIllustrationDark from 'src/assets/images/concierge-query-illustratio
 import { setDontShowConceirgeOnboarding } from 'src/store/reducers/storage';
 import Text from '../KeeperText';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import Colors from 'src/theme/Colors';
 
 function ConciergeOnboardingModal({ visible }) {
   const dispatch = useDispatch();
@@ -38,8 +39,8 @@ function ConciergeOnboardingModal({ visible }) {
       subTitleWidth={wp(310)}
       buttonText={common.confirm}
       buttonCallback={handleContinue}
-      buttonBackground={`${colorMode}.modalWhiteButton`}
-      buttonTextColor={`${colorMode}.textGreen`}
+      buttonBackground={Colors.headerWhite}
+      buttonTextColor={Colors.primaryGreen}
       modalBackground={`${colorMode}.pantoneGreen`}
       textColor={`${colorMode}.headerWhite`}
       Content={() => (

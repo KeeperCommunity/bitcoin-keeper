@@ -14,6 +14,8 @@ import useUnkownSigners from 'src/hooks/useUnkownSigners';
 import { InteracationMode } from './HardwareModalMap';
 import useCanaryWalletSetup from 'src/hooks/UseCanaryWalletSetup';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 function MockWrapper({
   children,
@@ -73,6 +75,7 @@ function MockWrapper({
         );
         nav.dispatch(CommonActions.goBack());
         showToast(`${data.signer.type} verified successfully`, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       };
 
       const handleFailure = () => {
