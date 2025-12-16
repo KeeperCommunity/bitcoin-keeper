@@ -52,6 +52,8 @@ import { discardBroadcastedTnx } from 'src/store/sagaActions/send_and_receive';
 import WalletDetailHeader from '../WalletDetails/components/WalletDetailHeader';
 import DetailCards from '../WalletDetails/components/DetailCards';
 import MoreCard from '../WalletDetails/components/MoreCard';
+import config from 'src/utils/service-utilities/config';
+import { setShowTipModal } from 'src/store/reducers/settings';
 
 function TransactionList({
   transactions,
@@ -534,6 +536,8 @@ function VaultDetails({ navigation, route }: ScreenProps) {
         visible={introModal}
         close={() => {
           dispatch(setIntroModal(false));
+          isCanaryWallet &&
+            dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
         }}
         title={
           isCollaborativeWallet
@@ -560,6 +564,8 @@ function VaultDetails({ navigation, route }: ScreenProps) {
         secondaryIcon={<ConciergeNeedHelp />}
         secondaryCallback={() => {
           dispatch(setIntroModal(false));
+          isCanaryWallet &&
+            dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
           navigation.dispatch(
             CommonActions.navigate({
               name: 'CreateTicket',
@@ -572,7 +578,11 @@ function VaultDetails({ navigation, route }: ScreenProps) {
             })
           );
         }}
-        buttonCallback={() => dispatch(setIntroModal(false))}
+        buttonCallback={() => {
+          dispatch(setIntroModal(false));
+          isCanaryWallet &&
+            dispatch(setShowTipModal({ status: true, address: config.ADDRESS.canary }));
+        }}
         DarkCloseIcon
       />
       <PendingHealthCheckModal

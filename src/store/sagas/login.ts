@@ -38,7 +38,6 @@ import {
   credsAuthenticatedError,
 } from '../reducers/login';
 import {
-  setAllCampaigns,
   setAppId,
   setAppVersion,
   setAutoUpdateEnabledBeforeDowngrade,
@@ -218,7 +217,7 @@ function* credentialsAuthWorker({ payload }) {
             RealmSchema.KeeperApp
           );
           yield put(connectToNode());
-          const response = yield call(Relay.verifyReceipt, id, publicId);
+          // const response = yield call(Relay.verifyReceipt, id, publicId);
           yield put(credsAuthenticatedError(''));
 
           yield put(fetchExchangeRates());
@@ -248,31 +247,6 @@ function* credentialsAuthWorker({ payload }) {
           );
 
           yield put(resetSyncing());
-          yield put(setRecepitVerificationFailed(!response.isValid));
-          if (!response.isValid) {
-            if (
-              (subscription.level > 1 &&
-                [SubscriptionTier.L2, SubscriptionTier.L3, SubscriptionTier.L4].includes(
-                  subscription?.name as SubscriptionTier
-                )) ||
-              subscription.level !== response.level
-            ) {
-              yield call(downgradeToPleb);
-              yield put(setRecepitVerificationFailed(true));
-            }
-          } else if (plebDueToOffline || response?.level != subscription?.level) {
-            yield call(
-              updateSubscriptionFromRelayData,
-              response,
-              wasAutoUpdateEnabledBeforeDowngrade
-            );
-          }
-          // Check if user is in dh already, set all campaign states to true
-          const { subscription: updatedSubs }: KeeperApp = yield call(
-            dbManager.getObjectByIndex,
-            RealmSchema.KeeperApp
-          );
-          if (updatedSubs.level > 2) yield put(setAllCampaigns(true));
 
           const { pendingAllBackup, automaticCloudBackup } = yield select(
             (state: RootState) => state.bhr

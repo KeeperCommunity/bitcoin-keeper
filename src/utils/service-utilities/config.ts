@@ -1,5 +1,6 @@
 import config from 'react-native-config';
 import { EntityKind, WalletType } from '../../services/wallets/enums';
+import { Address, devAddress, prodAddress } from '../../constants/address';
 
 export enum APP_STAGE {
   DEVELOPMENT = 'DEVELOPMENT',
@@ -23,23 +24,11 @@ const DEFAULT_CONFIG = {
   SENTRY_DNS: 'https://25289533edf7432994f58edeaf6541dc@o1388909.ingest.sentry.io/6711631',
   ENVIRONMENT: APP_STAGE.DEVELOPMENT,
   CHANNEL_URL: 'https://keeper-channel-dev-8d01fa5233d0.herokuapp.com/',
-  RAMP_BASE_URL: 'https://app.rampnetwork.com/',
-  RAMP_REFERRAL_CODE: 'ku67r7oh5juc27bmb3h5pek8y5heyb5bdtfa66pr',
   LETS_EXCHANGE_AFFILIATE_ID: 'G0BiaS34U81NR3ra',
 };
 
 class Configuration {
   public RELAY = config.RELAY?.trim() ? config.RELAY.trim() : DEFAULT_CONFIG.RELAY;
-
-  // RAMP details
-  public RAMP_BASE_URL: string = config.RAMP_BASE_URL
-    ? config.RAMP_BASE_URL.trim()
-    : DEFAULT_CONFIG.RAMP_BASE_URL;
-
-  public RAMP_REFERRAL_CODE: string = config.RAMP_REFERRAL_CODE
-    ? config.RAMP_REFERRAL_CODE.trim()
-    : DEFAULT_CONFIG.RAMP_REFERRAL_CODE;
-
   public SIGNING_SERVER_TESTNET = config.SIGNING_SERVER_TESTNET?.trim()
     ? config.SIGNING_SERVER_TESTNET.trim()
     : DEFAULT_CONFIG.SIGNING_SERVER_TESTNET;
@@ -106,6 +95,8 @@ class Configuration {
 
   public LETS_EXCHANGE_AFFILIATE_ID: string = DEFAULT_CONFIG.LETS_EXCHANGE_AFFILIATE_ID;
 
+  public ADDRESS: Address;
+
   constructor() {
     this.ENVIRONMENT = config.ENVIRONMENT?.trim()
       ? config.ENVIRONMENT.trim()
@@ -118,11 +109,36 @@ class Configuration {
 
     this.HEXA_ID =
       this.ENVIRONMENT === APP_STAGE.PRODUCTION ? this.HEXA_ID_MAINNET : this.HEXA_ID_TESTNET;
+
+    this.ADDRESS = this.ENVIRONMENT === APP_STAGE.PRODUCTION ? prodAddress : devAddress;
   }
 
   public isDevMode = () => {
     return this.ENVIRONMENT === APP_STAGE.DEVELOPMENT;
   };
+
+  public getTipFlowIdentifier(address: string): keyof Address | null {
+    if (!address) return null;
+    const addressKeys: (keyof Address)[] = [
+      'settings',
+      'assistServer',
+      'inheritanceDoc',
+      'health',
+      'canary',
+      'miniscript',
+      'serverKey',
+      'multiSigCreate',
+      'multiSigImport',
+    ];
+
+    for (const key of addressKeys) {
+      if (this.ADDRESS[key] === address) {
+        return key;
+      }
+    }
+
+    return null;
+  }
 }
 
 export default new Configuration();

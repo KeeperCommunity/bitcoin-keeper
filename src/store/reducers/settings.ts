@@ -5,6 +5,9 @@ import { SubscriptionTier } from 'src/models/enums/SubscriptionTier';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { NetworkType } from 'src/services/wallets/enums';
 import * as bitcoinJS from 'bitcoinjs-lib';
+import { reduxStorage } from 'src/storage';
+import persistReducer from 'redux-persist/es/persistReducer';
+import config from 'src/utils/service-utilities/config';
 
 const initialState: {
   loginMethod: LoginMethod;
@@ -22,6 +25,9 @@ const initialState: {
   bitcoinNetwork: bitcoinJS.Network;
   bitcoinNetworkType: NetworkType;
   appWideLoading: boolean;
+  showTipModal: boolean;
+  tipAddress: string;
+  dismissedTipFlows: string[];
 } = {
   loginMethod: LoginMethod.PIN,
   themeMode: ThemeMode.LIGHT,
@@ -38,6 +44,9 @@ const initialState: {
   bitcoinNetwork: null,
   bitcoinNetworkType: null,
   appWideLoading: false,
+  showTipModal: false,
+  tipAddress: null,
+  dismissedTipFlows: [],
 };
 
 const settingsSlice = createSlice({
@@ -84,6 +93,24 @@ const settingsSlice = createSlice({
     setAppWideLoading(state, action: PayloadAction<boolean>) {
       state.appWideLoading = action.payload;
     },
+    setShowTipModal(state, action: PayloadAction<{ status: boolean; address?: string }>) {
+      const flowIdentifier = config.getTipFlowIdentifier(action.payload.address);
+      if (flowIdentifier && state.dismissedTipFlows?.includes(flowIdentifier)) {
+        state.showTipModal = false;
+        state.tipAddress = null;
+        return;
+      }
+      state.showTipModal = action.payload.status;
+      state.tipAddress = action.payload.address ?? null;
+    },
+    dismissTipFlow(state, action: PayloadAction<string>) {
+      const flowIdentifier = action.payload;
+      if (flowIdentifier && !state.dismissedTipFlows?.includes(flowIdentifier)) {
+        state.dismissedTipFlows == undefined
+          ? (state.dismissedTipFlows = [flowIdentifier])
+          : state.dismissedTipFlows.push(flowIdentifier);
+      }
+    },
   },
 });
 
@@ -100,6 +127,14 @@ export const {
   setSubscription,
   setBitcoinNetwork,
   setAppWideLoading,
+  setShowTipModal,
+  dismissTipFlow,
 } = settingsSlice.actions;
 
-export default settingsSlice.reducer;
+const conciergePersistConfig = {
+  key: 'settings',
+  storage: reduxStorage,
+  blacklist: ['showTipModal'],
+};
+
+export default persistReducer(conciergePersistConfig, settingsSlice.reducer);

@@ -43,7 +43,7 @@ export const exportFile = async (
         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
       );
       if (granted === PermissionsAndroid.RESULTS.GRANTED || Platform.Version >= 30) {
-        const filePath = RNFS.DownloadDirectoryPath + `/${fileName}`;
+        const filePath = RNFS.CachesDirectoryPath + `/${fileName}`;
         await RNFS.writeFile(filePath, fileData, encoding);
         await saveToLocal(filePath, saveToFiles, onError);
       } else {

@@ -58,7 +58,6 @@ function ChoosePlan() {
   const route = useRoute();
   const navigation = useNavigation();
   const { initialPosition } = route.params?.planPosition || 0;
-  const showDiscounted = route?.params?.showDiscounted || false;
 
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
@@ -84,7 +83,6 @@ function ChoosePlan() {
   const [enableDesktopManagement, setEnableDesktopManagement] = useState(true);
   const [showChangeInterval, setShowChangeInterval] = useState(false);
   const [playServiceUnavailable, setPlayServiceUnavailable] = useState(false);
-  const [activeCampaign, setActiveCampaign] = useState(null);
 
   useEffect(() => {
     const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
@@ -107,7 +105,6 @@ function ChoosePlan() {
 
   useEffect(() => {
     init();
-    checkForActiveCampaign();
   }, []);
 
   useEffect(() => {
@@ -126,19 +123,6 @@ function ChoosePlan() {
       } else setEnableDesktopManagement(true);
     }
   }, [appSubscription]);
-
-  useEffect(() => {
-    if (showDiscounted) {
-      setTimeout(() => {
-        navigation.dispatch(CommonActions.navigate('DiscountedPlanScreen'));
-      }, 500);
-    }
-  }, []);
-
-  const checkForActiveCampaign = async () => {
-    const res = await Relay.getActiveCampaign(id);
-    setActiveCampaign(res ? res.planName : null);
-  };
 
   async function init() {
     let data = [];
@@ -335,7 +319,7 @@ function ChoosePlan() {
           dbManager.updateObjectById(RealmSchema.KeeperApp, id, {
             subscription: updatedSubscription,
           });
-          if (response.level === AppSubscriptionLevel.L1) disptach(setAutomaticCloudBackup(false));
+          // if (response.level === AppSubscriptionLevel.L1) disptach(setAutomaticCloudBackup(false));
           disptach(setSubscription(subscription.name));
           setShowUpgradeModal(true);
         } else {
@@ -515,20 +499,6 @@ function ChoosePlan() {
     );
   };
 
-  const HeaderCTA = () => {
-    return (
-      <>
-        {activeCampaign && !isOnL3Above && (
-          <BrownButton
-            title={activeCampaign}
-            onPress={() => navigation.dispatch(CommonActions.navigate('DiscountedPlanScreen'))}
-            subTitle={isMonthly ? '(On yearly subscription)' : null}
-          />
-        )}
-      </>
-    );
-  };
-
   return (
     <ScreenWrapper barStyle="dark-content" backgroundcolor={`${colorMode}.primaryBackground`}>
       <WalletHeader
@@ -611,7 +581,6 @@ function ChoosePlan() {
             isMonthly={isMonthly}
             getButtonText={getButtonState}
             listFooterCta={<FooterCTA />}
-            listHeaderCta={<HeaderCTA />}
           />
         </Box>
       )}

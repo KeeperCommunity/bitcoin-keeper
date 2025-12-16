@@ -30,6 +30,7 @@ import KeeperPrivateIcon from 'src/assets/images/KeeperPrivateIcon.svg';
 import KeeperPrivateIconWhite from 'src/assets/images/KeeperPrivateIconWhite.svg';
 import PrivateManageWallet from 'src/assets/privateImages/manage-wallet-icon.svg';
 import MultiUserIcon from 'src/assets/images/MultiUserIcon.svg';
+import InheritanceDocumentIcon from 'src/assets/images/inheritanceDocumentIcon.svg';
 
 import Switch from 'src/components/Switch/Switch';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -52,7 +53,7 @@ import {
 } from 'src/store/reducers/bhr';
 import useToastMessage from './useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import { setThemeMode } from 'src/store/reducers/settings';
+import { setShowTipModal, setThemeMode } from 'src/store/reducers/settings';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { credsAuthenticated } from 'src/store/reducers/login';
 import usePlan from './usePlan';
@@ -60,6 +61,7 @@ import KeeperModal from 'src/components/KeeperModal';
 import { wp } from 'src/constants/responsive';
 import Buttons from 'src/components/Buttons';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import config from 'src/utils/service-utilities/config';
 
 export const useSettingKeeper = () => {
   const dispatch = useAppDispatch();
@@ -117,6 +119,9 @@ export const useSettingKeeper = () => {
     if (backupAllSuccess && isFocused) {
       dispatch(setBackupAllSuccess(false));
       dispatch(setAutomaticCloudBackup(true));
+      setTimeout(() => {
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.assistServer }));
+      }, 1000);
     }
   }, [backupAllSuccess]);
 
@@ -218,7 +223,8 @@ export const useSettingKeeper = () => {
       title: settings.personalCloudBackup,
       description: inheritancePlanning.personalCloudDescp,
       icon: <CloudIcon width={16} height={12} />,
-      onRightPress: () => navigation.navigate('ChoosePlan'),
+      // onRightPress: () => navigation.navigate('ChoosePlan'),
+      onRightPress: () => {},
       rightIcon: isOnL2Above ? null : <UpgradeIcon width={64} height={20} />,
       onPress: () => navigation.navigate('CloudBackup'),
       isDiamond: true,
@@ -235,9 +241,7 @@ export const useSettingKeeper = () => {
       ) : (
         <UpgradeIcon width={64} height={20} />
       ),
-      onRightPress: isOnL2Above
-        ? toggleDebounce(() => toggleAutomaticBackupMode())
-        : () => navigation.navigate('ChoosePlan'),
+      onRightPress: toggleDebounce(() => toggleAutomaticBackupMode()),
       isDiamond: false,
       isHodler: true,
     },
@@ -298,7 +302,8 @@ export const useSettingKeeper = () => {
       description: inheritancePlanning.canaryWalletDesp,
       icon: <CanaryIcon width={14} height={14} />,
       rightIcon: isOnL2Above ? null : <UpgradeIcon width={64} height={20} />,
-      onRightPress: () => navigation.navigate('ChoosePlan'),
+      // onRightPress: () => navigation.navigate('ChoosePlan'),
+      onRightPress: {},
       onPress: () => navigation.navigate('CanaryWallets'),
       isDiamond: false,
       isHodler: true,
@@ -324,6 +329,13 @@ export const useSettingKeeper = () => {
       description: inheritancePlanning.safeKeepingTipsDesp,
       icon: <InheritanceTipsIcon width={13} height={16} />,
       onPress: () => navigation.navigate('SafeKeepingTips'),
+      isDiamond: false,
+    },
+    {
+      title: signerText.inheritanceDocuments,
+      description: signerText.bitcoinSecurity,
+      icon: <InheritanceDocumentIcon width={14} height={14} />,
+      onPress: () => navigation.dispatch(CommonActions.navigate('InheritanceDocumentScreen')),
       isDiamond: false,
     },
   ];

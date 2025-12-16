@@ -563,19 +563,6 @@ export default class Relay {
     }
   };
 
-  public static getActiveCampaign = async (appId): Promise<any> => {
-    return undefined; // To be enabled after successful implementation
-    let res;
-    try {
-      res = await RestClient.get(`${RELAY}getActiveCampaign?appId=${appId}`);
-    } catch (err) {
-      console.log('err', err);
-      if (err.response) throw new Error(err.response.data.err);
-      if (err.code) throw new Error(err.code);
-    }
-    return res ? res.data || res.json : null;
-  };
-
   public static getBtcPrice = async (currencyCode): Promise<any> => {
     let res;
     try {
@@ -750,6 +737,28 @@ export default class Relay {
     let res;
     try {
       res = await RestClient.get(`${RELAY}getAdvisors`);
+    } catch (err) {
+      if (err?.message) throw new Error(err.message);
+      if (err?.code) throw new Error(err.code);
+    }
+    return res ? res.data || res.json : null;
+  };
+  public static getRampUrl = async ({
+    userAddress,
+    appId,
+    swapAsset,
+    flow,
+  }): Promise<{
+    url: string;
+    signature: string;
+    timestamp: number;
+    queryString: string;
+  }> => {
+    let res;
+    try {
+      res = await RestClient.get(
+        `${RELAY}getRampUrl?appId=${appId}&userAddress=${userAddress}&swapAsset=${swapAsset}&flow=${flow}`
+      );
     } catch (err) {
       if (err?.message) throw new Error(err.message);
       if (err?.code) throw new Error(err.code);

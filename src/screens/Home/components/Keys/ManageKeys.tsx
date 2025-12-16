@@ -15,6 +15,9 @@ import { useAppSelector } from 'src/store/hooks';
 import useToastMessage, { IToastCategory } from 'src/hooks/useToastMessage';
 import { resetSignersUpdateState } from 'src/store/reducers/bhr';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import { SignerType } from 'src/services/wallets/enums';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 const ManageKeys = ({ addedSigner }) => {
   const { colorMode } = useColorMode();
@@ -44,6 +47,9 @@ const ManageKeys = ({ addedSigner }) => {
   };
   const closeAddKeyModal = () => {
     setKeyAddedModalVisible(false);
+    if (addedSigner.type == SignerType.POLICY_SERVER) {
+      dispatch(setShowTipModal({ status: true, address: config.ADDRESS.serverKey }));
+    }
   };
 
   useEffect(() => {

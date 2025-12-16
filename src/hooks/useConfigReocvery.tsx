@@ -18,6 +18,8 @@ import useVault from './useVault';
 import WalletUtilities from 'src/services/wallets/operations/utils';
 import { Alert } from 'react-native';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 const useConfigRecovery = () => {
   const { relayVaultError, relayVaultUpdate } = useAppSelector((state) => state.bhr);
@@ -30,7 +32,7 @@ const useConfigRecovery = () => {
   const [generatedVaultId, setGeneratedVaultId] = useState(null);
   const { translations } = useContext(LocalizationContext);
 
-  const { importWallet, wallet: walletText, error: errorText } = translations;
+  const { importWallet, wallet: walletText, error: errorText, formatString } = translations;
 
   const recoveryError = {
     failed: false,
@@ -68,6 +70,9 @@ const useConfigRecovery = () => {
             };
             dispatch(addNewVault({ newVaultInfo: vaultInfo }));
             setGeneratedVaultId(generatedVaultId);
+            setTimeout(() => {
+              dispatch(setShowTipModal({ status: true, address: config.ADDRESS.multiSigImport }));
+            }, 1000);
           })
         );
       } catch (err) {
@@ -166,8 +171,9 @@ const useConfigRecovery = () => {
 
   const checkIfVaultExists = (vaultSigners, scheme) => {
     const generatedVaultId = generateVaultId(vaultSigners, scheme);
-    if (allVaults.find((vault) => vault.id === generatedVaultId)) {
-      Alert.alert(errorText.vaultAlreadyExists);
+    const existingWallet = allVaults.find((vault) => vault.id === generatedVaultId);
+    if (existingWallet) {
+      Alert.alert(formatString(errorText.vaultAlreadyExists, existingWallet.presentationData.name));
       dispatch(resetRealyVaultState());
       setRecoveryLoading(false);
       navigation.goBack();

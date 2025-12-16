@@ -52,6 +52,7 @@ import { setAppWideLoading, setThemeMode } from 'src/store/reducers/settings';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { getString, setItem } from 'src/storage';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 export const KEEPER_PRIVATE_LINK = 'KEEPER_PRIVATE_LINK';
 
 function InititalAppController({ navigation, electrumErrorVisible, setElectrumErrorVisible }) {
@@ -70,7 +71,8 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
 
   const getAppData = (): { isPleb: boolean; appId: string } => {
     const tempApp = appData.map(getJSONFromRealmObject)[0];
-    const isPleb = tempApp.subscription.name.toUpperCase() === SubscriptionTier.L1.toUpperCase();
+    // const isPleb = tempApp.subscription.name.toUpperCase() === SubscriptionTier.L1.toUpperCase();
+    const isPleb = false;
     const appId = tempApp.id.toString();
     return { isPleb, appId };
   };
@@ -247,27 +249,30 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
         );
         return;
       }
-      const subscription = {
-        productId: response.data.productId,
-        receipt: response.data.transactionReceipt,
-        name: response.data.plan,
-        level: response.data.level,
-        icon: response.data.icon,
-      };
-      dbManager.updateObjectById(RealmSchema.KeeperApp, getAppData().appId, {
-        subscription,
-      });
+      // const subscription = {
+      //   productId: response.data.productId,
+      //   receipt: response.data.transactionReceipt,
+      //   name: response.data.plan,
+      //   level: response.data.level,
+      //   icon: response.data.icon,
+      // };
+      // dbManager.updateObjectById(RealmSchema.KeeperApp, getAppData().appId, {
+      //   subscription,
+      // });
       if (isAndroid) setItem(KEEPER_PRIVATE_LINK, initialUrl); // saving currently availed keeper private deep link on android to avoid processing on restart
-      dispatch(setSubscription(subscription.name));
-      dispatch(setThemeMode(ThemeMode.PRIVATE));
+      // dispatch(setSubscription(subscription.name));
+      // dispatch(setThemeMode(ThemeMode.PRIVATE));
       if (response.isExtended) {
         showToast(
-          `You have successfully extended your ${subscription.name} subscription.`,
+          `You have successfully extended your ${response.data.plan} subscription.`,
           <TickIcon />
         );
       } else {
-        showToast(`You are successfully upgraded to ${subscription.name} tier.`, <TickIcon />);
+        showToast(`You are successfully upgraded to ${response.data.plan} tier.`, <TickIcon />);
       }
+      const res = await Relay.getAccountManagerDetails(getAppData().appId);
+      if (res) dispatch(setAccountManagerDetails(res));
+      else dispatch(setAccountManagerDetails(null));
     } catch (error) {
       console.log('🚀 ~ handleKeeperPrivate ~ error:', error);
       showToast('Something went wrong, Please try again.', <ToastErrorIcon />);
@@ -294,8 +299,6 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
           name: 'TicketDetails',
           params: { ticketId: parseInt(ticketId), ticketStatus },
         });
-    } else if (data?.notificationType === notificationType.CAMPAIGN) {
-      navigation.dispatch(CommonActions.navigate('ChoosePlan', { showDiscounted: true }));
     }
   };
 

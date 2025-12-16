@@ -105,9 +105,10 @@ function DeleteKeys({ route }) {
     }
   };
 
-  const unhide = (signer: Signer) => {
+  const unhide = async (signer: Signer) => {
     setUnhidingKeyUID(getKeyUID(signer));
-    dispatch(updateSignerDetails(signer, 'hidden', false));
+    await dispatch(updateSignerDetails(signer, 'hidden', false));
+    showToast('Key is now unhidden', <TickIcon />);
   };
   const hideSigner = (signer: Signer) => {
     setUnhidingKeyUID(getKeyUID(signer));

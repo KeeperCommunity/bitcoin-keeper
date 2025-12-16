@@ -47,6 +47,8 @@ import Instruction from 'src/components/Instruction';
 import { useAppSelector } from 'src/store/hooks';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 function SetupPortal({ route }) {
   const {
@@ -178,6 +180,7 @@ function SetupPortal({ route }) {
         navigation.dispatch(CommonActions.goBack());
         if (Platform.OS === 'ios') NFC.showiOSMessage(signerText.portalverified);
         showToast(signerText.portalverified, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
         return true;
       });
     } catch (error) {
