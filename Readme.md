@@ -13,10 +13,10 @@ This repository is the **canonical home of Bitcoin Keeper** and is maintained as
   <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/App-Store.svg" alt="Appstore" width="150" style="border: none; outline: none;"/>
 </a>
 <a href="https://github.com/bithyve/bitcoin-keeper/releases">
-  <img src="https://github.com/bithyve/bitcoin-keeper/assets/50690016/67693cf0-a059-4391-8b48-a9d46a55e71c" alt="PGP_APK" width="150" style="border: none; outline: none;"/>
+  <img src="https://github.com/bithyve/bitcoin-keeper/assets/50690016/67693cf0-a059-4391-8b48-a9d46a55e71c" alt="PGP_APK" width="150" style="border: none; outline: none; alignitems: center"/>
 </a>
 
-## Features
+## ✨ Features
 Create and manage *Bitcoin multisig wallets
 Hardware wallet support for multisig setups
 Recovery planning and inheritance-friendly structures
@@ -25,13 +25,13 @@ Fully interoperable with standard Bitcoin wallets and tools
 No proprietary formats or walled gardens
 All features are **free to use**. There are no subscriptions or paid tiers.
 
-## Project Status
+## 🚧 Project Status
 Bitcoin Keeper is maintained openly by independent contributors.
 Ongoing development and maintenance are supported by **grants and optional user tips**, allowing the project to remain independent, resilient, and aligned with its original principles.
 The wallet is built so that users can always move their keys and funds elsewhere, regardless of the project’s future.
 
 
-## Prerequisites
+## 🧩 Prerequisites
 
 Before getting started, make sure you have a proper [React Native development environment](https://reactnative.dev/docs/environment-setup) on your machine
 
@@ -42,7 +42,7 @@ Android Studio (for Android builds)
 Xcode (for iOS builds)
 Refer to platform-specific documentation for detailed setup requirements.
 
-## Getting Started
+## 🚀 Getting Started
 
 1. Clone this repository to your local machine:
 
@@ -60,9 +60,9 @@ Refer to platform-specific documentation for detailed setup requirements.
    yarn install
    ```
 
-## Build and Run
+## 🛠️ Build and Run
 
-### Varients
+### 🧪 Varients
 
 The project has testnet and mainnet variants. The development variant is configured to use testnet and the production variant to use mainnet.
 
@@ -72,7 +72,7 @@ Start metro metro
 yarn start
 ```
 
-#### Development
+#### 🧑‍💻 Development
 
 To run the development app on a connected device or emulator:
 
@@ -88,7 +88,7 @@ yarn androidDevelopmentDebug
 yarn ios --scheme=hexa_keeper_dev
 ```
 
-#### Production
+#### 🏭 Production
 
 To run the production app on a connected device or emulator:
 
@@ -106,13 +106,13 @@ yarn ios --scheme=hexa_keeper
 
 These commands will build and launch the app on the respective platforms.
 
-## PGP
+## 🔐 PGP
 
 ```bash
 389F 4CAD A078 5AC0 E28A 0C18 1BEB DE26 1DC3 CF62
 ```
 
-## Verify Authenticity of Android APK
+## 🛡️ Verify Authenticity of Android APK
 
 Please download an [APK](https://github.com/bithyve/bitcoin-keeper/releases) and keep all these files in the same directory: `Android APK file, SHA256SUM.asc, KEEPER_DETACHED_SIGN.sign`. Make a copy of `Android APK file` and rename it as `Android APK clone`.
 
@@ -172,7 +172,7 @@ issuer "hexa@bithyve.com"
 Good signature from "Hexa Team (Hexa Bitcoin Wallet) <hexa@bithyve.com>"
 ```
 
-## Testing
+## 🧪 Testing
 
 This project uses **Jest** as the testing framework. To run the tests, use the following command:
 
@@ -180,11 +180,12 @@ This project uses **Jest** as the testing framework. To run the tests, use the f
 yarn test
 ```
 
-## License
+## 📄 License
 
 This project is licensed under the **MIT License.**
 
-## Community
+## 🌍 Community
 
 - Follow us on [Twitter](https://twitter.com/bitcoinKeeper_)
 - Join our [Telegram](https://t.me/bitcoinkeeper)
+
