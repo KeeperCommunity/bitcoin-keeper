@@ -6,15 +6,20 @@ This repository is the **canonical home of Bitcoin Keeper** and is maintained as
 
 ![image](https://github.com/user-attachments/assets/77c58e40-0172-4f73-aeb9-8a7851eb43eb)
 
-<a href="https://play.google.com/store/apps/details?id=io.hexawallet.bitcoinkeeper">
-  <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/Google-Play.svg" alt="Playstore" width="150" style="border: none; outline: none;"/>
-</a>
-<a href="https://apps.apple.com/us/app/bitcoin-keeper/id1545535925">
-  <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/App-Store.svg" alt="Appstore" width="150" style="border: none; outline: none;"/>
-</a>
-<a href="https://github.com/bithyve/bitcoin-keeper/releases">
-  <img src="https://github.com/bithyve/bitcoin-keeper/assets/50690016/67693cf0-a059-4391-8b48-a9d46a55e71c" alt="PGP_APK" width="150" style="border: none; outline: none; alignitems: center"/>
-</a>
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=io.hexawallet.bitcoinkeeper">
+    <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/Google-Play.svg" alt="Playstore" width="150"/>
+  </a>
+
+  <a href="https://apps.apple.com/us/app/bitcoin-keeper/id1545535925">
+    <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/App-Store.svg" alt="Appstore" width="150"/>
+  </a>
+
+  <a href="https://github.com/bithyve/bitcoin-keeper/releases">
+    <img src="https://github.com/bithyve/bitcoin-keeper/assets/50690016/67693cf0-a059-4391-8b48-a9d46a55e71c" alt="PGP_APK" width="150"/>
+  </a>
+</p>
+
 
 ## ✨ Features
 Create and manage *Bitcoin multisig wallets
