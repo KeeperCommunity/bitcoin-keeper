@@ -79,7 +79,6 @@ import {
   getTnxDetailsWatcher,
   loadCoinDetailsWatcher,
 } from './swap';
-import { getAdvisorWatcher } from './advisor';
 
 const rootSaga = function* () {
   const sagas = [
@@ -179,8 +178,6 @@ const rootSaga = function* () {
     getSwapQuoteWatcher,
     createSwapTnxWatcher,
     getTnxDetailsWatcher,
-    // advisor
-    getAdvisorWatcher,
   ];
 
   yield all(

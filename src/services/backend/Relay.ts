@@ -694,16 +694,6 @@ export default class Relay {
     return res ? res.data || res.json : null;
   };
 
-  public static getAdvisors = async (): Promise<any> => {
-    let res;
-    try {
-      res = await RestClient.get(`${RELAY}getAdvisors`);
-    } catch (err) {
-      if (err?.message) throw new Error(err.message);
-      if (err?.code) throw new Error(err.code);
-    }
-    return res ? res.data || res.json : null;
-  };
   public static getRampUrl = async ({
     userAddress,
     appId,

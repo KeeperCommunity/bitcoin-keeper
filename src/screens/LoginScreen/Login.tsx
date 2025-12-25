@@ -47,7 +47,6 @@ import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 import Fonts from 'src/constants/Fonts';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
-import { getAdvisors } from 'src/store/sagaActions/advisor';
 
 const RNBiometrics = new ReactNativeBiometrics();
 
@@ -119,10 +118,6 @@ function LoginScreen({ navigation, route }) {
       RestClient.unsubscribe(onChangeTorStatus);
     };
   }, [loggingIn, isBiometric]);
-
-  useEffect(() => {
-    dispatch(getAdvisors());
-  }, []);
 
   useEffect(() => {
     const remainingTime = PasswordTimeout(failedAttempts) - retryTime;
