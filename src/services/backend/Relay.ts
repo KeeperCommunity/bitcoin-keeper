@@ -41,31 +41,6 @@ export default class Relay {
     }
   };
 
-  public static fetchFeeAndExchangeRates = async (): Promise<{
-    exchangeRates: any;
-    averageTxFees: AverageTxFeesByNetwork;
-  }> => {
-    try {
-      let res;
-      try {
-        res = await RestClient.post(`${RELAY}fetchFeeAndExchangeRates`, {
-          HEXA_ID,
-        });
-      } catch (err) {
-        if (err.response) throw new Error(err.response.data.err);
-        if (err.code) throw new Error(err.code);
-      }
-      const { exchangeRates, averageTxFees } = res.data || res.json;
-
-      return {
-        exchangeRates,
-        averageTxFees,
-      };
-    } catch (err) {
-      throw new Error('Failed fetch fee and exchange rates');
-    }
-  };
-
   public static updateSubscription = async (
     id: string,
     appID: string,

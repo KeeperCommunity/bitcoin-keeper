@@ -45,6 +45,8 @@ import { connectToNodeWorker } from './network';
 import { getKeyUID, getOutputsFromPsbt } from 'src/utils/utilities';
 import { dropTransactionSnapshot } from '../reducers/cachedTxn';
 import * as bitcoin from 'bitcoinjs-lib';
+import axios from 'axios';
+const EX_RATE_API = 'https://api.coingecko.com/api/v3/exchange_rates';
 
 export function* fetchFeeRatesWorker() {
   try {
@@ -60,9 +62,12 @@ export const fetchFeeRatesWatcher = createWatcher(fetchFeeRatesWorker, FETCH_FEE
 
 function* fetchExchangeRatesWorker() {
   try {
-    const { exchangeRates } = yield call(Relay.fetchFeeAndExchangeRates);
-    if (!exchangeRates) console.log('Failed to fetch exchange rates');
-    else yield put(setExchangeRates(exchangeRates));
+    const res = yield call(axios.get, EX_RATE_API);
+    if (res.status === 200 && res.data?.rates) {
+      const exchangeRates = reformatExchangeRates(res.data.rates);
+      yield put(setExchangeRates({ exchangeRates }));
+    } else console.log('Failed to fetch exchange rates');
+    
   } catch (err) {
     console.log('Failed to fetch latest exchange rates', { err });
   }
@@ -484,3 +489,21 @@ export const discardBroadcastedTnxWatcher = createWatcher(
   discardBroadcastedTnxWorker,
   DISCARD_BROADCASTED_TNX
 );
+
+const reformatExchangeRates = (rawExchangeRates) => {
+  const formattedExchangeRates = {};
+  Object.keys(rawExchangeRates).forEach((key) => {
+    const value = rawExchangeRates[key];
+    if (value.type === 'fiat') {
+      const fiatData = {
+        '15m': value.value,
+        last: value.value,
+        buy: value.value,
+        sell: value.value,
+        symbol: value.unit,
+      };
+      formattedExchangeRates[key.toUpperCase()] = fiatData;
+    }
+  });
+  return formattedExchangeRates;
+};
