@@ -289,7 +289,6 @@ export default class Relay {
     }
   };
 
-
   public static fetchOneWeekHistoricalFee = async (): Promise<any> => {
     try {
       const response = await RestClient.get(`${RELAY}oneweekGraphData`);
@@ -359,22 +358,6 @@ export default class Relay {
       }
     } catch (error) {
       console.log('🚀 ~ Relay ~ getRemoteKey= ~ error:', error);
-    }
-  };
-  public static fetchHardwareReferralLinks = async (appId: string): Promise<any> => {
-    try {
-      const response = await RestClient.get(`${RELAY}getHardwareReferralLinks?appId=${appId}`);
-
-      const data = (response as AxiosResponse).data || (response as any).json;
-
-      if (data) {
-        return data;
-      } else {
-        return [];
-      }
-    } catch (error) {
-      captureError(error);
-      throw error;
     }
   };
 
