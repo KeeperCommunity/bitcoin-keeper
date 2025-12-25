@@ -253,7 +253,7 @@ function NewKeeperApp({ navigation }: { navigation }) {
           <Pressable
             backgroundColor={`${colorMode}.thirdBackground`}
             borderColor={`${colorMode}.separator`}
-            style={styles.tileContainer}
+            style={[styles.tileContainer, { marginBottom: 0 }]}
             testID="view_recoverTile"
             onPress={() => {
               navigation.navigate('LoginStack', { screen: 'EnterSeedScreen' });
@@ -269,6 +269,16 @@ function NewKeeperApp({ navigation }: { navigation }) {
               </Text>
             </Box>
           </Pressable>
+          <Box style={styles.recoveryNoteCtr}>
+            <Text medium style={styles.recoveryNote}>
+              *
+            </Text>
+            <Text color={`${colorMode}.GreyText`} medium style={styles.recoveryNote}>
+              {
+                'If Assisted Server Backup was not enabled, you will start with a blank app and will have to add the wallets back.'
+              }
+            </Text>
+          </Box>
         </Box>
         <Box style={styles.note} backgroundColor={`${colorMode}.primaryBackground`}>
           <Text color={`${colorMode}.textGreen`} medium fontSize={14}>
@@ -452,6 +462,14 @@ const styles = StyleSheet.create({
   headingText: {
     fontFamily: Fonts.LoraMedium,
     marginBottom: 5,
+  },
+  recoveryNote: { fontSize: 12, maxWidth: '99%' },
+  recoveryNoteCtr: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+    marginTop: hp(10),
+    gap: wp(5),
   },
 });
 
