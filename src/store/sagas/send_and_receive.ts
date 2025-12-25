@@ -23,7 +23,7 @@ import {
   setSendMaxFee,
   customFeeCalculated,
 } from '../reducers/send_and_receive';
-import { setAverageTxFee, setExchangeRates, setOneDayInsight } from '../reducers/network';
+import { setAverageTxFee, setExchangeRates } from '../reducers/network';
 import {
   CALCULATE_CUSTOM_FEE,
   CALCULATE_SEND_MAX_FEE,
@@ -32,7 +32,6 @@ import {
   DISCARD_BROADCASTED_TNX,
   FETCH_EXCHANGE_RATES,
   FETCH_FEE_RATES,
-  ONE_DAY_INSIGHT,
   SEND_PHASE_ONE,
   SEND_PHASE_THREE,
   SEND_PHASE_TWO,
@@ -73,18 +72,6 @@ export const fetchExchangeRatesWatcher = createWatcher(
   fetchExchangeRatesWorker,
   FETCH_EXCHANGE_RATES
 );
-
-function* fetchOneDayInsightWorker() {
-  try {
-    const data = yield call(Relay.fetchOneDayHistoricalFee);
-    if (!data) console.log('Failed to fetch one day inisght');
-    else yield put(setOneDayInsight(data));
-  } catch (err) {
-    console.log('Failed to fetch latest inisght', { err });
-  }
-}
-
-export const fetchOneDayInsightWatcher = createWatcher(fetchOneDayInsightWorker, ONE_DAY_INSIGHT);
 
 function* sendPhaseOneWorker({ payload }: SendPhaseOneAction) {
   const { wallet, recipients, selectedUTXOs, miniscriptSelectedSatisfier } = payload;

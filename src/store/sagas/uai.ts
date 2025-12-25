@@ -21,8 +21,6 @@ import {
   UAIS_SEEN,
 } from '../sagaActions/uai';
 import { createWatcher } from '../utilities';
-import { oneDayInsightSelector } from 'src/hooks/useOneDayInsight';
-import { generateFeeStatement } from 'src/utils/feeInisghtUtil';
 import { hash256 } from 'src/utils/service-utilities/encryption';
 import { RootState } from '../store';
 import config from 'src/utils/service-utilities/config';
@@ -265,75 +263,6 @@ function* uaiChecksWorker({ payload }) {
       }
 
       yield put(setRefreshUai());
-    }
-    if (checkForTypes.includes(uaiType.FEE_INISGHT)) {
-      const uaiCollectionHC: UAI[] = dbManager.getObjectByField(
-        RealmSchema.UAI,
-        uaiType.FEE_INISGHT,
-        'uaiType'
-      );
-      let lastSeenFeesNotification = null;
-      let lastCreatedFeesNotification = null;
-
-      if (uaiCollectionHC.length > 0) {
-        for (const uai of uaiCollectionHC) {
-          if (uai?.uaiDetails?.networkType && uai?.uaiDetails?.networkType !== bitcoinNetworkType) {
-            continue;
-          }
-          if (uai.seenAt && !uai.lastActioned) {
-            if (!lastSeenFeesNotification || uai.seenAt > lastSeenFeesNotification) {
-              lastSeenFeesNotification = uai.seenAt;
-              lastCreatedFeesNotification = uai.createdAt;
-            }
-          }
-        }
-      }
-
-      const graphData = yield select(oneDayInsightSelector);
-      const statement = generateFeeStatement(graphData);
-      if (statement) {
-        const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
-
-        // Delete all without createdAt
-        const uaisWithoutCreatedAt = uaiCollectionHC.filter((uai) => !uai.createdAt);
-        for (const uai of uaisWithoutCreatedAt) {
-          yield call(dbManager.deleteObjectById, RealmSchema.UAI, uai.id);
-        }
-
-        // Sort remaining by createdAt
-        const sortedUais = uaiCollectionHC
-          .filter((uai) => uai.createdAt)
-          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-        const latestActioned = sortedUais.find((uai) => uai.lastActioned);
-        const isLatestActionedOld =
-          latestActioned &&
-          new Date().getTime() - latestActioned.createdAt.getTime() > threeDaysInMs;
-
-        // Delete all except newest actioned (if it exists and is not old)
-        for (const uai of sortedUais) {
-          if (uai !== latestActioned || isLatestActionedOld) {
-            yield call(dbManager.deleteObjectById, RealmSchema.UAI, uai.id);
-          }
-        }
-
-        // Create new if needed
-        if (!latestActioned || isLatestActionedOld || lastSeenFeesNotification) {
-          yield put(
-            addToUaiStack({
-              uaiType: uaiType.FEE_INISGHT,
-              uaiDetails: {
-                heading: 'Fee Insights',
-                body: statement,
-                networkType: bitcoinNetworkType,
-              },
-              createdAt: lastCreatedFeesNotification,
-              seenAt: lastSeenFeesNotification,
-            })
-          );
-          yield put(setRefreshUai());
-        }
-      }
     }
     if (checkForTypes.includes(uaiType.CANARAY_WALLET)) {
       //TO-DO

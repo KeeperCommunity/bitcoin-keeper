@@ -314,20 +314,6 @@ export default class Relay {
     }
   };
 
-  public static fetchOneDayHistoricalFee = async (): Promise<any> => {
-    try {
-      const response = await RestClient.get(`${RELAY}onedayGraphData`);
-      const data = (response as AxiosResponse).data || (response as any).json;
-      if (data && data.graph_data.data) {
-        return data.graph_data.data;
-      } else {
-        return [];
-      }
-    } catch (error) {
-      captureError(error);
-      throw error;
-    }
-  };
 
   public static fetchOneWeekHistoricalFee = async (): Promise<any> => {
     try {

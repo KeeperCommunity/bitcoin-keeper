@@ -38,7 +38,6 @@ import {
 } from 'src/store/reducers/storage';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import BounceLoader from 'src/components/BounceLoader';
-import { fetchOneDayInsight } from 'src/store/sagaActions/send_and_receive';
 import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
@@ -122,7 +121,6 @@ function LoginScreen({ navigation, route }) {
   }, [loggingIn, isBiometric]);
 
   useEffect(() => {
-    dispatch(fetchOneDayInsight());
     dispatch(getAdvisors());
   }, []);
 

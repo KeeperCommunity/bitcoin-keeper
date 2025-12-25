@@ -167,31 +167,6 @@ const Card = memo(({ uai }: CardProps) => {
             },
           },
         };
-      case uaiType.FEE_INISGHT:
-        return {
-          heading: content.heading,
-          body: content.body,
-          icon: content.icon,
-          btnConfig: {
-            primary: {
-              text: notification.viewInsights,
-              cta: () => {
-                setInsightModal(true);
-              },
-            },
-          },
-          modalDetails: {
-            heading: notification.feeInsight,
-            subTitle: '',
-            body: '',
-            btnConfig: {
-              primary: {
-                text: common.continue,
-                cta: () => {},
-              },
-            },
-          },
-        };
       case uaiType.CANARAY_WALLET:
         return {
           heading: content.heading,
@@ -565,13 +540,6 @@ export const getUaiContent = (type: uaiType, details?: any) => {
         heading: 'Backup Recovery Key',
         body: 'Backup the Recovery Key to secure the app',
         icon: <BackupRecoveryIcon />,
-      };
-
-    case uaiType.FEE_INISGHT:
-      return {
-        heading: 'Fee Insights',
-        body: details?.body || 'Check your fee insights',
-        icon: <FeeInsightsIcon />,
       };
 
     case uaiType.CANARAY_WALLET:

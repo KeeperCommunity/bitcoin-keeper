@@ -32,7 +32,6 @@ import PasscodeVerifyModal from 'src/components/Modal/PasscodeVerify';
 import { InputUTXOs, UTXO } from 'src/services/wallets/interfaces';
 import CurrencyTypeSwitch from 'src/components/Switch/CurrencyTypeSwitch';
 import FeeInsights from 'src/screens/FeeInsights/FeeInsightsContent';
-import useOneDayInsight from 'src/hooks/useOneDayInsight';
 import Clipboard from '@react-native-clipboard/clipboard';
 import CVVInputsView from 'src/components/HealthCheck/CVVInputsView';
 import KeyPadView from 'src/components/AppNumPad/KeyPadView';
@@ -157,7 +156,6 @@ function SendConfirmation({ route }) {
   const [feeInsightVisible, setFeeInsightVisible] = useState(false);
   const [visibleCustomPriorityModal, setVisibleCustomPriorityModal] = useState(false);
   const [discardUTXOVisible, setDiscardUTXOVisible] = useState(false);
-  const OneDayHistoricalFee = useOneDayInsight();
 
   const isMoveAllFunds =
     parentScreen === MANAGEWALLETS ||
@@ -230,12 +228,6 @@ function SendConfirmation({ route }) {
     setUsualFee(Math.abs(Number(percentageDifference.toFixed(2))));
     setIsUsualFeeHigh(usualFee > 10);
   }
-
-  useEffect(() => {
-    if (OneDayHistoricalFee.length > 0) {
-      checkUsualFee(OneDayHistoricalFee);
-    }
-  }, [OneDayHistoricalFee]);
 
   useEffect(() => {
     const remove = navigation.addListener('beforeRemove', (e) => {
@@ -703,13 +695,6 @@ function SendConfirmation({ route }) {
               />
             </TouchableOpacity>
             {showMore && [
-              OneDayHistoricalFee.length > 0 && (
-                <FeeRateStatementCard
-                  key="feeCard"
-                  showFeesInsightModal={toogleFeesInsightModal}
-                  feeInsightData={OneDayHistoricalFee}
-                />
-              ),
               <Box key="btcBox">
                 <Text
                   medium
