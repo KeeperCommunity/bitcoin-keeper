@@ -46,6 +46,7 @@ import { getKeyUID, getOutputsFromPsbt } from 'src/utils/utilities';
 import { dropTransactionSnapshot } from '../reducers/cachedTxn';
 import * as bitcoin from 'bitcoinjs-lib';
 import axios from 'axios';
+import { setHomeToastMessage } from '../reducers/bhr';
 const EX_RATE_API = 'https://api.coingecko.com/api/v3/exchange_rates';
 
 export function* fetchFeeRatesWorker() {
@@ -66,10 +67,15 @@ function* fetchExchangeRatesWorker() {
     if (res.status === 200 && res.data?.rates) {
       const exchangeRates = reformatExchangeRates(res.data.rates);
       yield put(setExchangeRates({ exchangeRates }));
-    } else console.log('Failed to fetch exchange rates');
-    
+    } else throw new Error('Failed to fetch exchange rates');
   } catch (err) {
     console.log('Failed to fetch latest exchange rates', { err });
+    yield put(
+      setHomeToastMessage({
+        message: 'Exchange rates couldn’t be updated. Values may be outdated.',
+        isError: true,
+      })
+    );
   }
 }
 
