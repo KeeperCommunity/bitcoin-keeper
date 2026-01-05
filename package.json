@@ -118,7 +118,7 @@
     "redux-persist": "6.0.0",
     "redux-saga": "1.1.3",
     "rn-qr-generator": "^1.4.4",
-    "satochip-react-native": "git+https://github.com/Toporin/satochip-react-native.git#main",
+    "satochip-react-native": "git+https://github.com/Toporin/satochip-react-native.git#c3a1c438af9ff4c31448b107549d823f07e1ced5",
     "semver": "7.3.8",
     "socket.io-client": "4.5.4",
     "stream": "0.0.2",
