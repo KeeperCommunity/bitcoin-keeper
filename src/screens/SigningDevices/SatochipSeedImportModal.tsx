@@ -121,27 +121,31 @@ function SatochipSeedImportModal({ route, navigation }) {
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
 
-      <WalletHeader
-        title={satochipTranslations.importSeedTitle}
-        subTitle={satochipTranslations.importSeedDescription}
-        onPressHandler={handleResultClose}
-      />
+      <Box style={{ flex: 1 }}>
+        <WalletHeader
+          title={satochipTranslations.importSeedTitle}
+          subTitle={satochipTranslations.importSeedDescription}
+          onPressHandler={handleResultClose}
+        />
 
+        {/* Add a spacer that takes up remaining space */}
+        <Box style={{ flex: 1 }} />
+
+        {/* import button in the bottom */}
+        <Box style={styles.bottomContainerView}>
+          <Buttons
+            primaryCallback={performSeedImport}
+            primaryText={satochipTranslations.importSeedButton}
+            secondaryText={common.cancel}
+            fullWidth={false}
+            secondaryCallback={handleResultClose}
+            primaryLoading={false}
+          />
+        </Box>
+      </Box>
 
       {/* NFC Processing UI */}
       <NfcPrompt visible={nfcVisible} close={closeNfc} />
-
-      {/* import button */}
-      <Box style={styles.bottomContainerView}>
-        <Buttons
-          primaryCallback={performSeedImport}
-          primaryText={satochipTranslations.importSeedButton}
-          secondaryText={common.cancel}
-          fullWidth={true}
-          secondaryCallback={handleResultClose}
-          primaryLoading={false} // todo?
-        />
-      </Box>
 
       {/* Result Modal */}
       <KeeperModal
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
   suggestionScrollView: {
     zIndex: 99999,

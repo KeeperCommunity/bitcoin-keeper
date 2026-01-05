@@ -101,19 +101,25 @@ function ResetSatochipSeed({ route, navigation }) {
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
-      <WalletHeader
-        title={satochipTranslation.resetSeed}
-        subTitle={satochipTranslation.resetSeedWarning}
-        onPressHandler={handleCancel}
-      />
 
-      <Box style={styles.ctaContainer}>
-        <Buttons
-          primaryText={common.continue}
-          primaryCallback={() => setShowPinModal(true)}
-          primaryDisable={ctaDisabled}
-          fullWidth
+      <Box style={{ flex: 1 }}>
+        <WalletHeader
+          title={satochipTranslation.resetSeed}
+          subTitle={satochipTranslation.resetSeedWarning}
+          onPressHandler={handleCancel}
         />
+
+        {/* Add a spacer that takes up remaining space */}
+        <Box style={{ flex: 1 }} />
+
+        <Box style={styles.ctaContainer}>
+          <Buttons
+            primaryText={common.continue}
+            primaryCallback={() => setShowPinModal(true)}
+            primaryDisable={ctaDisabled}
+            fullWidth
+          />
+        </Box>
       </Box>
 
       <KeeperModal
@@ -140,7 +146,7 @@ function ResetSatochipSeed({ route, navigation }) {
 
       {/* result dialog */}
       <KeeperModal
-        visible={showResultModal} // TODO: update translation + activate on success/fail?
+        visible={showResultModal}
         close={() => setShowResultModal(false)}
         showCloseIcon={false}
         title={success? satochipTranslation.satochipSeedResetTitle : satochipTranslation.satochipSeedResetFail}
