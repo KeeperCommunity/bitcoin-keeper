@@ -363,7 +363,7 @@ function SetupSatochip({ route }) {
         <Box marginTop={hp(10)} marginBottom={hp(40)}>
           {satochipIsAuthentic === true ? (
             <Text style={styles.statusText}>{satochipTranslations.satochipIsAuthentic}</Text>
-          ) : satochipIsAuthentic === false ? (
+          ) : (
               <Box
                 style={styles.warningContainer}
                 backgroundColor={`${colorMode}.errorToastBackground`}
@@ -372,26 +372,22 @@ function SetupSatochip({ route }) {
                 <Box style={styles.warningIcon}>
                   {colorMode === 'light' ? <ErrorIcon /> : <ErrorDarkIcon />}
                 </Box>
-                <Text style={styles.warningText}>
-                  {`SATOCHIP is not authentic ${
-                    satochipStatusCode ? 'error code:' + satochipStatusCode: ''
-                  } proceed only if trusted`}
-                </Text>
+
+                {satochipIsAuthentic === false ? (
+                  <Text style={styles.warningText}>
+                    {`SATOCHIP is not authentic. ${
+                      satochipStatusCode ? satochipStatusCode + '.' : ''
+                    } Proceed only if trusted`}
+                  </Text>
+                ) : (
+                  <Text style={styles.warningText}>
+                    {`Could not authenticate SATOCHIP. ${satochipStatusCode}`}
+                  </Text>
+                )
+                }
               </Box>
-          ) : (
-            <Box
-              style={styles.warningContainer}
-              backgroundColor={`${colorMode}.errorToastBackground`}
-              borderColor={`${colorMode}.alertRed`}
-            >
-              <Box style={styles.warningIcon}>
-                {colorMode === 'light' ? <ErrorIcon /> : <ErrorDarkIcon />}
-              </Box>
-              <Text style={styles.warningText}>
-                {`Enter PIN code above to check card authenticity`}
-              </Text>
-            </Box>
-          )}
+          )
+          }
         </Box>
         <Buttons
           fullWidth

@@ -1,6 +1,6 @@
 /* eslint-disable no-await-in-loop */
 import {Platform} from 'react-native';
-import {SatochipCard} from 'satochip-react-native';
+import {SatochipCard, SatochipCardError} from 'satochip-react-native';
 import {captureError} from 'src/services/sentry';
 import WalletUtilities from 'src/services/wallets/operations/utils';
 import {ScriptTypes, XpubTypes} from 'src/services/wallets/enums';
@@ -21,11 +21,6 @@ const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, accoun
 
   // fetch P2WPKH details
   const singleSigPath = WalletUtilities.getDerivationForScriptType(ScriptTypes.P2WPKH, account);
-
-  //const convertedSingleSigPath = singleSigPath.split("'").join('h');
-  await card.verifyPIN(0, pin);
-  const singleSigExtendedKey = await card.getExtendedKey(singleSigPath);
-
   let singleSigXpub = await card.getXpub(singleSigPath,'p2wpkh'); // using mainnet
   if (isTestnet) {
     singleSigXpub = xpubToTpub(singleSigXpub);
@@ -34,9 +29,6 @@ const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, accoun
 
   // fetch P2WSH details
   const multiSigPath = WalletUtilities.getDerivationForScriptType(ScriptTypes.P2WSH, account);
-
-  const multiSigExtendedKey = await card.getExtendedKey(multiSigPath);
-
   let multiSigXpub = await card.getXpub(multiSigPath,'p2wsh', !isTestnet); // using mainnet
   if (isTestnet) {
     multiSigXpub = xpubToTpub(multiSigXpub);
@@ -119,8 +111,30 @@ export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
     }
   } catch (error) {
     console.error('satochip/index getCardInfo Chain validation error: ', error);
-    isAuthentic = false;
-    authenticityMsg = error.message || error;
+
+    if (error instanceof SatochipCardError) {
+      const sw = error.statusWord;
+      if (sw == 0x9C02){
+        isAuthentic = null;
+        authenticityMsg = "Wrong PIN!";
+      } else if ((sw & 0xFFF0) == 0x63C0 ){
+        const remainingTry = sw &0x000F;
+        isAuthentic = null;
+        authenticityMsg = `Wrong PIN! ${remainingTry} tries remaining.`;
+      } else if (sw == 0x9C06){
+        isAuthentic = null;
+        authenticityMsg = `You must provide a PIN code!`;
+      } else if (sw == 0x9C0C){
+        isAuthentic = null;
+        authenticityMsg = `Your card is blocked!`;
+      } else {
+        isAuthentic = false;
+        authenticityMsg = error.message;
+      }
+    } else {
+      isAuthentic = false;
+      authenticityMsg = error.message || error;
+    }
   }
 
   return {
