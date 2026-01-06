@@ -614,7 +614,7 @@ function SetupSatochip({ route }) {
               secureTextEntry
               showSoftInputOnFocus={false}
               backgroundColor={`${colorMode}.seashellWhite`}
-              placeholder="Enter PIN"
+              placeholder={satochipTranslations.enterPinPlaceholder}
               placeholderTextColor="#999999"
             />
           </Box>
@@ -640,7 +640,7 @@ function SetupSatochip({ route }) {
           )}
 
           <Text style={styles.heading} color={`${colorMode}.greenText`}>
-            Scan SATOCHIP after entering PIN
+            {satochipTranslations.setupInstructions}
           </Text>
 
         </ScrollView>
@@ -681,8 +681,8 @@ function SetupSatochip({ route }) {
       <KeeperModal
         visible={statusModalVisible}
         close={() => setStatusModalVisible(false)}
-        title='SATOCHIP Setup Status'
-        subTitle='Current status of your SATOCHIP'
+        title={signerTranslations.SatochipSetupStatus}
+        subTitle={signerTranslations.SatochipSetupStatusSubtitle}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
@@ -693,8 +693,8 @@ function SetupSatochip({ route }) {
         close={() => {
           setInfoModal(false);
         }}
-        title='Setting up SATOCHIP'
-        subTitle='Follow these steps to set up your SATOCHIP'
+        title={signerTranslations.SettingUpSatochip}
+        subTitle={signerTranslations.SettingUpSatochipSubtitle}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
@@ -726,8 +726,8 @@ function SetupSatochip({ route }) {
       <KeeperModal
         visible={setupOptionsModalVisible}
         close={() => setSetupOptionsModalVisible(false)}
-        title="SATOCHIP Setup Options"
-        subTitle="Select an action to perform"
+        title={satochipTranslations.setupOptionsTitle}
+        subTitle={satochipTranslations.setupOptionsSubtitle}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
