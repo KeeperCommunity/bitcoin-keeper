@@ -32,7 +32,7 @@ import { isTestnet } from 'src/constants/Bitcoin';
 import { generateMockExtendedKeyForSigner } from 'src/services/wallets/factories/VaultFactory';
 import { Signer, VaultSigner, XpubDetailsType } from 'src/services/wallets/interfaces/vault';
 import useAsync from 'src/hooks/useAsync';
-import NfcManager, { NfcTech } from 'react-native-nfc-manager';
+import NfcManager from 'react-native-nfc-manager';
 import DeviceInfo from 'react-native-device-info';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
 import MockWrapper from 'src/screens/Vault/MockWrapper';
@@ -69,6 +69,7 @@ function SetupSatochip({ route }) {
   const card = useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
   const [openOptionModal, setOpenOptionModal] = useState(false);
+  const [setupOptionsModalVisible, setSetupOptionsModalVisible] = useState(false);
 
   const {
     mode,
@@ -400,6 +401,145 @@ function SetupSatochip({ route }) {
     );
   }
 
+  function SetupOptionsModalContent() {
+    const handleCheckStatus = () => {
+      setSetupOptionsModalVisible(false);
+      checkSatochipSetupStatus();
+    };
+
+    const handleSetupNewCard = () => {
+      setSetupOptionsModalVisible(false);
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'SatochipSetupPin',
+          params: {
+            setupSatochipParams: route.params,
+          },
+        })
+      );
+    };
+
+    const handleImportSeed = () => {
+      if (pin.length < 4) {
+        showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
+        return;
+      }
+      setSetupOptionsModalVisible(false);
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'ImportSatochipSeed',
+          params: {
+            pin,
+            setupSatochipParams: route.params,
+          },
+        })
+      );
+    };
+
+    const handleResetSeed = () => {
+      if (pin.length < 4) {
+        showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
+        return;
+      }
+      setSetupOptionsModalVisible(false);
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'ResetSatochipSeed',
+          params: {
+            pin,
+            setupSatochipParams: route.params,
+          },
+        })
+      );
+    };
+
+    return (
+      <Box>
+        <TouchableOpacity onPress={handleCheckStatus} testID="checkSatochipSetupStatus">
+          <Box
+            flexDirection="row"
+            alignItems="center"
+            paddingVertical={hp(15)}
+            paddingHorizontal={wp(10)}
+          >
+            <Text
+              color={`${colorMode}.textGreen`}
+              style={styles.modalOptionText}
+              medium
+              flex={1}
+            >
+              {satochipTranslations.checkInitialSetupStatus}
+            </Text>
+            <Box>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+
+        <Box height={1} backgroundColor={`${colorMode}.separator`} marginHorizontal={wp(10)} />
+
+        <TouchableOpacity onPress={handleSetupNewCard} testID="satochipSetupPin">
+          <Box
+            flexDirection="row"
+            alignItems="center"
+            paddingVertical={hp(15)}
+            paddingHorizontal={wp(10)}
+          >
+            <Text
+              color={`${colorMode}.textGreen`}
+              style={styles.modalOptionText}
+              medium
+              flex={1}
+            >
+              {satochipTranslations.setupNewCard}
+            </Text>
+            <Box>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+
+        <Box height={1} backgroundColor={`${colorMode}.separator`} marginHorizontal={wp(10)} />
+
+        <TouchableOpacity onPress={handleImportSeed} testID="importSatochipSeed">
+          <Box
+            flexDirection="row"
+            alignItems="center"
+            paddingVertical={hp(15)}
+            paddingHorizontal={wp(10)}
+          >
+            <Text
+              color={`${colorMode}.textGreen`}
+              style={styles.modalOptionText}
+              medium
+              flex={1}
+            >
+              {satochipTranslations.importSeed}
+            </Text>
+            <Box>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+
+        <Box height={1} backgroundColor={`${colorMode}.separator`} marginHorizontal={wp(10)} />
+
+        <TouchableOpacity onPress={handleResetSeed} testID="resetSatochipSeed">
+          <Box
+            flexDirection="row"
+            alignItems="center"
+            paddingVertical={hp(15)}
+            paddingHorizontal={wp(10)}
+          >
+            <Text
+              color={`${colorMode}.textGreen`}
+              style={styles.modalOptionText}
+              medium
+              flex={1}
+            >
+              {satochipTranslations.resetSeed}
+            </Text>
+            <Box>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
+          </Box>
+        </TouchableOpacity>
+      </Box>
+    );
+  }
+
   function ShareKeyModalData() {
     return (
       <Box>
@@ -474,111 +614,37 @@ function SetupSatochip({ route }) {
               secureTextEntry
               showSoftInputOnFocus={false}
               backgroundColor={`${colorMode}.seashellWhite`}
+              placeholder="Enter PIN"
+              placeholderTextColor="#999999"
             />
           </Box>
+
+          {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
+            <TouchableOpacity
+              onPress={() => setSetupOptionsModalVisible(true)}
+              testID="setupOptionsButton"
+            >
+              <Box
+                style={styles.input}
+                flexDirection="row"
+                alignItems="center"
+                backgroundColor={`${colorMode}.seashellWhite`}
+                borderColor={`${colorMode}.separator`}
+              >
+                <Text color={`${colorMode}.textGreen`} fontSize={14} medium flex={1}>
+                  Setup options
+                </Text>
+                {colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}
+              </Box>
+            </TouchableOpacity>
+          )}
+
           <Text style={styles.heading} color={`${colorMode}.greenText`}>
             Scan SATOCHIP after entering PIN
           </Text>
+
         </ScrollView>
       </MockWrapper>
-
-      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
-        <TouchableOpacity
-          onPress={() => {
-            checkSatochipSetupStatus();
-          }}
-          testID="checkSatochipSetupStatus"
-        >
-          <Box flexDirection="row">
-            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
-              {satochipTranslations.checkInitialSetupStatus}
-            </Text>
-            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
-          </Box>
-        </TouchableOpacity>
-      )}
-
-      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
-        <TouchableOpacity
-          onPress={() => {
-
-            navigation.dispatch(
-              CommonActions.navigate({
-                name: 'SatochipSetupPin',
-                params: {
-                  setupSatochipParams: route.params,
-                },
-              })
-            );
-          }}
-          testID="satochipSetupPin"
-        >
-          <Box flexDirection="row">
-            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
-              {satochipTranslations.setupNewCard}
-            </Text>
-            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
-          </Box>
-        </TouchableOpacity>
-      )}
-
-      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
-        <TouchableOpacity
-          onPress={() => {
-            if (pin.length < 4) {
-              showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
-              return;
-            }
-
-            navigation.dispatch(
-              CommonActions.navigate({
-                name: 'ImportSatochipSeed',
-                params: {
-                  pin,
-                  setupSatochipParams: route.params,
-                },
-              })
-            );
-          }}
-          testID="importSatochipSeed"
-        >
-          <Box flexDirection="row">
-            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
-              {satochipTranslations.importSeed}
-            </Text>
-            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
-          </Box>
-        </TouchableOpacity>
-      )}
-
-      {(mode === InteracationMode.APP_ADDITION || mode === InteracationMode.VAULT_ADDITION) && (
-        <TouchableOpacity
-          onPress={() => {
-            if (pin.length < 4) {
-              showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
-              return;
-            }
-
-            navigation.dispatch(
-              CommonActions.navigate({
-                name: 'ResetSatochipSeed',
-                params: {
-                  pin,
-                  setupSatochipParams: route.params,
-                },
-              })
-            );
-          }}
-          testID="resetSatochipSeed"
-        >
-          <Box flexDirection="row">
-            <Text color={`${colorMode}.textGreen`} style={styles.checkInitialStatus} medium>
-              {satochipTranslations.resetSeed}
-            </Text>
-            <Box paddingTop={hp(1)}>{colorMode === 'light' ? <NFCIcon /> : <NFCIconWhite />}</Box>
-          </Box>
-        </TouchableOpacity>
-      )}
 
       <KeyPadView
         onPressNumber={onPressHandler}
@@ -656,6 +722,18 @@ function SetupSatochip({ route }) {
           </Box>
         )}
       />
+
+      <KeeperModal
+        visible={setupOptionsModalVisible}
+        close={() => setSetupOptionsModalVisible(false)}
+        title="SATOCHIP Setup Options"
+        subTitle="Select an action to perform"
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        Content={SetupOptionsModalContent}
+      />
+
     </ScreenWrapper>
   );
 }
@@ -734,5 +812,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: hp(20),
+  },
+  setupOptionsButton: {
+    marginTop: hp(10),
+  },
+  modalOptionText: {
+    fontSize: 14,
+    letterSpacing: 0.65,
   },
 });
