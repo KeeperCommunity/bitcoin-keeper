@@ -420,11 +420,11 @@ function SetupSatochip({ route }) {
     };
 
     const handleImportSeed = () => {
+      setSetupOptionsModalVisible(false);
       if (pin.length < 4) {
         showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
         return;
       }
-      setSetupOptionsModalVisible(false);
       navigation.dispatch(
         CommonActions.navigate({
           name: 'ImportSatochipSeed',
@@ -437,11 +437,11 @@ function SetupSatochip({ route }) {
     };
 
     const handleResetSeed = () => {
+      setSetupOptionsModalVisible(false);
       if (pin.length < 4) {
         showToast(satochipTranslations.enterPinFirst, <ToastErrorIcon />);
         return;
       }
-      setSetupOptionsModalVisible(false);
       navigation.dispatch(
         CommonActions.navigate({
           name: 'ResetSatochipSeed',
