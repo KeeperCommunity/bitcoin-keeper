@@ -41,7 +41,6 @@ import {
 } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import LoginMethod from 'src/models/enums/LoginMethod';
-import { getAdvisorWorker } from './advisor';
 
 export function* setupKeeperAppWorker({ payload }) {
   try {
@@ -127,7 +126,6 @@ export function* setupKeeperAppWorker({ payload }) {
         const { allAccounts } = yield select((state: RootState) => state.account);
         if (allAccounts.length == 1) yield put(setBiometricEnabledAppId(appID));
       }
-      yield fork(getAdvisorWorker, { callback: null });
     } else {
       yield put(setAppCreationError(true));
     }

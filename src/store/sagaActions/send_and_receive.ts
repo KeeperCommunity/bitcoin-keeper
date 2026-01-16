@@ -7,7 +7,6 @@ import { Wallet } from 'src/services/wallets/interfaces/wallet';
 
 export const FETCH_EXCHANGE_RATES = 'FETCH_EXCHANGE_RATES';
 export const FETCH_FEE_RATES = 'FETCH_FEE_RATES';
-export const ONE_DAY_INSIGHT = 'ONE_DAY_INSIGHT';
 export const AVERAGE_TX_FEE = 'AVERAGE_TX_FEE';
 export const EXCHANGE_RATE_CALCULATED = 'EXCHANGE_RATE_CALCULATED';
 export const SEND_PHASE_ONE = 'SEND_PHASE_ONE';
@@ -22,9 +21,6 @@ export const fetchExchangeRates = () => ({
   type: FETCH_EXCHANGE_RATES,
 });
 
-export const fetchOneDayInsight = () => ({
-  type: ONE_DAY_INSIGHT,
-});
 
 export const fetchFeeRates = () => ({
   type: FETCH_FEE_RATES,

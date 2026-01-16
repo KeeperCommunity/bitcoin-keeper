@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   circle: {
     width: wp(60),
     height: wp(60),
-    borderRadius: 30,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 30,
+    borderRadius: 100,
   },
   languageContainer: {
     width: wp(160),
