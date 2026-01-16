@@ -63,6 +63,7 @@ import {
 } from './signWithSD';
 import SendSuccessfulContent from '../Send/SendSuccessfulContent';
 import WalletHeader from 'src/components/WalletHeader';
+import Relay from 'src/services/backend/Relay';
 
 function SignTransactionScreen() {
   const route = useRoute();
@@ -80,6 +81,7 @@ function SignTransactionScreen() {
     internalRecipients,
     addresses,
     amounts,
+    tipMessage = '',
   } = (route.params || {
     note: '',
     vaultId: '',
@@ -104,6 +106,7 @@ function SignTransactionScreen() {
     internalRecipients: (Wallet | Vault)[];
     addresses: string[];
     amounts: number[];
+    tipMessage: string;
   };
 
   const { activeVault: defaultVault } = useVault({
@@ -172,6 +175,7 @@ function SignTransactionScreen() {
   const sendAndReceive = useAppSelector((state) => state.sendAndReceive);
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const [activeSignerName, setActiveSignerName] = useState('');
+  const { conciergeUser } = useAppSelector((state) => state?.concierge);
 
   useEffect(() => {
     if (sendAndReceive.sendPhaseThree.txid) {
@@ -202,10 +206,23 @@ function SignTransactionScreen() {
 
   useEffect(() => {
     if (sendSuccessful) {
-      setBroadcasting(false);
-      setVisibleModal(true);
+      if (tipMessage.length) createZendeskTipTicket();
+      else {
+        setBroadcasting(false);
+        setVisibleModal(true);
+      }
     }
   }, [sendSuccessful]);
+
+  const createZendeskTipTicket = async () => {
+    await Relay.createZendeskTicket({
+      desc: tipMessage.trim(),
+      conciergeUser,
+      isTip: true,
+    });
+    setBroadcasting(false);
+    setVisibleModal(true);
+  };
 
   useEffect(() => {
     return () => {

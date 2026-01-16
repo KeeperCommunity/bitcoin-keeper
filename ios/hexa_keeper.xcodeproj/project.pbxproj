@@ -14,7 +14,7 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		159FF345F1297D1FF48528D9 /* libPods-hexa_keeper_dev.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E848F7DFCADFAE3FBFB35DC7 /* libPods-hexa_keeper_dev.a */; };
-		18788ED8284652050002EFFD /* BuildFile in Resources */ = {isa = PBXBuildFile; };
+		18788ED8284652050002EFFD /* (null) in Resources */ = {isa = PBXBuildFile; };
 		1889D6352DB0076400781072 /* Lora-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1889D6312DB0076400781072 /* Lora-Medium.ttf */; };
 		1889D6362DB0076400781072 /* Lora-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1889D6332DB0076400781072 /* Lora-SemiBold.ttf */; };
 		1889D6372DB0076400781072 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1889D6322DB0076400781072 /* Lora-MediumItalic.ttf */; };
@@ -24,14 +24,14 @@
 		1889D63B2DB0076400781072 /* Lora-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1889D6322DB0076400781072 /* Lora-MediumItalic.ttf */; };
 		1889D63C2DB0076400781072 /* Lora-SemiBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1889D6342DB0076400781072 /* Lora-SemiBoldItalic.ttf */; };
 		18B4D55F2847898D004AB91F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 18B4D55E2847898D004AB91F /* GoogleService-Info.plist */; };
-		18BD1AA02834FA4100DB19E0 /* BuildFile in Resources */ = {isa = PBXBuildFile; };
+		18BD1AA02834FA4100DB19E0 /* (null) in Resources */ = {isa = PBXBuildFile; };
 		3368C03D4ADA4631B63D54F8 /* Inter-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F1E12F69D30C4430BF22E132 /* Inter-Regular.ttf */; };
 		35112D502BD7DAE700343479 /* CloudBackupHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35112D4F2BD7DAE700343479 /* CloudBackupHelper.swift */; };
 		35112D512BD7DAE700343479 /* CloudBackupHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35112D4F2BD7DAE700343479 /* CloudBackupHelper.swift */; };
 		35112D542BD7DB3000343479 /* cloudbackup.m in Sources */ = {isa = PBXBuildFile; fileRef = 35112D532BD7DB3000343479 /* cloudbackup.m */; };
 		35112D552BD7DB3000343479 /* cloudbackup.m in Sources */ = {isa = PBXBuildFile; fileRef = 35112D532BD7DB3000343479 /* cloudbackup.m */; };
 		413074DFD01E46F1A0D40BD6 /* Inter-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6702D068A26E40DDA1F0E809 /* Inter-Bold.ttf */; };
-		75EA47EFF012F028F07CCEA1 /* BuildFile in Frameworks */ = {isa = PBXBuildFile; };
+		75EA47EFF012F028F07CCEA1 /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		8F3F2BAB5E21BDF6D6F8747B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 435B6B72AB94B4AA09AF3B47 /* PrivacyInfo.xcprivacy */; };
 		97223FD2D6714257A178B813 /* Inter-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 72B7870523C24718A997BDFB /* Inter-Italic.ttf */; };
@@ -43,8 +43,8 @@
 		F49B77E42848DF5200F9AFBD /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		F49B77E82848DF5200F9AFBD /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		F49B77E92848DF5200F9AFBD /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		F49B77EA2848DF5200F9AFBD /* BuildFile in Resources */ = {isa = PBXBuildFile; };
-		F49B77EF2848DF5200F9AFBD /* BuildFile in Resources */ = {isa = PBXBuildFile; };
+		F49B77EA2848DF5200F9AFBD /* (null) in Resources */ = {isa = PBXBuildFile; };
+		F49B77EF2848DF5200F9AFBD /* (null) in Resources */ = {isa = PBXBuildFile; };
 		F4F207EE2849D20A005E79DA /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F4F207ED2849D20A005E79DA /* GoogleService-Info.plist */; };
 		F4F7F75D2A0558650027FE4C /* keepScreenAwake.m in Sources */ = {isa = PBXBuildFile; fileRef = F4F7F75C2A0558650027FE4C /* keepScreenAwake.m */; };
 		F4F7F75E2A0558650027FE4C /* keepScreenAwake.m in Sources */ = {isa = PBXBuildFile; fileRef = F4F7F75C2A0558650027FE4C /* keepScreenAwake.m */; };
@@ -116,7 +116,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				75EA47EFF012F028F07CCEA1 /* BuildFile in Frameworks */,
+				75EA47EFF012F028F07CCEA1 /* (null) in Frameworks */,
 				D5BDB3AB19BE735A37AFA3AB /* libPods-hexa_keeper.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -414,8 +414,8 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				18BD1AA02834FA4100DB19E0 /* BuildFile in Resources */,
-				18788ED8284652050002EFFD /* BuildFile in Resources */,
+				18BD1AA02834FA4100DB19E0 /* (null) in Resources */,
+				18788ED8284652050002EFFD /* (null) in Resources */,
 				1889D6352DB0076400781072 /* Lora-Medium.ttf in Resources */,
 				1889D6362DB0076400781072 /* Lora-SemiBold.ttf in Resources */,
 				1889D6372DB0076400781072 /* Lora-MediumItalic.ttf in Resources */,
@@ -442,9 +442,9 @@
 				1889D63C2DB0076400781072 /* Lora-SemiBoldItalic.ttf in Resources */,
 				F49B77E82848DF5200F9AFBD /* LaunchScreen.storyboard in Resources */,
 				F49B77E92848DF5200F9AFBD /* Images.xcassets in Resources */,
-				F49B77EA2848DF5200F9AFBD /* BuildFile in Resources */,
+				F49B77EA2848DF5200F9AFBD /* (null) in Resources */,
 				F42D52AF284A3D2600235E3E /* hexa_keeper_dev-Info.plist in Resources */,
-				F49B77EF2848DF5200F9AFBD /* BuildFile in Resources */,
+				F49B77EF2848DF5200F9AFBD /* (null) in Resources */,
 				02EFDECE01B760848CCFE2A3 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -748,7 +748,7 @@
 				CODE_SIGN_ENTITLEMENTS = hexa_keeper/hexa_keeper.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 573;
+				CURRENT_PROJECT_VERSION = 582;
 				DEVELOPMENT_TEAM = Y5TCB759QL;
 				ENABLE_BITCODE = NO;
 				HEADER_SEARCH_PATHS = (
@@ -849,7 +849,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
 				);
-				MARKETING_VERSION = 2.5.6;
+				MARKETING_VERSION = 2.5.7;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -873,10 +873,10 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = hexa_keeper/hexa_keeper.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Distribution: Bithyve UK Ltd (Y5TCB759QL)";
-				CURRENT_PROJECT_VERSION = 573;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 582;
 				DEVELOPMENT_TEAM = Y5TCB759QL;
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = Y5TCB759QL;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"${PODS_ROOT}/Headers/Public\"",
@@ -975,7 +975,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
 				);
-				MARKETING_VERSION = 2.5.6;
+				MARKETING_VERSION = 2.5.7;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -983,9 +983,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.hexawallet.keeper;
 				PRODUCT_NAME = hexa_keeper;
-				PROVISIONING_PROFILE = "cd711cf7-1c75-4302-ad18-39de9d4f8bef";
-				PROVISIONING_PROFILE_SPECIFIER = "Keeper Development";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Keeper Distribution";
+				PROVISIONING_PROFILE = "";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "whirlpool/hexa_keeper-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1145,7 +1144,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 573;
+				CURRENT_PROJECT_VERSION = 582;
 				DEVELOPMENT_TEAM = Y5TCB759QL;
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = Y5TCB759QL;
 				ENABLE_BITCODE = NO;
@@ -1248,7 +1247,7 @@
 					"$(PROJECT_DIR)",
 					"\"$(SRCROOT)\"",
 				);
-				MARKETING_VERSION = 2.5.6;
+				MARKETING_VERSION = 2.5.7;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1257,7 +1256,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = io.hexawallet.hexakeeper.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Keeper Development";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Keeper Dev Dist";
 				SWIFT_OBJC_BRIDGING_HEADER = "whirlpool/hexa_keeper-Bridging-Header.h";
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "hexa_keeper-Swift.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1276,7 +1275,7 @@
 				CODE_SIGN_ENTITLEMENTS = hexa_keeper_dev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
-				CURRENT_PROJECT_VERSION = 573;
+				CURRENT_PROJECT_VERSION = 582;
 				DEVELOPMENT_TEAM = Y5TCB759QL;
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = Y5TCB759QL;
 				HEADER_SEARCH_PATHS = (
@@ -1378,7 +1377,7 @@
 					"$(PROJECT_DIR)",
 					"\"$(SRCROOT)\"",
 				);
-				MARKETING_VERSION = 2.5.6;
+				MARKETING_VERSION = 2.5.7;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1388,7 +1387,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "cd711cf7-1c75-4302-ad18-39de9d4f8bef";
 				PROVISIONING_PROFILE_SPECIFIER = "Keeper Development";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Keeper Development";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Keeper Dev Dist";
 				SWIFT_OBJC_BRIDGING_HEADER = "whirlpool/hexa_keeper-Bridging-Header.h";
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "hexa_keeper-Swift.h";
 				SWIFT_VERSION = 5.0;

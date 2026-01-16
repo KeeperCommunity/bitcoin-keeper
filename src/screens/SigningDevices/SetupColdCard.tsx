@@ -40,6 +40,8 @@ import InfoIconDark from 'src/assets/images/info-Dark-icon.svg';
 import InfoIcon from 'src/assets/images/info_icon.svg';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 function SetupColdCard({ route }) {
   const { colorMode } = useColorMode();
@@ -175,6 +177,7 @@ function SetupColdCard({ route }) {
         );
         navigation.dispatch(CommonActions.goBack());
         showToast(errorTexts.coldCardVerified, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       };
       const showVerificationError = () => {
         dispatch(

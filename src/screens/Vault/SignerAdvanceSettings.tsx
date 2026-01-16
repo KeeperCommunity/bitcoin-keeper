@@ -30,7 +30,7 @@ import { captureError } from 'src/services/sentry';
 import { getAccountFromSigner, getKeyUID } from 'src/utils/utilities';
 import useSignerMap from 'src/hooks/useSignerMap';
 import { getSignerNameFromType } from 'src/hardware';
-import { KEEPER_KNOWLEDGEBASE } from 'src/utils/service-utilities/config';
+import config, { KEEPER_KNOWLEDGEBASE } from 'src/utils/service-utilities/config';
 import PasscodeVerifyModal from 'src/components/Modal/PasscodeVerify';
 import { NewVaultInfo } from 'src/store/sagas/wallets';
 import { addNewVault, refillMobileKey } from 'src/store/sagaActions/vaults';
@@ -756,7 +756,8 @@ function SignerAdvanceSettings({ route }: any) {
         title={walletTranslation.canaryWallet}
         description={walletTranslation.onChainKeyAlert}
         callback={handleCanaryWallet}
-        disabled={isOnL1}
+        // disabled={isOnL1}
+        disabled={false}
         rightComponent={
           isOnL1 &&
           (() => {
@@ -789,26 +790,12 @@ function SignerAdvanceSettings({ route }: any) {
       <OptionCard
         key="AdditionalUsers"
         title={signingServer.additionalUsers}
-        description={`${signingServer.AddMultipleUsers}${
-          !isOnL4 ? `${signingServer.unlockKeeperPrivate}` : ''
-        }`}
+        description={`${signingServer.AddMultipleUsers}`}
         callback={() => {
-          isOnL4 && navigation.navigate('AdditionalUsers', { signer });
+          navigation.navigate('AdditionalUsers', { signer });
         }}
-        disabled={!isOnL4}
-        rightComponent={
-          !isOnL4 &&
-          (() => {
-            return (
-              <TouchableOpacity
-                style={{ marginTop: hp(25) }}
-                onPress={() => navigation.navigate('ChoosePlan')}
-              >
-                <UpgradeIcon style={styles.upgradeIcon} width={64} height={20} />
-              </TouchableOpacity>
-            );
-          })
-        }
+        // disabled={!isOnL4}
+        disabled={false}
       />
     ),
   ].filter(Boolean);

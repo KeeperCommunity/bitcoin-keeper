@@ -33,7 +33,7 @@ function UpgradeSubscription({
         activeOpacity={0.6}
         onPress={() => {
           onPress();
-          navigation.navigate('ChoosePlan');
+          // navigation.navigate('ChoosePlan');
         }}
         testID="choosePlan"
       >

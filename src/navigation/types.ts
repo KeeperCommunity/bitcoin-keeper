@@ -182,12 +182,12 @@ export type AppStackParams = {
   ShareQR: undefined;
   PurchaseWithChannel: undefined;
   AddMultipleXpub: undefined;
-  DiscountedPlanScreen: undefined;
   MultiUserScreen: undefined;
   AddMultipleXpubFiles: undefined;
   SignMessageScreen: undefined;
   CloudBackupPassword: undefined;
   ImportedWalletSetup: undefined;
+  SendTip: undefined;
 };
 
 // Usage:

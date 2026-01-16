@@ -56,6 +56,8 @@ import Instruction from 'src/components/Instruction';
 import { useAppSelector } from 'src/store/hooks';
 import ShareKeyModalContent from '../Vault/components/ShareKeyModalContent';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 function SetupTapsigner({ route }) {
   const { colorMode } = useColorMode();
@@ -252,6 +254,7 @@ function SetupTapsigner({ route }) {
         navigation.dispatch(CommonActions.goBack());
         if (Platform.OS === 'ios') NFC.showiOSMessage(tapsignerTranslations.tapsignerVerified);
         showToast(tapsignerTranslations.tapsignerVerified, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       };
 
       const handleFailure = () => {
@@ -600,8 +603,8 @@ function SetupTapsigner({ route }) {
       <KeeperModal
         visible={openOptionModal}
         close={() => setOpenOptionModal(false)}
-        title={signerTranslations.signTransaction}
-        subTitle={signerTranslations.selectSignOption}
+        title="Share Transaction"
+        subTitle="Select how you want to share the transaction"
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}

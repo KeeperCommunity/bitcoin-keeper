@@ -34,7 +34,7 @@ import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { Signer, VaultSigner } from 'src/services/wallets/interfaces/vault';
 import { addSigningDevice } from 'src/store/sagaActions/vaults';
 import { captureError } from 'src/services/sentry';
-import { KEEPER_WEBSITE_BASE_URL } from 'src/utils/service-utilities/config';
+import config, { KEEPER_WEBSITE_BASE_URL } from 'src/utils/service-utilities/config';
 import {
   extractKeyFromDescriptor,
   generateSignerFromMetaData,
@@ -102,6 +102,7 @@ import SignerOptionCard from './components/signerOptionCard';
 import ColdCardUSBInstruction from './components/ColdCardUSBInstruction';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { KRUX_LOAD_SEED, manipulateKruxData } from 'src/hardware/krux';
+import { setShowTipModal } from 'src/store/reducers/settings';
 
 const RNBiometrics = new ReactNativeBiometrics();
 const SIGNERS_SUPPORT_MULTIPLE_XPUBS = [
@@ -1256,6 +1257,7 @@ function HardwareModalMap({
           );
           close();
           showToast(errorText.healthCheckDone, <TickIcon />);
+          dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
         } else {
           close();
           dispatch(
@@ -1478,6 +1480,7 @@ function HardwareModalMap({
         );
         navigation.dispatch(StackActions.pop(2));
         showToast(`${hw.signer.signerName} verified successfully`, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       };
 
       const handleFailure = () => {
@@ -1573,6 +1576,7 @@ function HardwareModalMap({
         );
         navigation.dispatch(CommonActions.goBack());
         showToast(errorText.healthCheckDone, <TickIcon />);
+        dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
       } else {
         navigation.dispatch(CommonActions.goBack());
         dispatch(
@@ -1714,6 +1718,7 @@ function HardwareModalMap({
         ])
       );
       showToast('Health check successful!');
+      dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
     } else {
       dispatch(addSigningDevice([hw]));
       const navigationState = addSignerFlow

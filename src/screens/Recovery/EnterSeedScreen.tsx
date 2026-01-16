@@ -37,6 +37,8 @@ import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { updateSignerDetails, updateVaultSignersXpriv } from 'src/store/sagaActions/wallets';
 import ConciergeNeedHelp from 'src/assets/images/conciergeNeedHelp.svg';
+import { setShowTipModal } from 'src/store/reducers/settings';
+import config from 'src/utils/service-utilities/config';
 
 function EnterSeedScreen({ route, navigation }) {
   const { translations } = useContext(LocalizationContext);
@@ -200,6 +202,7 @@ function EnterSeedScreen({ route, navigation }) {
       dispatch(resetSeedWords());
       navigateBack(step);
       showToast(healthcheck.HealthCheckSuccessful, <TickIcon />);
+      dispatch(setShowTipModal({ status: true, address: config.ADDRESS.health }));
     } else {
       updateHealthCheckStatus(derivedSigner.masterFingerprint, hcStatusType.HEALTH_CHECK_FAILED);
       showToast(cloudBackup.CLOUD_BACKUP_HEALTH_FAILED);

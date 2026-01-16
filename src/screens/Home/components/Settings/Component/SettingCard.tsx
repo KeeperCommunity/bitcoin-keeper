@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
     marginBottom: wp(18),
     borderRadius: 15,
     padding: wp(21),
+    alignSelf: 'center',
   },
   header: {
     marginTop: hp(10),
