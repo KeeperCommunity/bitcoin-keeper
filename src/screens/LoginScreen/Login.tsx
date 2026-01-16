@@ -38,7 +38,6 @@ import {
 } from 'src/store/reducers/storage';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import BounceLoader from 'src/components/BounceLoader';
-import { fetchOneDayInsight } from 'src/store/sagaActions/send_and_receive';
 import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
@@ -48,7 +47,6 @@ import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 import Fonts from 'src/constants/Fonts';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
-import { getAdvisors } from 'src/store/sagaActions/advisor';
 
 const RNBiometrics = new ReactNativeBiometrics();
 
@@ -120,11 +118,6 @@ function LoginScreen({ navigation, route }) {
       RestClient.unsubscribe(onChangeTorStatus);
     };
   }, [loggingIn, isBiometric]);
-
-  useEffect(() => {
-    dispatch(fetchOneDayInsight());
-    dispatch(getAdvisors());
-  }, []);
 
   useEffect(() => {
     const remainingTime = PasswordTimeout(failedAttempts) - retryTime;
