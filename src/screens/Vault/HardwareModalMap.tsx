@@ -2314,11 +2314,7 @@ function HardwareModalMap({
         title={title}
         subTitle={subTitle}
         buttonText={
-          signerType === SignerType.COLDCARD ||
-          signerType === SignerType.JADE ||
-          signerType === SignerType.KEYSTONE ||
-          signerType === SignerType.PASSPORT ||
-          (signerType === SignerType.SEED_WORDS && !isHealthcheck)
+          signerType === SignerType.SEED_WORDS && !isHealthcheck
             ? null
             : signerType === SignerType.POLICY_SERVER
             ? isHealthcheck
