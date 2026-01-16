@@ -1895,6 +1895,7 @@ export default class WalletOperations {
       isSigned = true;
     } else if (
       signer.type === SignerType.TAPSIGNER ||
+      signer.type === SignerType.SATOCHIP ||
       signer.type === SignerType.LEDGER ||
       signer.type === SignerType.TREZOR ||
       signer.type === SignerType.BITBOX02 ||
@@ -2220,6 +2221,20 @@ export default class WalletOperations {
         const { signerType, serializedPSBT, signingPayload, isMockSigner } = serializedPSBTEnvelop;
         const PSBT = bitcoinJS.Psbt.fromBase64(serializedPSBT, { network: bitcoinNetwork });
         if (signerType === SignerType.TAPSIGNER && !isMockSigner) {
+          for (const { inputsToSign } of signingPayload) {
+            for (const { inputIndex, publicKey, signature, sighashType } of inputsToSign) {
+              if (signature) {
+                PSBT.addSignedDigest(
+                  inputIndex,
+                  Buffer.from(publicKey, 'hex'),
+                  Buffer.from(signature, 'hex'),
+                  sighashType
+                );
+              }
+            }
+          }
+        }
+        if (signerType === SignerType.SATOCHIP && !isMockSigner) {
           for (const { inputsToSign } of signingPayload) {
             for (const { inputIndex, publicKey, signature, sighashType } of inputsToSign) {
               if (signature) {

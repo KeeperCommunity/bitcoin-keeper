@@ -91,6 +91,7 @@ const SigningDeviceList = () => {
       SignerType.LEDGER,
       SignerType.PASSPORT,
       SignerType.PORTAL,
+      SignerType.SATOCHIP,
       SignerType.SEEDSIGNER,
       SignerType.SPECTER,
       SignerType.TAPSIGNER,

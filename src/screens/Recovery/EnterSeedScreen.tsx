@@ -285,6 +285,9 @@ function EnterSeedScreen({ route, navigation }) {
       } else if (bip39.validateMnemonic(mnemonic)) {
         if (isUSDTWallet) {
           importSeedCta(mnemonic);
+        } else if (mode === InteracationMode.VAULT_IMPORT_SEED) {
+          // directly call import and skip remember step
+          importSeed(true);
         } else setRememberModal(true);
       } else {
         openInvalidSeedsModal();
