@@ -33,6 +33,7 @@ import Text from '../KeeperText';
 import { hp } from 'src/constants/responsive';
 import ThemedSvg from '../ThemedSvg.tsx/ThemedSvg';
 import ConfirmSeedWord from '../SeedWordBackup/ConfirmSeedWord';
+import { setRecoveryKeyBackedUp } from 'src/store/reducers/account';
 
 const ContentType = {
   verifying: 'verifying',
@@ -73,7 +74,7 @@ function BackupHealthCheckList({ isUaiFlow }) {
   const { translations } = useContext(LocalizationContext);
   const { BackupWallet, vault: vaultText, common } = translations;
   const dispatch = useAppDispatch();
-  const { primaryMnemonic, backup } = useQuery(RealmSchema.KeeperApp).map(
+  const { primaryMnemonic, backup, id } = useQuery(RealmSchema.KeeperApp).map(
     getJSONFromRealmObject
   )[0];
   const {
@@ -113,6 +114,7 @@ function BackupHealthCheckList({ isUaiFlow }) {
   useEffect(() => {
     if (seedConfirmed) {
       setShowConfirmSeedModal(false);
+      dispatch(setRecoveryKeyBackedUp({ appId: id as string, status: true }));
       if (!automaticCloudBackup) dispatch(backupAllSignersAndVaults());
       else {
         setTimeout(() => {

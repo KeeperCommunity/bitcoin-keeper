@@ -36,7 +36,7 @@ import WalletHeader from 'src/components/WalletHeader';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
-import { updateOneTimeBackupStatus } from 'src/store/reducers/account';
+import { setRecoveryKeyBackedUp, updateOneTimeBackupStatus } from 'src/store/reducers/account';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import config from 'src/utils/service-utilities/config';
 import { setAutomaticCloudBackup } from 'src/store/reducers/bhr';
@@ -302,6 +302,7 @@ function ExportSeedScreen({ route, navigation }) {
                   );
                 } else {
                   dispatch(seedBackedUp());
+                  dispatch(setRecoveryKeyBackedUp({ appId, status: true }));
                   if (!automaticCloudBackup) {
                     dispatch(backupAllSignersAndVaults());
                     dispatch(setAutomaticCloudBackup(true));
