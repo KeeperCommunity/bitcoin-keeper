@@ -25,6 +25,9 @@ export type BackupMethodByAppId = {
 export type OneTimeBackupStatusByAppId = {
   [appId: string]: Boolean;
 };
+export type recoveryKeyBackedUpByAppId = {
+  [appId: string]: Boolean;
+};
 
 export type DefaultWalletCreatedByAppId = {
   [appId: string]: {
@@ -46,6 +49,7 @@ const initialState: {
   oneTimeBackupStatusByAppId: OneTimeBackupStatusByAppId;
   defaultWalletCreatedByAppId: DefaultWalletCreatedByAppId;
   personalBackupPasswordByAppId: personalBackupPasswordByAppId;
+  recoveryKeyBackedUpByAppId: recoveryKeyBackedUpByAppId;
 } = {
   allAccounts: [],
   tempDetails: null,
@@ -55,6 +59,7 @@ const initialState: {
   oneTimeBackupStatusByAppId: {}, // for signing server backup
   defaultWalletCreatedByAppId: {},
   personalBackupPasswordByAppId: {},
+  recoveryKeyBackedUpByAppId: {},
 };
 
 const accountSlice = createSlice({
@@ -144,6 +149,10 @@ const accountSlice = createSlice({
     ) => {
       (state.personalBackupPasswordByAppId ??= {})[action.payload.appId] = action.payload.password;
     },
+
+    setRecoveryKeyBackedUp: (state, action: PayloadAction<{ appId: string; status: boolean }>) => {
+      (state.recoveryKeyBackedUpByAppId ??= {})[action.payload.appId] = action.payload.status;
+    },
   },
 });
 
@@ -159,5 +168,6 @@ export const {
   updateDefaultWalletCreatedByAppId,
   saveDefaultWalletState,
   setPersonalBackupPassword,
+  setRecoveryKeyBackedUp,
 } = accountSlice.actions;
 export default accountSlice.reducer;
