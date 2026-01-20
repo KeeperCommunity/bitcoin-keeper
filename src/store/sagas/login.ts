@@ -362,6 +362,7 @@ function* changeAuthCredWorker({ payload }) {
     yield call(SecureStore.store, newHash, newEncryptedKey, currentAccount.accountIdentifier);
     yield put(updatePasscodeHash({ newHash, appId }));
     yield put(credsChanged('changed'));
+    yield call(createBackup, appId, newHash, newEncryptedKey);
   } catch (err) {
     console.log({
       err,
