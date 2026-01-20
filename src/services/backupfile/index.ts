@@ -5,6 +5,9 @@ import { decrypt, encrypt } from 'src/utils/service-utilities/encryption';
 import * as SecureStore from 'src/storage/secure-store';
 import config from 'src/utils/service-utilities/config';
 import { store as reduxStore } from 'src/store/store';
+import { setLoginMethod } from 'src/store/reducers/settings';
+import LoginMethod from 'src/models/enums/LoginMethod';
+import { setBiometricEnabledAppId } from 'src/store/reducers/account';
 
 const FILE_NAME = 'backup.txt';
 
@@ -99,6 +102,8 @@ export const restoreBackupKey = async (del=true): Promise<boolean> => {
     if(del){
       await deleteBackupFile(FILE_NAME);
     }
+    reduxStore.dispatch(setLoginMethod(LoginMethod.PIN));
+    reduxStore.dispatch(setBiometricEnabledAppId(null));
     return true;
   } catch (error) {
     console.log({ error });
