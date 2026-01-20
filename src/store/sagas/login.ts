@@ -68,6 +68,7 @@ import {
 } from '../reducers/account';
 import { REALM_FILE } from 'src/storage/realm/realm';
 import { loadConciergeUserOnLogin, saveBackupMethodByAppId } from '../sagaActions/account';
+import { createBackup } from 'src/services/backupfile';
 
 export const stringToArrayBuffer = (byteString: string): Uint8Array => {
   if (byteString) {
@@ -183,6 +184,7 @@ function* credentialsAuthWorker({ payload }) {
         throw Error(`Failed to load the database: ${error}`);
       }
 
+      yield call(createBackup, appId, hash, encryptedKey);
       const previousVersion = yield select((state) => state.storage.appVersion);
       const { plebDueToOffline, wasAutoUpdateEnabledBeforeDowngrade, defaultWalletCreated } =
         yield select((state) => state.storage);

@@ -19,9 +19,11 @@ import { NetworkType } from 'src/services/wallets/enums';
 import { changeBitcoinNetwork } from 'src/store/sagaActions/settings';
 import { setDefaultWalletCreated } from 'src/store/reducers/storage';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { restoreBackupKey } from 'src/services/backupfile';
 
 function SplashScreen({ navigation }) {
   const { torEnbled, themeMode, bitcoinNetworkType } = useAppSelector((state) => state.settings);
+  const { appId } = useAppSelector((state) => state.storage);
   const dispatch = useDispatch();
   const { toggleColorMode, colorMode } = useColorMode();
 
@@ -59,6 +61,9 @@ function SplashScreen({ navigation }) {
     try {
       const hasCreds = await SecureStore.hasPin();
       if (hasCreds) {
+        navigation.replace('Login', { relogin: false });
+      } else if (!hasCreds && appId) {
+        await restoreBackupKey();
         navigation.replace('Login', { relogin: false });
       } else {
         navigation.replace('CreatePin');
