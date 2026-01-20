@@ -17,7 +17,7 @@ import MenuFooter from 'src/components/MenuFooter';
 import HomeWallet from './components/Wallet/HomeWallet';
 import ManageKeys from './components/Keys/ManageKeys';
 import KeeperSettings from './components/Settings/keeperSettings';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { CommonActions, useFocusEffect, useNavigation } from '@react-navigation/native';
 import TickIcon from 'src/assets/images/icon_tick.svg';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
@@ -36,6 +36,7 @@ function NewHomeScreen({ route }) {
   const { addedSigner, selectedOption: selectedOptionFromRoute } = route.params || {};
   const { wallets } = useWallets({ getAll: true });
   const [electrumErrorVisible, setElectrumErrorVisible] = useState(false);
+  const [backupModalVisible, setBackupModalVisible] = useState(true);
   const home_header_circle_background = ThemedColor({ name: 'home_header_circle_background' });
 
   const { relayWalletUpdate, relayWalletError, realyWalletErrorMessage, homeToastMessage } =
@@ -49,12 +50,30 @@ function NewHomeScreen({ route }) {
   const backupHistory = useQuery(RealmSchema.BackupHistory);
   const { recoveryKeyBackedUpByAppId } = useAppSelector((state) => state.account);
   const { id } = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any;
+  const shouldShowBackupModal = !(recoveryKeyBackedUpByAppId?.[id] ?? false);
 
   useEffect(() => {
     if (selectedOptionFromRoute && selectedOptionFromRoute !== selectedOption) {
       setSelectedOption(selectedOptionFromRoute);
     }
   }, [selectedOptionFromRoute]);
+
+  useEffect(() => {
+    if (shouldShowBackupModal) {
+      setBackupModalVisible(true);
+    }
+  }, [shouldShowBackupModal]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (shouldShowBackupModal && selectedOption !== walletText.more) {
+        const timer = setTimeout(() => {
+          setBackupModalVisible(true);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }, [shouldShowBackupModal, selectedOption, walletText.more])
+  );
 
   const getContent = () => {
     switch (selectedOption) {
@@ -194,7 +213,7 @@ function NewHomeScreen({ route }) {
         }}
       />
       <KeeperModal
-        visible={!(recoveryKeyBackedUpByAppId?.[id] ?? false)}
+        visible={shouldShowBackupModal && backupModalVisible}
         close={() => {}}
         title={homeTranslation.backupModalTitle}
         subTitle={homeTranslation.backupModalSubTitle}
@@ -205,20 +224,23 @@ function NewHomeScreen({ route }) {
         showCloseIcon={false}
         buttonText={'Backup Recovery Key'}
         buttonCallback={() => {
-          if (backupHistory.length === 0) {
-            navigation.dispatch(
-              CommonActions.navigate('Home', {
-                selectedOption: 'More',
-                isUaiFlow: true,
-              })
-            );
-          } else {
-            navigation.dispatch(
-              CommonActions.navigate('WalletBackHistory', {
-                isUaiFlow: true,
-              })
-            );
-          }
+          setBackupModalVisible(false);
+          setTimeout(() => {
+            if (backupHistory.length === 0) {
+              navigation.dispatch(
+                CommonActions.navigate('Home', {
+                  selectedOption: 'More',
+                  isUaiFlow: true,
+                })
+              );
+            } else {
+              navigation.dispatch(
+                CommonActions.navigate('WalletBackHistory', {
+                  isUaiFlow: true,
+                })
+              );
+            }
+          }, 300);
         }}
         buttonTextColor={`${colorMode}.buttonText`}
         Content={BackupModalContent}
