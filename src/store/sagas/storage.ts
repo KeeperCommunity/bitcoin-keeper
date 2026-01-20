@@ -41,6 +41,8 @@ import {
 } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import LoginMethod from 'src/models/enums/LoginMethod';
+import { createBackup } from 'src/services/backupfile';
+import * as SecureStore from 'src/storage/secure-store';
 
 export function* setupKeeperAppWorker({ payload }) {
   try {
@@ -126,6 +128,9 @@ export function* setupKeeperAppWorker({ payload }) {
         const { allAccounts } = yield select((state: RootState) => state.account);
         if (allAccounts.length == 1) yield put(setBiometricEnabledAppId(appID));
       }
+      const { pinHash } = yield select((state: RootState) => state.storage);
+      const encryptedKey = yield call(SecureStore.fetch, pinHash);
+      yield call(createBackup, appID, pinHash, encryptedKey);
     } else {
       yield put(setAppCreationError(true));
     }

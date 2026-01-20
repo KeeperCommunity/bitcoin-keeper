@@ -93,6 +93,8 @@ import { addToUaiStackWorker, uaiActionedWorker } from './uai';
 import { addAccount, saveDefaultWalletState } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
+import { createBackup } from 'src/services/backupfile';
+import * as SecureStore from 'src/storage/secure-store';
 
 export function* updateAppImageWorker({
   payload,
@@ -671,6 +673,9 @@ function* recoverApp(
 
   yield put(setAppId(appID));
   yield put(setAppCreated(true));
+  const { pinHash } = yield select((state: RootState) => state.storage);
+  const encryptedKey = yield call(SecureStore.fetch, pinHash);
+  yield call(createBackup, appID, pinHash, encryptedKey);
 }
 
 function* healthCheckSatutsUpdateWorker({
