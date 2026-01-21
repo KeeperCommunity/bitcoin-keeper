@@ -61,6 +61,7 @@ import { autoWalletsSyncWorker } from './wallets';
 import {
   addAccount,
   saveDefaultWalletState,
+  setBackupFileByAppId,
   setBiometricEnabledAppId,
   setTempDetails,
   updateOneTimeBackupStatus,
@@ -183,8 +184,11 @@ function* credentialsAuthWorker({ payload }) {
       if (!success) {
         throw Error(`Failed to load the database: ${error}`);
       }
-
-      yield call(createBackup, appId, hash, encryptedKey);
+      const { backupFileByAppId } = yield select((state) => state.account);
+      if (!backupFileByAppId || !backupFileByAppId[appId]) {
+        const res = yield call(createBackup, appId, hash, encryptedKey);
+        yield put(setBackupFileByAppId({ appId, status: res }));
+      }
       const previousVersion = yield select((state) => state.storage.appVersion);
       const { plebDueToOffline, wasAutoUpdateEnabledBeforeDowngrade, defaultWalletCreated } =
         yield select((state) => state.storage);

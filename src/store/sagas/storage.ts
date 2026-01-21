@@ -36,6 +36,7 @@ import { addToUaiStack } from '../sagaActions/uai';
 import { RootState } from '../store';
 import {
   addAccount,
+  setBackupFileByAppId,
   setBiometricEnabledAppId,
   updateDefaultWalletCreatedByAppId,
 } from '../reducers/account';
@@ -130,7 +131,8 @@ export function* setupKeeperAppWorker({ payload }) {
       }
       const { pinHash } = yield select((state: RootState) => state.storage);
       const encryptedKey = yield call(SecureStore.fetch, pinHash);
-      yield call(createBackup, appID, pinHash, encryptedKey);
+      const res = yield call(createBackup, appID, pinHash, encryptedKey);
+      yield put(setBackupFileByAppId({ appId: appID, status: res }));
     } else {
       yield put(setAppCreationError(true));
     }

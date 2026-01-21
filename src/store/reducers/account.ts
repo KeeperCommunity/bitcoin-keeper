@@ -39,6 +39,9 @@ export type DefaultWalletCreatedByAppId = {
 export type personalBackupPasswordByAppId = {
   [appId: string]: string;
 };
+export type backupFileByAppId = {
+  [appId: string]: boolean;
+};
 
 const initialState: {
   allAccounts: Account[];
@@ -50,6 +53,7 @@ const initialState: {
   defaultWalletCreatedByAppId: DefaultWalletCreatedByAppId;
   personalBackupPasswordByAppId: personalBackupPasswordByAppId;
   recoveryKeyBackedUpByAppId: recoveryKeyBackedUpByAppId;
+  backupFileByAppId: backupFileByAppId;
 } = {
   allAccounts: [],
   tempDetails: null,
@@ -60,6 +64,7 @@ const initialState: {
   defaultWalletCreatedByAppId: {},
   personalBackupPasswordByAppId: {},
   recoveryKeyBackedUpByAppId: {},
+  backupFileByAppId: {},
 };
 
 const accountSlice = createSlice({
@@ -153,6 +158,10 @@ const accountSlice = createSlice({
     setRecoveryKeyBackedUp: (state, action: PayloadAction<{ appId: string; status: boolean }>) => {
       (state.recoveryKeyBackedUpByAppId ??= {})[action.payload.appId] = action.payload.status;
     },
+
+    setBackupFileByAppId: (state, action: PayloadAction<{ appId: string; status: boolean }>) => {
+      (state.backupFileByAppId ??= {})[action.payload.appId] = action.payload.status;
+    },
   },
 });
 
@@ -169,5 +178,6 @@ export const {
   saveDefaultWalletState,
   setPersonalBackupPassword,
   setRecoveryKeyBackedUp,
+  setBackupFileByAppId,
 } = accountSlice.actions;
 export default accountSlice.reducer;

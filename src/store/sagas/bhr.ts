@@ -90,7 +90,7 @@ import {
 } from 'src/utils/utilities';
 import NetInfo from '@react-native-community/netinfo';
 import { addToUaiStackWorker, uaiActionedWorker } from './uai';
-import { addAccount, saveDefaultWalletState } from '../reducers/account';
+import { addAccount, saveDefaultWalletState, setBackupFileByAppId } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 import { createBackup } from 'src/services/backupfile';
@@ -675,7 +675,8 @@ function* recoverApp(
   yield put(setAppCreated(true));
   const { pinHash } = yield select((state: RootState) => state.storage);
   const encryptedKey = yield call(SecureStore.fetch, pinHash);
-  yield call(createBackup, appID, pinHash, encryptedKey);
+  const res = yield call(createBackup, appID, pinHash, encryptedKey);
+  yield put(setBackupFileByAppId({ appId: appID, status: res }));
 }
 
 function* healthCheckSatutsUpdateWorker({
