@@ -21,6 +21,8 @@ import useToastMessage from 'src/hooks/useToastMessage';
 import TickIcon from 'src/assets/images/tick_icon.svg';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import * as Keychain from 'react-native-keychain';
+import * as SecureStore from 'src/storage/secure-store';
 
 const SettingsApp = () => {
   const { colorMode } = useColorMode();
@@ -31,6 +33,7 @@ const SettingsApp = () => {
   const [networkModeModal, setNetworkModeModal] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState(bitcoinNetworkType);
   const [loading, setLoading] = useState(false);
+  const { allAccounts } = useAppSelector((state) => state.account);
 
   let appSetting = [
     ...useSettingKeeper().appSetting,
@@ -135,6 +138,27 @@ const SettingsApp = () => {
             </Box>
           )}
         />
+        {/* // ! Remove this later | Only for reproducing condition for tester  */}
+        <Buttons
+          primaryText="Clear All Passcode"
+          primaryCallback={async () => {
+            let count = 0;
+            for (const acc of allAccounts) {
+              const service = acc.accountIdentifier == '' ? undefined : acc.accountIdentifier;
+              const res = await Keychain.resetGenericPassword({ service: service });
+              count++;
+              console.log('🚀 ~ Delete keychain for :', service, res);
+            }
+            showToast(`Clear passcode for ${count} accounts`);
+          }}
+          secondaryText="Has Passcode"
+          secondaryCallback={async () => {
+            const hasCreds = await SecureStore.hasPin();
+            console.log('🚀 ~ attemptLogin ~ hasCreds:', hasCreds);
+            showToast(`Passcode is set: ${hasCreds}`);
+          }}
+        />
+        {/* // ! Remove this later | Only for reproducing condition for tester  */}
         <ActivityIndicatorView visible={loading} showLoader />
       </Box>
     </ScreenWrapper>
