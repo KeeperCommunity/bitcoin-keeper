@@ -198,6 +198,7 @@
     "Createpasscode": "Create a passcode",
     "Confirmyourpasscode": "Confirm your passcode",
     "CreateApp": "Create a fresh app or recover an exisiting one",
+    "CreateAppOnly": "Create a fresh app",
     "passcode": "passcode",
     "Incorrect": "Incorrect Passcode, Try Again!",
     "newKeeperAppDesc": "Create a new Keeper app",
