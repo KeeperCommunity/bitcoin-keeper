@@ -538,6 +538,7 @@ function LoginScreen({ navigation, route }) {
         visible={forgotModal}
         close={() => setForgotModal(false)}
         title={login.resetPasscodeTitle}
+        subTitle={login.resetPasscodeDec1}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         subTitleColor={`${colorMode}.secondaryText`}
         textColor={`${colorMode}.modalGreenTitle`}
@@ -558,10 +559,7 @@ function LoginScreen({ navigation, route }) {
         subTitleWidth={wp(250)}
         Content={() => {
           return (
-            <Box style={{ gap: hp(10) }}>
-              <Text color={`${colorMode}.primaryText`} style={styles.modalMessageText}>
-                {login.resetPasscodeDec1}
-              </Text>
+            <Box>
               <Text color={`${colorMode}.primaryText`} style={styles.modalMessageText}>
                 {login.resetPasscodeDec2}
               </Text>
