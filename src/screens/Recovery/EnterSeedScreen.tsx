@@ -39,6 +39,7 @@ import { updateSignerDetails, updateVaultSignersXpriv } from 'src/store/sagaActi
 import ConciergeNeedHelp from 'src/assets/images/conciergeNeedHelp.svg';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import config from 'src/utils/service-utilities/config';
+import { resetPasscodeTimeout } from 'src/store/reducers/storage';
 
 function EnterSeedScreen({ route, navigation }) {
   const { translations } = useContext(LocalizationContext);
@@ -120,6 +121,7 @@ function EnterSeedScreen({ route, navigation }) {
       setRecoveryLoading(false);
       setRecoverySuccessModal(true);
       dispatch(resetSeedWords());
+      dispatch(resetPasscodeTimeout());
     }
   }, [appCreated]);
 
