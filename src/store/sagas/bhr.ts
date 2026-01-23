@@ -443,6 +443,10 @@ function* getAppImageWorker({ payload }) {
     yield put(uaiChecks([uaiType.SECURE_VAULT]));
     yield put(loadConciergeUser(null));
     yield put(loadConciergeTickets([]));
+    const { pinHash } = yield select((state: RootState) => state.storage);
+    const encryptedKey = yield call(SecureStore.fetch, pinHash);
+    const res = yield call(createBackup, appID, pinHash, encryptedKey);
+    yield put(setBackupFileByAppId({ appId: appID, status: res }));
   } catch (err) {
     yield put(setAppImageError(err.message));
   } finally {
@@ -673,10 +677,6 @@ function* recoverApp(
 
   yield put(setAppId(appID));
   yield put(setAppCreated(true));
-  const { pinHash } = yield select((state: RootState) => state.storage);
-  const encryptedKey = yield call(SecureStore.fetch, pinHash);
-  const res = yield call(createBackup, appID, pinHash, encryptedKey);
-  yield put(setBackupFileByAppId({ appId: appID, status: res }));
 }
 
 function* healthCheckSatutsUpdateWorker({

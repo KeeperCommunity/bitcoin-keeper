@@ -2,7 +2,7 @@
 /* eslint-disable react/no-unstable-nested-components */
 import { ActivityIndicator, StyleSheet, BackHandler } from 'react-native';
 import Text from 'src/components/KeeperText';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
 import AppIcon from 'src/assets/images/new-app-icon.svg';
@@ -113,7 +113,9 @@ function NewKeeperApp({ navigation }: { navigation }) {
   const { translations } = useContext(LocalizationContext);
   const { login, common, error: errorText, home } = translations;
   const isFocused = useIsFocused();
-  const isMultiAccountFlow = !!useAppSelector((state) => state.account).allAccounts.length;
+  const accountsLength = useAppSelector((state) => state.account.allAccounts.length);
+  const isMultiAccountFlowRef = useRef(accountsLength > 0);
+  const isMultiAccountFlow = isMultiAccountFlowRef.current;
 
   useEffect(() => {
     if (appCreated) {
