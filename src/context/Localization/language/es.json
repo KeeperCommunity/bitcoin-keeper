@@ -251,7 +251,11 @@
     "securityTipDesc": "Recreate the multisig on more coordinators. Receive a small amount and send a part of it. Check the balances are appropriately reflected across all the coordinators after each step.",
     "backupModalTitle": "Set Up Wallet Recovery",
     "backupModalSubTitle": "To ensure you can always recover your wallet, please secure your Recovery Key and enable Assisted Server Backup.",
-    "backupModalDesc": "This ensure that your encrypted data is backed up and can be decrypted by your Recovery key"
+    "backupModalDesc": "This ensure that your encrypted data is backed up and can be decrypted by your Recovery key",
+    "backupFileFailTitle": "Setup Adjustment Required",
+    "backupFileFailSubTitle": "We’ll guide you through it",
+    "backupFileFailDesc1": "It looks like some app information couldn't be loaded, which can happen after an update or when certain files aren’t available.",
+    "backupFileFailDesc2": "Please set a new passcode and restore using your recovery key to continue."
   },
   "transactions": {
     "Fees": "Fees",
