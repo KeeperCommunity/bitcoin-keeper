@@ -223,7 +223,11 @@
     "checkConnection": "Please check your internet connection and try again. If you continue offline, some features may not be available.",
     "incorrectPassword": "Incorrect Password",
     "youEnteredIncorrectPasscode": "You have entered an incorrect passcode. Please, try again. If you don’t remember your passcode, you will have to recover your wallet through the recovery flow",
-    "checkinternetConnection": "Please check your internet connection and try again."
+    "checkinternetConnection": "Please check your internet connection and try again.",
+    "forgotPasscode": "Forgot passcode?",
+    "resetPasscodeTitle": "Reset Passcode",
+    "resetPasscodeDec1": "For your security, passcode resets are verified with your recovery key.",
+    "resetPasscodeDec2": "Please have your recovery key ready before continuing."
   },
   "home": {
     "wallet": "Wallet",

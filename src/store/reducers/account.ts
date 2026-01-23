@@ -67,14 +67,27 @@ const accountSlice = createSlice({
   initialState,
   reducers: {
     addAccount: (state, action: PayloadAction<string>) => {
-      const account = {
-        appId: action.payload,
-        hash: state.tempDetails.hash,
-        realmId: state.tempDetails.realmId,
-        accountIdentifier: state.tempDetails.accountIdentifier,
-        isDefault: state.allAccounts.length === 0,
-      };
-      state.allAccounts.push(account);
+      const existing = state.allAccounts.find((acc) => acc.appId == action.payload);
+      const index = state.allAccounts.findIndex((acc) => acc.appId == action.payload);
+      if (existing && index != -1) {
+        // appId already exists, user is recovering existing account, overwrite existing with new credentials
+        state.allAccounts[index] = {
+          ...state.allAccounts[index],
+          hash: state.tempDetails.hash,
+          realmId: state.tempDetails.realmId,
+          accountIdentifier: state.tempDetails.accountIdentifier,
+          isDefault: state.allAccounts.length === 0,
+        };
+      } else {
+        const account = {
+          appId: action.payload,
+          hash: state.tempDetails.hash,
+          realmId: state.tempDetails.realmId,
+          accountIdentifier: state.tempDetails.accountIdentifier,
+          isDefault: state.allAccounts.length === 0,
+        };
+        state.allAccounts.push(account);
+      }
       state.tempDetails = null;
     },
     setTempDetails: (state, action: PayloadAction<tempDetails>) => {
