@@ -649,6 +649,7 @@ function EnterSeedScreen({ route, navigation }) {
           }}
           learnMore={isUSDTWallet}
           learnMorePressed={() => setShowInfo(true)}
+          enableBack={navigation.canGoBack()}
         />
 
         <Box

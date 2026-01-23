@@ -2,7 +2,7 @@
 import Text from 'src/components/KeeperText';
 import { Box, StatusBar, theme, useColorMode } from 'native-base';
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { widthPercentageToDP } from 'react-native-responsive-screen';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
@@ -26,6 +26,7 @@ import { RealmSchema } from 'src/storage/realm/enum';
 import { KeeperApp } from 'src/models/interfaces/KeeperApp';
 import { credsAuth } from 'src/store/sagaActions/login';
 import {
+  clearHasCreds,
   credsAuthenticated,
   setOfflineStatus,
   setRecepitVerificationError,
@@ -33,6 +34,7 @@ import {
 import KeyPadView from 'src/components/AppNumPad/KeyPadView';
 import {
   increasePinFailAttempts,
+  setAppCreated,
   setAutoUpdateEnabledBeforeDowngrade,
   setPlebDueToOffline,
 } from 'src/store/reducers/storage';
@@ -41,12 +43,14 @@ import BounceLoader from 'src/components/BounceLoader';
 import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
-import { setAutomaticCloudBackup } from 'src/store/reducers/bhr';
+import { setAutomaticCloudBackup, setBackupType } from 'src/store/reducers/bhr';
 import Relay from 'src/services/backend/Relay';
 import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 import Fonts from 'src/constants/Fonts';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { setInitialNodesSaved } from 'src/store/reducers/network';
+import { saveBackupMethodByAppId } from 'src/store/sagaActions/account';
 
 const RNBiometrics = new ReactNativeBiometrics();
 
@@ -93,6 +97,7 @@ function LoginScreen({ navigation, route }) {
   const { login } = translations;
   const { common } = translations;
   const { allAccounts, biometricEnabledAppId } = useAppSelector((state) => state.account);
+  const [forgotModal, setForgotModal] = useState(false);
 
   const onChangeTorStatus = (status: TorStatus) => {
     settorStatus(status);
@@ -440,6 +445,15 @@ function LoginScreen({ navigation, route }) {
               )}
             </Box>
           </Box>
+          {!canLogin && (
+            <Box style={styles.forgotCtr}>
+              <Pressable style={styles.forgotTxt} onPress={() => setForgotModal(true)}>
+                <Text fontSize={14} medium color={login_text_color}>
+                  {login.forgotPasscode}
+                </Text>
+              </Pressable>
+            </Box>
+          )}
           <KeyPadView
             disabled={!canLogin}
             onDeletePressed={onDeletePressed}
@@ -519,6 +533,41 @@ function LoginScreen({ navigation, route }) {
         buttonText={common.retry}
         buttonCallback={() => setIncorrectPassword(false)}
         subTitleWidth={wp(250)}
+      />
+      <KeeperModal
+        visible={forgotModal}
+        close={() => setForgotModal(false)}
+        title={login.resetPasscodeTitle}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        subTitleColor={`${colorMode}.secondaryText`}
+        textColor={`${colorMode}.modalGreenTitle`}
+        buttonText={common.continue}
+        buttonCallback={() => {
+          dispatch(clearHasCreds());
+          dispatch(setAppCreated(false));
+          dispatch(setInitialNodesSaved(false));
+          dispatch(saveBackupMethodByAppId());
+          dispatch(setBackupType(null));
+          navigation.replace('LoginStack', {
+            screen: 'CreatePin',
+            params: {
+              isForgot: true,
+            },
+          });
+        }}
+        subTitleWidth={wp(250)}
+        Content={() => {
+          return (
+            <Box style={{ gap: hp(10) }}>
+              <Text color={`${colorMode}.primaryText`} style={styles.modalMessageText}>
+                {login.resetPasscodeDec1}
+              </Text>
+              <Text color={`${colorMode}.primaryText`} style={styles.modalMessageText}>
+                {login.resetPasscodeDec2}
+              </Text>
+            </Box>
+          );
+        }}
       />
     </Box>
   );
@@ -629,6 +678,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: hp(45),
     gap: hp(15),
+  },
+  forgotCtr: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    paddingBottom: hp(10),
+  },
+  forgotTxt: {
+    padding: wp(15),
   },
 });
 
