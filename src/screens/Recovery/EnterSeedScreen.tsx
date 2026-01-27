@@ -66,6 +66,7 @@ function EnterSeedScreen({ route, navigation }) {
     onSuccess,
     step = 1,
     selectedNumberOfWordsFromParams,
+    isForgot = false,
   } = route.params || {};
   const { appImageError } = useAppSelector((state) => state.bhr);
 
@@ -319,7 +320,7 @@ function EnterSeedScreen({ route, navigation }) {
       setRecoveryLoading(true);
       try {
         const seedWord = seedWords.map((word) => word.name).join(' ');
-        dispatch(getAppImage(seedWord));
+        dispatch(getAppImage(seedWord, isForgot));
       } catch (err) {
         console.error('getAppImage error:', err);
         showToast(seed.SeedErrorToast, <ToastErrorIcon />);

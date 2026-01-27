@@ -336,7 +336,7 @@ function* seedBackedUpWorker() {
 }
 
 function* getAppImageWorker({ payload }) {
-  const { primaryMnemonic } = payload;
+  const { primaryMnemonic, isForgot } = payload;
   try {
     yield put(setAppImageError(''));
     if (!bip39.validateMnemonic(primaryMnemonic)) {
@@ -345,6 +345,13 @@ function* getAppImageWorker({ payload }) {
     const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
     const primarySeed = bip39.mnemonicToSeedSync(primaryMnemonic);
     const appID = crypto.createHash('sha256').update(primarySeed).digest('hex');
+    if (isForgot) {
+      // Allow only existing appId to be recovered using forgot passcode flow.
+      const { allAccounts } = yield select((state: RootState) => state.account);
+      const idx = allAccounts.findIndex((acc) => acc.appId == appID);
+      if (idx == -1) throw Error('Not an existing app. Please recover an existing app.');
+    }
+
     const encryptionKey = generateEncryptionKey(primarySeed.toString('hex'));
     let appImage = { appId: appID, version: null, wallets: {}, signers: {}, nodes: [] };
     let subscription = null;
