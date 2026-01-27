@@ -62,7 +62,8 @@ export default function CreatePin(props) {
 
   useEffect(() => {
     if (hasCreds) {
-      if (isForgot) props.navigation.replace('LoginStack', { screen: 'EnterSeedScreen' });
+      if (isForgot)
+        props.navigation.replace('LoginStack', { screen: 'EnterSeedScreen', params: { isForgot } });
       else if (allAccounts.length) props.navigation.replace('OnBoardingSlides');
       else setEnableBiometric(true);
     }
