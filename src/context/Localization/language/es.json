@@ -180,7 +180,8 @@
     "swapBtc": "Swap BTC",
     "disclaimer": "Keeper is a community-led, open-source bitcoin wallet. It does not provide financial or investment advice.",
     "maybeLater": "Maybe later",
-    "noThanks": "No Thanks"
+    "noThanks": "No Thanks",
+    "export": "Export"
   },
   "login": {
     "welcomeback": "Welcome Back",

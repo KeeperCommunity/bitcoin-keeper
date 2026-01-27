@@ -923,3 +923,12 @@ export const formatSatsCompact = (sats, decimals = 1) => {
 
   return trimmedValue + unit.symbol;
 };
+
+export const combineSignedPsbt = (PsbtEnvelops) => {
+  let combinedPSBT = bitcoin.Psbt.fromBase64(PsbtEnvelops[0].serializedPSBT);
+  for (let i = 1; i < PsbtEnvelops.length; i++) {
+    if (PsbtEnvelops[i].isSigned)
+      combinedPSBT.combine(bitcoin.Psbt.fromBase64(PsbtEnvelops[i].serializedPSBT));
+  }
+  return combinedPSBT.toBase64();
+};
