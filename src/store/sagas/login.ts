@@ -61,6 +61,7 @@ import { autoWalletsSyncWorker } from './wallets';
 import {
   addAccount,
   saveDefaultWalletState,
+  setBackupFileByAppId,
   setBiometricEnabledAppId,
   setTempDetails,
   updateOneTimeBackupStatus,
@@ -68,6 +69,7 @@ import {
 } from '../reducers/account';
 import { REALM_FILE } from 'src/storage/realm/realm';
 import { loadConciergeUserOnLogin, saveBackupMethodByAppId } from '../sagaActions/account';
+import { createBackup } from 'src/services/backupfile';
 
 export const stringToArrayBuffer = (byteString: string): Uint8Array => {
   if (byteString) {
@@ -182,7 +184,11 @@ function* credentialsAuthWorker({ payload }) {
       if (!success) {
         throw Error(`Failed to load the database: ${error}`);
       }
-
+      const { backupFileByAppId } = yield select((state) => state.account);
+      if (!backupFileByAppId || !backupFileByAppId[appId]) {
+        const res = yield call(createBackup, appId, hash, encryptedKey);
+        yield put(setBackupFileByAppId({ appId, status: res }));
+      }
       const previousVersion = yield select((state) => state.storage.appVersion);
       const { plebDueToOffline, wasAutoUpdateEnabledBeforeDowngrade, defaultWalletCreated } =
         yield select((state) => state.storage);
@@ -360,6 +366,7 @@ function* changeAuthCredWorker({ payload }) {
     yield call(SecureStore.store, newHash, newEncryptedKey, currentAccount.accountIdentifier);
     yield put(updatePasscodeHash({ newHash, appId }));
     yield put(credsChanged('changed'));
+    yield call(createBackup, appId, newHash, newEncryptedKey);
   } catch (err) {
     console.log({
       err,

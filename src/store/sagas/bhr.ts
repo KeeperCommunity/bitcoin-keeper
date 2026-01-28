@@ -90,9 +90,11 @@ import {
 } from 'src/utils/utilities';
 import NetInfo from '@react-native-community/netinfo';
 import { addToUaiStackWorker, uaiActionedWorker } from './uai';
-import { addAccount, saveDefaultWalletState } from '../reducers/account';
+import { addAccount, saveDefaultWalletState, setBackupFileByAppId } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
+import { createBackup } from 'src/services/backupfile';
+import * as SecureStore from 'src/storage/secure-store';
 
 export function* updateAppImageWorker({
   payload,
@@ -336,7 +338,7 @@ function* seedBackedUpWorker() {
 }
 
 function* getAppImageWorker({ payload }) {
-  const { primaryMnemonic } = payload;
+  const { primaryMnemonic, isForgot } = payload;
   try {
     yield put(setAppImageError(''));
     if (!bip39.validateMnemonic(primaryMnemonic)) {
@@ -345,6 +347,13 @@ function* getAppImageWorker({ payload }) {
     const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
     const primarySeed = bip39.mnemonicToSeedSync(primaryMnemonic);
     const appID = crypto.createHash('sha256').update(primarySeed).digest('hex');
+    if (isForgot) {
+      // Allow only existing appId to be recovered using forgot passcode flow.
+      const { allAccounts } = yield select((state: RootState) => state.account);
+      const idx = allAccounts.findIndex((acc) => acc.appId == appID);
+      if (idx == -1) throw Error('Not an existing app. Please recover an existing app.');
+    }
+
     const encryptionKey = generateEncryptionKey(primarySeed.toString('hex'));
     let appImage = { appId: appID, version: null, wallets: {}, signers: {}, nodes: [] };
     let subscription = null;
@@ -441,6 +450,10 @@ function* getAppImageWorker({ payload }) {
     yield put(uaiChecks([uaiType.SECURE_VAULT]));
     yield put(loadConciergeUser(null));
     yield put(loadConciergeTickets([]));
+    const { pinHash } = yield select((state: RootState) => state.storage);
+    const encryptedKey = yield call(SecureStore.fetch, pinHash);
+    const res = yield call(createBackup, appID, pinHash, encryptedKey);
+    yield put(setBackupFileByAppId({ appId: appID, status: res }));
   } catch (err) {
     yield put(setAppImageError(err.message));
   } finally {

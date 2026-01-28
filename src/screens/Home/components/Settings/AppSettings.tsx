@@ -1,6 +1,6 @@
 import { Box, useColorMode } from 'native-base';
 import React, { useContext, useState } from 'react';
-import { Alert, Pressable, StyleSheet } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet } from 'react-native';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import WalletHeader from 'src/components/WalletHeader';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -21,6 +21,10 @@ import useToastMessage from 'src/hooks/useToastMessage';
 import TickIcon from 'src/assets/images/tick_icon.svg';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import * as Keychain from 'react-native-keychain';
+import * as SecureStore from 'src/storage/secure-store';
+import { deleteBackupFile, restoreBackupKey } from 'src/services/backupfile';
+import RNFS from 'react-native-fs';
 
 const SettingsApp = () => {
   const { colorMode } = useColorMode();
@@ -31,6 +35,7 @@ const SettingsApp = () => {
   const [networkModeModal, setNetworkModeModal] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState(bitcoinNetworkType);
   const [loading, setLoading] = useState(false);
+  const { allAccounts } = useAppSelector((state) => state.account);
 
   let appSetting = [
     ...useSettingKeeper().appSetting,
@@ -135,6 +140,54 @@ const SettingsApp = () => {
             </Box>
           )}
         />
+        {/* // ! Remove this later | Only for reproducing condition for tester  */}
+        {Platform.OS == 'ios' && (
+          <>
+            <Buttons
+              primaryText="Clear All Passcode"
+              primaryCallback={async () => {
+                let count = 0;
+                for (const acc of allAccounts) {
+                  const service = acc.accountIdentifier == '' ? undefined : acc.accountIdentifier;
+                  const res = await Keychain.resetGenericPassword({ service: service });
+                  count++;
+                  console.log('🚀 ~ Delete keychain for :', service, res);
+                }
+                showToast(`Clear passcode for ${count} accounts`);
+              }}
+              secondaryText="Has Passcode"
+              secondaryCallback={async () => {
+                const hasCreds = await SecureStore.hasPin();
+                console.log('🚀 ~ attemptLogin ~ hasCreds:', hasCreds);
+                showToast(`Passcode is set: ${hasCreds}`);
+              }}
+            />
+            <Buttons
+              primaryText="Delete backup file"
+              primaryCallback={async () => {
+                const res = await deleteBackupFile('backup.txt');
+                showToast(`Backup file deleted: ${res}`);
+              }}
+              secondaryText="Try Restore"
+              secondaryCallback={async () => {
+                const res = await restoreBackupKey(false);
+                showToast(`Restore status: ${res}`);
+              }}
+            />
+            {/*  */}
+            <Buttons
+              primaryText="Create corrupted file"
+              primaryCallback={async () => {
+                const FILE_NAME = 'backup.txt';
+                const filePath = `${RNFS.DocumentDirectoryPath}/${FILE_NAME}`;
+                const gibberishData =
+                  "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lore";
+                await RNFS.writeFile(filePath, gibberishData, 'utf8');
+              }}
+            />
+          </>
+        )}
+        {/* // ! Remove this later | Only for reproducing condition for tester  */}
         <ActivityIndicatorView visible={loading} showLoader />
       </Box>
     </ScreenWrapper>
