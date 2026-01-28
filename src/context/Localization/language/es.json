@@ -1138,7 +1138,8 @@
     "backupFailedModalDesc": "There might be a temporary issue with the server or your connection. Please try again later.",
     "mismatchModalTitle": "Data Mismatch Detected",
     "mismatchModalSubTitle": "Your local data doesn’t match the server backup.",
-    "mismatchModalDesc": "Some recent changes may not be backed up yet. To avoid data loss, we recommend initiating a backup now."
+    "mismatchModalDesc": "Some recent changes may not be backed up yet. To avoid data loss, we recommend initiating a backup now.",
+    "assistedServerBackupEnabled": "Assisted server backup is now enabled.\nThis will backup your encrypted data on a community-run Keeper server"
   },
   "importWallet": {
     "addDetails": "Add details",
