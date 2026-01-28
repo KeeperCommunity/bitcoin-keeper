@@ -69,7 +69,7 @@ function NewHomeScreen({ route }) {
       if (shouldShowBackupModal && selectedOption !== walletText.more) {
         const timer = setTimeout(() => {
           setBackupModalVisible(true);
-        }, 300);
+        }, 100);
         return () => clearTimeout(timer);
       }
     }, [shouldShowBackupModal, selectedOption, walletText.more])
