@@ -90,7 +90,7 @@ import {
 } from 'src/utils/utilities';
 import NetInfo from '@react-native-community/netinfo';
 import { addToUaiStackWorker, uaiActionedWorker } from './uai';
-import { addAccount, saveDefaultWalletState } from '../reducers/account';
+import { addAccount, saveDefaultWalletState, setRecoveryKeyBackedUp } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 
@@ -448,6 +448,7 @@ function* getAppImageWorker({ payload }) {
     yield put(uaiChecks([uaiType.SECURE_VAULT]));
     yield put(loadConciergeUser(null));
     yield put(loadConciergeTickets([]));
+    yield put(setRecoveryKeyBackedUp({ appId: appID, status: true }));
   } catch (err) {
     yield put(setAppImageError(err.message));
   } finally {
