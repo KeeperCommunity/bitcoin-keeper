@@ -180,7 +180,8 @@
     "swapBtc": "Swap BTC",
     "disclaimer": "Keeper is a community-led, open-source bitcoin wallet. It does not provide financial or investment advice.",
     "maybeLater": "Maybe later",
-    "noThanks": "No Thanks"
+    "noThanks": "No Thanks",
+    "export": "Export"
   },
   "login": {
     "welcomeback": "Welcome Back",
@@ -830,7 +831,7 @@
     "importSeed": "Import BIP39 Seed",
     "importSeedTitle": "Import BIP39 Seed to SATOCHIP",
     "importSeedDescription": "You are about to import a BIP39 seed to your SATOCHIP.",
-    "importSeedSuccess": "Seed imported successfully",
+    "importSeedSuccess": "Seed Imported Successfully",
     "importSeedFailed": "Failed to import seed",
     "enterPinPlaceholder": "Enter PIN",
     "enterPinFirst": "Please enter your SATOCHIP PIN first",
@@ -843,7 +844,10 @@
     "satochipSetupSuccess": "Your card has been setup successfully! You can now import a BIP39 seed.",
     "satochipSetupFail": "Failed to setup card",
     "satochipNotSetup": "SATOCHIP not setup. Set a new PIN and seed in the setup options.",
-    "satochipNotSeeded": "SATOCHIP not seeded. Import a seed in the setup options."
+    "satochipNotSeeded": "SATOCHIP not seeded. Import a seed in the setup options.",
+    "satochipSeedImportFailTitle": "Seed Import Failed",
+    "satochipImportSeedSuccessSubTitle": "Your BIP-39 seed is now secured on SATOCHIP",
+    "satochipImportSeedFailureSubTitle": "The BIP-39 seed could not be stored on your Satochip"
   },
   "coldcard": {
     "Associate": "Associate",

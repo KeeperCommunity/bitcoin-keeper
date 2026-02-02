@@ -94,7 +94,7 @@ function KeeperModal(props: ModalProps) {
 
   const styles = getStyles(subTitleWidth);
   return (
-    <RNModal isVisible={visible} onSwipeComplete={close} style={styles.modalContainer}>
+    <RNModal isVisible={visible} onSwipeComplete={close} style={styles.modalContainer} avoidKeyboard>
       <Box
         backgroundColor={
           modalBackground === 'primaryBackground'

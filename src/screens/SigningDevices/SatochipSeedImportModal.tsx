@@ -82,31 +82,17 @@ function SatochipSeedImportModal({ route, navigation }) {
 
   const ResultModalContent = () => (
     <Box>
-      <Box style={{ alignItems: 'center', marginBottom: 20 }}>
+      <Box style={{ alignItems: 'center' }}>
         {importSuccess ? (
           <TickIcon width={60} height={60} />
         ) : (
           <ToastErrorIcon width={60} height={60} />
         )}
       </Box>
-      
-      <Text 
-        style={{ 
-          fontSize: 16, 
-          textAlign: 'center', 
-          marginBottom: 10 
-        }}
-        color={`${colorMode}.secondaryText`}
-      >
-        {importSuccess 
-          ? satochipTranslations.importSeedSuccess 
-          : satochipTranslations.importSeedFailed}
-      </Text>
-      
       {!importSuccess && errorMessage && (
-        <Text 
-          style={{ 
-            fontSize: 14, 
+        <Text
+          style={{
+            fontSize: 14,
             textAlign: 'center',
             marginTop: 10,
           }}
@@ -120,7 +106,6 @@ function SatochipSeedImportModal({ route, navigation }) {
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
-
       <Box style={{ flex: 1 }}>
         <WalletHeader
           title={satochipTranslations.importSeedTitle}
@@ -151,8 +136,16 @@ function SatochipSeedImportModal({ route, navigation }) {
       <KeeperModal
         visible={showResultModal}
         close={handleResultClose}
-        title={importSuccess ? satochipTranslations.importSeedTitle : satochipTranslations.importSeedFailed}
-        subTitle={importSuccess ? satochipTranslations.importSeedSuccess : errorMessage}
+        title={
+          importSuccess
+            ? satochipTranslations.importSeedSuccess
+            : satochipTranslations.satochipSeedImportFailTitle
+        }
+        subTitle={
+          importSuccess
+            ? satochipTranslations.satochipImportSeedSuccessSubTitle
+            : satochipTranslations.satochipImportSeedFailureSubTitle
+        }
         buttonText={common.Okay}
         buttonCallback={handleResultClose}
         modalBackground={`${colorMode}.modalWhiteBackground`}

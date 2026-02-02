@@ -45,7 +45,12 @@ import {
 import { SIGNTRANSACTION } from 'src/navigation/contants';
 import { isReading, stopReading } from 'src/hardware/portal';
 import { hp, wp } from 'src/constants/responsive';
-import { getKeyUID, getTnxIdFromCachedTnx, validatePSBT } from 'src/utils/utilities';
+import {
+  combineSignedPsbt,
+  getKeyUID,
+  getTnxIdFromCachedTnx,
+  validatePSBT,
+} from 'src/utils/utilities';
 import { SentryErrorBoundary } from 'src/services/sentry';
 import { deleteDelayedTransaction, updateDelayedTransaction } from 'src/store/reducers/storage';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
@@ -123,6 +128,7 @@ function SignTransactionScreen() {
     error: errorText,
     transactions: transactionText,
     settings: settingsText,
+    signer: signerText,
   } = translations;
 
   const [coldCardModal, setColdCardModal] = useState(false);
@@ -732,6 +738,22 @@ function SignTransactionScreen() {
     }
   };
 
+  const handleExportPSBT = async () => {
+    if (serializedPSBTEnvelops && serializedPSBTEnvelops.length > 0) {
+      try {
+        const finalPsbt = combineSignedPsbt(serializedPSBTEnvelops);
+        await Share.open({
+          title: signerText.exportTransactionFile,
+          message: finalPsbt,
+        });
+      } catch (err) {
+        if (err?.message !== 'User did not share') {
+          showToast('Failed to export PSBT', <ToastErrorIcon />);
+        }
+      }
+    }
+  };
+
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <ActivityIndicatorView visible={broadcasting} showLoader />
@@ -791,6 +813,8 @@ function SignTransactionScreen() {
               showToast(errorText.notEnoughtSignature);
             }
           }}
+          secondaryText={common.export}
+          secondaryCallback={handleExportPSBT}
         />
       </Box>
 
@@ -843,7 +867,9 @@ function SignTransactionScreen() {
       />
       <NfcPrompt
         visible={nfcVisible || TSNfcVisible || satochipNfcVisible}
-        close={() => (TSNfcVisible ? closeTSNfc() : satochipNfcVisible? closeSatochipNfc() : closeNfc())}
+        close={() =>
+          TSNfcVisible ? closeTSNfc() : satochipNfcVisible ? closeSatochipNfc() : closeNfc()
+        }
       />
       <KeeperModal
         visible={visibleModal}
