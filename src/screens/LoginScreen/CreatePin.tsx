@@ -38,7 +38,7 @@ export default function CreatePin(props) {
     stage: PasscodeStages.CREATE,
   });
   const [createPassword, setCreatePassword] = useState(false);
-  const { oldPasscode } = props.route.params || {};
+  const { oldPasscode, isForgot = false } = props.route.params || {};
   const dispatch = useAppDispatch();
   const { credsChanged, hasCreds } = useAppSelector((state) => state.login);
   const { translations } = useContext(LocalizationContext);
@@ -62,7 +62,9 @@ export default function CreatePin(props) {
 
   useEffect(() => {
     if (hasCreds) {
-      if (allAccounts.length) props.navigation.replace('OnBoardingSlides');
+      if (isForgot)
+        props.navigation.replace('LoginStack', { screen: 'EnterSeedScreen', params: { isForgot } });
+      else if (allAccounts.length) props.navigation.replace('OnBoardingSlides');
       else setEnableBiometric(true);
     }
   }, [hasCreds]);

@@ -39,6 +39,7 @@ import { updateSignerDetails, updateVaultSignersXpriv } from 'src/store/sagaActi
 import ConciergeNeedHelp from 'src/assets/images/conciergeNeedHelp.svg';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import config from 'src/utils/service-utilities/config';
+import { resetPasscodeTimeout } from 'src/store/reducers/storage';
 
 function EnterSeedScreen({ route, navigation }) {
   const { translations } = useContext(LocalizationContext);
@@ -65,6 +66,7 @@ function EnterSeedScreen({ route, navigation }) {
     onSuccess,
     step = 1,
     selectedNumberOfWordsFromParams,
+    isForgot = false,
   } = route.params || {};
   const { appImageError } = useAppSelector((state) => state.bhr);
 
@@ -120,6 +122,7 @@ function EnterSeedScreen({ route, navigation }) {
       setRecoveryLoading(false);
       setRecoverySuccessModal(true);
       dispatch(resetSeedWords());
+      dispatch(resetPasscodeTimeout());
     }
   }, [appCreated]);
 
@@ -317,7 +320,7 @@ function EnterSeedScreen({ route, navigation }) {
       setRecoveryLoading(true);
       try {
         const seedWord = seedWords.map((word) => word.name).join(' ');
-        dispatch(getAppImage(seedWord));
+        dispatch(getAppImage(seedWord, isForgot));
       } catch (err) {
         console.error('getAppImage error:', err);
         showToast(seed.SeedErrorToast, <ToastErrorIcon />);
@@ -649,6 +652,7 @@ function EnterSeedScreen({ route, navigation }) {
           }}
           learnMore={isUSDTWallet}
           learnMorePressed={() => setShowInfo(true)}
+          enableBack={navigation.canGoBack()}
         />
 
         <Box

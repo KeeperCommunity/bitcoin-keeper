@@ -2,6 +2,7 @@ import { CommonActions, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@realm/react';
 import { Box, useColorMode } from 'native-base';
 import React, { useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import KeeperModal from 'src/components/KeeperModal';
 import PasscodeVerifyModal from 'src/components/Modal/PasscodeVerify';
 import { wp } from 'src/constants/responsive';
@@ -26,7 +27,10 @@ const SettingModal = ({ isUaiFlow, confirmPass, setConfirmPass }) => {
   useEffect(() => {
     if (confirmPass || isUaiFlow) {
       navigation.setParams({ isUaiFlow: false });
-      setConfirmPassVisible(true);
+      const delay = Platform.OS === 'ios' ? 400 : 0;
+      setTimeout(() => {
+        setConfirmPassVisible(true);
+      }, delay);
     }
   }, [confirmPass, isUaiFlow]);
 

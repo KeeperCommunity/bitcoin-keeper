@@ -183,6 +183,9 @@ const storageSlice = createSlice({
     setAppCreated: (state, action: PayloadAction<boolean>) => {
       state.appCreated = action.payload;
     },
+    resetPasscodeTimeout: (state) => {
+      state.lastLoginFailedAt = null;
+    },
   },
 });
 
@@ -203,6 +206,7 @@ export const {
   setCampaignFlags,
   setAllCampaigns,
   setAppCreated,
+  resetPasscodeTimeout,
 } = storageSlice.actions;
 
 export default storageSlice.reducer;
