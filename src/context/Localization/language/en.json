@@ -198,6 +198,7 @@
     "Createpasscode": "Create a passcode",
     "Confirmyourpasscode": "Confirm your passcode",
     "CreateApp": "Create a fresh app or recover an exisiting one",
+    "CreateAppOnly": "Create a fresh app",
     "passcode": "passcode",
     "Incorrect": "Incorrect Passcode, Try Again!",
     "newKeeperAppDesc": "Create a new Keeper app",
@@ -222,7 +223,11 @@
     "checkConnection": "Please check your internet connection and try again. If you continue offline, some features may not be available.",
     "incorrectPassword": "Incorrect Password",
     "youEnteredIncorrectPasscode": "You have entered an incorrect passcode. Please, try again. If you don’t remember your passcode, you will have to recover your wallet through the recovery flow",
-    "checkinternetConnection": "Please check your internet connection and try again."
+    "checkinternetConnection": "Please check your internet connection and try again.",
+    "forgotPasscode": "Forgot passcode?",
+    "resetPasscodeTitle": "Reset Passcode",
+    "resetPasscodeDec1": "For your security, passcode resets are verified with your recovery key.",
+    "resetPasscodeDec2": "Please have your recovery key ready before continuing."
   },
   "home": {
     "wallet": "Wallet",
@@ -243,7 +248,10 @@
     "incommingAndOutgoing": "All incoming and outgoing transactions",
     "viewAll": " View All",
     "securityTip": "Security Tip",
-    "securityTipDesc": "Recreate the multisig on more coordinators. Receive a small amount and send a part of it. Check the balances are appropriately reflected across all the coordinators after each step."
+    "securityTipDesc": "Recreate the multisig on more coordinators. Receive a small amount and send a part of it. Check the balances are appropriately reflected across all the coordinators after each step.",
+    "backupModalTitle": "Set Up Wallet Recovery",
+    "backupModalSubTitle": "To ensure you can always recover your wallet, please secure your Recovery Key and enable Assisted Server Backup.",
+    "backupModalDesc": "This ensure that your encrypted data is backed up and can be decrypted by your Recovery key"
   },
   "transactions": {
     "Fees": "Fees",
@@ -1138,7 +1146,8 @@
     "backupFailedModalDesc": "There might be a temporary issue with the server or your connection. Please try again later.",
     "mismatchModalTitle": "Data Mismatch Detected",
     "mismatchModalSubTitle": "Your local data doesn’t match the server backup.",
-    "mismatchModalDesc": "Some recent changes may not be backed up yet. To avoid data loss, we recommend initiating a backup now."
+    "mismatchModalDesc": "Some recent changes may not be backed up yet. To avoid data loss, we recommend initiating a backup now.",
+    "assistedServerBackupEnabled": "Assisted server backup is now enabled.\nThis will backup your encrypted data on a community-run Keeper server"
   },
   "importWallet": {
     "addDetails": "Add details",
