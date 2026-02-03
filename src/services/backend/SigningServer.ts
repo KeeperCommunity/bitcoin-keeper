@@ -177,6 +177,21 @@ export default class SigningServer {
     };
   };
 
+  static findServerKey = async (ids: string[]) => {
+    let res: AxiosResponse;
+    try {
+      res = await RestClient.post(`${getSigningServerURL()}v3/findServerKey`, {
+        HEXA_ID: getHexaId(),
+        ids,
+      });
+    } catch (err) {
+      if (err.response) throw new Error(err.response.data.err);
+      if (err.code) throw new Error(err.code);
+    }
+    const { id } = res.data;
+    return id;
+  };
+
   static updateBackupSetting = async (
     id: string,
     verifierDigest: string,
