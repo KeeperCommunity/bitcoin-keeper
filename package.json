@@ -61,7 +61,7 @@
     "events": "1.0.0",
     "idx": "2.5.6",
     "libportal-react-native": "git+https://github.com/bithyve/libportal-react-native.git#2ff681b0b725009768acadb35b2731fb1a402fa3",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "moment": "2.29.4",
     "native-base": "3.4.28",
     "node-rsa": "1.1.1",
