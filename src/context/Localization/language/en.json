@@ -223,7 +223,7 @@
     "networkCallsAndTor": "Network calls and some functions may work slower when the Tor is enabled",
     "checkConnection": "Please check your internet connection and try again. If you continue offline, some features may not be available.",
     "incorrectPassword": "Incorrect Password",
-    "youEnteredIncorrectPasscode": "You have entered an incorrect passcode. Please, try again. If you don’t remember your passcode, you will have to recover your wallet through the recovery flow",
+    "youEnteredIncorrectPasscode": "The passcode you entered is incorrect. Please try again. If you’ve forgotten your passcode, you can recover your wallet using the Forgot Passcode flow with your recovery key.",
     "checkinternetConnection": "Please check your internet connection and try again.",
     "forgotPasscode": "Forgot passcode?",
     "resetPasscodeTitle": "Reset Passcode",

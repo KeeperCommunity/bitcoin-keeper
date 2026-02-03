@@ -253,13 +253,14 @@ function* uaiChecksWorker({ payload }) {
           'uaiType'
         );
 
-        if (!uaiCollection || uaiCollection.length === 0) {
-          yield put(
-            addToUaiStack({
-              uaiType: uaiType.RECOVERY_PHRASE_HEALTH_CHECK,
-            })
-          );
-        }
+        // Disabled due to persistent recovery key modal
+        // if (!uaiCollection || uaiCollection.length === 0) {
+        //   yield put(
+        //     addToUaiStack({
+        //       uaiType: uaiType.RECOVERY_PHRASE_HEALTH_CHECK,
+        //     })
+        //   );
+        // }
       }
 
       yield put(setRefreshUai());
