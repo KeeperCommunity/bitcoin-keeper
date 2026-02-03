@@ -331,7 +331,7 @@ export const parseTextforVaultConfig = (secret: string) => {
     };
     return parsedResponse;
   }
-  if (!config && secret.indexOf('sortedmulti(')) {
+  if (!config && secret.includes('sortedmulti(')) {
     config = { descriptor: secret, label: 'Multisig vault' };
   }
   if (secret.indexOf('sortedmulti(') !== -1 && config.descriptor) {
