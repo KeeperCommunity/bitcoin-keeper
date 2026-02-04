@@ -226,6 +226,8 @@ export const generateSeedWordsKey = (
 export const MOCK_SD_MNEMONIC_MAP = {
   [SignerType.TAPSIGNER]:
     'result pink oyster iron journey social winter pattern cricket core leader behave',
+  [SignerType.SATOCHIP]:
+    'frozen myself eternal matter attract frost slogan buffalo liberty another private twelve',
   [SignerType.COLDCARD]:
     'keen credit hold warfare nasty address poverty roast novel ranch system nasty',
   [SignerType.LEDGER]:

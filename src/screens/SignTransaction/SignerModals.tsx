@@ -218,6 +218,19 @@ function TapsignerContent() {
     </>
   );
 }
+function SatochipContent() {
+  const { translations } = useContext(LocalizationContext);
+  const { signer: signerText } = translations;
+  return (
+    <>
+      <Box style={styles.portalIllustration}>
+        <ThemedSvg name={'satochip_illustration'} />
+      </Box>
+      <Instruction text={signerText.satochipInstruction1} />
+      <Instruction text={signerText.satochipInstruction2} />
+    </>
+  );
+}
 function PortalContent() {
   const { translations } = useContext(LocalizationContext);
   const { signer: signerText } = translations;
@@ -592,6 +605,7 @@ function SignerModals({
   activeXfp,
   coldCardModal,
   tapsignerModal,
+  satochipModal,
   ledgerModal,
   otpModal,
   passwordModal,
@@ -615,6 +629,7 @@ function SignerModals({
   setKeeperModal,
   setColdCardModal,
   setTapsignerModal,
+  setSatochipModal,
   setLedgerModal,
   setPasswordModal,
   showOTPModal,
@@ -637,6 +652,7 @@ function SignerModals({
   activeXfp: string;
   coldCardModal: boolean;
   tapsignerModal: boolean;
+  satochipModal: boolean;
   ledgerModal: boolean;
   otpModal: boolean;
   passwordModal: boolean;
@@ -660,6 +676,7 @@ function SignerModals({
   setKeeperModal: any;
   setColdCardModal: any;
   setTapsignerModal: any;
+  setSatochipModal: any;
   setLedgerModal: any;
   setPasswordModal: any;
   showOTPModal: any;
@@ -684,6 +701,7 @@ function SignerModals({
   const {
     common,
     tapsigner: tapSignerText,
+    satochip: satochipText,
     signer: signerText,
     vault: vaultText,
     login,
@@ -856,6 +874,33 @@ function SignerModals({
               buttonText={common.proceed}
               buttonCallback={navigateToSignWithTapsigner}
               Content={() => <TapsignerContent />}
+            />
+          );
+        }
+        if (signer.type === SignerType.SATOCHIP) {
+          const navigateToSignWithSatochip = () => {
+            setSatochipModal(false);
+            navigation.dispatch(
+              CommonActions.navigate('SatochipAction', {
+                mode: InteracationMode.SIGN_TRANSACTION,
+                signer,
+                isMultisig,
+                accountNumber: getAccountFromSigner(signer),
+                signTransaction,
+                isRemoteKey,
+              })
+            );
+          };
+          return (
+            <KeeperModal
+              key={vaultKey.xfp}
+              visible={currentSigner && satochipModal}
+              close={() => setSatochipModal(false)}
+              title={satochipText.getSatochipReady}
+              subTitle={satochipText.SetupDescription}
+              buttonText={common.proceed}
+              buttonCallback={navigateToSignWithSatochip}
+              Content={() => <SatochipContent />}
             />
           );
         }

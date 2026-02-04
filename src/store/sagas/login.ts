@@ -239,7 +239,6 @@ function* credentialsAuthWorker({ payload }) {
               uaiType.SIGNING_DEVICES_HEALTH_CHECK,
               uaiType.SECURE_VAULT,
               uaiType.RECOVERY_PHRASE_HEALTH_CHECK,
-              uaiType.FEE_INISGHT,
               uaiType.ZENDESK_TICKET,
               uaiType.SIGNING_DELAY,
               uaiType.POLICY_DELAY,

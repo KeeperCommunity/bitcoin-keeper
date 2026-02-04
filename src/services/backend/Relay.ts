@@ -41,31 +41,6 @@ export default class Relay {
     }
   };
 
-  public static fetchFeeAndExchangeRates = async (): Promise<{
-    exchangeRates: any;
-    averageTxFees: AverageTxFeesByNetwork;
-  }> => {
-    try {
-      let res;
-      try {
-        res = await RestClient.post(`${RELAY}fetchFeeAndExchangeRates`, {
-          HEXA_ID,
-        });
-      } catch (err) {
-        if (err.response) throw new Error(err.response.data.err);
-        if (err.code) throw new Error(err.code);
-      }
-      const { exchangeRates, averageTxFees } = res.data || res.json;
-
-      return {
-        exchangeRates,
-        averageTxFees,
-      };
-    } catch (err) {
-      throw new Error('Failed fetch fee and exchange rates');
-    }
-  };
-
   public static updateSubscription = async (
     id: string,
     appID: string,
@@ -314,21 +289,6 @@ export default class Relay {
     }
   };
 
-  public static fetchOneDayHistoricalFee = async (): Promise<any> => {
-    try {
-      const response = await RestClient.get(`${RELAY}onedayGraphData`);
-      const data = (response as AxiosResponse).data || (response as any).json;
-      if (data && data.graph_data.data) {
-        return data.graph_data.data;
-      } else {
-        return [];
-      }
-    } catch (error) {
-      captureError(error);
-      throw error;
-    }
-  };
-
   public static fetchOneWeekHistoricalFee = async (): Promise<any> => {
     try {
       const response = await RestClient.get(`${RELAY}oneweekGraphData`);
@@ -398,22 +358,6 @@ export default class Relay {
       }
     } catch (error) {
       console.log('🚀 ~ Relay ~ getRemoteKey= ~ error:', error);
-    }
-  };
-  public static fetchHardwareReferralLinks = async (appId: string): Promise<any> => {
-    try {
-      const response = await RestClient.get(`${RELAY}getHardwareReferralLinks?appId=${appId}`);
-
-      const data = (response as AxiosResponse).data || (response as any).json;
-
-      if (data) {
-        return data;
-      } else {
-        return [];
-      }
-    } catch (error) {
-      captureError(error);
-      throw error;
     }
   };
 
@@ -733,16 +677,6 @@ export default class Relay {
     return res ? res.data || res.json : null;
   };
 
-  public static getAdvisors = async (): Promise<any> => {
-    let res;
-    try {
-      res = await RestClient.get(`${RELAY}getAdvisors`);
-    } catch (err) {
-      if (err?.message) throw new Error(err.message);
-      if (err?.code) throw new Error(err.code);
-    }
-    return res ? res.data || res.json : null;
-  };
   public static getRampUrl = async ({
     userAddress,
     appId,

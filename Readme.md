@@ -1,11 +1,13 @@
-# Bitcoin Keeper - Secure today, plan for tomorrow
+# Bitcoin Keeper
 
-Affordable and easy-to-use, security for all your sats, BIP-85, Multisig, Own Node, and Hardware Wallet support. Built with React Native
+Bitcoin Keeper is a **fully open-source, non-custodial Bitcoin multisig wallet**, designed to help individuals and families securely self-custody bitcoin without lock-ins, proprietary formats, or dependency on a single company.
+
+This repository is the **canonical home of Bitcoin Keeper** and is maintained as a **community-led project**.
 
 ![image](https://github.com/user-attachments/assets/77c58e40-0172-4f73-aeb9-8a7851eb43eb)
 
 <a href="https://play.google.com/store/apps/details?id=io.hexawallet.bitcoinkeeper">
-  <img src="https://bitcoinkeeper.app/wp-content/uploads/2023/05/gpbtn.png" alt="Playstore" width="150" style="border: none; outline: none;"/>
+  <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/Google-Play.svg" alt="Playstore" width="150" style="border: none; outline: none;"/>
 </a>
 <a href="https://apps.apple.com/us/app/bitcoin-keeper/id1545535925">
   <img src="https://bitcoinkeeper.app/wp-content/uploads/2025/02/App-Store.svg" alt="Appstore" width="150" style="border: none; outline: none;"/>
@@ -14,28 +16,38 @@ Affordable and easy-to-use, security for all your sats, BIP-85, Multisig, Own No
   <img src="https://github.com/bithyve/bitcoin-keeper/assets/50690016/67693cf0-a059-4391-8b48-a9d46a55e71c" alt="PGP_APK" width="150" style="border: none; outline: none;"/>
 </a>
 
-Bitcoin Keeper is an open source, bitcoin-only app designed for seasoned bitcoin hodlers. Built to store bitcoin over a prolonged period of time, Keeper helps you source, clean, and stack sats across different kinds of wallets. Keeper also helps you plan your bitcoin inheritance with built in tools and templates that unlock at the Diamond Hands subscription tier.
-
 ## Features
-- Create hot wallets or multi-key offline vaults of different m-of-n configurations
-- Supports most of the trusted hardware wallets
-- Several softkey options including Assisted Keys
-- Ready to use Mobile Key when you setup a vault
-- Manage UTXOs
-- Plan bitcoin inheritance
-- In-app chat and Concierge services coming soon
+Create and manage *Bitcoin multisig wallets
+Hardware wallet support for multisig setups
+Recovery planning and inheritance-friendly structures
+No custody of keys or funds
+Fully interoperable with standard Bitcoin wallets and tools
+No proprietary formats or walled gardens
+All features are **free to use**. There are no subscriptions or paid tiers.
+
+## Project Status
+Bitcoin Keeper is maintained openly by independent contributors.
+Ongoing development and maintenance are supported by **grants and optional user tips**, allowing the project to remain independent, resilient, and aligned with its original principles.
+The wallet is built so that users can always move their keys and funds elsewhere, regardless of the project’s future.
 
 
 ## Prerequisites
 
 Before getting started, make sure you have a proper [React Native development environment](https://reactnative.dev/docs/environment-setup) on your machine
 
+To run or build Bitcoin Keeper locally, you will need:
+Node.js
+Yarn or npm
+Android Studio (for Android builds)
+Xcode (for iOS builds)
+Refer to platform-specific documentation for detailed setup requirements.
+
 ## Getting Started
 
 1. Clone this repository to your local machine:
 
    ```shell
-   git clone https://github.com/bithyve/bitcoin-keeper.git
+   git clone https://github.com/KeeperCommunity/bitcoin-keeper.git
    ```
 
 2. Navigate to the project directory:

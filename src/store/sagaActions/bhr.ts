@@ -47,10 +47,11 @@ export const updateVaultImage = (payload: {
   payload,
 });
 
-export const getAppImage = (primaryMnemonic: string) => ({
+export const getAppImage = (primaryMnemonic: string, isForgot: boolean) => ({
   type: GET_APP_IMAGE,
   payload: {
     primaryMnemonic,
+    isForgot,
   },
 });
 

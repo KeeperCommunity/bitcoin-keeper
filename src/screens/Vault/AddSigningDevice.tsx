@@ -66,6 +66,7 @@ import EmptyListIllustration from '../../components/EmptyListIllustration';
 const MINISCRIPT_SIGNERS = [
   SignerType.MY_KEEPER,
   SignerType.TAPSIGNER,
+  SignerType.SATOCHIP,
   SignerType.BITBOX02,
   SignerType.COLDCARD,
   SignerType.JADE,
@@ -322,7 +323,7 @@ const handleSignerSelect = (
       subtitle:
         'Please make sure the external key uses a device which has Miniscript support, as it is required to sign transactions of the Enhanced Vault.',
       message:
-        'At the moment, the following devices are supported: Keeper Mobile Key, BitBox02, Coldcard, Blockstream Jade, Ledger, and TAPSIGNER.',
+        'At the moment, the following devices are supported: Keeper Mobile Key, BitBox02, Coldcard, Blockstream Jade, Ledger, Satochip and TAPSIGNER.',
       code: null,
       clickedSigner: signer,
     });

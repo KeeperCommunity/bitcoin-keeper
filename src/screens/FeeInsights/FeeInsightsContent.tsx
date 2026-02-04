@@ -1,20 +1,17 @@
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import React, { useContext, useEffect, useState } from 'react';
 import { windowWidth } from 'src/constants/responsive';
-import FeeGraph from './FeeGraph';
 import Text from 'src/components/KeeperText';
 import FeeDataStats from './FeeDataStats';
 import Relay from 'src/services/backend/Relay';
 import { useColorMode } from 'native-base';
 import { generateFeeInsightStatement } from 'src/utils/feeInisghtUtil';
-import useOneDayInsight from 'src/hooks/useOneDayInsight';
 import FeeInsightCard from './FeeInsightCard';
 import FeeDataSource from './FeeDataSource';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 
 const FeeInsightsContent = () => {
   const [oneWeekFeeRate, setOneWeekFreeRate] = useState([]);
-  const oneDayFeeRate = useOneDayInsight();
   const [feeInsightStatement, setFeeInsightStatement] = useState({
     latestFee: '',
     dayComparisonText: '',
@@ -83,7 +80,6 @@ const FeeInsightsContent = () => {
                 stats={feeInsightStatement.oneWeekAgoFee}
               />
             </View>
-            <FeeGraph dataSet={oneWeekFeeRate} recentData={oneDayFeeRate} />
             <FeeDataStats />
             <FeeDataSource />
           </>
