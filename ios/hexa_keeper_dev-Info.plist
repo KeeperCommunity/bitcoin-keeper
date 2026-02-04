@@ -36,7 +36,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>580</string>
+	<string>586</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>itms-apps</string>
@@ -109,6 +109,7 @@
 		<string>D2760000850100</string>
 		<string>D2760000850101</string>
 		<string>f0436f696e6b697465434152447631</string>
+		<string>5361746f43686970</string>
 	</array>
 </dict>
 </plist>

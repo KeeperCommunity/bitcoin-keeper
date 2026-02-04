@@ -5,6 +5,7 @@ import config from 'src/utils/service-utilities/config';
 import { generateSeedWordsKey } from 'src/services/wallets/factories/VaultFactory';
 import idx from 'idx';
 import { signWithTapsigner, readTapsigner } from 'src/hardware/tapsigner';
+import { signWithSatochip, readSatochip } from 'src/hardware/satochip';
 import { signWithColdCard } from 'src/hardware/coldcard';
 import { isSignerAMF, getPsbtForHwi } from 'src/hardware';
 import { EntityKind, XpubTypes } from 'src/services/wallets/enums';
@@ -55,6 +56,54 @@ export const signTransactionWithTapsigner = async ({
       payload.inputsToSign = signedInput;
     });
     return { signingPayload, signedSerializedPSBT: null };
+  })();
+};
+
+export const signTransactionWithSatochip = async ({
+ setSatochipModal,
+ signingPayload,
+ currentKey,
+ withModal,
+ closeNfc,
+ defaultVault,
+ serializedPSBT,
+ card,
+ pin,
+ signer,
+}) => {
+  setSatochipModal(false);
+  const { inputsToSign } = signingPayload[0];
+  // AMF flow for signing
+  if (isSignerAMF(signer)) {
+    await withModal(() => readSatochip(card, pin))();
+    const { xpriv } = currentKey;
+    const inputs = idx(signingPayload, (_) => _[0].inputs);
+    if (!inputs) throw new Error('Invalid signing payload, inputs missing');
+    const { signedSerializedPSBT } = WalletOperations.internallySignVaultPSBT(
+      defaultVault,
+      serializedPSBT,
+      { ...signer, xpriv }
+    );
+    return { signedSerializedPSBT, signingPayload: null };
+  }
+  return withModal(async () => {
+    try {
+      const signedInput = await signWithSatochip(
+        card,
+        signer.masterFingerprint,
+        inputsToSign,
+        pin,
+        currentKey,
+        isTestnet()
+      );
+      signingPayload.forEach((payload) => {
+        payload.inputsToSign = signedInput;
+      });
+      return {signingPayload, signedSerializedPSBT: null};
+    } catch (error) {
+      closeNfc();
+      throw error;
+    }
   })();
 };
 

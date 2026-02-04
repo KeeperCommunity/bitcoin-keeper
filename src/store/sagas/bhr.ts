@@ -90,7 +90,7 @@ import {
 } from 'src/utils/utilities';
 import NetInfo from '@react-native-community/netinfo';
 import { addToUaiStackWorker, uaiActionedWorker } from './uai';
-import { addAccount, saveDefaultWalletState } from '../reducers/account';
+import { addAccount, saveDefaultWalletState, setRecoveryKeyBackedUp } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 
@@ -336,7 +336,7 @@ function* seedBackedUpWorker() {
 }
 
 function* getAppImageWorker({ payload }) {
-  const { primaryMnemonic } = payload;
+  const { primaryMnemonic, isForgot } = payload;
   try {
     yield put(setAppImageError(''));
     if (!bip39.validateMnemonic(primaryMnemonic)) {
@@ -345,6 +345,13 @@ function* getAppImageWorker({ payload }) {
     const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
     const primarySeed = bip39.mnemonicToSeedSync(primaryMnemonic);
     const appID = crypto.createHash('sha256').update(primarySeed).digest('hex');
+    if (isForgot) {
+      // Allow only existing appId to be recovered using forgot passcode flow.
+      const { allAccounts } = yield select((state: RootState) => state.account);
+      const idx = allAccounts.findIndex((acc) => acc.appId == appID);
+      if (idx == -1) throw Error('Not an existing app. Please recover an existing app.');
+    }
+
     const encryptionKey = generateEncryptionKey(primarySeed.toString('hex'));
     let appImage = { appId: appID, version: null, wallets: {}, signers: {}, nodes: [] };
     let subscription = null;
@@ -441,6 +448,7 @@ function* getAppImageWorker({ payload }) {
     yield put(uaiChecks([uaiType.SECURE_VAULT]));
     yield put(loadConciergeUser(null));
     yield put(loadConciergeTickets([]));
+    yield put(setRecoveryKeyBackedUp({ appId: appID, status: true }));
   } catch (err) {
     yield put(setAppImageError(err.message));
   } finally {

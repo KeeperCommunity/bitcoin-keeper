@@ -12,7 +12,12 @@ import {
   seedBackedConfirmed,
   validateServerBackup,
 } from 'src/store/sagaActions/bhr';
-import { setBackupAllFailure, setBackupAllSuccess, setSeedConfirmed } from 'src/store/reducers/bhr';
+import {
+  setAutomaticCloudBackup,
+  setBackupAllFailure,
+  setBackupAllSuccess,
+  setSeedConfirmed,
+} from 'src/store/reducers/bhr';
 import { CommonActions, useIsFocused, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@realm/react';
 import HealthCheck from 'src/assets/images/healthcheck_light.svg';
@@ -28,6 +33,7 @@ import Text from '../KeeperText';
 import { hp } from 'src/constants/responsive';
 import ThemedSvg from '../ThemedSvg.tsx/ThemedSvg';
 import ConfirmSeedWord from '../SeedWordBackup/ConfirmSeedWord';
+import { setRecoveryKeyBackedUp } from 'src/store/reducers/account';
 
 const ContentType = {
   verifying: 'verifying',
@@ -35,7 +41,7 @@ const ContentType = {
   mismatch: 'mismatch',
   healthCheckSuccessful: 'healthCheckSuccessful',
 };
-function Content({ contentType }: { contentType: string }) {
+function Content({ contentType, asbEnabled }: { contentType: string; asbEnabled: boolean }) {
   const { BackupWallet } = useContext(LocalizationContext).translations;
   const illustrations = {
     [ContentType.verifying]: (
@@ -57,6 +63,7 @@ function Content({ contentType }: { contentType: string }) {
     <Box>
       <Box alignItems="center">{illustrations[contentType]}</Box>
       {descriptions[contentType] && <Text>{descriptions[contentType]}</Text>}
+      {asbEnabled && <Text>{BackupWallet.assistedServerBackupEnabled}</Text>}
     </Box>
   );
 }
@@ -67,7 +74,7 @@ function BackupHealthCheckList({ isUaiFlow }) {
   const { translations } = useContext(LocalizationContext);
   const { BackupWallet, vault: vaultText, common } = translations;
   const dispatch = useAppDispatch();
-  const { primaryMnemonic, backup } = useQuery(RealmSchema.KeeperApp).map(
+  const { primaryMnemonic, backup, id } = useQuery(RealmSchema.KeeperApp).map(
     getJSONFromRealmObject
   )[0];
   const {
@@ -87,17 +94,33 @@ function BackupHealthCheckList({ isUaiFlow }) {
   const history: BackupHistoryItem[] = useMemo(() => data.sorted('date', true), [data]);
   const { isOnL2Above } = usePlan();
   const isFocused = useIsFocused();
+  const [asbEnabled, setAsbEnabled] = useState(false);
 
   const onPressConfirm = () => {
     setShowConfirmSeedModal(true);
   };
 
+
+  useEffect(() => {
+    if (backupAllSuccess || backupAllFailure) {
+      if (!automaticCloudBackup) setAsbEnabled(true);
+      dispatch(setBackupAllSuccess(false));
+      dispatch(setBackupAllFailure(false));
+      dispatch(setAutomaticCloudBackup(true));
+      setHealthCheckModal(true);
+    }
+  }, [backupAllSuccess, backupAllFailure]);
+
   useEffect(() => {
     if (seedConfirmed) {
       setShowConfirmSeedModal(false);
-      setTimeout(() => {
-        setHealthCheckModal(true);
-      }, 100);
+      dispatch(setRecoveryKeyBackedUp({ appId: id as string, status: true }));
+      if (!automaticCloudBackup) dispatch(backupAllSignersAndVaults());
+      else {
+        setTimeout(() => {
+          setHealthCheckModal(true);
+        }, 100);
+      }
     }
     return () => {
       dispatch(setSeedConfirmed(false));
@@ -284,7 +307,9 @@ function BackupHealthCheckList({ isUaiFlow }) {
         buttonCallback={() => {
           navigtaion.navigate('Home');
         }}
-        Content={() => <Content contentType={ContentType.healthCheckSuccessful} />}
+        Content={() => (
+          <Content contentType={ContentType.healthCheckSuccessful} asbEnabled={asbEnabled} />
+        )}
         closeOnOverlayClick={true}
       />
       <ActivityIndicatorView visible={backupAllLoading} />

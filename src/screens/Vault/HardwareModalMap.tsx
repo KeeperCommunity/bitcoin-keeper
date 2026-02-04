@@ -126,6 +126,7 @@ export const enum InteracationMode {
   SIGN_TRANSACTION = 'SIGN_TRANSACTION',
   BACKUP_SIGNER = 'BACKUP_SIGNER',
   SIGNED_MESSAGE = 'SIGNED_MESSAGE',
+  VAULT_IMPORT_SEED = 'VAULT_IMPORT_SEED',
 }
 
 const getSignerContent = (
@@ -142,6 +143,7 @@ const getSignerContent = (
 ) => {
   const {
     tapsigner,
+    satochip,
     coldcard,
     ledger,
     bitbox,
@@ -583,6 +585,15 @@ const getSignerContent = (
         Instructions: [signerText.tapsignerInstruction3, signerText.tapsignerInstruction4],
         title: isHealthcheck ? signerText.VerifyTapsigner : tapsigner.SetupTitle,
         subTitle: tapsigner.SetupDescription,
+        options: [],
+      };
+    case SignerType.SATOCHIP:
+      return {
+        type: SignerType.SATOCHIP,
+        Illustration: <ThemedSvg name={'satochip_illustration'} />,
+        Instructions: [signerText.satochipInstruction3, signerText.satochipInstruction4],
+        title: isHealthcheck ? signerText.VerifySatochip : satochip.SetupTitle,
+        subTitle: satochip.SetupDescription,
         options: [],
       };
     case SignerType.PORTAL:
@@ -1063,6 +1074,23 @@ function HardwareModalMap({
     navigation.dispatch(
       CommonActions.navigate({
         name: 'TapsignerAction',
+        params: {
+          mode,
+          signer,
+          isMultisig,
+          accountNumber,
+          addSignerFlow,
+          Illustration,
+          Instructions,
+        },
+      })
+    );
+  };
+
+  const navigateToSatochipSetup = () => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'SatochipAction',
         params: {
           mode,
           signer,
@@ -2080,6 +2108,8 @@ function HardwareModalMap({
     switch (type) {
       case SignerType.TAPSIGNER:
         return navigateToTapsignerSetup();
+      case SignerType.SATOCHIP:
+        return navigateToSatochipSetup();
       case SignerType.COLDCARD:
         if (keyGenerationMode === KeyGenerationMode.FILE) {
           return navigateToFileBasedSigner(type);
@@ -2284,11 +2314,7 @@ function HardwareModalMap({
         title={title}
         subTitle={subTitle}
         buttonText={
-          signerType === SignerType.COLDCARD ||
-          signerType === SignerType.JADE ||
-          signerType === SignerType.KEYSTONE ||
-          signerType === SignerType.PASSPORT ||
-          (signerType === SignerType.SEED_WORDS && !isHealthcheck)
+          signerType === SignerType.SEED_WORDS && !isHealthcheck
             ? null
             : signerType === SignerType.POLICY_SERVER
             ? isHealthcheck

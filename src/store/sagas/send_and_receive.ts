@@ -23,7 +23,7 @@ import {
   setSendMaxFee,
   customFeeCalculated,
 } from '../reducers/send_and_receive';
-import { setAverageTxFee, setExchangeRates, setOneDayInsight } from '../reducers/network';
+import { setAverageTxFee, setExchangeRates } from '../reducers/network';
 import {
   CALCULATE_CUSTOM_FEE,
   CALCULATE_SEND_MAX_FEE,
@@ -32,7 +32,6 @@ import {
   DISCARD_BROADCASTED_TNX,
   FETCH_EXCHANGE_RATES,
   FETCH_FEE_RATES,
-  ONE_DAY_INSIGHT,
   SEND_PHASE_ONE,
   SEND_PHASE_THREE,
   SEND_PHASE_TWO,
@@ -46,6 +45,9 @@ import { connectToNodeWorker } from './network';
 import { getKeyUID, getOutputsFromPsbt } from 'src/utils/utilities';
 import { dropTransactionSnapshot } from '../reducers/cachedTxn';
 import * as bitcoin from 'bitcoinjs-lib';
+import axios from 'axios';
+import { setHomeToastMessage } from '../reducers/bhr';
+const EX_RATE_API = 'https://api.coingecko.com/api/v3/exchange_rates';
 
 export function* fetchFeeRatesWorker() {
   try {
@@ -61,11 +63,19 @@ export const fetchFeeRatesWatcher = createWatcher(fetchFeeRatesWorker, FETCH_FEE
 
 function* fetchExchangeRatesWorker() {
   try {
-    const { exchangeRates } = yield call(Relay.fetchFeeAndExchangeRates);
-    if (!exchangeRates) console.log('Failed to fetch exchange rates');
-    else yield put(setExchangeRates(exchangeRates));
+    const res = yield call(axios.get, EX_RATE_API);
+    if (res.status === 200 && res.data?.rates) {
+      const exchangeRates = reformatExchangeRates(res.data.rates);
+      yield put(setExchangeRates({ exchangeRates }));
+    } else throw new Error('Failed to fetch exchange rates');
   } catch (err) {
     console.log('Failed to fetch latest exchange rates', { err });
+    yield put(
+      setHomeToastMessage({
+        message: 'Exchange rates couldn’t be updated. Values may be outdated.',
+        isError: true,
+      })
+    );
   }
 }
 
@@ -73,18 +83,6 @@ export const fetchExchangeRatesWatcher = createWatcher(
   fetchExchangeRatesWorker,
   FETCH_EXCHANGE_RATES
 );
-
-function* fetchOneDayInsightWorker() {
-  try {
-    const data = yield call(Relay.fetchOneDayHistoricalFee);
-    if (!data) console.log('Failed to fetch one day inisght');
-    else yield put(setOneDayInsight(data));
-  } catch (err) {
-    console.log('Failed to fetch latest inisght', { err });
-  }
-}
-
-export const fetchOneDayInsightWatcher = createWatcher(fetchOneDayInsightWorker, ONE_DAY_INSIGHT);
 
 function* sendPhaseOneWorker({ payload }: SendPhaseOneAction) {
   const { wallet, recipients, selectedUTXOs, miniscriptSelectedSatisfier } = payload;
@@ -497,3 +495,21 @@ export const discardBroadcastedTnxWatcher = createWatcher(
   discardBroadcastedTnxWorker,
   DISCARD_BROADCASTED_TNX
 );
+
+const reformatExchangeRates = (rawExchangeRates) => {
+  const formattedExchangeRates = {};
+  Object.keys(rawExchangeRates).forEach((key) => {
+    const value = rawExchangeRates[key];
+    if (value.type === 'fiat') {
+      const fiatData = {
+        '15m': value.value,
+        last: value.value,
+        buy: value.value,
+        sell: value.value,
+        symbol: value.unit,
+      };
+      formattedExchangeRates[key.toUpperCase()] = fiatData;
+    }
+  });
+  return formattedExchangeRates;
+};

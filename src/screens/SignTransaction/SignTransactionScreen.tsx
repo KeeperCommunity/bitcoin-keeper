@@ -8,6 +8,7 @@ import { Box, useColorMode } from 'native-base';
 import Share from 'react-native-share';
 import Buttons from 'src/components/Buttons';
 import { CKTapCard } from 'cktap-protocol-react-native';
+import {SatochipCard} from "satochip-react-native";
 import NfcPrompt from 'src/components/NfcPromptAndroid';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import { cloneDeep } from 'lodash';
@@ -20,6 +21,7 @@ import { useAppSelector } from 'src/store/hooks';
 import { useDispatch } from 'react-redux';
 import useNfcModal from 'src/hooks/useNfcModal';
 import useTapsignerModal from 'src/hooks/useTapsignerModal';
+import useSatochipModal from 'src/hooks/useSatochipModal';
 import useToastMessage from 'src/hooks/useToastMessage';
 import { resetRealyVaultState } from 'src/store/reducers/bhr';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
@@ -43,7 +45,12 @@ import {
 import { SIGNTRANSACTION } from 'src/navigation/contants';
 import { isReading, stopReading } from 'src/hardware/portal';
 import { hp, wp } from 'src/constants/responsive';
-import { getKeyUID, getTnxIdFromCachedTnx, validatePSBT } from 'src/utils/utilities';
+import {
+  combineSignedPsbt,
+  getKeyUID,
+  getTnxIdFromCachedTnx,
+  validatePSBT,
+} from 'src/utils/utilities';
 import { SentryErrorBoundary } from 'src/services/sentry';
 import { deleteDelayedTransaction, updateDelayedTransaction } from 'src/store/reducers/storage';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
@@ -54,6 +61,7 @@ import {
   signTransactionWithColdCard,
   signTransactionWithMobileKey,
   signTransactionWithPortal,
+  signTransactionWithSatochip,
   signTransactionWithSeedWords,
   signTransactionWithSigningServer,
   signTransactionWithTapsigner,
@@ -120,10 +128,12 @@ function SignTransactionScreen() {
     error: errorText,
     transactions: transactionText,
     settings: settingsText,
+    signer: signerText,
   } = translations;
 
   const [coldCardModal, setColdCardModal] = useState(false);
   const [tapsignerModal, setTapsignerModal] = useState(false);
+  const [satochipModal, setSatochipModal] = useState(false);
   const [ledgerModal, setLedgerModal] = useState(false);
   const [passportModal, setPassportModal] = useState(false);
   const [seedSignerModal, setSeedSignerModal] = useState(false);
@@ -160,6 +170,7 @@ function SignTransactionScreen() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [visibleModal, setVisibleModal] = useState(false);
   const card = useRef(new CKTapCard()).current;
+  const satochipCard = useRef(new SatochipCard()).current;
   const dispatch = useDispatch();
 
   const cachedTxn = useAppSelector((state) => state.cachedTxn);
@@ -306,6 +317,7 @@ function SignTransactionScreen() {
   }, []);
 
   const { withModal, nfcVisible: TSNfcVisible, closeNfc: closeTSNfc } = useTapsignerModal(card);
+  const { withModal: withSatochipModal, nfcVisible: satochipNfcVisible, closeNfc: closeSatochipNfc } = useSatochipModal(satochipCard);
   const { withNfcModal, nfcVisible, closeNfc } = useNfcModal();
 
   useEffect(() => {
@@ -319,12 +331,14 @@ function SignTransactionScreen() {
       seedBasedSingerMnemonic,
       tapsignerCVC,
       portalCVC,
+      satochipPin,
     }: {
       xfp?: string;
       signingServerOTP?: string;
       seedBasedSingerMnemonic?: string;
       tapsignerCVC?: string;
       portalCVC?: string;
+      satochipPin?: string;
     } = {}) => {
       const activeId = xfp || activeXfp;
       const currentKey = vaultKeys.filter((vaultKey) => vaultKey.xfp === activeId)[0];
@@ -368,6 +382,41 @@ function SignTransactionScreen() {
             );
           } catch (error) {
             closeTSNfc();
+            throw error;
+          }
+        } else if (SignerType.SATOCHIP === signerType) {
+          try {
+            const { signingPayload: signedPayload, signedSerializedPSBT } =
+              await signTransactionWithSatochip({
+                setSatochipModal,
+                signingPayload,
+                currentKey,
+                withModal: withSatochipModal,
+                closeNfc: closeSatochipNfc,
+                defaultVault,
+                serializedPSBT,
+                card: satochipCard,
+                pin: satochipPin,
+                signer,
+              });
+            validatePSBT(
+              serializedPSBTEnvelop.serializedPSBT,
+              signedSerializedPSBT,
+              signer,
+              errorText
+            );
+            dispatch(
+              updatePSBTEnvelops({ signedSerializedPSBT, xfp, signingPayload: signedPayload })
+            );
+            dispatch(
+              healthCheckStatusUpdate([
+                {
+                  signerId: signer.masterFingerprint,
+                  status: hcStatusType.HEALTH_CHECK_SIGNING,
+                },
+              ])
+            );
+          } catch (error) {
             throw error;
           }
         } else if (SignerType.COLDCARD === signerType) {
@@ -540,6 +589,9 @@ function SignTransactionScreen() {
       case SignerType.TAPSIGNER:
         setTapsignerModal(true);
         break;
+      case SignerType.SATOCHIP:
+        setSatochipModal(true);
+        break;
       case SignerType.COLDCARD:
         setColdCardModal(true);
         break;
@@ -686,6 +738,22 @@ function SignTransactionScreen() {
     }
   };
 
+  const handleExportPSBT = async () => {
+    if (serializedPSBTEnvelops && serializedPSBTEnvelops.length > 0) {
+      try {
+        const finalPsbt = combineSignedPsbt(serializedPSBTEnvelops);
+        await Share.open({
+          title: signerText.exportTransactionFile,
+          message: finalPsbt,
+        });
+      } catch (err) {
+        if (err?.message !== 'User did not share') {
+          showToast('Failed to export PSBT', <ToastErrorIcon />);
+        }
+      }
+    }
+  };
+
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <ActivityIndicatorView visible={broadcasting} showLoader />
@@ -745,6 +813,8 @@ function SignTransactionScreen() {
               showToast(errorText.notEnoughtSignature);
             }
           }}
+          secondaryText={common.export}
+          secondaryCallback={handleExportPSBT}
         />
       </Box>
 
@@ -754,6 +824,7 @@ function SignTransactionScreen() {
         activeXfp={activeXfp}
         coldCardModal={coldCardModal}
         tapsignerModal={tapsignerModal}
+        satochipModal={satochipModal}
         portalModal={portalModal}
         ledgerModal={ledgerModal}
         otpModal={otpModal}
@@ -781,6 +852,7 @@ function SignTransactionScreen() {
         setLedgerModal={setLedgerModal}
         setPasswordModal={setPasswordModal}
         setTapsignerModal={setTapsignerModal}
+        setSatochipModal={setSatochipModal}
         showOTPModal={showOTPModal}
         setPortalModal={setPortalModal}
         setKruxModal={setKruxModal}
@@ -794,8 +866,10 @@ function SignTransactionScreen() {
         isMiniscript={!!defaultVault?.scheme?.miniscriptScheme}
       />
       <NfcPrompt
-        visible={nfcVisible || TSNfcVisible}
-        close={() => (TSNfcVisible ? closeTSNfc() : closeNfc())}
+        visible={nfcVisible || TSNfcVisible || satochipNfcVisible}
+        close={() =>
+          TSNfcVisible ? closeTSNfc() : satochipNfcVisible ? closeSatochipNfc() : closeNfc()
+        }
       />
       <KeeperModal
         visible={visibleModal}

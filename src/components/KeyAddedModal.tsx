@@ -119,6 +119,16 @@ function KeyAddedModal({ visible, close, signer }) {
           />
         );
         break;
+      case SignerType.SATOCHIP:
+        Illustration = (
+          <ThemedSvg
+            name={'satochip_success'}
+            width={wp(200)}
+            height={hp(200)}
+            style={styles.externalKeyIllustration}
+          />
+        );
+        break;
       case SignerType.TREZOR:
         Illustration = (
           <ThemedSvg

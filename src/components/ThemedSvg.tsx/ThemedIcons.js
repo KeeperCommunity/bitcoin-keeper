@@ -146,6 +146,8 @@ import KeeperSetup from 'src/assets/images/illustration-external-key.svg';
 import PrivateKeeperSetup from 'src/assets/privateImages/external_illustration.svg';
 import TapsignerSetupSVG from 'src/assets/images/TapsignerSetup.svg';
 import PrivateTapSignerIllustration from 'src/assets/privateImages/tapsigner-illustration.svg';
+import SatochipSetupSVG from 'src/assets/images/SatochipSetup.svg';
+import PrivateSatochipIllustration from 'src/assets/privateImages/satochip-illustration.svg';
 import PortalIllustration from 'src/assets/images/portal_illustration.svg';
 import PrivatePortalIllustration from 'src/assets/privateImages/portal-illustration.svg';
 import WalletRecoveryIcon from 'src/assets/images/walletRecoveryIcon.svg';
@@ -174,6 +176,8 @@ import SpecterSuccess from 'src/assets/images/specter-success.svg';
 import PrivateSpecterSuccess from 'src/assets/privateImages/specter-gold-success.svg';
 import TapSignerSuccess from 'src/assets/images/tapSigner-success.svg';
 import PrivateTapSignerSuccess from 'src/assets/privateImages/tapSigner-gold-success.svg';
+import SatochipSuccess from 'src/assets/images/satochip-success.svg';
+import PrivateSatochipSuccess from 'src/assets/privateImages/satochip-gold-success.svg';
 import TrezorSuccess from 'src/assets/images/trezor-success.svg';
 import PrivateTrezorSuccess from 'src/assets/privateImages/trezor-gold-success.svg';
 import KeyStoneSuccess from 'src/assets/images/keystone-success.svg';
@@ -751,6 +755,12 @@ const themeIcons = {
     PRIVATE: PrivateTapSignerIllustration,
     PRIVATE_LIGHT: PrivateTapSignerIllustration,
   },
+  satochip_illustration: {
+    DARK: SatochipSetupSVG,
+    LIGHT: SatochipSetupSVG,
+    PRIVATE: PrivateSatochipIllustration,
+    PRIVATE_LIGHT: PrivateSatochipIllustration,
+  },
   portal_illustration: {
     DARK: PortalIllustration,
     LIGHT: PortalIllustration,
@@ -841,6 +851,12 @@ const themeIcons = {
     LIGHT: TapSignerSuccess,
     PRIVATE: PrivateTapSignerSuccess,
     PRIVATE_LIGHT: PrivateTapSignerSuccess,
+  },
+  satochip_success: {
+    DARK: SatochipSuccess,
+    LIGHT: SatochipSuccess,
+    PRIVATE: PrivateSatochipSuccess,
+    PRIVATE_LIGHT: PrivateSatochipSuccess,
   },
   trezor_success: {
     DARK: TrezorSuccess,

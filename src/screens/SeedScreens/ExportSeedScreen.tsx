@@ -6,7 +6,11 @@ import { useAppDispatch, useAppSelector } from 'src/store/hooks';
 import ConfirmSeedWord from 'src/components/SeedWordBackup/ConfirmSeedWord';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ModalWrapper from 'src/components/Modal/ModalWrapper';
-import { healthCheckStatusUpdate, seedBackedUp } from 'src/store/sagaActions/bhr';
+import {
+  backupAllSignersAndVaults,
+  healthCheckStatusUpdate,
+  seedBackedUp,
+} from 'src/store/sagaActions/bhr';
 import { CommonActions } from '@react-navigation/native';
 import { hp, wp } from 'src/constants/responsive';
 import IconArrowBlack from 'src/assets/images/icon_arrow_black.svg';
@@ -32,9 +36,15 @@ import WalletHeader from 'src/components/WalletHeader';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
-import { updateOneTimeBackupStatus } from 'src/store/reducers/account';
+import { setRecoveryKeyBackedUp, updateOneTimeBackupStatus } from 'src/store/reducers/account';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import config from 'src/utils/service-utilities/config';
+import {
+  setAutomaticCloudBackup,
+  setBackupAllFailure,
+  setBackupAllSuccess,
+} from 'src/store/reducers/bhr';
+import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 
 function ExportSeedScreen({ route, navigation }) {
   const { colorMode } = useColorMode();
@@ -78,15 +88,34 @@ function ExportSeedScreen({ route, navigation }) {
   const [backupSuccessModal, setBackupSuccessModal] = useState(false);
   const [showQRVisible, setShowQRVisible] = useState(false);
   const [showWordIndex, setShowWordIndex] = useState<string | number>('');
-  const { backupMethod } = useAppSelector((state) => state.bhr);
+  const {
+    backupMethod,
+    automaticCloudBackup,
+    backupAllLoading,
+    backupAllFailure,
+    backupAllSuccess,
+  } = useAppSelector((state) => state.bhr);
   const isChangePassword = parentScreen === PRIVACYANDDISPLAY;
   const seedTextColor = ThemedColor({ name: 'seedTextColor' });
   const { id: appId } = dbManager.getObjectByIndex(RealmSchema.KeeperApp);
+  const [asbEnabled, setAsbEnabled] = useState(false);
   useEffect(() => {
     if (backupMethod !== null && next && !isHealthCheck && !isInheritancePlaning) {
-      setBackupSuccessModal(true);
+      if (asbEnabled) dispatch(backupAllSignersAndVaults());
+      else setBackupSuccessModal(true);
     }
   }, [backupMethod]);
+
+  useEffect(() => {
+    if (backupAllSuccess || backupAllFailure) {
+      if (!automaticCloudBackup) setAsbEnabled(true);
+      dispatch(setBackupAllSuccess(false));
+      dispatch(setBackupAllFailure(false));
+      dispatch(setAutomaticCloudBackup(true));
+      setBackupSuccessModal(true);
+    }
+  }, [backupAllSuccess, backupAllFailure]);
+
 
   const getNoteSubtitle = () => {
     if (isFromAssistedKey) {
@@ -295,7 +324,9 @@ function ExportSeedScreen({ route, navigation }) {
                     })
                   );
                 } else {
+                  if (!automaticCloudBackup) setAsbEnabled(true);
                   dispatch(seedBackedUp());
+                  dispatch(setRecoveryKeyBackedUp({ appId, status: true }));
                 }
               }}
             />
@@ -326,6 +357,7 @@ function ExportSeedScreen({ route, navigation }) {
               </Box>
               <Box>
                 <Text>{BackupWallet.backupSuccessParagraph}</Text>
+                {asbEnabled && <Text>{BackupWallet.assistedServerBackupEnabled}</Text>}
               </Box>
             </Box>
           )}
@@ -351,6 +383,7 @@ function ExportSeedScreen({ route, navigation }) {
           )}
         />
       </Box>
+      <ActivityIndicatorView visible={backupAllLoading} />
     </ScreenWrapper>
   );
 }

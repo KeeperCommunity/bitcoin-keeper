@@ -43,6 +43,7 @@ export const UNVERIFYING_SIGNERS = [
   SignerType.POLICY_SERVER,
   SignerType.SEED_WORDS,
   SignerType.TAPSIGNER,
+  SignerType.SATOCHIP,
 ];
 export const generateSignerFromMetaData = ({
   xpub,
@@ -197,6 +198,9 @@ export const getSignerNameFromType = (type: SignerType, isMock = false, isAmf = 
     case SignerType.TAPSIGNER:
       name = 'TAPSIGNER';
       break;
+    case SignerType.SATOCHIP:
+      name = 'SATOCHIP';
+      break;
     case SignerType.TREZOR:
       name = 'Trezor';
       break;
@@ -349,6 +353,12 @@ export const getDeviceStatus = (
         disabled: config.ENVIRONMENT !== APP_STAGE.DEVELOPMENT && !isNfcSupported,
         displayToast: false,
       };
+    case SignerType.SATOCHIP:
+      return {
+        message: !isNfcSupported ? 'NFC is not supported in your device' : '',
+        disabled: config.ENVIRONMENT !== APP_STAGE.DEVELOPMENT && !isNfcSupported,
+        displayToast: false,
+      };
     case SignerType.MOBILE_KEY:
       if (existingSigners.find((s) => s.type === SignerType.MOBILE_KEY)) {
         return {
@@ -459,6 +469,9 @@ export const getSDMessage = ({ type }: { type: SignerType }) => {
     }
     case SignerType.TAPSIGNER: {
       return 'Easy-to-use signer from Coinkite';
+    }
+    case SignerType.SATOCHIP: {
+      return 'The open-source smartcard wallet';
     }
     case SignerType.TREZOR: {
       return 'Trusted signers from SatoshiLabs';

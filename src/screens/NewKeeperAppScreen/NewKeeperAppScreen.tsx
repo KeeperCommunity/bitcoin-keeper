@@ -76,6 +76,7 @@ function StartNewModalContent() {
   const { colorMode } = useColorMode();
   const { translations } = useContext(LocalizationContext);
   const { login } = translations;
+  const isMultiAccountFlow = !!useAppSelector((state) => state.account).allAccounts.length;
   return (
     <Box style={{ width: windowWidth * 0.8 }}>
       <Box>
@@ -84,14 +85,16 @@ function StartNewModalContent() {
             {login.NewSatrtWalet}
           </Text>
         </Box>
-        <Box>
-          <Text color={`${colorMode}.primaryText`} style={styles.startNewModalMessageText} bold>
-            {login.RecoverApp}{' '}
-          </Text>
-          <Text color={`${colorMode}.secondaryText`} style={styles.startNewModalMessageText}>
-            {login.RecoverExistingAppDesc}
-          </Text>
-        </Box>
+        {!isMultiAccountFlow && (
+          <Box>
+            <Text color={`${colorMode}.primaryText`} style={styles.startNewModalMessageText} bold>
+              {login.RecoverApp}{' '}
+            </Text>
+            <Text color={`${colorMode}.secondaryText`} style={styles.startNewModalMessageText}>
+              {login.RecoverExistingAppDesc}
+            </Text>
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -110,6 +113,7 @@ function NewKeeperApp({ navigation }: { navigation }) {
   const { translations } = useContext(LocalizationContext);
   const { login, common, error: errorText, home } = translations;
   const isFocused = useIsFocused();
+  const isMultiAccountFlow = !!useAppSelector((state) => state.account).allAccounts.length;
 
   useEffect(() => {
     if (appCreated) {
@@ -228,7 +232,7 @@ function NewKeeperApp({ navigation }: { navigation }) {
               {login.welcomeToBitcoinKeeper}
             </Text>
             <Text fontSize={14} color={`${colorMode}.secondaryText`}>
-              {login.CreateApp}
+              {isMultiAccountFlow ? login.CreateAppOnly : login.CreateApp}
             </Text>
           </Box>
           <Pressable
@@ -250,25 +254,39 @@ function NewKeeperApp({ navigation }: { navigation }) {
               </Text>
             </Box>
           </Pressable>
-          <Pressable
-            backgroundColor={`${colorMode}.thirdBackground`}
-            borderColor={`${colorMode}.separator`}
-            style={styles.tileContainer}
-            testID="view_recoverTile"
-            onPress={() => {
-              navigation.navigate('LoginStack', { screen: 'EnterSeedScreen' });
-            }}
-          >
-            <Recover />
-            <Box>
-              <Text fontSize={13} color={`${colorMode}.black`}>
-                {login.RecoverApp}
-              </Text>
-              <Text fontSize={12} color={`${colorMode}.GreyText`}>
-                {login.Enter12WordsRecovery}
-              </Text>
-            </Box>
-          </Pressable>
+          {!isMultiAccountFlow && (
+            <>
+              <Pressable
+                backgroundColor={`${colorMode}.thirdBackground`}
+                borderColor={`${colorMode}.separator`}
+                style={[styles.tileContainer, { marginBottom: 0 }]}
+                testID="view_recoverTile"
+                onPress={() => {
+                  navigation.navigate('LoginStack', { screen: 'EnterSeedScreen' });
+                }}
+              >
+                <Recover />
+                <Box>
+                  <Text fontSize={13} color={`${colorMode}.black`}>
+                    {login.RecoverApp}
+                  </Text>
+                  <Text fontSize={12} color={`${colorMode}.GreyText`}>
+                    {login.Enter12WordsRecovery}
+                  </Text>
+                </Box>
+              </Pressable>
+              <Box style={styles.recoveryNoteCtr}>
+                <Text medium style={styles.recoveryNote}>
+                  *
+                </Text>
+                <Text color={`${colorMode}.GreyText`} medium style={styles.recoveryNote}>
+                  {
+                    'If Assisted Server Backup was not enabled, you will start with a blank app and will have to add the wallets back.'
+                  }
+                </Text>
+              </Box>
+            </>
+          )}
         </Box>
         <Box style={styles.note} backgroundColor={`${colorMode}.primaryBackground`}>
           <Text color={`${colorMode}.textGreen`} medium fontSize={14}>
@@ -452,6 +470,14 @@ const styles = StyleSheet.create({
   headingText: {
     fontFamily: Fonts.LoraMedium,
     marginBottom: 5,
+  },
+  recoveryNote: { fontSize: 12, maxWidth: '99%' },
+  recoveryNoteCtr: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+    marginTop: hp(10),
+    gap: wp(5),
   },
 });
 

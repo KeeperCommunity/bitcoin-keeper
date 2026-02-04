@@ -14,12 +14,12 @@ export const prodAddress: Address = {
   settings: 'bc1q3usznw6j7j32hrq594zshmrkueccvqaene9d84',
   assistServer: 'bc1qsmpp37ddcpz58n35ka5nq0kqva2lhkzjye0z22',
   inheritanceDoc: 'bc1qumm0fm39vz2yngx363jxgwwzpg4gms82eculd3',
-  health: 'bc1qdhwpu5jua7yls6ayryart4ahtsefh6c0lek880',
-  canary: 'bc1q5uqck8a6dnfpz7kejagsmfcctfgn4007y93wen',
-  miniscript: 'bc1q3sjawu2asxsuqhlss5f7mwnx55g43jvsup4gz6',
-  serverKey: 'bc1q7chvxphswyp7l7fuwjvtmhr9hgfa6hd0csa7qs',
-  multiSigCreate: 'bc1q5hupxjdtvnxl3m9pwdkz9zvfe2f7n94ec425r0',
-  multiSigImport: 'bc1qwtzgguy7epug60g3pgz9zxg5qgs8g4dexw2m0d',
+  health: 'bc1q5j6w7e7g6j3fyx3qnkagvlwgwajlcc3367sz8g',
+  canary: 'bc1qmet6njjr6wyqc8eqnv0fwrkxlu9p3kt9u787l5',
+  miniscript: 'bc1qk8gzvga5w3wzktzevz2e3mf6qq4gzxg46lcjx6',
+  serverKey: 'bc1qf5hycd59ne56wtch4s0ne4vstacgghv3wkutvv',
+  multiSigCreate: 'bc1q88dqwyp0me4vu4edrf33tel4ngft2shgewu25p',
+  multiSigImport: 'bc1qlqkt5gjqs3qua0wrcayl7yxhfzpwu8r0x0mucd',
 };
 
 export type Address = {
