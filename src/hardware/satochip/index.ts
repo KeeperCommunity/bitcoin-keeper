@@ -21,7 +21,7 @@ const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, accoun
 
   // fetch P2WPKH details
   const singleSigPath = WalletUtilities.getDerivationForScriptType(ScriptTypes.P2WPKH, account);
-  let singleSigXpub = await card.getXpub(singleSigPath,'p2wpkh'); // using mainnet
+  let singleSigXpub = await card.getXpub(singleSigPath,'standard'); // using xpub on mainnet
   if (isTestnet) {
     singleSigXpub = xpubToTpub(singleSigXpub);
   }
@@ -29,7 +29,7 @@ const getScriptSpecificDetails = async (card, pin, isTestnet, isMultisig, accoun
 
   // fetch P2WSH details
   const multiSigPath = WalletUtilities.getDerivationForScriptType(ScriptTypes.P2WSH, account);
-  let multiSigXpub = await card.getXpub(multiSigPath,'p2wsh', !isTestnet); // using mainnet
+  let multiSigXpub = await card.getXpub(multiSigPath,'standard'); // using xpub on mainnet
   if (isTestnet) {
     multiSigXpub = xpubToTpub(multiSigXpub);
   }
