@@ -43,7 +43,7 @@ function NewHomeScreen({ route }) {
     useAppSelector((state) => state.bhr);
   const { showToast } = useToastMessage();
   const { translations } = useContext(LocalizationContext);
-  const { home: homeTranslation, wallet: walletText, buyBTC: buyBTCText } = translations;
+  const { home: homeTranslation, wallet: walletText, buyBTC: buyBTCText, common } = translations;
   const [selectedOption, setSelectedOption] = useState(
     selectedOptionFromRoute || walletText.homeWallets
   );
@@ -222,24 +222,16 @@ function NewHomeScreen({ route }) {
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonBackground={`${colorMode}.pantoneGreen`}
         showCloseIcon={false}
-        buttonText={'Backup Recovery Key'}
+        buttonText={common.continue}
         buttonCallback={() => {
           setBackupModalVisible(false);
           setTimeout(() => {
-            if (backupHistory.length === 0) {
-              navigation.dispatch(
-                CommonActions.navigate('Home', {
-                  selectedOption: 'More',
-                  isUaiFlow: true,
-                })
-              );
-            } else {
-              navigation.dispatch(
-                CommonActions.navigate('WalletBackHistory', {
-                  isUaiFlow: true,
-                })
-              );
-            }
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'ViewRecoveryKeyScreen' }],
+              })
+            );
           }, 300);
         }}
         buttonTextColor={`${colorMode}.buttonText`}

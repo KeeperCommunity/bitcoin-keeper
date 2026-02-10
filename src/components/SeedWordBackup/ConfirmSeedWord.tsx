@@ -14,7 +14,7 @@ function ConfirmSeedWord(props) {
   const { common } = translations;
   const { colorMode } = useColorMode();
 
-  const { words } = props;
+  const { words, errorMessage, secondaryText, title } = props;
 
   const [seedWord, setSeedWord] = useState('');
   const [index] = useState(Math.floor(cryptoRandom() * words.length));
@@ -85,14 +85,14 @@ function ConfirmSeedWord(props) {
   const getErrorMsg = () => {
     return /[A-Z]/.test(seedWord)
       ? errorText.seedWordAreCaseSensitive
-      : errorText.pleaseEnterCorrectSeedWord;
+      : errorMessage ?? errorText.pleaseEnterCorrectSeedWord;
   };
 
   return (
     <Box backgroundColor={`${colorMode}.primaryBackground`} style={styles.container}>
       <Box>
         <Text fontSize={19} color={`${colorMode}.primaryText`}>
-          {BackupWallet.confirmSeedWord}
+          {title ?? BackupWallet.confirmSeedWord}
         </Text>
         <Text fontSize={13} color={`${colorMode}.secondaryText`}>
           {BackupWallet.confirmBackupSubtitle}
@@ -124,7 +124,7 @@ function ConfirmSeedWord(props) {
       )}
       <Box style={styles.seedWordNote}></Box>
       <Buttons
-        secondaryText={common.skip}
+        secondaryText={secondaryText ?? common.skip}
         secondaryCallback={() => {
           props.closeBottomSheet();
         }}
