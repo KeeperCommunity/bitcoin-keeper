@@ -132,6 +132,7 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
             }}
             words={words}
             confirmBtnPress={() => {
+              setConfirmSeedModal(false);
               setLoader(true);
               dispatch(seedBackedUp());
               dispatch(setRecoveryKeyBackedUp({ appId, status: true }));
