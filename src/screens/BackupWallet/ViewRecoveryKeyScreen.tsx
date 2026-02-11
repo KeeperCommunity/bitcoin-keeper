@@ -40,11 +40,12 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
   const [words, _] = useState(primaryMnemonic.split(' '));
   const [showWordIndex, setShowWordIndex] = useState<string | number>('');
   const seedTextColor = ThemedColor({ name: 'seedTextColor' });
-  const [confirmSeedModal, setConfirmSeedModal] = useState(false);
+  const [confirmSeedModal, setConfirmSeedModal] = useState(true);
   const [loader, setLoader] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const dispatch = useDispatch();
   const { backupAllFailure, backupAllSuccess } = useAppSelector((state) => state.bhr);
+  const [title, setTitle] = useState(homeTxt.backupModalTitle);
 
   useEffect(() => {
     if (backupAllSuccess || backupAllFailure) {
@@ -96,7 +97,7 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
-      <WalletHeader title={homeTxt.backupModalTitle} enableBack={false} />
+      <WalletHeader title={title} enableBack={false} />
       <Box style={styles.ctr}>
         <Box>
           <Box style={styles.desc}>
@@ -124,9 +125,10 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
           <ConfirmSeedWord
             title={homeTxt.backupModalTitle}
             errorMessage={'Incorrect word. Try again.'}
-            secondaryText={common.cancel}
+            secondaryText={'Write it down'}
             closeBottomSheet={() => {
               setConfirmSeedModal(false);
+              setTitle('Write down your Recovery Key');
             }}
             words={words}
             confirmBtnPress={() => {
