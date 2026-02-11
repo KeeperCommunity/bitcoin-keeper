@@ -250,9 +250,9 @@
     "viewAll": " View All",
     "securityTip": "Security Tip",
     "securityTipDesc": "Recreate the multisig on more coordinators. Receive a small amount and send a part of it. Check the balances are appropriately reflected across all the coordinators after each step.",
-    "backupModalTitle": "Set Up Wallet Recovery",
-    "backupModalSubTitle": "To ensure you can always recover your wallet, please secure your Recovery Key and enable Assisted Server Backup.",
-    "backupModalDesc": "This ensure that your encrypted data is backed up and can be decrypted by your Recovery key"
+    "backupModalTitle": "Confirm your Recovery Key",
+    "backupModalSubTitle": "To make sure your Recovery Key is not lost, you need to confirm it.",
+    "backupModalDesc": "Keeper keeps a protected copy of your Keeper data, encrypted using your Recovery Key, to help with app recovery. Keeper cannot read this data."
   },
   "transactions": {
     "Fees": "Fees",
@@ -1151,7 +1151,11 @@
     "mismatchModalTitle": "Data Mismatch Detected",
     "mismatchModalSubTitle": "Your local data doesn’t match the server backup.",
     "mismatchModalDesc": "Some recent changes may not be backed up yet. To avoid data loss, we recommend initiating a backup now.",
-    "assistedServerBackupEnabled": "Assisted server backup is now enabled.\nThis will backup your encrypted data on a community-run Keeper server"
+    "assistedServerBackupEnabled": "Assisted server backup is now enabled.\nThis will backup your encrypted data on a community-run Keeper server",
+    "recoveryKeyConfirmDialog": "Recovery Key confirmed",
+    "recoveryKeyConfirmDialogSubTitle": "Your Recovery Key is confirmed. You remain fully in control of your keys.",
+    "recoveryConfirmDesc1": "If you have already written down your Recovery Key, confirm it below.",
+    "recoveryConfirmDesc2": "If not, write these 12 words down and store them safely. Do not store them digitally."
   },
   "importWallet": {
     "addDetails": "Add details",

@@ -188,6 +188,7 @@ export type AppStackParams = {
   CloudBackupPassword: undefined;
   ImportedWalletSetup: undefined;
   SendTip: undefined;
+  ViewRecoveryKeyScreen: undefined;
 };
 
 // Usage:
