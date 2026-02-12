@@ -6,6 +6,7 @@ import { decode } from 'base-64';
 global.atob = decode;
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
+import 'react-native-url-polyfill/auto';
 import './shim';
 import { AppRegistry, Text as NativeText } from 'react-native';
 import 'react-native-get-random-values';

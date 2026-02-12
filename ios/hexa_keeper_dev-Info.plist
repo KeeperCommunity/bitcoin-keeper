@@ -46,6 +46,10 @@
 	<true/>
 	<key>NFCReaderUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to interact with nearby NFC devices</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allow $(PRODUCT_NAME) to scan and connect to your OneKey hardware wallet over Bluetooth</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Allow $(PRODUCT_NAME) to scan and connect to your OneKey hardware wallet over Bluetooth</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
