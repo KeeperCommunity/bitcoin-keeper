@@ -144,6 +144,7 @@ function SignTransactionScreen() {
   const [trezorModal, setTrezorModal] = useState(false);
   const [bitbox02Modal, setBitbox02Modal] = useState(false);
   const [otherSDModal, setOtherSDModal] = useState(false);
+  const [oneKeyModal, setOneKeyModal] = useState(false);
   const [otpModal, showOTPModal] = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
   const [confirmPassVisible, setConfirmPassVisible] = useState(false);
@@ -673,6 +674,9 @@ function SignTransactionScreen() {
       case SignerType.KRUX:
         setKruxModal(true);
         break;
+      case SignerType.ONEKEY:
+        setOneKeyModal(true);
+        break;
       default:
         showToast(`action not set for ${signer.type}`);
         break;
@@ -837,10 +841,12 @@ function SignTransactionScreen() {
         trezorModal={trezorModal}
         bitbox02Modal={bitbox02Modal}
         otherSDModal={otherSDModal}
+        oneKeyModal={oneKeyModal}
         specterModal={specterModal}
         kruxModal={kruxModal}
         setSpecterModal={setSpecterModal}
         setOtherSDModal={setOtherSDModal}
+        setOneKeyModal={setOneKeyModal}
         setTrezorModal={setTrezorModal}
         setBitbox02Modal={setBitbox02Modal}
         setJadeModal={setJadeModal}

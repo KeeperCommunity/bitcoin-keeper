@@ -542,6 +542,30 @@ const getSignerContent = (
         subTitle: ledger.SetupDescription,
         options: [],
       };
+    case SignerType.ONEKEY:
+      return {
+        type: SignerType.ONEKEY,
+        Illustration: <ThemedSvg name={'external_Key_illustration'} />,
+        Instructions: [
+          '请打开 OneKey 设备并开启蓝牙，保持设备解锁。',
+          `在 Keeper App 中点击继续后，选择并连接你的 OneKey 设备。`,
+        ],
+        title: isHealthcheck ? `${common.verify} OneKey` : `${signerText.settingUp} OneKey`,
+        subTitle: '通过蓝牙连接 OneKey 硬件钱包',
+        options: [
+          {
+            title: 'Bluetooth',
+            icon: (
+              <CircleIconWrapper
+                icon={<USBIcon />}
+                backgroundColor={`${colorMode}.pantoneGreen`}
+                width={35}
+              />
+            ),
+            name: KeyGenerationMode.USB,
+          },
+        ],
+      };
     case SignerType.SEED_WORDS:
       return {
         type: SignerType.SEED_WORDS,
@@ -1333,6 +1357,33 @@ function HardwareModalMap({
     );
   };
 
+  const navigateToSetupWithOneKeyBLE = () => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'ConnectOneKeyBle',
+        params: {
+          title: `${
+            isHealthcheck
+              ? common.verify
+              : isCanaryAddition
+              ? signerText.jadeCanaryTiltle
+              : signerText.settingUp
+          } ${getSignerNameFromType(type)}`,
+          subtitle: '通过蓝牙连接 OneKey 并导入密钥信息',
+          type,
+          signer,
+          mode,
+          isMultisig,
+          addSignerFlow,
+          accountNumber,
+          Illustration,
+          Instructions,
+          subTitle,
+        },
+      })
+    );
+  };
+
   const importSeedWordsBasedKey = (mnemonic, remember = false) => {
     try {
       const { signer, key } = setupSeedWordsBasedKey(mnemonic, isMultisig, remember);
@@ -1930,6 +1981,7 @@ function HardwareModalMap({
       case SignerType.PASSPORT:
       case SignerType.KEYSTONE:
       case SignerType.KRUX:
+      case SignerType.ONEKEY:
         setKeyGenerationMode(option.name);
         dispatch(setLastUsedOption({ signerType, option: option.name }));
         break;
@@ -1958,7 +2010,8 @@ function HardwareModalMap({
       signerType === SignerType.PASSPORT ||
       (signerType === SignerType.SEED_WORDS && !isHealthcheck) ||
       signerType === SignerType.KEEPER ||
-      signerType === SignerType.KRUX
+      signerType === SignerType.KRUX ||
+      signerType === SignerType.ONEKEY
     ) {
       return (
         <Box style={styles.modalContainer}>
@@ -2021,7 +2074,8 @@ function HardwareModalMap({
       signerType === SignerType.PASSPORT ||
       signerType === SignerType.SEED_WORDS ||
       signerType === SignerType.KEEPER ||
-      signerType === SignerType.KRUX
+      signerType === SignerType.KRUX ||
+      signerType === SignerType.ONEKEY
     ) {
       return (
         <Box style={styles.modalContainer}>
@@ -2165,6 +2219,8 @@ function HardwareModalMap({
         return navigateToSetupWithOtherSD();
       case SignerType.PORTAL:
         return navigateToPortalSetup();
+      case SignerType.ONEKEY:
+        return navigateToSetupWithOneKeyBLE();
       default:
         return null;
     }
@@ -2284,6 +2340,12 @@ function HardwareModalMap({
       [KeyGenerationMode.FILE]: {
         setupTitle: signerText.kruxFile,
         setupSubTitle: signerText.kruxQrSub,
+      },
+    },
+    [SignerType.ONEKEY]: {
+      [KeyGenerationMode.USB]: {
+        setupTitle: '通过蓝牙添加 OneKey',
+        setupSubTitle: '扫描附近设备并连接 OneKey',
       },
     },
   };
