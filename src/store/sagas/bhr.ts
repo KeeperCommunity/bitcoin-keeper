@@ -1097,7 +1097,6 @@ export function* checkBackupCondition() {
   const { subscription }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
   // if (automaticCloudBackup && subscription.level === AppSubscriptionLevel.L1 && !pendingAllBackup) {
   if (automaticCloudBackup && !pendingAllBackup) {
-    yield put(setAutomaticCloudBackup(false));
     return true;
   }
   if (!automaticCloudBackup) return true;
