@@ -653,6 +653,15 @@ function SigningDeviceDetails({ route }) {
         text: signerTranslations.magicLinkCTA,
         Icon: () => <FooterIcon Icon={() => <ThemedSvg name={'share_key'} />} />,
         onPress: () => {
+          if (signer.type === SignerType.SATOCHIP) {
+            // Fix for Satochip keys created with buggy v2.5.8 that have zpub/Zpub instead of xpub
+            const xpub = signer.signerXpubs[XpubTypes.P2WPKH][0].xpub;
+            const prefix= xpub.substring(0, 4);
+            if (prefix === 'zpub' || prefix === 'Zpub') {
+              showToast(`This key has an invalid xpub. Please remove and reimport it`, <ToastErrorIcon />);
+              return;
+            }
+          }
           setShareKeyModal(true);
         },
       },
