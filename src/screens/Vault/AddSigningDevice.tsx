@@ -135,17 +135,23 @@ const onSignerSelect = (
       scheme.n !== 1 ||
       vaultType === VaultType.MINISCRIPT
     ) {
-      const scriptKey = WalletUtilities.getKeyForScheme(
-        isMultisig,
-        signer,
-        msXpub,
-        ssXpub,
-        amfXpub
-      );
-      vaultKeys.push(scriptKey);
-      setVaultKeys(vaultKeys);
-      setHotWalletSelected(false);
-      setHotWalletInstanceNum(null);
+      try {
+        const scriptKey = WalletUtilities.getKeyForScheme(
+          isMultisig,
+          signer,
+          msXpub,
+          ssXpub,
+          amfXpub
+        );
+        vaultKeys.push(scriptKey);
+        setVaultKeys(vaultKeys);
+        setHotWalletSelected(false);
+        setHotWalletInstanceNum(null);
+      }
+      catch (error){
+        showToast(`This key is invalid. You may need to remove and reimport it. Error: ${error.message}`, <ToastErrorIcon />);
+        return;
+      }
     } else {
       setHotWalletSelected(true);
       setHotWalletInstanceNum(signer.extraData.instanceNumber - 1);
