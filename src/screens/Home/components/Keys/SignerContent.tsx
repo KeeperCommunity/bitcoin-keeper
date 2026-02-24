@@ -37,6 +37,7 @@ const SignerContent = ({ navigation, handleModalClose }) => {
       background: 'headerWhite',
       isTrue: false,
     },
+    { type: SignerType.ONEKEY, background: 'headerWhite', isTrue: false },
     { type: SignerType.PORTAL, background: 'pantoneGreen', isTrue: false },
     { type: SignerType.TREZOR, background: 'brownBackground', isTrue: false },
     {

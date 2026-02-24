@@ -876,6 +876,10 @@
     "SetupTitle": "Add your Ledger",
     "SetupDescription": "Connect the Ledger to your computer and open the Bitcoin Keeper desktop app"
   },
+  "onekey": {
+    "SetupTitle": "Add your OneKey",
+    "SetupDescription": "Connect the OneKey to your computer and open the Bitcoin Keeper desktop app"
+  },
   "bitbox": {
     "SetupTitle": "Add your BitBox02",
     "SetupDescription": "Connect the BitBox02 to your computer and open the Bitcoin Keeper desktop app"
@@ -1427,6 +1431,8 @@
     "keepBitBox02ReadySub": "Keep your BitBox02 connected to the computer before proceeding.",
     "keepTrezorReady": "Keep Trezor Ready",
     "connectTrezortoComp": "Connect the Trezor to your computer and open the Bitcoin Keeper desktop app",
+    "getYourOneKeyReady": "Get your OneKey Ready",
+    "connectOneKeyToComp": "Connect the OneKey to your computer and open the Bitcoin Keeper desktop app",
     "keepJadeReady": "Keep Jade Ready",
     "getJadeReady": "Get your Jade ready before proceeding",
     "keepKeyStoneReady": "Keep Keystone Ready",
@@ -1488,6 +1494,8 @@
     "satochipInfo": "SATOCHIP is an open-source hardware wallet based on a card! You can sign mobile wallet transaction by tapping the phone.",
     "satochipDes": "\u2022 SATOCHIP’s lower cost makes hardware wallet features and security available to a wider market around the world.\n\u2022 An NFC card provides fast and easy user experiences.\n\u2022 SATOCHIP is a great way to keep your keys separate from your wallet(s). \n\u2022 The card form factor makes it easy to carry and easy to conceal.",
     "ledgerInfo": "Ledger has industry-leading security to keep your Bitcoin secure at all times. Buy, sell, exchange, and grow your assets with our partners easily and securely. With Ledger, you can secure, store and manage your Bitcoin.",
+    "onekeyInfo": "OneKey provides secure hardware key management for Bitcoin and supports signing through the OneKey desktop connection.",
+    "onekeyDes": "\u2022 Keep your private keys isolated in hardware.\n\u2022 Review and confirm signing requests on your OneKey device.\n\u2022 Use with the Keeper desktop channel for multisig setup and signing.",
     "seedSigerInfo": "The goal of SeedSigner is to lower the cost and complexity of Bitcoin multi-signature wallet use. To accomplish this goal, SeedSigner offers anyone the opportunity to build a verifiably air-gapped, stateless Bitcoin signer using inexpensive, publicly available hardware components (usually < $50)",
     "seedSigerDes": "\u2022 SeedSigner helps users save with Bitcoin by assisting with trustless private key generation and multi-signature wallet setup. \n\u2022 It also help users transact with Bitcoin via a secure, air-gapped QR-exchange signing model.",
     "keyStoneInfo": "It offers a convenient cold storage solution with open source firmware, a 4-inch touchscreen, and multi-key support. Protect your bitcoin with the right balance between a secure and convenient hardware wallet with mobile phone support.",
@@ -1580,6 +1588,9 @@
     "desktopLedger": "desktop to connect with Ledger.",
     "ledgerInstruction": "Please Make sure you have the BTC app downloaded on Ledger before this step.",
     "verifyLedger": "Verify Ledger",
+    "desktopOneKey": "desktop to connect with OneKey.",
+    "onekeyInstruction": "Please make sure your OneKey firmware is updated and the Bitcoin app is ready before this step.",
+    "verifyOneKey": "Verify OneKey",
     "seedWordInstruction": "Make sure you secure the 12-word phrase in a safe place.",
     "verifySeed": "Verify Seed Key",
     "addSeedKey": "Add a Seed Key",

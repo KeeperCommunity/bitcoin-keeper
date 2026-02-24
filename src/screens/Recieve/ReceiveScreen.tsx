@@ -54,6 +54,7 @@ import WalletHeader from 'src/components/WalletHeader';
 const AddressVerifiableSigners = [
   SignerType.BITBOX02,
   SignerType.LEDGER,
+  SignerType.ONEKEY,
   SignerType.TREZOR,
   SignerType.COLDCARD,
   SignerType.JADE,

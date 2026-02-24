@@ -64,6 +64,7 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
   const [ledgerModal, setLedgerModal] = useState(false);
   const [trezorModal, setTrezorModal] = useState(false);
   const [bitbox02modal, setBitbox02modal] = useState(false);
+  const [oneKeyModal, setOneKeyModal] = useState(false);
   const [seedSignerModal, setSeedSignerModal] = useState(false);
   const [keystoneModal, setKeystoneModal] = useState(false);
   const [jadeModal, setJadeModal] = useState(false);
@@ -119,6 +120,9 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         break;
       case SignerType.BITBOX02:
         setBitbox02modal(true);
+        break;
+      case SignerType.ONEKEY:
+        setOneKeyModal(true);
         break;
       case SignerType.KEYSTONE:
         setKeystoneModal(true);
@@ -571,11 +575,13 @@ const RKSignersModal = ({ signer, psbt, isMiniscript, vaultId }, ref) => {
         trezorModal={trezorModal}
         bitbox02Modal={bitbox02modal}
         otherSDModal={false}
+        oneKeyModal={oneKeyModal}
         specterModal={specterModal}
         portalModal={portalModal}
         kruxModal={kruxModal}
         setSpecterModal={setSpecterModal}
         setOtherSDModal={() => {}}
+        setOneKeyModal={setOneKeyModal}
         setTrezorModal={setTrezorModal}
         setBitbox02Modal={setBitbox02modal}
         setJadeModal={setJadeModal}

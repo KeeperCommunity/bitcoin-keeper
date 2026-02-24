@@ -232,6 +232,8 @@ export const MOCK_SD_MNEMONIC_MAP = {
     'keen credit hold warfare nasty address poverty roast novel ranch system nasty',
   [SignerType.LEDGER]:
     'hold address journey ranch result poverty cricket keen system core iron winter',
+  [SignerType.ONEKEY]:
+    'spike subway sausage eager key dose about topic anchor smoke discover hammer',
   [SignerType.JADE]:
     'galaxy wealth badge cloud educate inquiry member timber shaft promote symptom sting',
   [SignerType.KEYSTONE]:

@@ -275,6 +275,7 @@ function SignerAdvanceSettings({ route }: any) {
   const registerSigner = async () => {
     switch (signer.type) {
       case SignerType.LEDGER:
+      case SignerType.ONEKEY:
       case SignerType.BITBOX02:
         navigateRegisterWithChannel();
         break;
@@ -899,6 +900,14 @@ function SignerAdvanceSettings({ route }: any) {
           assert: <ThemedSvg name={'bitBox_illustration'} />,
           description: signerTranslation.bitBoxDesx,
           FAQ: 'https://shiftcrypto.ch/support/',
+        };
+      case SignerType.ONEKEY:
+        return {
+          title: 'OneKey',
+          subTitle: signerTranslation.onekeyInfo,
+          assert: <ThemedSvg name={'external_Key_illustration'} />,
+          description: signerTranslation.onekeyDes,
+          FAQ: 'https://help.onekey.so/',
         };
       case SignerType.TREZOR:
         return {

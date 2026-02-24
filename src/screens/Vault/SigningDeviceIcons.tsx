@@ -156,6 +156,16 @@ export const SDIcons = ({ type, light = true, width = 20, height = 20 }: SDIconO
         Logo: colorMode === 'dark' ? <LEDGERLOGOWHITE /> : <LEDGERLOGO />,
         type: SignerStorage.COLD,
       };
+    case SignerType.ONEKEY:
+      return {
+        Icon: getColouredIcon(<KEEPERAPPLIGHT />, <KEEPERAPP />, light, width, height),
+        Logo: (
+          <Text style={styles.text} color={`${colorMode}.modalWhiteContent`}>
+            OneKey
+          </Text>
+        ),
+        type: SignerStorage.COLD,
+      };
     case SignerType.MOBILE_KEY:
       return {
         Icon: getColouredIcon(<MOBILEKEYLIGHT />, <MOBILEKEY />, light, width, height),
@@ -310,6 +320,17 @@ export const SDColoredIcons = (type: SignerType, light = true, width = 20, heigh
     case SignerType.LEDGER:
       return {
         Icon: getColouredIcon(<LEDGERGREENLIGHT />, <LEDGERGREENDARK />, light, width, height),
+        type: SignerStorage.COLD,
+      };
+    case SignerType.ONEKEY:
+      return {
+        Icon: getColouredIcon(
+          <KEEPERAPPGREENLIGHT />,
+          <KEEPERAPPGREENDARK />,
+          light,
+          width,
+          height
+        ),
         type: SignerStorage.COLD,
       };
     case SignerType.MOBILE_KEY:

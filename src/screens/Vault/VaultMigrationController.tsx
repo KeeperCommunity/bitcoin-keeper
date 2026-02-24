@@ -121,6 +121,7 @@ function VaultMigrationController({
     SignerType.KEEPER,
     SignerType.KEYSTONE,
     SignerType.LEDGER,
+    SignerType.ONEKEY,
     SignerType.OTHER_SD,
     SignerType.PASSPORT,
     SignerType.PORTAL,

@@ -146,6 +146,7 @@ const getSignerContent = (
     satochip,
     coldcard,
     ledger,
+    onekey,
     bitbox,
     trezor,
     externalKey,
@@ -540,6 +541,18 @@ const getSignerContent = (
         ],
         title: isHealthcheck ? signerText.verifyLedger : ledger.SetupTitle,
         subTitle: ledger.SetupDescription,
+        options: [],
+      };
+    case SignerType.ONEKEY:
+      return {
+        type: SignerType.ONEKEY,
+        Illustration: <ThemedSvg name={'external_Key_illustration'} />,
+        Instructions: [
+          `${signerText.bitBoxintruction} ${KEEPER_WEBSITE_BASE_URL}/${signerText.desktopOneKey}`,
+          signerText.onekeyInstruction,
+        ],
+        title: isHealthcheck ? signerText.verifyOneKey : onekey.SetupTitle,
+        subTitle: onekey.SetupDescription,
         options: [],
       };
     case SignerType.SEED_WORDS:
@@ -1973,7 +1986,8 @@ function HardwareModalMap({
     if (
       signerType === SignerType.BITBOX02 ||
       signerType === SignerType.LEDGER ||
-      signerType === SignerType.TREZOR
+      signerType === SignerType.TREZOR ||
+      signerType === SignerType.ONEKEY
     ) {
       return (
         <Box>
@@ -2137,6 +2151,7 @@ function HardwareModalMap({
       case SignerType.BITBOX02:
       case SignerType.TREZOR:
       case SignerType.LEDGER:
+      case SignerType.ONEKEY:
         return navigateToSetupWithChannel();
       case SignerType.PASSPORT:
       case SignerType.KEYSTONE:
