@@ -1588,7 +1588,6 @@
     "desktopLedger": "desktop to connect with Ledger.",
     "ledgerInstruction": "Please Make sure you have the BTC app downloaded on Ledger before this step.",
     "verifyLedger": "Verify Ledger",
-    "desktopOneKey": "desktop to connect with OneKey.",
     "onekeyDesktopAppInstruction": "Please download and open the Bitcoin Keeper desktop app from:",
     "onekeyInstruction": "Please make sure your OneKey firmware is up to date, unlock the device, and open the Bitcoin app before continuing.",
     "verifyOneKey": "Verify OneKey",
