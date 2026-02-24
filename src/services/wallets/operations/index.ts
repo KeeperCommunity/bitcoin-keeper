@@ -1897,6 +1897,7 @@ export default class WalletOperations {
       signer.type === SignerType.TAPSIGNER ||
       signer.type === SignerType.SATOCHIP ||
       signer.type === SignerType.LEDGER ||
+      signer.type === SignerType.ONEKEY ||
       signer.type === SignerType.TREZOR ||
       signer.type === SignerType.BITBOX02 ||
       signer.type === SignerType.KEEPER || // for external key since it can be of any signer type

@@ -618,8 +618,10 @@ function SignerModals({
   bitbox02Modal,
   portalModal,
   otherSDModal,
+  oneKeyModal,
   kruxModal,
   setOtherSDModal,
+  setOneKeyModal,
   setTrezorModal,
   setBitbox02Modal,
   setJadeModal,
@@ -665,8 +667,10 @@ function SignerModals({
   bitbox02Modal: boolean;
   portalModal: boolean;
   otherSDModal: boolean;
+  oneKeyModal: boolean;
   kruxModal: boolean;
   setOtherSDModal: any;
+  setOneKeyModal: any;
   setTrezorModal: any;
   setBitbox02Modal: any;
   setJadeModal: any;
@@ -747,6 +751,7 @@ function SignerModals({
     setTrezorModal(false);
     setBitbox02Modal(false);
     setLedgerModal(false);
+    setOneKeyModal(false);
     navigation.dispatch(
       CommonActions.navigate('SignWithChannel', {
         signTransaction,
@@ -1314,6 +1319,24 @@ function SignerModals({
               textColor={`${colorMode}.textGreen`}
               subTitleColor={`${colorMode}.modalSubtitleBlack`}
               Content={() => <BitBox02Content />}
+              buttonText={common.proceed}
+              buttonCallback={() => navigateToChannelSigning(vaultKey, signer.type)}
+            />
+          );
+        }
+        if (signer.type === SignerType.ONEKEY) {
+          return (
+            <KeeperModal
+              key={vaultKey.xfp}
+              visible={currentSigner && oneKeyModal}
+              close={() => {
+                setOneKeyModal(false);
+              }}
+              title={signerText.getYourOneKeyReady}
+              subTitle={signerText.connectOneKeyToComp}
+              textColor={`${colorMode}.textGreen`}
+              subTitleColor={`${colorMode}.modalSubtitleBlack`}
+              Content={() => <LedgerContent />}
               buttonText={common.proceed}
               buttonCallback={() => navigateToChannelSigning(vaultKey, signer.type)}
             />

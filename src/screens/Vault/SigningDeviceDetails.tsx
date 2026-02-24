@@ -81,6 +81,7 @@ import HexagonIcon from 'src/components/HexagonIcon';
 
 export const SignersReqVault = [
   SignerType.LEDGER,
+  SignerType.ONEKEY,
   SignerType.TREZOR,
   SignerType.BITBOX02,
   SignerType.PORTAL,
@@ -132,6 +133,14 @@ const getSignerContent = (type: SignerType) => {
         assert: <ThemedSvg name={'ledger_illustration'} width={180} height={180} />,
         description: '',
         FAQ: 'https://support.ledger.com/hc/en-us/categories/4404369571601?support=true',
+      };
+    case SignerType.ONEKEY:
+      return {
+        title: 'OneKey',
+        subTitle: signerTranslations.onekeyInfo,
+        assert: <ThemedSvg name={'onekey_illustration'} width={180} height={180} />,
+        description: signerTranslations.onekeyDes,
+        FAQ: 'https://help.onekey.so/',
       };
     case SignerType.SEEDSIGNER:
       return {

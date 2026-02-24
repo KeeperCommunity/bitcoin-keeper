@@ -900,6 +900,14 @@ function SignerAdvanceSettings({ route }: any) {
           description: signerTranslation.bitBoxDesx,
           FAQ: 'https://shiftcrypto.ch/support/',
         };
+      case SignerType.ONEKEY:
+        return {
+          title: 'OneKey',
+          subTitle: signerTranslation.onekeyInfo,
+          assert: <ThemedSvg name={'onekey_illustration'} width={180} height={180} />,
+          description: signerTranslation.onekeyDes,
+          FAQ: 'https://help.onekey.so/',
+        };
       case SignerType.TREZOR:
         return {
           title: 'Trezor',

@@ -115,6 +115,7 @@ function ConnectChannel() {
     bitbox,
     trezor,
     ledger,
+    onekey,
     error: errorText,
     coldcard,
     signer: signerText,
@@ -350,6 +351,7 @@ function ConnectChannel() {
     [SignerType.BITBOX02]: bitbox.SetupDescription,
     [SignerType.TREZOR]: trezor.SetupDescription,
     [SignerType.LEDGER]: ledger.SetupDescription,
+    [SignerType.ONEKEY]: onekey.SetupDescription,
     [SignerType.COLDCARD]: coldcard.setupColdcard,
     [SignerType.JADE]: signerText.setupJade,
   };
@@ -408,7 +410,8 @@ function ConnectChannel() {
             signerType === SignerType.COLDCARD ||
             signerType === SignerType.BITBOX02 ||
             signerType === SignerType.LEDGER ||
-            signerType === SignerType.TREZOR ? (
+            signerType === SignerType.TREZOR ||
+            signerType === SignerType.ONEKEY ? (
               <ColdCardUSBInstruction />
             ) : (
               Instructions?.map((instruction) => (
