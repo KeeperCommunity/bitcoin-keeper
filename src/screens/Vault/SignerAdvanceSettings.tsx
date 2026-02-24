@@ -905,7 +905,7 @@ function SignerAdvanceSettings({ route }: any) {
         return {
           title: 'OneKey',
           subTitle: signerTranslation.onekeyInfo,
-          assert: <ThemedSvg name={'external_Key_illustration'} />,
+          assert: <ThemedSvg name={'onekey_illustration'} width={180} height={180} />,
           description: signerTranslation.onekeyDes,
           FAQ: 'https://help.onekey.so/',
         };

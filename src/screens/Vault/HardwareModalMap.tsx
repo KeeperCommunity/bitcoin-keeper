@@ -546,9 +546,9 @@ const getSignerContent = (
     case SignerType.ONEKEY:
       return {
         type: SignerType.ONEKEY,
-        Illustration: <ThemedSvg name={'external_Key_illustration'} />,
+        Illustration: <ThemedSvg name={'onekey_illustration'} width={wp(120)} height={hp(120)} />,
         Instructions: [
-          `${signerText.bitBoxintruction} ${KEEPER_WEBSITE_BASE_URL}/${signerText.desktopOneKey}`,
+          `${signerText.onekeyDesktopAppInstruction} ${KEEPER_WEBSITE_BASE_URL}/desktop`,
           signerText.onekeyInstruction,
         ],
         title: isHealthcheck ? signerText.verifyOneKey : onekey.SetupTitle,

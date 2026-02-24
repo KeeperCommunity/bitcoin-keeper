@@ -237,6 +237,7 @@ import PrivateTrezor from 'src/assets/privateImages/trezor-illustration.svg';
 import TrezorSetup from 'src/assets/images/trezor_setup.svg';
 import PrivateLedger from 'src/assets/privateImages/ledger-illustration.svg';
 import LedgerImage from 'src/assets/images/ledger_image.svg';
+import OneKeyIllustration from 'src/assets/images/onekey_illustration.svg';
 import PrivateSigningServerBackupIllustration from 'src/assets/privateImages/Backup-Server-Key-illustration.svg';
 import SigningServerBackupIllustration from 'src/assets/images/backup-server-illustration.svg';
 import WalletVault from 'src/assets/images/vault-hexa-green.svg';
@@ -711,6 +712,12 @@ const themeIcons = {
     LIGHT: LedgerImage,
     PRIVATE: PrivateLedger,
     PRIVATE_LIGHT: PrivateLedger,
+  },
+  onekey_illustration: {
+    DARK: OneKeyIllustration,
+    LIGHT: OneKeyIllustration,
+    PRIVATE: OneKeyIllustration,
+    PRIVATE_LIGHT: OneKeyIllustration,
   },
   signing_server_illustration: {
     DARK: SigningServerIllustration,

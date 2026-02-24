@@ -69,6 +69,16 @@ function KeyAddedModal({ visible, close, signer }) {
           />
         );
         break;
+      case SignerType.ONEKEY:
+        Illustration = (
+          <ThemedSvg
+            name={'onekey_illustration'}
+            width={wp(120)}
+            height={hp(120)}
+            style={styles.externalKeyIllustration}
+          />
+        );
+        break;
       case SignerType.PASSPORT:
         Illustration = (
           <ThemedSvg

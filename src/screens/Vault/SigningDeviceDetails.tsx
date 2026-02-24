@@ -138,7 +138,7 @@ const getSignerContent = (type: SignerType) => {
       return {
         title: 'OneKey',
         subTitle: signerTranslations.onekeyInfo,
-        assert: <ThemedSvg name={'external_Key_illustration'} />,
+        assert: <ThemedSvg name={'onekey_illustration'} width={180} height={180} />,
         description: signerTranslations.onekeyDes,
         FAQ: 'https://help.onekey.so/',
       };

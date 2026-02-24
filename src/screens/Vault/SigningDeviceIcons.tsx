@@ -18,6 +18,9 @@ import LEDGERICON from 'src/assets/images/ledger_icon.svg';
 import LEDGERICONLIGHT from 'src/assets/images/ledger_light.svg';
 import LEDGERLOGO from 'src/assets/images/ledger_logo.svg';
 import LEDGERLOGOWHITE from 'src/assets/images/ledger_logo_white.svg';
+import ONEKEYICON from 'src/assets/images/onekey_icon.svg';
+import ONEKEYICONLIGHT from 'src/assets/images/onekey_icon_light.svg';
+import ONEKEYLOGO from 'src/assets/images/onekey_logo.svg';
 import MOBILEKEY from 'src/assets/images/mobile_key.svg';
 import MOBILEKEYLIGHT from 'src/assets/images/mobile_key_light.svg';
 import PASSPORTICON from 'src/assets/images/passport_icon.svg';
@@ -60,6 +63,8 @@ import KEYSTONEGREENLIGHT from 'src/assets/images/keystone-green-light.svg';
 import KEYSTONEGREENDARK from 'src/assets/images/keystone-green-dark.svg';
 import LEDGERGREENLIGHT from 'src/assets/images/ledger-green-light.svg';
 import LEDGERGREENDARK from 'src/assets/images/ledger-green-dark.svg';
+import ONEKEYGREENLIGHT from 'src/assets/images/onekey-green-light.svg';
+import ONEKEYGREENDARK from 'src/assets/images/onekey-green-dark.svg';
 import PASSPORTGREENLIGHT from 'src/assets/images/passport-green-light.svg';
 import PASSPORTGREENDARK from 'src/assets/images/passport-green-dark.svg';
 import SEEDSIGNERGREENLIGHT from 'src/assets/images/seedsigner-green-light.svg';
@@ -158,12 +163,8 @@ export const SDIcons = ({ type, light = true, width = 20, height = 20 }: SDIconO
       };
     case SignerType.ONEKEY:
       return {
-        Icon: getColouredIcon(<KEEPERAPPLIGHT />, <KEEPERAPP />, light, width, height),
-        Logo: (
-          <Text style={styles.text} color={`${colorMode}.modalWhiteContent`}>
-            OneKey
-          </Text>
-        ),
+        Icon: getColouredIcon(<ONEKEYICONLIGHT />, <ONEKEYICON />, light, width, height),
+        Logo: <ONEKEYLOGO color={colorMode === 'dark' ? '#FFFFFF' : '#141414'} />,
         type: SignerStorage.COLD,
       };
     case SignerType.MOBILE_KEY:
@@ -324,13 +325,7 @@ export const SDColoredIcons = (type: SignerType, light = true, width = 20, heigh
       };
     case SignerType.ONEKEY:
       return {
-        Icon: getColouredIcon(
-          <KEEPERAPPGREENLIGHT />,
-          <KEEPERAPPGREENDARK />,
-          light,
-          width,
-          height
-        ),
+        Icon: getColouredIcon(<ONEKEYGREENLIGHT />, <ONEKEYGREENDARK />, light, width, height),
         type: SignerStorage.COLD,
       };
     case SignerType.MOBILE_KEY:
@@ -367,13 +362,7 @@ export const SDColoredIcons = (type: SignerType, light = true, width = 20, heigh
       };
     case SignerType.SATOCHIP:
       return {
-        Icon: getColouredIcon(
-          <SATOCHIPGREENLIGHT />,
-          <SATOCHIPGREENDARK />,
-          light,
-          width,
-          height
-        ),
+        Icon: getColouredIcon(<SATOCHIPGREENLIGHT />, <SATOCHIPGREENDARK />, light, width, height),
         type: SignerStorage.COLD,
       };
     case SignerType.TREZOR:
