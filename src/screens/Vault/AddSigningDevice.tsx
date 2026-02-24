@@ -72,7 +72,6 @@ const MINISCRIPT_SIGNERS = [
   SignerType.JADE,
   SignerType.KRUX,
   SignerType.LEDGER,
-  SignerType.ONEKEY,
   SignerType.SPECTER,
   SignerType.SEED_WORDS,
   SignerType.KEEPER,

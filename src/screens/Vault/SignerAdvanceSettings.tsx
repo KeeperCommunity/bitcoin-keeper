@@ -275,7 +275,6 @@ function SignerAdvanceSettings({ route }: any) {
   const registerSigner = async () => {
     switch (signer.type) {
       case SignerType.LEDGER:
-      case SignerType.ONEKEY:
       case SignerType.BITBOX02:
         navigateRegisterWithChannel();
         break;
