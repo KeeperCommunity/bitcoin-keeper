@@ -28,7 +28,7 @@ function SatochipSeedImportModal({ route, navigation }) {
     common,
   } = translations;
 
-  const { pin, mnemonic } = route.params || {};
+  const { pin, mnemonic, setupSatochipParams } = route.params || {};
   const card = useRef(new SatochipCard()).current;
   const { withModal, nfcVisible, closeNfc } = useSatochipModal(card);
   const [showResultModal, setShowResultModal] = useState(false);
@@ -72,9 +72,7 @@ function SatochipSeedImportModal({ route, navigation }) {
     navigation.dispatch(
       CommonActions.navigate({
         name: 'SatochipAction',
-        params: {
-          mode: InteracationMode.VAULT_ADDITION,
-        },
+        params: setupSatochipParams ?? { mode: InteracationMode.VAULT_ADDITION },
       })
     );
 
