@@ -81,7 +81,7 @@ export const getCardInfo = async (card: SatochipCard, pin: string = null) => {
     return {
       setupDone: false,
       isSeeded: false,
-      isAuthentic: false,
+      isAuthentic: null,
       authenticityMsg: 'Card setup required!',
     };
   }
