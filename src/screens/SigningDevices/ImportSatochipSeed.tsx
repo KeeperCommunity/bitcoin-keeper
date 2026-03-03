@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Box, useColorMode } from 'native-base';
 import { StyleSheet } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, StackActions } from '@react-navigation/native';
 
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import Buttons from 'src/components/Buttons';
@@ -26,25 +26,21 @@ function ImportSatochipSeed({ route, navigation }) {
   const handleContinue = () => {
 
     navigation.dispatch(
-      CommonActions.navigate({
-        name: 'EnterSeedScreen',
-        params: {
-          mode: InteracationMode.VAULT_IMPORT_SEED,
-          isImport: true,
-          isUSDTWallet: false,
-          importSeedCta: async (mnemonic: string) => {
-            // Navigate to NFC processing screen with the mnemonic
-            navigation.dispatch(
-              CommonActions.navigate({
-                name: 'SatochipSeedImportModal',
-                params: {
-                  pin,
-                  mnemonic,
-                  setupSatochipParams,
-                },
-              })
-            );
-          },
+      StackActions.push('EnterSeedScreen', {
+        mode: InteracationMode.VAULT_IMPORT_SEED,
+        isImport: true,
+        isUSDTWallet: false,
+        importSeedCta: async (mnemonic: string) => {
+          navigation.dispatch(
+            CommonActions.navigate({
+              name: 'SatochipSeedImportModal',
+              params: {
+                pin,
+                mnemonic,
+                setupSatochipParams,
+              },
+            })
+          );
         },
       })
     );
