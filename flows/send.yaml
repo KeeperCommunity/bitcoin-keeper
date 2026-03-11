@@ -1,0 +1,150 @@
+appId: io.hexawallet.keeper.development
+---
+
+########################################
+# Wallets Screen
+########################################
+
+- assertVisible: "Wallets"
+
+- tapOn:
+    text: "Wallets"
+    index: 1
+
+########################################
+# Open Mobile Wallet
+########################################
+
+- assertVisible: "Mobile Wallet"
+- tapOn: "Mobile Wallet"
+
+########################################
+# OPTIONAL: First-Time Refresh Modal
+########################################
+
+- runFlow:
+    when:
+      visible: "Pull Down to Refresh"
+    commands:
+      - tapOn: "Okay"
+
+########################################
+# Ensure Wallet Loaded
+########################################
+
+- waitForAnimationToEnd
+- assertVisible: "Mobile Wallet"
+
+########################################
+# Auto Fund If Balance Is 0
+########################################
+
+- runFlow:
+    when:
+      visible: "0 sats"
+    commands:
+      - waitForAnimationToEnd
+
+      - tapOn:
+          point: "89%,10%"
+
+      - assertVisible: "Wallet Settings"
+      - assertVisible: "Receive Test Sats"
+      - tapOn: "Receive Test Sats"
+
+      - waitForAnimationToEnd
+      - assertVisible: "Mobile Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Start Send Flow
+########################################
+
+- tapOn:
+    point: "20%,35%"
+
+- waitForAnimationToEnd
+- assertVisible: "Enter Address"
+
+########################################
+# Address & Note
+########################################
+
+# ---- MANUAL: Scan address ----
+
+- assertVisible: "Add a Note (Optional)"
+- tapOn: "Add a Note (Optional)"
+
+# ---- MANUAL: Enter note ----
+
+- assertVisible: "Proceed"
+- tapOn: "Proceed"
+
+########################################
+# Enter Amount Screen
+########################################
+
+- waitForAnimationToEnd
+- assertVisible: "Enter Amount to Send"
+
+# ---- MANUAL: Enter amount ----
+
+########################################
+# Fee Selection (Correct Text)
+########################################
+
+- assertVisible: "Fee Priority: Low"
+- tapOn: "Fee Priority: Low"
+
+# ---- MANUAL: Select different fee if needed ----
+
+- assertVisible: "Confirm"
+- tapOn: "Confirm"
+
+########################################
+# Send Transaction
+########################################
+
+- assertVisible: "Send"
+- tapOn: "Send"
+
+########################################
+# OPTIONAL: High Fee Alert
+########################################
+
+- runFlow:
+    when:
+      visible: "High Fee Alert"
+    commands:
+      - tapOn: "Proceed"
+
+########################################
+# Confirmation Screen
+########################################
+
+- waitForAnimationToEnd
+- assertVisible: "Send Confirmation"
+
+- assertVisible: "Confirm & Send"
+- tapOn: "Confirm & Send"
+
+########################################
+# OPTIONAL: Passcode Screen
+########################################
+
+- runFlow:
+    when:
+      visible: "Confirm Passcode"
+    commands:
+      - tapOn: "Proceed"
+
+########################################
+# Success Screen
+########################################
+
+- waitForAnimationToEnd
+- assertVisible: "Send Successful"
+
+- assertVisible: "View Wallet"
+- tapOn: "View Wallet"

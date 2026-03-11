@@ -1,0 +1,77 @@
+appId: io.hexawallet.keeper.development
+---
+
+########################################
+# Wallets Screen
+########################################
+
+- assertVisible: "Wallets"
+
+- tapOn:
+    text: "Wallets"
+    index: 1
+
+########################################
+# Open Mobile Wallet
+########################################
+
+- assertVisible: "Mobile Wallet"
+- tapOn: "Mobile Wallet"
+
+########################################
+# Wallet Home Screen
+########################################
+
+- assertVisible: "Recent Transactions"
+
+########################################
+# Open Receive Screen (Same pattern as Send)
+########################################
+
+# Receive button middle madhe aste (Send cha right side)
+- tapOn:
+    point: "50%,35%"
+
+- waitForAnimationToEnd
+
+- assertVisible: "Receive"
+- assertVisible: "Get New Address"
+
+########################################
+# Generate New Address
+########################################
+
+- tapOn: "Get New Address"
+
+- waitForAnimationToEnd
+
+########################################
+# Request Specific Amount
+########################################
+
+- assertVisible: "Request specific amount"
+- tapOn: "Request specific amount"
+
+- assertVisible: "Request Specific Amount"
+
+########################################
+# Manual Amount Entry (Pause)
+########################################
+
+- waitForAnimationToEnd
+- assertVisible: "Confirm"
+
+########################################
+# Confirm
+########################################
+
+- tapOn: "Confirm"
+
+- waitForAnimationToEnd
+
+########################################
+# Back to Receive Screen
+########################################
+
+- assertVisible: "Receive"
+- assertVisible: "Request specific amount"

@@ -1,0 +1,7 @@
+appId: io.hexawallet.keeper.development
+---
+- swipe:
+    from:
+      id: list_transactions
+    direction: DOWN
+    duration: 15000

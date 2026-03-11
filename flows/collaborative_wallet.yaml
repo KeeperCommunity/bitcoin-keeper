@@ -1,0 +1,147 @@
+appId: io.hexawallet.keeper.development
+---
+# Add Collaborative Wallet - Fully Corrected Stable Flow
+
+########################################
+# Wallets Screen
+########################################
+
+- assertVisible: "Wallets"
+
+- tapOn:
+    text: "Wallets"
+    index: 1
+
+- waitForAnimationToEnd
+
+- assertVisible: "Add Wallet"
+- tapOn: "Add Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Pick Wallet Type
+########################################
+
+- assertVisible: "Bitcoin Wallet"
+- tapOn: "Bitcoin Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Add New Wallet
+########################################
+
+- assertVisible: "Add a New Wallet"
+- tapOn: "Add a New Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Select Collaborative Wallet
+########################################
+
+- assertVisible: "Collaborative Wallet"
+- tapOn: "Collaborative Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Handle Existing Session (If Appears)
+########################################
+
+- runFlow:
+    when:
+      visible: "Collaborative wallet setup session already exists"
+    commands:
+      - tapOn: "Start New"
+      - waitForAnimationToEnd
+
+########################################
+# Collaborative Vault Screen
+########################################
+
+- assertVisible: "Collaborative Vault"
+- assertVisible: "Add Second Contact"
+
+########################################
+# Add Second Contact
+########################################
+
+- tapOn: "Add Second Contact"
+
+- assertVisible: "Add a Contact"
+- assertVisible: "Scan QR"
+
+- tapOn: "Scan QR"
+
+########################################
+# Camera Permission (FIRST TIME ONLY)
+########################################
+
+- runFlow:
+    when:
+      visible: "Allow Keeper to take pictures and record video?"
+    commands:
+      - tapOn: "While using the app"
+      - waitForAnimationToEnd
+
+########################################
+# MANUAL QR SCAN - Second Contact
+########################################
+
+# 👉 Manually scan QR now
+
+- extendedWaitUntil:
+    visible: "Add Third Contact"
+    timeout: 120000
+
+- waitForAnimationToEnd
+
+########################################
+# Add Third Contact
+########################################
+
+- assertVisible: "Add Third Contact"
+- tapOn: "Add Third Contact"
+
+- assertVisible: "Add a Contact"
+- assertVisible: "Scan QR"
+
+- tapOn: "Scan QR"
+
+########################################
+# MANUAL QR SCAN - Third Contact
+########################################
+
+# 👉 Manually scan QR now
+
+- extendedWaitUntil:
+    visible: "Collaborative Wallet Created Successfully!"
+    timeout: 120000
+
+########################################
+# Success Modal
+########################################
+
+- assertVisible: "Collaborative Wallet Created Successfully!"
+- assertVisible: "View vault"
+
+- tapOn: "View vault"
+
+- waitForAnimationToEnd
+
+########################################
+# Final Confirmation
+########################################
+
+- assertVisible: "Collaborative Wallet"
+- tapOn: "Okay"
+
+- waitForAnimationToEnd
+
+########################################
+# Final Vault Landing
+########################################
+
+- assertVisible: "Collaborative Wallet 1"
