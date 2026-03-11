@@ -1,0 +1,131 @@
+appId: io.hexawallet.keeper.development
+---
+
+- launchApp
+
+# -----------------------------
+# Welcome Screen
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Welcome Back"
+    timeout: 20000
+
+# -----------------------------
+# Wrong Passcode Attempt 1
+# -----------------------------
+# USER manually enters wrong passcode
+- extendedWaitUntil:
+    visible: "Proceed"
+    timeout: 60000
+- tapOn: "Proceed"
+
+- extendedWaitUntil:
+    visible: "Incorrect Passcode, Try Again!"
+    timeout: 20000
+
+
+# -----------------------------
+# Wrong Passcode Attempt 2
+# -----------------------------
+# USER manually enters wrong passcode
+- extendedWaitUntil:
+    visible: "Proceed"
+    timeout: 60000
+- tapOn: "Proceed"
+
+- extendedWaitUntil:
+    visible: "Incorrect Passcode, Try Again!"
+    timeout: 20000
+
+
+# -----------------------------
+# Wrong Passcode Attempt 3
+# -----------------------------
+# USER manually enters wrong passcode
+- extendedWaitUntil:
+    visible: "Proceed"
+    timeout: 60000
+- tapOn: "Proceed"
+
+
+# -----------------------------
+# Retry Modal
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Retry"
+    timeout: 20000
+- tapOn: "Retry"
+
+
+# -----------------------------
+# Forgot Passcode Flow
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Forgot passcode?"
+    timeout: 20000
+- tapOn: "Forgot passcode?"
+
+
+# -----------------------------
+# Reset Passcode
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Reset Passcode"
+    timeout: 20000
+- tapOn: "Continue"
+
+
+# -----------------------------
+# Create New Passcode
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Create a passcode"
+    timeout: 20000
+
+# USER manually enters new passcode
+
+
+- extendedWaitUntil:
+    visible: "Confirm your passcode"
+    timeout: 120000
+
+# USER confirms passcode
+- tapOn: "Create"
+
+
+# -----------------------------
+# Remember Passcode Screen
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Remember your passcode"
+    timeout: 20000
+- tapOn: "Continue"
+
+
+# -----------------------------
+# Recover Wallet Screen
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Recover an existing Keeper App"
+    timeout: 20000
+
+
+# -----------------------------
+# USER enters seed / recovery words
+# (5 minutes wait)
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Next"
+    timeout: 300000
+
+- tapOn: "Next"
+
+
+# -----------------------------
+# Wallet Recovery Processing
+# -----------------------------
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 120000
+
+- tapOn: "Continue"
