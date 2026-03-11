@@ -1,6 +1,0 @@
-appId: ${APPID}
----
-- runFlow: newapp.yaml
-- runFlow: addwallet.yaml
-- runFlow: addNewKey.yaml
-

@@ -1,9 +1,0 @@
-appId: ${APPID}
----
-- tapOn:
-    id: 'btn_Manage\nKeys'
-- tapOn:
-    id: 'btn_Mobile Key'
-    index: 0
-- tapOn:
-    id: 'btn_Settings'
