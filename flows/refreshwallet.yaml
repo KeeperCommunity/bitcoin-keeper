@@ -1,4 +1,4 @@
-appId: ${APPID}
+appId: io.hexawallet.keeper.development
 ---
 - swipe:
     from:

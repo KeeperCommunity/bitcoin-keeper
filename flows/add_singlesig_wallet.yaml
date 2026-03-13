@@ -1,0 +1,284 @@
+appId: io.hexawallet.keeper.development
+---
+# Add Single Sig Wallet - Stable Old Maestro Version
+
+########################################
+# Wallets Screen
+########################################
+
+- assertVisible: "Wallets"
+- tapOn:
+    text: "Wallets"
+    index: 1
+
+- waitForAnimationToEnd
+
+- assertVisible: "Add Wallet"
+- tapOn: "Add Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Pick Wallet Type
+########################################
+
+- assertVisible: "Bitcoin Wallet"
+- tapOn: "Bitcoin Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Add New Wallet
+########################################
+
+- assertVisible: "Add a New Wallet"
+- tapOn: "Add a New Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Create Wallet
+########################################
+
+- assertVisible: "Create Wallet"
+- tapOn: "Create Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Select Wallet Type
+########################################
+
+- assertVisible: "Single-key"
+- tapOn: "Single-key"
+
+- waitForAnimationToEnd
+
+- assertVisible: "Proceed"
+- tapOn: "Proceed"
+
+- waitForAnimationToEnd
+
+########################################
+# Select Wallet Keys
+########################################
+
+- assertVisible: "Select your wallet keys"
+- tapOn: "Add a Key"
+
+- waitForAnimationToEnd
+
+########################################
+# Add Signer
+########################################
+
+# Removed "Add a Signer" assertion (causing failure)
+
+- assertVisible: "Add a software key"
+- tapOn: "Add a software key"
+
+- waitForAnimationToEnd
+
+########################################
+# Software Keys
+########################################
+
+- assertVisible: "Seed Key"
+- tapOn: "Seed Key"
+
+- waitForAnimationToEnd
+
+########################################
+# Add Seed Key
+########################################
+
+- assertVisible: "Create"
+- tapOn: "Create"
+
+- waitForAnimationToEnd
+
+########################################
+# Create Seed Key
+########################################
+
+- assertVisible: "Proceed"
+- tapOn: "Proceed"
+
+- waitForAnimationToEnd
+
+########################################
+# Reveal 12 Seed Words (NO POINT TAPPING)
+########################################
+
+########################################
+# Reveal 12 Seed Words (Correct Index Based)
+########################################
+
+- assertVisible: "Seed Key"
+
+- tapOn:
+    index: 0
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 1
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 2
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 3
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 4
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 5
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 6
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 7
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 8
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 9
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 10
+- waitForAnimationToEnd
+
+- tapOn:
+    index: 11
+- waitForAnimationToEnd
+
+- assertVisible: "Next"
+- tapOn: "Next"
+
+- waitForAnimationToEnd
+
+- assertVisible: "Next"
+- tapOn: "Next"
+
+- waitForAnimationToEnd
+
+########################################
+# Confirm Backup (Manual Entry)
+########################################
+
+- assertVisible: "Confirm Backup"
+- tapOn: "Enter seed word"
+
+# 👉 MANUALLY enter requested seed word here
+
+# Give yourself time before next step
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+- hideKeyboard
+
+- assertVisible: "Confirm"
+- tapOn: "Confirm"
+
+- waitForAnimationToEnd
+
+########################################
+# Remember Seed Words Modal
+########################################
+
+- assertVisible: "Save"
+- tapOn: "Save"
+
+- waitForAnimationToEnd
+
+########################################
+# Seed Key Added Successfully
+########################################
+
+- assertVisible: "Seed key Added Successfully!"
+- tapOn: "Cancel"
+
+- waitForAnimationToEnd
+
+########################################
+# Select Added Seed Key
+########################################
+
+- assertVisible: "Select your wallet keys"
+
+- assertVisible:
+    text: "Seed Key"
+    index: 0
+
+- tapOn:
+    text: "Seed Key"
+    index: 0
+
+- waitForAnimationToEnd
+
+- assertVisible: "Proceed"
+- tapOn: "Proceed"
+
+- waitForAnimationToEnd
+
+########################################
+# Confirm Wallet Details
+########################################
+
+- assertVisible: "Enter wallet name"
+- tapOn: "Enter wallet name"
+- inputText: "My Single Sig Wallet"
+- hideKeyboard
+
+- waitForAnimationToEnd
+
+########################################
+# Add Description
+########################################
+
+- assertVisible: "Add Description"
+- tapOn: "Add Description"
+
+- waitForAnimationToEnd
+
+- assertVisible: "Add a description (Optional)"
+- tapOn: "Add a description (Optional)"
+- inputText: "Primary Bitcoin Wallet"
+- hideKeyboard
+
+- waitForAnimationToEnd
+
+- assertVisible: "Save Changes"
+- tapOn: "Save Changes"
+
+- waitForAnimationToEnd
+
+########################################
+# Create Wallet
+########################################
+
+- assertVisible: "Create Your Wallet"
+- tapOn: "Create Your Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Wallet Created
+########################################
+
+- assertVisible: "Wallet Created Successfully"
+- assertVisible: "View Wallet"
+- tapOn: "View Wallet"

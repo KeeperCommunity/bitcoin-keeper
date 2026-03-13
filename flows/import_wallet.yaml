@@ -1,0 +1,116 @@
+appId: io.hexawallet.keeper.development
+---
+########################################
+# Wallets Screen
+########################################
+
+- assertVisible: "Wallets"
+- tapOn:
+    text: "Wallets"
+    index: 1
+
+- waitForAnimationToEnd
+
+- assertVisible: "Add Wallet"
+- tapOn: "Add Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Pick Wallet Type
+########################################
+
+- assertVisible: "Bitcoin Wallet"
+- tapOn: "Bitcoin Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Add a New Wallet Screen
+########################################
+
+- assertVisible: "Add a New Wallet"
+- tapOn: "Import Wallet"
+
+- waitForAnimationToEnd
+
+########################################
+# Camera Permission (If Appears)
+########################################
+
+- runFlow:
+    when:
+      visible:
+        id: "com.android.permissioncontroller:id/permission_message"
+    commands:
+      - tapOn: "While using the app"
+
+- waitForAnimationToEnd
+
+########################################
+# Import Wallet Screen
+########################################
+
+- assertVisible: "Import a Wallet"
+- assertVisible: "or enter configuration manually"
+
+# Tap manual configuration field
+- tapOn: "or enter configuration manually"
+
+###################################################
+# MANUAL STEP - You enter config manually here
+# Script will wait until Proceed button is enabled
+###################################################
+
+- extendedWaitUntil:
+    visible: "Proceed"
+    timeout: 60000   # 60 seconds to manually paste config
+
+- tapOn: "Proceed"
+
+- waitForAnimationToEnd
+
+########################################
+# Confirm Wallet Details
+########################################
+
+- assertVisible: "Confirm your wallet details"
+
+# Wallet Name
+- tapOn:
+    text: "Imported wallet"
+    index: 0
+- eraseText
+- inputText: "Test Imported Wallet"
+
+# Description
+- runFlow:
+    when:
+      visible: "Secure your sats"
+    commands:
+      - tapOn: "Secure your sats"
+      - eraseText
+      - inputText: "Manual config test wallet"
+
+- hideKeyboard
+
+########################################
+# Done Button
+########################################
+
+- assertVisible: "Done"
+- tapOn: "Done"
+
+- waitForAnimationToEnd
+
+########################################
+# Handle Free Feature Modal
+########################################
+
+- runFlow:
+    when:
+      visible: "This feature is now free"
+    commands:
+      - tapOn: "No thanks"
+
+- waitForAnimationToEnd

@@ -1,0 +1,86 @@
+appId: io.hexawallet.keeper.development
+---
+
+- extendedWaitUntil:
+    visible: "Concierge"
+    timeout: 60000
+# Open Concierge tab
+- tapOn: "Concierge"
+
+- assertVisible:
+    text: "Concierge"
+    index: 0
+
+# View Advisors
+- assertVisible: "View Advisors"
+- tapOn: "View Advisors"
+
+- assertVisible: "Meet Our Advisors"
+
+# Scroll advisors list
+- scroll
+- scroll
+
+# Open advisor profile
+- scrollUntilVisible:
+    element: "View Profile"
+
+- tapOn:
+    text: "View Profile"
+    index: 0
+
+- assertVisible: "Expert Profile"
+
+# Scroll profile page
+- scroll
+- scroll
+
+# Back to advisors
+- tapOn:
+    point: "10%,10%"
+
+- assertVisible: "Meet Our Advisors"
+
+# Back to Concierge
+- tapOn:
+    id: "btn_back"
+
+# Ask a question flow
+- assertVisible: "Ask a question."
+- assertVisible: "Take me there"
+
+- tapOn: "Take me there"
+
+- assertVisible: "Ask a question."
+- assertVisible: "Ask the team"
+
+- tapOn: "Ask the team"
+
+# Attach Screenshot (optional)
+- assertVisible: "Attach Screenshot"
+- tapOn: "Attach Screenshot"
+
+# Wait in case file picker opens
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Share attributes
+- assertVisible: "Share App Attributes"
+- tapOn: "Share App Attributes"
+
+# Additional details modal
+- assertVisible: "Additional details"
+- assertVisible: "Select All"
+
+- tapOn: "Select All"
+
+# Share action
+- tapOn:
+    text: "Share"
+
+# Confirmation
+- assertVisible: "Keeper Concierge"
+
+# Back arrow
+- tapOn:
+    point: "9%,9%"
