@@ -36,7 +36,9 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>600</string>
+	<string>614</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>itms-apps</string>
