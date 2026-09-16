@@ -11147,10 +11147,10 @@ react-native-html-to-pdf@1.3.0:
   resolved "https://registry.yarnpkg.com/react-native-html-to-pdf/-/react-native-html-to-pdf-1.3.0.tgz#591d9120038e2a1717f3a9eb47b16c84928066f7"
   integrity sha512-UCbQO1k5yeajaJrEF7Wqq8ojdgpxsTbICQvtorXmuO1LkU/a6B3/tZyLes4zXCiq/5nTMTNA/k9m5bYStg5S0Q==
 
-react-native-iap@13.0.4:
-  version "13.0.4"
-  resolved "https://registry.yarnpkg.com/react-native-iap/-/react-native-iap-13.0.4.tgz#90f40aeda59d8c46acaa15067c92d1beb2f9659c"
-  integrity sha512-DFyBWCgohNYkv30tKNz43091Th3ASadKg3hRMu3rcvBWQzzRlLB/4DuFK/o0QIneXcZ+otZquMDrDIBVxWhqWg==
+react-native-iap@16.5.0:
+  version "16.5.0"
+  resolved "https://registry.yarnpkg.com/react-native-iap/-/react-native-iap-16.5.0.tgz#bb85950c94b2cf93d5eee4a73e707ce88ec81d8c"
+  integrity sha512-PtNuinZ3XxXItuE9gpZAPlhZnLVH2Qra5zE7wAuNmaIvhyr02fiTtjo/2FsQK+jN3Vp++VqWBdI1a4/qqwJz1w==
 
 react-native-image-picker@4.10.3:
   version "4.10.3"
@@ -11196,10 +11196,10 @@ react-native-nfc-manager@3.16.0:
   dependencies:
     "@expo/config-plugins" "~8.0.0"
 
-react-native-nitro-modules@^0.35.4:
-  version "0.35.5"
-  resolved "https://registry.yarnpkg.com/react-native-nitro-modules/-/react-native-nitro-modules-0.35.5.tgz#19fe8f289b118b26b9e8522f62bb6e7b40e44c50"
-  integrity sha512-aa03UzC5dLg5qFfyBkVK+JGSwHTjmK7jUZzyRz11r1Yk9C/nJTFe59EeHPxxNNTagkiwQTM6p3sySgD/TDRC7Q==
+react-native-nitro-modules@0.35.4:
+  version "0.35.4"
+  resolved "https://registry.yarnpkg.com/react-native-nitro-modules/-/react-native-nitro-modules-0.35.4.tgz#eff7f3e1e279b44568850300e9789af3fc30facd"
+  integrity sha512-4qZa+1kgR/sPRNZv+UShxyArEPpovWxw76Dfd/DtCVtkQ92wOOxGIzdYvndprabd+t+r8zNYgYEPYE74gzkuVQ==
 
 react-native-pdf@7.0.4:
   version "7.0.4"

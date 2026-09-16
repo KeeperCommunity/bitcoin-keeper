@@ -13,4 +13,8 @@ fastlane/test_output
 # Fastlane builds
 builds/*
 
+# local Play service account credentials
+key.json
+fastlane/key.json
+
 .kotlin
