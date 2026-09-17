@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from '@gluestack-ui/themed-native-base';
 import { PersistGate } from 'redux-persist/integration/react';
 import { Provider } from 'react-redux';
-import { withIAPContext, initConnection, endConnection } from 'react-native-iap';
+import { initConnection, endConnection } from 'react-native-iap';
 import { TorContextProvider } from 'src/context/TorContext';
 import { HCESessionProvider } from 'react-native-hce';
 import { LocalizationProvider } from 'src/context/Localization/LocContext';
@@ -68,4 +68,4 @@ function AppWrapper() {
 
 const SentryApp = SentryWrapper(AppWrapper);
 
-export default withIAPContext(SentryApp);
+export default SentryApp;
