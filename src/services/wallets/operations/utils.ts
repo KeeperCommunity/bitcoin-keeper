@@ -1207,14 +1207,15 @@ export default class WalletUtilities {
   static extractKeysFromBsms = (
     bsms: string
   ): { xpub: string; masterFingerprint: string; derivationPath: string }[] => {
-    const regex = /\[(\w+)\/([mh\/\d]+)]([tpub\w]+)/g;
+    const regex = /\[(\w+)\/([mMhH/\d']+)]([tpub\w]+)/g;
     let match;
     const result = [];
 
     while ((match = regex.exec(bsms)) !== null) {
+      const path = match[2].replace(/[hH]/g, "'");
       result.push({
         masterFingerprint: match[1],
-        derivationPath: `m/${match[2]}`, // Adding 'm' as the root for the path
+        derivationPath: path.match(/^m\//i) ? path : `m/${path}`,
         xpub: match[3],
       });
     }

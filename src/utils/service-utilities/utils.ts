@@ -264,7 +264,21 @@ function isValidMasterFingerprint(masterFingerprint) {
 }
 
 function isValidDerivationPath(derivationPath) {
-  return /^m(\/\d+'?)+$/.test(derivationPath);
+  if (!derivationPath || !derivationPath.startsWith('m/')) return false;
+
+  return derivationPath
+    .slice(2)
+    .split('/')
+    .every((component) => {
+      const index = component.replace(/[hH']$/, '');
+      const numericIndex = Number(index);
+      return (
+        /^\d+[hH']?$/.test(component) &&
+        Number.isSafeInteger(numericIndex) &&
+        numericIndex >= 0 &&
+        numericIndex <= 0x7fffffff
+      );
+    });
 }
 
 function isValidXpub(xpub) {
@@ -283,7 +297,7 @@ const parseKeyExpression = (keyExpression) => {
     masterFingerprint = insideBracket.substring(0, 8).toUpperCase();
     path = `m${insideBracket
       .substring(8)
-      .replace(/(\d+)h/g, "$1'")
+      .replace(/(\d+)[hH]/g, "$1'")
       .replace(/'/g, "'")}`;
     xpub = bracketMatch[2].replace(/[^\w\s]+$/, '').split(/[^\w]+/)[0];
   } else {
