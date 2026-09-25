@@ -1,9 +1,11 @@
 import { useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import Buttons from 'src/components/Buttons';
 import { hp, wp } from 'src/constants/responsive';
-import { HelpDraft } from 'src/models/interfaces/HelpAi';
+import Colors from 'src/theme/Colors';
+import { HelpDraft, ScreenshotAsset } from 'src/models/interfaces/HelpAi';
 
 type DraftStatus =
   | 'pending_review'
@@ -16,7 +18,7 @@ type HelpAiDraftCardProps = {
   draft: HelpDraft;
   draftStatus: DraftStatus;
   onReview: () => void;
-  onConfirm: () => void;
+  onConfirm: (assets: ScreenshotAsset[]) => void;
   onCancel: () => void;
   onRetry: () => void;
 };
@@ -38,6 +40,8 @@ const HelpAiDraftCard = ({
     const t = setTimeout(() => forceUpdate((n) => n + 1), 100);
     return () => clearTimeout(t);
   }, [draftStatus]);
+
+  const [selectedAssets, setSelectedAssets] = useState<ScreenshotAsset[]>([]);
   const uiColors = React.useMemo(
     () => ({
       surface: isDarkMode ? '#1f1f1f' : '#ffffff',
@@ -48,6 +52,25 @@ const HelpAiDraftCard = ({
     }),
     [isDarkMode]
   );
+
+  const handleAddScreenshot = () => {
+    launchImageLibrary(
+      { mediaType: 'photo', maxWidth: 1200, maxHeight: 1200, quality: 0.7 },
+      (response) => {
+        if (response.didCancel || response.errorCode) return;
+        const asset = response.assets?.[0];
+        if (!asset?.uri) return;
+        setSelectedAssets((prev) => [
+          ...prev,
+          { uri: asset.uri, mimeType: asset.type || 'image/jpeg' },
+        ]);
+      }
+    );
+  };
+
+  const handleConfirm = () => {
+    onConfirm(selectedAssets);
+  };
 
   const fields: Array<{ label: string; value?: string | string[] }> = [
     { label: 'Title', value: draft.title },
@@ -118,9 +141,46 @@ const HelpAiDraftCard = ({
             This will create a public GitHub issue. Confirm only if you are comfortable sharing this
             information publicly.
           </Text>
+
+          {selectedAssets.length > 0 && (
+            <View style={styles.thumbnailStrip}>
+              {selectedAssets.map((asset, idx) => (
+                <View key={asset.uri} style={styles.thumbnailWrapper}>
+                  <Image source={{ uri: asset.uri }} style={styles.thumbnail} />
+                  <Pressable
+                    testID={`screenshot_remove_${idx}`}
+                    style={styles.thumbnailRemoveBtn}
+                    onPress={() =>
+                      setSelectedAssets((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                  >
+                    <Text style={styles.thumbnailRemoveText}>×</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {selectedAssets.length < 3 && (
+            <Pressable
+              testID="btn_add_screenshot"
+              style={[styles.addScreenshotRow, { borderColor: Colors.greyBorder }]}
+              onPress={handleAddScreenshot}
+            >
+              <Text style={{ fontSize: 12, color: uiColors.secondaryText }}>
+                + Add Screenshot (optional, max 3)
+              </Text>
+            </Pressable>
+          )}
+
+          <Text style={{ fontSize: 12, color: uiColors.secondaryText }}>
+            Screenshots may expose wallet balances or addresses. Only attach what you are
+            comfortable sharing publicly.
+          </Text>
+
           <Buttons
             primaryText={'Confirm Public Submission'}
-            primaryCallback={onConfirm}
+            primaryCallback={handleConfirm}
             fullWidth
           />
           <Buttons primaryText={'Cancel'} primaryCallback={onCancel} fullWidth />
@@ -160,6 +220,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: wp(8),
+  },
+  thumbnailStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: wp(8),
+  },
+  thumbnailWrapper: {
+    position: 'relative',
+  },
+  thumbnail: {
+    width: wp(80),
+    height: wp(80),
+    borderRadius: 8,
+  },
+  thumbnailRemoveBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 100,
+    backgroundColor: '#555',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbnailRemoveText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  addScreenshotRow: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    paddingVertical: hp(10),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

@@ -6,6 +6,7 @@ import {
   HelpChatResponse,
   HelpDraft,
   HelpIssueSubmitResponse,
+  ScreenshotAsset,
 } from 'src/models/interfaces/HelpAi';
 import axios, { AxiosResponse } from 'axios';
 import { AverageTxFeesByNetwork } from 'src/services/wallets/interfaces';
@@ -749,9 +750,25 @@ export default class Relay {
     idempotencyKey: string;
     draft: HelpDraft;
     metadata: Pick<HelpChatMetadata, 'appVersion' | 'platform' | 'device'>;
+    screenshots?: ScreenshotAsset[];
   }): Promise<HelpIssueSubmitResponse> => {
     try {
-      const res = await RestClient.post(`${RELAY}submitHelpIssue`, payload);
+      const { screenshots, ...rest } = payload;
+      const formData = new FormData();
+      formData.append('payload', JSON.stringify(rest));
+      if (screenshots) {
+        screenshots.forEach((asset, idx) => {
+          const ext = asset.mimeType === 'image/png' ? 'png' : 'jpg';
+          formData.append(`file_${idx}`, {
+            uri: asset.uri,
+            name: `screenshot_${idx}.${ext}`,
+            type: asset.mimeType,
+          } as any);
+        });
+      }
+      const res = await RestClient.post(`${RELAY}submitHelpIssue`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return res.data as HelpIssueSubmitResponse;
     } catch (err: any) {
       console.log('🚀 ~ Relay ~ submitHelpIssue ~ err:', err);
@@ -763,6 +780,9 @@ export default class Relay {
       }
       if (err.code) {
         throw new Error(err.code);
+      }
+      if (err.message) {
+        throw new Error(err.message);
       }
       throw new Error('An unexpected error occurred');
     }

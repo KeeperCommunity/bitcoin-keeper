@@ -15,6 +15,11 @@ export type HelpChatMetadata = {
   timezone?: string;
 };
 
+export type ScreenshotAsset = {
+  uri: string;
+  mimeType: string;
+};
+
 export type HelpDraft = {
   kind: 'bug' | 'feature';
   title: string;
