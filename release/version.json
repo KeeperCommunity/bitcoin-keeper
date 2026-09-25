@@ -1,0 +1,21 @@
+{
+  "version": "2.5.15",
+  "androidVersionCode": 622,
+  "iosBuildNumber": 615,
+  "baselines": {
+    "android": {
+      "applicationId": "io.hexawallet.bitcoinkeeper",
+      "verifiedAt": "2026-09-25T13:10:54Z",
+      "highestUploadedBuild": 621,
+      "highestMarketingVersion": "2.5.14",
+      "productionRelease": "621 (2.3.15)"
+    },
+    "ios": {
+      "applicationId": "io.hexawallet.keeper",
+      "verifiedAt": "2026-09-25T13:44:11Z",
+      "highestUploadedBuild": 612,
+      "highestMarketingVersion": "2.5.14",
+      "productionRelease": "612 (2.5.14)"
+    }
+  }
+}

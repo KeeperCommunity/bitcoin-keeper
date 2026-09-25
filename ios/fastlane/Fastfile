@@ -35,11 +35,7 @@ def resolved_ipa_path!
   ipa_path = Actions.lane_context[SharedValues::IPA_OUTPUT_PATH].to_s
 
   if ipa_path.strip.empty?
-    ipa_path = Dir["./builds/*.ipa"].sort_by { |path| File.mtime(path) }.last.to_s
-  end
-
-  if ipa_path.strip.empty?
-    UI.user_error!("Unable to locate generated .ipa file for TestFlight upload")
+    UI.user_error!("Current build did not return an IPA path; refusing to reuse an older archive")
   end
 
   ipa_path
@@ -108,14 +104,10 @@ platform :ios do
 
   desc "Push a new live build to TestFlight"
   lane :live do
-    file_name = "../../.env"
-    file_url = "https://raw.githubusercontent.com/bithyve/bitcoin-keeper-envs/live/app.live.env"
-    auth_header = "Authorization: token #{ENV["GITHUB_ACCESS_TOKEN"]}"
-    sh(
-      "curl -H '#{auth_header}' -o '#{file_name}' -s '#{file_url}'",
-      step_name: "curl -H '***' -o '#{file_name}' -s '#{file_url}'"
-    )
-    increment_build_number(xcodeproj: "hexa_keeper.xcodeproj")
+    sh("node", File.expand_path("../../scripts/release-version.cjs", __dir__), "release-check")
+    production_env = File.expand_path("../../.env.production", __dir__)
+    UI.user_error!("Missing reviewed .env.production") unless File.file?(production_env)
+    ENV['ENVFILE'] = production_env
 
     get_certificates( # Create or get certificate, and install it
       output_path: "./builds" # Download certificate in the build folder (you don't need to create the folder)
@@ -148,6 +140,7 @@ platform :ios do
     },
     build_path: "./builds",
     output_directory: "./builds")
+    sh("python3", File.expand_path("../../scripts/verify-release-artifact.py", __dir__), resolved_ipa_path!)
     upload_build_to_testflight!
   end
 end
