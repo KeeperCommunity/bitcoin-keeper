@@ -1,0 +1,4 @@
+appId: io.hexawallet.keeper.development
+---
+[ launchApp, { assertVisible: { id: "key_1" } }, { repeat: { times: 8, commands: [ { tapOn: { id: "key_1" } } ] } }, { assertVisible: "Create" }, { tapOn: "Create" }, { assertVisible: "Remember your passcode" }, { tapOn: "Back" }, { assertVisible: "Remember your passcode" }, { tapOn: "Continue" }, { assertVisible: "Enable Biometric Authentication" }, { tapOn: "Cancel" }, { assertVisible: "Create wallets" }, { swipe: { start: "80%,50%", end: "10%,50%" } }, { assertVisible: "Manage keys" }, { swipe: { start: "80%,50%", end: "10%,50%" } }, { assertVisible: "Plan for Inheritance" }, { tapOn: "See FAQs" }, back, { assertVisible: "Get Started" }, { tapOn: "Get Started" }, { assertVisible: "Welcome to Bitcoin Keeper" }, { tapOn: "Start New" }, { assertVisible: "Next" }, { tapOn: "Next" }, { assertVisible: "Home" } ]
+
