@@ -91,8 +91,8 @@ class Config {
 
   public KEEPER_PRIVATE_SKU = ["keeper_private_yearly"];
 
-  public APPSTORE_KEY = process.env.APPSTORE_PRIVATE_KEY || "";
-  public APPSTORE_KEY_ID = "H47BXD8H3V";
+  public APPSTORE_KEY = ""; // Purchases are unavailable in this isolated local backend.
+  public APPSTORE_KEY_ID = "";
 
   public BTC_PAY_STORE_ID = process.env.BTC_PAY_STORE_ID;
   public BTC_PAY_API_TOKEN = process.env.BTC_PAY_API_TOKEN;
@@ -107,6 +107,12 @@ class Config {
   public ZENDESK_BASE_URL = process.env.ZENDESK_BASE_URL;
   public RAMP_PRIVATE_KEY = (process.env.RAMP_PRIVATE_KEY || "").replace(/\\n/gm, "\n");
   public RAMP_HOST_API_KEY = process.env.RAMP_HOST_API_KEY;
+  // Instantiate SDK clients without production credentials; local routes reject
+  // hosted integrations and the container network blocks external access.
+  public OPEN_AI_API_KEY = "local-disabled";
+  public GITHUB_TOKEN = "";
+  public GITHUB_REPO = "";
+  public HELP_ADVISOR_ROUTE = "";
 
   constructor(env: string) {
     if (this.LOCAL_DEV) {

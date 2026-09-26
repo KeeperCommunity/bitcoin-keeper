@@ -28,10 +28,10 @@ index 790b90c..a72aa18 100644
      this.app.use(this.routes.initializeRoutes());
      this.app.use(express.static('public'));
 diff --git a/src/services/app.ts b/src/services/app.ts
-index 1dd624f..fc5e708 100644
+index fb35c18..cac80c9 100644
 --- a/src/services/app.ts
 +++ b/src/services/app.ts
-@@ -16,6 +16,8 @@ import moment from "moment";
+@@ -17,6 +17,8 @@ import moment from "moment";
  
  const iap = require("in-app-purchase");
  
@@ -40,7 +40,7 @@ index 1dd624f..fc5e708 100644
  google.options({
    auth: new JWT(
      config.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-@@ -24,7 +26,7 @@ google.options({
+@@ -25,7 +27,7 @@ google.options({
      ["https://www.googleapis.com/auth/androidpublisher"]
    ),
  });
@@ -49,7 +49,7 @@ index 1dd624f..fc5e708 100644
  
  iap.config({
    appleExcludeOldTransactions: true,
-@@ -39,6 +41,8 @@ iap.config({
+@@ -40,6 +42,8 @@ iap.config({
    verbose: config.ENVIRONMENT === "DEVELOPMENT", // Output debug logs to stdout stream
  });
  
@@ -59,14 +59,13 @@ index 1dd624f..fc5e708 100644
    publicId,
    appId,
 diff --git a/src/services/messageCentre.ts b/src/services/messageCentre.ts
-index a3d257b..c0d8046 100644
+index 20e9658..fa9a1ce 100644
 --- a/src/services/messageCentre.ts
 +++ b/src/services/messageCentre.ts
-@@ -2,16 +2,17 @@ import admin from "firebase-admin";
- import { v4 as uuidv4 } from "uuid";
+@@ -3,15 +3,16 @@ import { v4 as uuidv4 } from "uuid";
  import db from "../db";
  import { getReleaseTopic, getBroadcastTopic } from "../utils/getReleaseTopic";
--import serviceAccount from "./firebaseServiceAccPrivKey.json";
+ import { firebaseCredential } from "../utils/firebaseCredentials";
 +import config from "../config";
  import moment from "moment";
  import { broadcastReleaseNotification } from "./notifications";
@@ -75,11 +74,10 @@ index a3d257b..c0d8046 100644
  import { Document } from "mongoose";
  
 -admin.initializeApp({
--  credential: admin.credential.cert(serviceAccount as any),
+-  credential: firebaseCredential(),
 -});
 +if (!config.LOCAL_DEV) {
-+  const serviceAccount = require("./firebaseServiceAccPrivKey.json");
-+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
++  admin.initializeApp({ credential: firebaseCredential() });
 +}
  
  const subscribeToTopic = async (

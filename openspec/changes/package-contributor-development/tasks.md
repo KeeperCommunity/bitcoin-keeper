@@ -11,6 +11,8 @@
 - [x] Pass fresh-checkout dependency install and native development builds.
 - [x] Validate OpenSpec and record exact acceptance evidence and limitations.
 
+- [x] Update backend pins/adapters to the reviewed cleanup candidates and repeat fresh Docker API, V3/2FA, persistence and configuration-boundary checks; final security acceptance remains open.
+
 ## 3. Handoff
 - [ ] Complete backend source/history credential hygiene, security/dependency review and reproducible setup before granting broader private access; private visibility does not waive readiness.
 - [x] Document approved contributor access, GitHub profile/context review, resource grants and invitation/setup confirmation; no per-local-change permission.

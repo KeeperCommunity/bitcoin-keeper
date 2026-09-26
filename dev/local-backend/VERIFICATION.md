@@ -3,11 +3,35 @@
 ## Readiness before private access
 
 The owner requires the same repository hygiene before private contributor access
-as before public publication. Backend cleanup and review are being prepared in
-private worktrees. Source pins/adapters in this app have not yet been updated to
-that work. The setup is not cleared for broader backend access until source and
-history hygiene, credential handling, dependency/security review and a fresh
-contributor run are accepted. Detailed findings remain private.
+as before public publication. Backend cleanup is published in private draft PRs.
+This app now pins those updated revisions and its refreshed adapters have passed
+a fresh Docker setup on this Mac. Broader backend access still awaits history
+hygiene, credential handling, remaining dependency/security review and acceptance.
+Detailed findings remain private.
+
+## Fresh backend readiness integration
+
+Updated pins: relay `f570263ee04defa8d8c5fd568174be81c85e473f`, signing
+`5ad45119ab014ea58efecabd54702b488d8fd254`. New app worktree, newly fetched
+backend sources and new Docker volumes; host image/package caches and existing
+GitHub read access reused. Project `keeper-readiness-proof` used ports
+23000/24002/23003, preserving other development projects.
+
+- Source fetch, adapter checksums/application and container builds: PASS.
+- All four service health checks, Socket.IO handshake, explicit unsupported-route
+  response and persisted app record create/read: PASS.
+- V3 testnet Server Key setup, authorization and valid/invalid 2FA: PASS.
+- Container recreation preserves the same app record and derived signer public
+  key: PASS. Mainnet/hosted database startup rejection: PASS.
+- Five bootstrap regression tests: PASS. Active contributor OpenSpec validation:
+  PASS. Both backend test jobs and current-source scans pass in their own CI;
+  their history scans remain failing, tracked privately.
+- Native app builds/launch below apply to the previous backend pins. No native
+  rebuild or full app flow is claimed for these updated pins. No real signing
+  transaction, external provider, purchase or recovery test was performed here.
+- Full Linux Docker CI still lacks private-source access. Independent-machine
+  setup and Keeper security acceptance remain pending. These commits are draft
+  review inputs and are not an approval to deploy production backends.
 
 ## Access policy and analysis update
 
