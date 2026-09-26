@@ -12,8 +12,9 @@
 - [x] Validate OpenSpec and record exact acceptance evidence and limitations.
 
 ## 3. Handoff
-- [ ] Validate contributor setup and native builds against `sprint`.
-- [ ] Make CI execute tests, publish coverage and report analysis failures honestly.
+- [ ] Resolve private backend source access for outside contributors and CI; do not publish private sources or bypass the failed check.
+- [x] Validate native builds and authorized local backend setup against `sprint`; unrestricted source access remains blocked below.
+- [x] Make CI execute tests, publish coverage and report analysis failures honestly (app job passes; backend access and SonarCloud binding remain red).
 - [ ] Repair or obtain administrator repair of SonarCloud repository access/binding.
 - [x] Review and obtain approval for the concrete commit/push before publishing (approved in this task on 26 September 2026).
 - [ ] Have a second developer/machine execute the published setup.

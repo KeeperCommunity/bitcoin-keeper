@@ -19,7 +19,7 @@ Missing analysis or failed checks SHALL NOT be reported as passing.
 The contributor tooling SHALL fetch exact source revisions and validate local adapter digests before building isolated backend services.
 
 #### Scenario: Fresh checkout
-- **GIVEN** Git, Python and a running Docker/Compose engine
+- **GIVEN** Git, Python, approved read access to the pinned private backend repositories and a running Docker/Compose engine
 - **WHEN** the developer runs `dev up`
 - **THEN** pinned sources are prepared, services become healthy and disposable API checks pass without production secrets.
 

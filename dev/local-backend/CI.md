@@ -1,5 +1,20 @@
 # Contributor checks and analysis
 
+## Backend source access blocker
+
+The first Linux backend job passed bootstrap unit tests, then failed fetching the
+relay source. An anonymous GitHub API check returns 404 for both pinned backend
+repositories; an authenticated check confirms both are private. This Mac's saved
+read credentials explain why local setup passed. The app repository's CI token
+does not supply read access to those repositories.
+
+Maintainers must choose approved contributor/CI read access or a reviewed public
+development backend. Do not publish the private repositories, copy their contents
+into this app, or place a developer's personal token in CI to hide the failure.
+The Docker check remains failing until source access is actually resolved.
+
+## Check behavior
+
 The `Contributor checks` workflow runs app tests with coverage and the local
 backend bootstrap/API/persistence checks. Pull requests are checked against their
 proposed merge with the target branch. The app test command does not force Jest

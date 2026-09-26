@@ -1,6 +1,7 @@
 """Regression checks for setup operations that must preserve developer work."""
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -62,6 +63,16 @@ class PreserveDeveloperWork(unittest.TestCase):
         (self.here / '.env').write_text('KEEPER_RELAY_PORT=3003\n')
         with self.assertRaisesRegex(ValueError, 'distinct ports'):
             keeper.settings()
+
+    def test_fetch_failure_explains_access_and_cleans_temporary_checkout(self):
+        (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {
+            'assets': {}, 'url': 'https://github.com/example/private-backend.git',
+            'revision': 'a' * 40}}))
+        with patch.object(keeper, 'run', side_effect=[
+                None, None, subprocess.CalledProcessError(128, ['git', 'fetch'])]):
+            with self.assertRaisesRegex(ValueError, 'approved GitHub read access'):
+                keeper.prepare()
+        self.assertEqual(list((self.here / '.sources').iterdir()), [])
 
 
 if __name__ == '__main__':

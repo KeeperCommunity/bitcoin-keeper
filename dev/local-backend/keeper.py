@@ -77,7 +77,12 @@ def prepare():
             run(['git', 'init', '--quiet', checkout])
             run(['git', '-C', checkout, 'remote', 'add', 'origin', spec['url']])
             print(f'{name}: fetching {spec["revision"]}', flush=True)
-            run(['git', '-C', checkout, 'fetch', '--quiet', '--depth=1', 'origin', spec['revision']])
+            try:
+                run(['git', '-C', checkout, 'fetch', '--quiet', '--depth=1', 'origin', spec['revision']])
+            except subprocess.CalledProcessError as error:
+                raise ValueError(f'{name}: cannot fetch the pinned backend revision. '
+                                 'These backend repositories currently require approved GitHub read access. '
+                                 'Check source access and network connectivity; no existing checkout was replaced.') from error
             run(['git', '-C', checkout, 'checkout', '--quiet', '--detach', spec['revision']])
             run(['git', '-C', checkout, 'apply', '--check', adapter / 'local.patch'])
             run(['git', '-C', checkout, 'apply', adapter / 'local.patch'])

@@ -1,6 +1,6 @@
 # Contributing to Bitcoin Keeper
 
-Anyone can run Keeper locally, develop a change and submit a pull request. Keeper
+Contributions are welcome through forks and pull requests. Keeper
 maintainers are responsible for code and security review, assessing privacy risks,
 deciding whether to accept changes, and controlling merges and public releases.
 Passing automated checks or submitting a working build does not constitute approval.
@@ -12,6 +12,11 @@ need write access to the Keeper repository or production credentials. Follow the
 [local development guide](dev/local-backend/README.md) for tool versions, Docker
 backend setup, Android Studio/Xcode builds and troubleshooting. Docker runs the
 backend; native SDKs and the mobile app run on your host.
+
+The current Docker backend depends on two private source repositories. You need
+approved read access to both; a fork of this app is not enough. See the guide's
+access prerequisite. Removing that barrier for unrestricted public contributors
+is still pending maintainer review; this PR is not complete public onboarding.
 
 The guide's [capability table](dev/local-backend/README.md#what-works-locally) lists
 supported local flows and unavailable integrations. The

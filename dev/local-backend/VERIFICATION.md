@@ -10,7 +10,8 @@ Fresh worktree and node_modules, host SDKs/caches reused:
 - Jest: 17 suites / 183 tests PASS; process exits normally after adding test-only
   Electrum/HTTP teardown. LCOV is generated (coverage scope is the existing
   Electrum/wallet directories).
-- Four bootstrap regression tests and both active OpenSpec changes: PASS.
+- Five bootstrap regression tests (including denied source access) and both active
+  OpenSpec changes: PASS.
 - Broad validation of all legacy OpenSpec specs: 17 pre-existing specs failed;
   CI validates active changes, not these legacy documents.
 - Ruby lockfile constraints synchronized with Gemfile without gem version changes.
@@ -18,8 +19,20 @@ Fresh worktree and node_modules, host SDKs/caches reused:
   its existing react-native-iap 16.5.0 requires 3.4.0. Targeted `pod update openiap`
   aligned NitroIap/NitroModules/openiap with existing JavaScript dependencies;
   142 pods installed successfully. The updated lockfile is part of this PR.
-- Native builds and fresh backend checks: in progress; results will be updated.
-- SonarCloud: previous PR analysis failed before scanning; repository binding
+- Fresh backend API, V3 authorization/2FA, persistence and configuration boundary
+  checks: PASS using this Mac's existing backend source access.
+- Android development build: PASS (976 tasks, 5m20s). Install over the disposable
+  development app, local backend configuration and testnet passcode-screen launch:
+  PASS. Fresh signed iOS Debug simulator build: PASS (142 pods). Simulator install and
+  launch to the passcode screen: PASS by screenshot inspection. These launch
+  checks are not complete onboarding, recovery or transaction tests.
+- GitHub Linux app job: PASS, 17 suites / 183 tests, active OpenSpec validation and
+  LCOV artifact upload. Measured line coverage is 57.37% (1451/2529) within the
+  existing configured source scope; no 80% coverage claim is made.
+- GitHub Linux bootstrap unit tests: PASS. Docker startup: FAIL during source
+  fetch because both backend repositories are private and CI lacks access. This
+  is a blocker for unrestricted public onboarding, not a passing setup check.
+- SonarCloud: both the original and updated scanner failed before analysis; repository binding
   still points at the old organization. See [CI notes](CI.md). No analysis pass
   or security clearance is claimed.
 
