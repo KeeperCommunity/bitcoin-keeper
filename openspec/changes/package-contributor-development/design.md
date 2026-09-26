@@ -1,0 +1,28 @@
+## Design
+
+Keep the mobile checkout and native IDEs on the host. Python standard-library commands fetch backend revisions into ignored `.sources`, check adapter digests, apply patches/replacement files, and start Compose. No system packages are installed automatically. Existing source edits, env files and data volumes are retained.
+
+Docker runs Mongo, relay/channel, testnet signing and an nginx loopback gateway. Backend containers use an internal network. Startup is health-gated; the app template supplies disposable local identifiers. Compose project names and host ports support an independent acceptance environment.
+
+Pin source commits rather than mutable branches. Bundle the prepared local-mode adapters in this app change while upstream backend commits are unpublished; config replacements avoid copying removed historical credentials into patches. Review adapter hashes when updating and eventually replace them with upstream commits.
+
+The setup hook remains platform neutral; Android reads ANDROID_HOME and iOS runs root Bundler/CocoaPods explicitly. No Redux slices, sagas, PSBT data flow, Realm schemas, MMKV keys or UI components change.
+
+## Affected files
+
+- `dev/local-backend/`: Compose, bootstrap/verification, templates, adapters, source lock and contributor documentation.
+- `setup.sh`: only compatibility shims in Yarn's prepare hook.
+- `Readme.md`, `CONTRIBUTING.md` and `.github/pull_request_template.md`: discoverable contributor workflow and test reporting, with security review, acceptance, merge and release authority retained by Keeper maintainers. No claim that repository protection rules have been verified or changed.
+- `openspec/changes/package-contributor-development/`: scope and acceptance evidence.
+
+## Validation and limits
+
+Integration onto `sprint` also updates `.github/workflows/test.yml`, removes the
+redundant scan-only `build.yml`, and sends the test coverage artifact to the pinned
+Sonar scanner with quality-gate waiting enabled. `test-setup.js` and the vault
+test close test-owned connections. `Gemfile.lock`, `ios/Podfile.lock` and the YAML
+quoting in `openspec/config.yaml` are aligned with existing dependency/config
+requirements. No app business logic or version fields change. `CI.md` records the
+external SonarCloud binding blocker and the existing baseline findings.
+
+Test from a fresh remote app checkout with newly fetched backend sources and new Docker volumes on alternate ports. Verify local API writes/reads, V3 Server Key and 2FA, persistence after recreation and rejection of external database/mainnet config. Build development Android and iOS using fresh dependency directories. Reuse host SDKs and download caches; a second physical developer machine remains an independent handoff check. Record failures honestly in VERIFICATION.md.

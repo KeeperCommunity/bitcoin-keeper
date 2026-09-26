@@ -1,0 +1,86 @@
+diff --git a/src/index.ts b/src/index.ts
+index 790b90c..a72aa18 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -4,6 +4,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
+ import morgan from 'morgan';
+ import cron from 'node-cron';
+ import config from './config';
++import { localDevelopmentRoutes } from './localDevelopment';
+ import Routes from './routes/routes';
+ import { syncExchangeRates } from './services/rates';
+ import { createServer } from 'http';
+@@ -23,7 +24,7 @@ class Relay {
+     this.routes = new Routes(this.app);
+     this.configure();
+     this.invoke();
+-    this.startCrons();
++    if (!config.LOCAL_DEV) this.startCrons();
+     this.initializeSocketIO();
+   }
+ 
+@@ -47,6 +48,7 @@ class Relay {
+     this.app.use(morgan('combined'));
+     this.app.use(bodyParser.json({ limit: '50mb' }));
+     this.app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
++    if (config.LOCAL_DEV) this.app.use(localDevelopmentRoutes);
+     this.app.all('*', this.checkAuth);
+     this.app.use(this.routes.initializeRoutes());
+     this.app.use(express.static('public'));
+diff --git a/src/services/app.ts b/src/services/app.ts
+index 1dd624f..fc5e708 100644
+--- a/src/services/app.ts
++++ b/src/services/app.ts
+@@ -16,6 +16,8 @@ import moment from "moment";
+ 
+ const iap = require("in-app-purchase");
+ 
++const androidGoogleApi = google.androidpublisher({ version: "v3" });
++if (!config.LOCAL_DEV) {
+ google.options({
+   auth: new JWT(
+     config.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+@@ -24,7 +26,7 @@ google.options({
+     ["https://www.googleapis.com/auth/androidpublisher"]
+   ),
+ });
+-const androidGoogleApi = google.androidpublisher({ version: "v3" });
++
+ 
+ iap.config({
+   appleExcludeOldTransactions: true,
+@@ -39,6 +41,8 @@ iap.config({
+   verbose: config.ENVIRONMENT === "DEVELOPMENT", // Output debug logs to stdout stream
+ });
+ 
++}
++
+ export const createNewApp = async (
+   publicId,
+   appId,
+diff --git a/src/services/messageCentre.ts b/src/services/messageCentre.ts
+index a3d257b..c0d8046 100644
+--- a/src/services/messageCentre.ts
++++ b/src/services/messageCentre.ts
+@@ -2,16 +2,17 @@ import admin from "firebase-admin";
+ import { v4 as uuidv4 } from "uuid";
+ import db from "../db";
+ import { getReleaseTopic, getBroadcastTopic } from "../utils/getReleaseTopic";
+-import serviceAccount from "./firebaseServiceAccPrivKey.json";
++import config from "../config";
+ import moment from "moment";
+ import { broadcastReleaseNotification } from "./notifications";
+ import { NotificationType } from "../interface";
+ import * as releaseNotes from "../services/releaseNotes";
+ import { Document } from "mongoose";
+ 
+-admin.initializeApp({
+-  credential: admin.credential.cert(serviceAccount as any),
+-});
++if (!config.LOCAL_DEV) {
++  const serviceAccount = require("./firebaseServiceAccPrivKey.json");
++  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
++}
+ 
+ const subscribeToTopic = async (
+   topic: string,

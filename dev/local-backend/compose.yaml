@@ -1,0 +1,98 @@
+name: ${COMPOSE_PROJECT_NAME:-keeper-contributor}
+services:
+  mongo:
+    image: mongo:7.0@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    volumes:
+      - mongo-data:/data/db
+    networks: [local-only]
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  relay:
+    build:
+      context: ./.sources/relay
+      dockerfile: Dockerfile.local
+    environment:
+      LOCAL_DEV: "true"
+      ENVIRONMENT: DEVELOPMENT
+      BITCOIN_NETWORK: TESTNET
+      VERSION: local-development
+      DATABASE_URL: mongodb://mongo:27017/keeper_local
+      PORT: "3000"
+      WS_PORT: "4002"
+      HEXA_ID: keeper-local-only
+      ADMIN_KEY: keeper-local-admin-only
+      CHANNEL_URL: http://relay:4002/
+      FAUCET_MNEMONIC: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+    networks: [local-only]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  signing:
+    build:
+      context: ./.sources/signing
+      dockerfile: Dockerfile.local
+    environment:
+      LOCAL_DEV: "true"
+      ENVIRONMENT: TEST
+      DB_MODE: DEV
+      PORT: "3003"
+      VERSION: local-development
+      HEXA_ID: keeper-local-only
+      BIT_ADMIN_KEY: keeper-local-admin-only
+      LOCAL_DATABASE_URL: mongodb://mongo:27017/keeper_signing_local
+      RELAY: http://relay:3000/
+      MNEMONIC_IDENTIFIER_V2: local-signer-v2
+      MNEMONIC_IDENTIFIER_V3: local-signer-v3
+      INHERITANCE_MNEMONIC_IDENTIFIER_V2: local-inheritance-v2
+      INHERITANCE_MNEMONIC_IDENTIFIER_V3: local-inheritance-v3
+      RSA_PRV_KEY_IDENTIFIER: local-rsa-private
+      RSA_PUB_KEY_IDENTIFIER: local-rsa-public
+      SES_REGION: us-east-1
+      SES_SOURCE_EMAIL: local@example.invalid
+    volumes:
+      - signing-data:/local-data
+    networks: [local-only]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  gateway:
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1:3000/health && wget -q -O /dev/null http://127.0.0.1:3003/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:${KEEPER_RELAY_PORT:-3000}:3000"
+      - "127.0.0.1:${KEEPER_CHANNEL_PORT:-4002}:4002"
+      - "127.0.0.1:${KEEPER_SIGNING_PORT:-3003}:3003"
+    networks: [local-only, host-access]
+    depends_on:
+      relay:
+        condition: service_healthy
+        restart: true
+      signing:
+        condition: service_healthy
+        restart: true
+networks:
+  local-only:
+    internal: true
+  host-access:
+volumes:
+  mongo-data:
+  signing-data:

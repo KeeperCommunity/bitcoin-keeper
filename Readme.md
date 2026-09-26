@@ -31,6 +31,13 @@ Ongoing development and maintenance are supported by **grants and optional user 
 The wallet is built so that users can always move their keys and funds elsewhere, regardless of the project’s future.
 
 
+## Contributing
+
+Anyone can run Keeper locally and propose changes. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup, OpenSpec, testing and pull requests.
+Keeper maintainers retain responsibility for security review, final acceptance,
+merging and official releases; passing checks does not automatically approve code.
+
 ## Prerequisites
 
 Before getting started, make sure you have a proper [React Native development environment](https://reactnative.dev/docs/environment-setup) on your machine
@@ -44,6 +51,11 @@ Refer to platform-specific documentation for detailed setup requirements.
 
 ## Getting Started
 
+For the local Docker backend and native iOS/Android workflow, start with the
+[contributor development guide](dev/local-backend/README.md). It includes pinned
+backend sources, disposable local configuration and a runnable verification check.
+Hosted development services are no longer required for the supported local flows.
+
 1. Clone this repository to your local machine:
 
    ```shell
@@ -54,57 +66,21 @@ Refer to platform-specific documentation for detailed setup requirements.
    ```shell
    cd bitcoin-keeper
    ```
-3. Install the project dependencies using Yarn:
-   The prepare scripts will automatically install pods and nodify crypto-related packages for react-native
-   ```shell
-   yarn install
-   ```
+3. Follow the [contributor development guide](dev/local-backend/README.md) to start
+   Docker services, generate `.env.local`, install locked dependencies, and build
+   the native development app.
 
 ## Build and Run
 
-### Varients
+Use the documented `ENVFILE=.env.local` commands in the contributor guide for local
+backend development. Start Metro with `yarn start`. CocoaPods installation is an
+explicit iOS-only step; the JavaScript install hook does not run it automatically.
 
-The project has testnet and mainnet variants. The development variant is configured to use testnet and the production variant to use mainnet.
-
-Start metro metro
-
-```bash
-yarn start
-```
-
-#### Development
-
-To run the development app on a connected device or emulator:
-
-**Android**
-
-```bash
-yarn androidDevelopmentDebug
-```
-
-**iOS**
-
-```bash
-yarn ios --scheme=hexa_keeper_dev
-```
-
-#### Production
-
-To run the production app on a connected device or emulator:
-
-**Android**
-
-```bash
-yarn androidProductionDebug
-```
-
-**iOS**
-
-```bash
-yarn ios --scheme=hexa_keeper
-```
-
-These commands will build and launch the app on the respective platforms.
+Development and production native variants have separate application identifiers.
+The selected environment file controls backend URLs; select testnet explicitly
+when exercising local Server Key functionality. Store builds require the separate
+[Android](android/fastlane/README.md) and [iOS](ios/fastlane/README.md) release
+workflows and authorized release credentials.
 
 ## PGP
 

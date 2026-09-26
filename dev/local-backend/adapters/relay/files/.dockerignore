@@ -1,0 +1,9 @@
+.git
+.env*
+node_modules
+dist
+src/services/firebaseServiceAccPrivKey.json
+**/*.pem
+**/*.p12
+**/*.key
+**/test-creds

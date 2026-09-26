@@ -6,6 +6,12 @@ import mockRNDeviceInfo from 'react-native-device-info/jest/react-native-device-
 global.net = require('net'); // needed by Electrum client. For RN it is proviced in shim.js
 global.tls = require('tls'); // needed by Electrum client. For RN it is proviced in shim.js
 
+// Node's HTTP agents keep integration-test sockets alive after requests finish.
+afterAll(() => {
+  require('http').globalAgent.destroy();
+  require('https').globalAgent.destroy();
+});
+
 jest.mock('react-native-device-info', () => mockRNDeviceInfo);
 
 jest.mock('react-native/Libraries/Utilities/Dimensions');

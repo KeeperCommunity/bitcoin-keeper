@@ -1,0 +1,24 @@
+{
+  "relay": {
+    "url": "https://github.com/KeeperCommunity/bitcoin-keeper-relay.git",
+    "revision": "5551550d7ba0e84ce239a7f154f34613081c5c20",
+    "assets": {
+      "files/.dockerignore": "61d9f36538dd338979e75c92c15c62e68858ae5b9a7e973ab7739df5454acac5",
+      "files/Dockerfile.local": "344818e5aa8adc5f0d7f1345ce41f0ce177f62639cfb6bb126d511e2d1d95a7d",
+      "files/src/config.ts": "20ac663c879f69d5e1018adac874533d5d57d4a449fdbd81cb25a6591feffc76",
+      "files/src/localDevelopment.ts": "833a4c95a495b65e1ece512de2206e0f2abbd997233d4537560bafccd4923243",
+      "local.patch": "635f8c07184576a5f94043b94692b7ccd954a29ee95d77972b1ce3053db5b12f"
+    }
+  },
+  "signing": {
+    "url": "https://github.com/bithyve/SigningServer.git",
+    "revision": "91a973264ab5abd0421732294e70f55aa155c187",
+    "assets": {
+      "files/.dockerignore": "78d9a1e03c57cfc1c7fb79ff2335aa2393bb075d0ac4a23feae81371728190be",
+      "files/Dockerfile.local": "04a0bfca3903eb1363f8804b7c181424747c949aed543a89fe7a02316ccafa3d",
+      "files/scripts/local-entry.cjs": "7e0d39965fd8d4a880ab68b5ff9e7b75595c33cbdb106bb5ec0b42d505b1827b",
+      "files/src/config.ts": "606fdeb4717e98ab95e5a6918a0c8a8b9b3427697d27bba263b9ec566a91438e",
+      "local.patch": "a592f37900215a5f013a0d349983f7a1d937206fbf1670c07fc9a37e457d743f"
+    }
+  }
+}

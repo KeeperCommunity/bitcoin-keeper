@@ -1,32 +1,77 @@
-name: Run Tests
+name: Contributor checks
 
 on:
   push:
-    branches:
-      - sprint
-      - dev
-      - main
+    branches: [sprint, dev, main]
   pull_request:
-    branches:
-      - sprint
-      - dev
-      - main
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contributor-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: App tests and coverage
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+          cache: yarn
+      - run: yarn install --frozen-lockfile --non-interactive
+      - run: yarn test --ci --runInBand
+      - run: yarn openspec validate --changes --strict
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: app-coverage
+          path: coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Install dependencies
-        run: yarn install
+  backend:
+    name: Local backend and bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.9'
+      - run: python3 -B -m unittest discover -s dev/local-backend -p 'test_*.py'
+      - run: ./dev/local-backend/dev up
+      - run: ./dev/local-backend/verify-local.sh --persistence --boundaries
+      - name: Stop containers and retain volumes
+        if: always()
+        run: ./dev/local-backend/dev stop
 
-      - name: Run tests
-        run: npm run test
+  sonarcloud:
+    name: SonarCloud
+    needs: test
+    # Fork PRs run the tests above without receiving maintainer secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: app-coverage
+          path: coverage
+      - uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

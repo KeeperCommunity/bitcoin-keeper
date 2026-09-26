@@ -67,6 +67,11 @@ const connectToElectrumClient = async () => {
   }
 };
 
+// The three vault groups share this connection; close it after the whole file.
+afterAll(() => {
+  ElectrumClient.forceDisconnect();
+});
+
 describe('Vault: Single-Sig(1-of-1)', () => {
   let primaryMnemonic: string;
   let vault: Vault;
