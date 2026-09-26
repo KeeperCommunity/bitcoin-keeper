@@ -12,6 +12,7 @@
 - [x] Validate OpenSpec and record exact acceptance evidence and limitations.
 
 ## 3. Handoff
+- [ ] Complete backend source/history credential hygiene, security/dependency review and reproducible setup before granting broader private access; private visibility does not waive readiness.
 - [x] Document approved contributor access, GitHub profile/context review, resource grants and invitation/setup confirmation; no per-local-change permission.
 - [ ] Provision and verify private backend CI access without exposing credentials to fork code; retain the honest failing check until resolved.
 - [x] Validate native builds and authorized local backend setup against `sprint`.

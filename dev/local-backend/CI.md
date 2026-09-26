@@ -1,9 +1,10 @@
 # Contributor checks and analysis
 
-## Approved backend access; CI provisioning pending
+## Readiness before access; CI provisioning pending
 
 Keeper uses [approved contributor access](ACCESS.md) for the private backend
-repositories. Public app development and local changes do not require individual
+repositories. Backend source/history readiness and security review must be
+accepted before expanding access; private visibility does not waive that review. Public app development and local changes do not require individual
 permission. Maintainers review contributors and grant the development resources
 they need; acceptance of code and official releases remain separate decisions.
 

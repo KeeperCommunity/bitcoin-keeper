@@ -5,6 +5,20 @@ pull requests without Keeper's permission. Contributors with access to the
 required backend sources can also run and modify their local Docker services
 without approval for each command or change.
 
+## Repository readiness comes before access
+
+Apply the same credential hygiene standard to private contributor access as to
+public source. Before inviting a contributor, maintainers verify that the source
+and history intended for sharing contain no unresolved sensitive information,
+record credential rotation and exposure cleanup where needed, review dependency
+and security findings, and confirm reproducible setup. A profile approval does
+not waive these checks. Current-source cleanup alone is not history cleanup.
+
+The backend readiness review is in progress; broader access must wait for its
+recorded acceptance. Detailed findings stay in private records. Developers who
+already have appropriate access can continue their local work without per-change
+permission.
+
 ## Request private development resources
 
 The packaged Docker setup requires read access to both private repositories:
@@ -26,7 +40,8 @@ edits. Additional resources can be requested as the work expands.
 
 ## Maintainer handoff
 
-1. Review the request and record the decision and approved resource scope.
+1. Confirm repository readiness, then review the request and record the decision
+   and approved resource scope.
 2. Ask an owner of each private repository to grant the approved GitHub account
    access. Read access is sufficient for this Docker bootstrap. Approve additional
    development permissions when the contribution needs them.

@@ -1,5 +1,14 @@
 # Contributor setup verification — 26 September 2026
 
+## Readiness before private access
+
+The owner requires the same repository hygiene before private contributor access
+as before public publication. Backend cleanup and review are being prepared in
+private worktrees. Source pins/adapters in this app have not yet been updated to
+that work. The setup is not cleared for broader backend access until source and
+history hygiene, credential handling, dependency/security review and a fresh
+contributor run are accepted. Detailed findings remain private.
+
 ## Access policy and analysis update
 
 The owner chose approved contributor access and deferred SonarCloud on 26

@@ -34,6 +34,7 @@ Other development resources or permissions needed, and why:
 Maintainers: record the decision and approved scope below, omitting private details.
 
 - Decision and scope:
+- [ ] Maintainers confirmed the requested resources meet contributor-readiness requirements
 - [ ] Approved access granted by the relevant resource owners
 - [ ] Contributor accepted invitations and confirmed source access
 - [ ] Contributor reported local setup/check results

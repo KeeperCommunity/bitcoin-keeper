@@ -57,6 +57,11 @@ The setup SHALL document native iOS and Android development steps separately fro
 ### Requirement: Contributor access and maintainer acceptance
 The repository SHALL document how outside developers can run, change, test and propose code without production credentials or repository write access. Keeper maintainers SHALL retain responsibility for security review, acceptance, merging and official releases.
 
+#### Scenario: Repository readiness before invitations
+- **GIVEN** a contributor approved for private development resources
+- **WHEN** maintainers prepare to grant access
+- **THEN** they first confirm source/history credential hygiene, required credential rotation, security/dependency review and reproducible setup; private visibility does not waive readiness.
+
 #### Scenario: Private resource access
 - **GIVEN** a contributor who needs private backend sources or other development resources
 - **WHEN** they follow the documented access request process
