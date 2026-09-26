@@ -1,5 +1,21 @@
 # Contributor setup verification — 26 September 2026
 
+## Access policy and analysis update
+
+The owner chose approved contributor access and deferred SonarCloud on 26
+September. [Access instructions](ACCESS.md) and a GitHub request template now
+cover profile/context review, approved resource grants and setup confirmation.
+Local edits need no individual approval. No invitations or CI credentials were
+provisioned by this documentation change. SonarCloud is removed from active CI;
+its earlier failures below remain historical evidence, not a passing analysis.
+App tests and coverage remain active; private-source access still blocks backend
+CI. Independent contributor setup remains pending.
+
+This documentation/workflow update passed YAML and issue-template parsing,
+21 local documentation link checks, all five bootstrap tests and strict validation
+of both active OpenSpec changes. Native builds were not repeated for this update;
+the existing build results below apply to the unchanged app/native code.
+
 ## Integration onto sprint
 
 The current PR is being integrated onto `sprint` commit `1adf4f663`; the release
@@ -31,7 +47,8 @@ Fresh worktree and node_modules, host SDKs/caches reused:
   existing configured source scope; no 80% coverage claim is made.
 - GitHub Linux bootstrap unit tests: PASS. Docker startup: FAIL during source
   fetch because both backend repositories are private and CI lacks access. This
-  is a blocker for unrestricted public onboarding, not a passing setup check.
+  requires CI access provisioning; approved contributors also need their own
+  source access before setup. It is not a passing setup check.
 - SonarCloud: both the original and updated scanner failed before analysis; repository binding
   still points at the old organization. See [CI notes](CI.md). No analysis pass
   or security clearance is claimed.

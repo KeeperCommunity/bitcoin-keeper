@@ -12,11 +12,14 @@
 - [x] Validate OpenSpec and record exact acceptance evidence and limitations.
 
 ## 3. Handoff
-- [ ] Resolve private backend source access for outside contributors and CI; do not publish private sources or bypass the failed check.
-- [x] Validate native builds and authorized local backend setup against `sprint`; unrestricted source access remains blocked below.
-- [x] Make CI execute tests, publish coverage and report analysis failures honestly (app job passes; backend access and SonarCloud binding remain red).
-- [ ] Repair or obtain administrator repair of SonarCloud repository access/binding.
+- [x] Document approved contributor access, GitHub profile/context review, resource grants and invitation/setup confirmation; no per-local-change permission.
+- [ ] Provision and verify private backend CI access without exposing credentials to fork code; retain the honest failing check until resolved.
+- [x] Validate native builds and authorized local backend setup against `sprint`.
+- [x] Make CI execute tests and publish coverage; backend source access remains a failure. SonarCloud is explicitly deferred, not reported as passing.
 - [x] Review and obtain approval for the concrete commit/push before publishing (approved in this task on 26 September 2026).
 - [ ] Have a second developer/machine execute the published setup.
+
+## 4. Deferred by the project owner
+- [ ] Restore SonarCloud after administrator verification/repair of binding and access; review actual analysis and quality-gate findings. This is outside the current handoff scope.
 
 No UI/store/storage changes; no migration or new Maestro flow is required.

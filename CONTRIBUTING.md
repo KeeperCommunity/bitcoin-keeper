@@ -14,9 +14,12 @@ backend setup, Android Studio/Xcode builds and troubleshooting. Docker runs the
 backend; native SDKs and the mobile app run on your host.
 
 The current Docker backend depends on two private source repositories. You need
-approved read access to both; a fork of this app is not enough. See the guide's
-access prerequisite. Removing that barrier for unrestricted public contributors
-is still pending maintainer review; this PR is not complete public onboarding.
+approved read access to both; a fork of this app is not enough. Follow the
+[contributor access process](dev/local-backend/ACCESS.md): maintainers review your
+GitHub profile and proposed work, then grant approved development resources.
+Public app development needs no permission, and approved contributors do not
+need approval for each local command, experiment or edit. Access approval is
+separate from acceptance of contributed code.
 
 The guide's [capability table](dev/local-backend/README.md#what-works-locally) lists
 supported local flows and unavailable integrations. The
@@ -102,9 +105,10 @@ do not request production secrets or treat an unavailable check as passing.
 This document defines review responsibilities; it does not claim that GitHub
 branch protection or approval rules have been configured or verified.
 
-GitHub runs the app tests and publishes their LCOV report for SonarCloud, plus
+GitHub runs the app tests and publishes their LCOV report for review, plus
 bootstrap and Docker backend checks. The existing Electrum/wallet integration
 tests use public testnet nodes and fee services; an internet connection is needed.
 Coverage measures the configured Electrum/wallet source directories, not every
-app screen. See [CI troubleshooting](dev/local-backend/CI.md) for analysis setup
-and how failed, unavailable and passing checks are distinguished.
+app screen. SonarCloud analysis is deferred; passing tests are not a security
+analysis pass. See [CI troubleshooting](dev/local-backend/CI.md) for current access
+limitations, the deferred analysis work and how results are distinguished.

@@ -2,18 +2,18 @@
 
 ### Requirement: Reviewable CI evidence
 Contributor pull requests SHALL run app and local backend checks. App tests SHALL
-produce an LCOV artifact for SonarCloud, which SHALL wait for its quality gate.
-Missing analysis or failed checks SHALL NOT be reported as passing.
+produce an LCOV artifact for review. Deferred or unavailable security analysis
+and failed checks SHALL NOT be reported as passing.
 
 #### Scenario: Test completion
 - **GIVEN** the existing network integration tests finish
 - **WHEN** test teardown runs
 - **THEN** test-owned connections close and Jest exits without a forced exit.
 
-#### Scenario: External analysis unavailable
-- **GIVEN** a missing secret or inaccessible SonarCloud repository binding
-- **WHEN** analysis cannot complete
-- **THEN** the limitation remains visible for maintainer action, with no lowered quality threshold or substituted success result.
+#### Scenario: External analysis deferred
+- **GIVEN** the project owner's decision to defer SonarCloud
+- **WHEN** the active workflow reports its results
+- **THEN** tests and coverage remain available, documentation explicitly states that SonarCloud did not run, and maintainer security review remains required.
 
 ### Requirement: Repeatable local bootstrap
 The contributor tooling SHALL fetch exact source revisions and validate local adapter digests before building isolated backend services.
@@ -56,6 +56,17 @@ The setup SHALL document native iOS and Android development steps separately fro
 
 ### Requirement: Contributor access and maintainer acceptance
 The repository SHALL document how outside developers can run, change, test and propose code without production credentials or repository write access. Keeper maintainers SHALL retain responsibility for security review, acceptance, merging and official releases.
+
+#### Scenario: Private resource access
+- **GIVEN** a contributor who needs private backend sources or other development resources
+- **WHEN** they follow the documented access request process
+- **THEN** maintainers review their GitHub profile, planned work and relevant context, decide approval and scope, and arrange the approved permissions with resource owners.
+- **AND** the handoff records accepted invitations and setup results without treating a policy document as an actual access grant.
+
+#### Scenario: Independent local work
+- **GIVEN** public app code or approved access to private development resources
+- **WHEN** a contributor makes local changes or runs local tests
+- **THEN** no permission is required for each local action, while code acceptance and official releases remain with Keeper maintainers.
 
 #### Scenario: External contribution
 - **GIVEN** a developer with a fork and the documented local tools

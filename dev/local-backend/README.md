@@ -10,10 +10,11 @@ acceptance, merges and official releases.
 
 **Source access is currently required:** both pinned backend repositories,
 `KeeperCommunity/bitcoin-keeper-relay` and `bithyve/SigningServer`, are private.
-An authorized developer can use the steps below, but an unauthenticated outside
-contributor cannot yet complete backend setup. Public contributor onboarding is
-blocked until maintainers choose approved read access or a reviewed public
-development backend. App setup alone does not grant backend access.
+Follow the [contributor access process](ACCESS.md) to request development access.
+Keeper maintainers review your GitHub profile and planned contribution, approve
+the needed resources, and arrange access. Public app development needs no
+permission; once source access is granted, local backend work needs no approval
+for each change. App setup alone does not grant private repository access.
 
 - Git, Python 3.9+, Docker Engine with Compose v2.20+ (or a newer Compose release). On macOS use Docker Desktop or Colima; Linux can use Docker Engine. Start the engine before setup. Reserve about 3–4 GB for Docker and run native builds sequentially on a 16 GB Mac.
 - Access to the GitHub repositories in `sources.lock.json`. First setup downloads sources, container images and dependencies. Subsequent starts can reuse them.
