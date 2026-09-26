@@ -11,7 +11,7 @@ Detailed findings remain private.
 
 ## Fresh backend readiness integration
 
-Updated pins: relay `f570263ee04defa8d8c5fd568174be81c85e473f`, signing
+Updated pins: relay `5f59876b43fba1be9091657a6bf3389ce43831d0`, signing
 `5ad45119ab014ea58efecabd54702b488d8fd254`. New app worktree, newly fetched
 backend sources and new Docker volumes; host image/package caches and existing
 GitHub read access reused. Project `keeper-readiness-proof` used ports
@@ -26,9 +26,34 @@ GitHub read access reused. Project `keeper-readiness-proof` used ports
 - Five bootstrap regression tests: PASS. Active contributor OpenSpec validation:
   PASS. Both backend test jobs and current-source scans pass in their own CI;
   their history scans remain failing, tracked privately.
-- Native app builds/launch below apply to the previous backend pins. No native
-  rebuild or full app flow is claimed for these updated pins. No real signing
-  transaction, external provider, purchase or recovery test was performed here.
+- Updated native development builds: iOS PASS after replacing a stale local
+  Node path; Android PASS after selecting the installed JDK 17 (976 tasks, 58
+  executed, 918 cached). Both builds embed the isolated 23000/24002/23003 backend
+  configuration. Native app source is the previously verified sprint integration;
+  this follow-up changes only backend pins/adapters and documentation.
+- Relay container compilation initially failed from memory exhaustion. Importing
+  only the existing Android Publisher v3 client reduced measured local compiler
+  memory to about 422 MB; the final image builds successfully with a 1 GB Node
+  heap. This retains the same provider API/library version.
+- Final image startup/API/V3/2FA and persistence/configuration-boundary checks:
+  PASS. The earlier iOS onboarding record survives recreation. No actual store
+  purchase, signing transaction or backup/recovery correctness test is claimed.
+- Native local smoke: iOS passcode/onboarding, Mobile Wallet and More Options
+  PASS using Maestro steps plus screenshot inspection. Initial Start New selector
+  failed despite the visible control; a visually guided tap continued the flow.
+  Relaunch/unlock after final backend restart PASS after handling the notification
+  prompt and repeated introductory/recovery-backup reminders; More Options assertion
+  passed. The original uninterrupted automation flows remain recorded as failures.
+- Android: disposable emulator user 10 preserves the prior user's app data. Fresh
+  passcode/onboarding, Mobile Wallet and More Options PASS using ADB assertions
+  plus a visually guided Next tap. The first attempt used the wrong Metro; after
+  selecting the matching checkout and resetting only this new user's disposable
+  fixture, the relay created the native app record with HTTP 200. UIAutomator could
+  not reach idle during the animated Next screen; that original assertion timed
+  out, while visual navigation and subsequent assertions passed. An earlier
+  attempt also overlapped the deliberate backend restart and was retried.
+- Native app records are confirmed in local MongoDB. This is onboarding/connectivity
+  evidence, not real signing, recovery, purchase or cloud-integration acceptance.
 - Full Linux Docker CI still lacks private-source access. Independent-machine
   setup and Keeper security acceptance remain pending. These commits are draft
   review inputs and are not an approval to deploy production backends.

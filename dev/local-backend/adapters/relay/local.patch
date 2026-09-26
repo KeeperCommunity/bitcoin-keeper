@@ -27,37 +27,6 @@ index 790b90c..a72aa18 100644
      this.app.all('*', this.checkAuth);
      this.app.use(this.routes.initializeRoutes());
      this.app.use(express.static('public'));
-diff --git a/src/services/app.ts b/src/services/app.ts
-index fb35c18..cac80c9 100644
---- a/src/services/app.ts
-+++ b/src/services/app.ts
-@@ -17,6 +17,8 @@ import moment from "moment";
- 
- const iap = require("in-app-purchase");
- 
-+const androidGoogleApi = google.androidpublisher({ version: "v3" });
-+if (!config.LOCAL_DEV) {
- google.options({
-   auth: new JWT(
-     config.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-@@ -25,7 +27,7 @@ google.options({
-     ["https://www.googleapis.com/auth/androidpublisher"]
-   ),
- });
--const androidGoogleApi = google.androidpublisher({ version: "v3" });
-+
- 
- iap.config({
-   appleExcludeOldTransactions: true,
-@@ -40,6 +42,8 @@ iap.config({
-   verbose: config.ENVIRONMENT === "DEVELOPMENT", // Output debug logs to stdout stream
- });
- 
-+}
-+
- export const createNewApp = async (
-   publicId,
-   appId,
 diff --git a/src/services/messageCentre.ts b/src/services/messageCentre.ts
 index 20e9658..fa9a1ce 100644
 --- a/src/services/messageCentre.ts

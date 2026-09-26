@@ -13,6 +13,8 @@
 
 - [x] Update backend pins/adapters to the reviewed cleanup candidates and repeat fresh Docker API, V3/2FA, persistence and configuration-boundary checks; final security acceptance remains open.
 
+- [x] Rebuild iOS/Android for updated backend ports and verify disposable onboarding, native app records, Wallets and More Options; distinguish automated assertion failures and visual continuation.
+
 ## 3. Handoff
 - [ ] Complete backend source/history credential hygiene, security/dependency review and reproducible setup before granting broader private access; private visibility does not waive readiness.
 - [x] Document approved contributor access, GitHub profile/context review, resource grants and invitation/setup confirmation; no per-local-change permission.

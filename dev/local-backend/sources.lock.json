@@ -1,13 +1,13 @@
 {
   "relay": {
     "url": "https://github.com/KeeperCommunity/bitcoin-keeper-relay.git",
-    "revision": "f570263ee04defa8d8c5fd568174be81c85e473f",
+    "revision": "5f59876b43fba1be9091657a6bf3389ce43831d0",
     "assets": {
       "files/.dockerignore": "61d9f36538dd338979e75c92c15c62e68858ae5b9a7e973ab7739df5454acac5",
-      "files/Dockerfile.local": "344818e5aa8adc5f0d7f1345ce41f0ce177f62639cfb6bb126d511e2d1d95a7d",
+      "files/Dockerfile.local": "9aebef582525f1afd0f51c551ae17a47950d99596eba827cdc2749684330454e",
       "files/src/config.ts": "10615e8317aa860d02c7bb7c93292236a134436253a858b683f7d0f00b0b97b0",
       "files/src/localDevelopment.ts": "833a4c95a495b65e1ece512de2206e0f2abbd997233d4537560bafccd4923243",
-      "local.patch": "fd08e69c4b17fc11c321f930d8d8a8d152c51ae44f8bc18ddbed3eb322d496d2"
+      "local.patch": "6c73060488ca4636d615ed98e6426c86d07cfff9819d13f6cf6763be9b8566a6"
     }
   },
   "signing": {

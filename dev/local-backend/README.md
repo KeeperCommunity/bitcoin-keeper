@@ -148,5 +148,7 @@ Signing identities are randomly generated per signing volume and stored with res
 - Stale source/adapter marker: save edits and move the relevant `.sources/relay` or `.sources/signing` directory aside. Bootstrap refuses to overwrite it.
 - Health succeeds but a feature fails: consult the capability table; cloud integrations are not restored by local startup.
 - App cannot reach local services: check `.env.local`, rebuild with `ENVFILE=.env.local`, and rerun Android port forwarding. Changing an env file requires a native rebuild.
+- Xcode reports a missing Node executable: inspect the ignored `ios/.xcode.env.local`; CocoaPods may have cached a version-specific path removed by a Node upgrade. Update its `NODE_BINARY` to your current executable and rebuild.
+- If several Metro servers are running, select the one for this checkout on each device. Android emulator defaults can bypass USB forwarding via `10.0.2.2`; set its debug server host to `localhost:8081` when using `adb reverse`.
 - iOS pod install fails under system Ruby: select the repo's Ruby version and root Bundler environment. Do not run an unrelated globally installed CocoaPods.
 - Memory pressure: build iOS and Android sequentially, limit Gradle workers, and shut down unused simulators without erasing their data.
