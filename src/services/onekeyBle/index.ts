@@ -7,11 +7,7 @@ import {
   UI_REQUEST,
   UI_RESPONSE,
 } from '@onekeyfe/hd-core';
-import type {
-  HDNodeType,
-  InputScriptType,
-  MultisigRedeemScriptType,
-} from '@onekeyfe/hd-transport';
+import type { HDNodeType, InputScriptType, MultisigRedeemScriptType } from '@onekeyfe/hd-transport';
 import BIP32Factory from 'bip32';
 import { BleManager } from 'react-native-ble-plx';
 import { PermissionsAndroid, Platform } from 'react-native';
@@ -27,7 +23,10 @@ export const onekeyUIEmitter = DeviceEventEmitter;
 export const ONEKEY_UI_EVENT = 'onekey-ui-event';
 
 // Use SDK's own constants as event values
-export type OneKeyUIEvent = typeof UI_REQUEST.REQUEST_PIN | typeof UI_REQUEST.REQUEST_BUTTON | 'idle';
+export type OneKeyUIEvent =
+  | typeof UI_REQUEST.REQUEST_PIN
+  | typeof UI_REQUEST.REQUEST_BUTTON
+  | 'idle';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,17 +175,41 @@ const ensureAndroidBLEPermissions = async (): Promise<boolean> => {
  * as we get something actionable, or after a 3 s timeout.
  */
 const waitForBleState = (mgr: BleManager): Promise<string> =>
-  new Promise((resolve) => {
-    const sub = mgr.onStateChange((state) => {
-      if (state !== 'Unknown' && state !== 'Resetting') {
-        sub.remove();
-        resolve(state);
-      }
-    }, true); // emitCurrentState = true
-    setTimeout(() => {
-      sub.remove();
-      mgr.state().then(resolve);
+  new Promise((resolve, reject) => {
+    let sub: ReturnType<BleManager['onStateChange']> | undefined;
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      sub?.remove();
+      // Propagate adapter failures rather than leaving the caller pending.
+      Promise.resolve()
+        .then(() => mgr.state())
+        .then(resolve, reject);
     }, 3000);
+
+    const finish = (state: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      sub?.remove();
+      resolve(state);
+    };
+
+    try {
+      sub = mgr.onStateChange((state) => {
+        if (state !== 'Unknown' && state !== 'Resetting') {
+          finish(state);
+        }
+      }, true);
+      // emitCurrentState may invoke the callback before the subscription is returned.
+      if (settled) sub.remove();
+    } catch (error) {
+      settled = true;
+      clearTimeout(timeout);
+      sub?.remove();
+      reject(error);
+    }
   });
 
 export const ensureOneKeyBLEReady = async () => {
@@ -209,16 +232,19 @@ export const ensureOneKeyBLEReady = async () => {
 
 export const searchOneKeyDevices = async (): Promise<SearchDevice[]> => {
   const sdk = await getOneKeySdk();
-
-  const result = await Promise.race([
-    sdk.searchDevices() as Promise<SDKResult<SearchDevice[]>>,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('BLE scan timed out')), SCAN_TIMEOUT_MS)
-    ),
-  ]);
-
-  if (!result?.success) throw new Error(getErrorMessage(result));
-  return result.payload || [];
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([
+      sdk.searchDevices() as Promise<SDKResult<SearchDevice[]>>,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('BLE scan timed out')), SCAN_TIMEOUT_MS);
+      }),
+    ]);
+    if (!result?.success) throw new Error(getErrorMessage(result));
+    return result.payload || [];
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 /**
