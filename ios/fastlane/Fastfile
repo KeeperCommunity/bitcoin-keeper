@@ -15,6 +15,49 @@
 
 default_platform(:ios)
 
+def resolved_app_identifier!
+  app_identifier = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
+  app_identifier = ENV['BUNDLE_IDENTIFIER'] if app_identifier.to_s.strip.empty?
+
+  if app_identifier.to_s.strip.empty?
+    profile_name = Actions.lane_context[SharedValues::SIGH_NAME].to_s
+    app_identifier = profile_name.sub(/\s+AppStore\z/, '')
+  end
+
+  if app_identifier.to_s.strip.empty?
+    UI.user_error!("Unable to resolve app identifier for export options. Set BUNDLE_IDENTIFIER or app_identifier.")
+  end
+
+  app_identifier
+end
+
+def resolved_ipa_path!
+  ipa_path = Actions.lane_context[SharedValues::IPA_OUTPUT_PATH].to_s
+
+  if ipa_path.strip.empty?
+    ipa_path = Dir["./builds/*.ipa"].sort_by { |path| File.mtime(path) }.last.to_s
+  end
+
+  if ipa_path.strip.empty?
+    UI.user_error!("Unable to locate generated .ipa file for TestFlight upload")
+  end
+
+  ipa_path
+end
+
+def upload_build_to_testflight!
+  options = {
+    ipa: resolved_ipa_path!,
+    app_identifier: resolved_app_identifier!,
+    skip_waiting_for_build_processing: true
+  }
+
+  username = ENV['FASTLANE_USER'].to_s.strip
+  options[:username] = username unless username.empty?
+
+  upload_to_testflight(options)
+end
+
 platform :ios do
   desc "Push a new dev build to TestFlight"
   lane :dev do
@@ -49,16 +92,18 @@ platform :ios do
       teamid: CredentialsManager::AppfileConfig.try_fetch_value(:team_id)
     )
 
+    app_identifier = resolved_app_identifier!
+
     build_app(workspace: "hexa_keeper.xcworkspace", scheme: "hexa_keeper_dev", clean: true,
     export_method: "app-store",
     export_options: {
       provisioningProfiles: {
-          CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier) => CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier) + " AppStore" # Value of this parameter is the name of the Provisioning Profile. By default, it will be "{bundleId} AppStore"
+          app_identifier => app_identifier + " AppStore" # Value of this parameter is the name of the Provisioning Profile. By default, it will be "{bundleId} AppStore"
       }
     },
     build_path: "./builds",
     output_directory: "./builds")
-    upload_to_testflight
+    upload_build_to_testflight!
   end
 
   desc "Push a new live build to TestFlight"
@@ -92,27 +137,26 @@ platform :ios do
       teamid: CredentialsManager::AppfileConfig.try_fetch_value(:team_id)
     )
 
+    app_identifier = resolved_app_identifier!
+
     build_app(workspace: "hexa_keeper.xcworkspace", scheme: "hexa_keeper", clean: true,
     export_method: "app-store",
     export_options: {
       provisioningProfiles: {
-          CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier) => CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier) + " AppStore" # Value of this parameter is the name of the Provisioning Profile. By default, it will be "{bundleId} AppStore"
+          app_identifier => app_identifier + " AppStore" # Value of this parameter is the name of the Provisioning Profile. By default, it will be "{bundleId} AppStore"
       }
     },
     build_path: "./builds",
     output_directory: "./builds")
-    upload_to_testflight
+    upload_build_to_testflight!
   end
 end
 
 after_all do |lane|
-  buildNumber = get_build_number() 
-  slack(message: "Build success :rocket: \nBuild Number: " + buildNumber.to_s)
-  end
+  buildNumber = get_build_number()
+  UI.message("Build success. Build Number: " + buildNumber.to_s)
+end
 
-  error do |lane, exception|
-    slack(
-      message: exception.message,
-      success:false
-    )
-  end
+error do |lane, exception|
+  UI.error("Fastlane failed: " + exception.message.to_s)
+end

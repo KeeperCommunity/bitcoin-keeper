@@ -160,6 +160,37 @@ PODS:
     - nanopb/encode (= 3.30910.0)
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
+  - NitroIap (14.4.18):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - NitroModules
+    - openiap (= 1.2.22)
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-callinvoker
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - NitroMmkv (4.3.0):
     - boost
     - DoubleConversion
@@ -191,7 +222,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - NitroModules (0.35.5):
+  - NitroModules (0.29.6):
     - boost
     - DoubleConversion
     - fast_float
@@ -220,6 +251,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - openiap (1.2.22)
   - PDFGenerator (3.1.0)
   - PromisesObjC (2.4.0)
   - QRCoder (1.1.0)
@@ -3177,12 +3209,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNIap (13.0.4):
-    - RCT-Folly
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - ReactCommon/turbomodule/core
   - RNKeychain (10.0.0):
     - boost
     - DoubleConversion
@@ -3613,6 +3639,7 @@ DEPENDENCIES:
   - HtmlToPdf (from `../node_modules/react-native-html-to-pdf`)
   - libportal-ios (from `https://github.com/bithyve/libportal-ios.git`)
   - libportal-react-native (from `../node_modules/libportal-react-native`)
+  - NitroIap (from `../node_modules/react-native-iap`)
   - NitroMmkv (from `../node_modules/react-native-mmkv`)
   - NitroModules (from `../node_modules/react-native-nitro-modules`)
   - PDFGenerator
@@ -3715,7 +3742,6 @@ DEPENDENCIES:
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNFS (from `../node_modules/react-native-fs`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
-  - RNIap (from `../node_modules/react-native-iap`)
   - RNKeychain (from `../node_modules/react-native-keychain`)
   - RNLocalize (from `../node_modules/react-native-localize`)
   - RNQrGenerator (from `../node_modules/rn-qr-generator`)
@@ -3744,6 +3770,7 @@ SPEC REPOS:
     - MMKVCore
     - MultiplatformBleAdapter
     - nanopb
+    - openiap
     - PDFGenerator
     - PromisesObjC
     - QRCoder
@@ -3779,6 +3806,8 @@ EXTERNAL SOURCES:
     :git: https://github.com/bithyve/libportal-ios.git
   libportal-react-native:
     :path: "../node_modules/libportal-react-native"
+  NitroIap:
+    :path: "../node_modules/react-native-iap"
   NitroMmkv:
     :path: "../node_modules/react-native-mmkv"
   NitroModules:
@@ -3977,8 +4006,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-fs"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
-  RNIap:
-    :path: "../node_modules/react-native-iap"
   RNKeychain:
     :path: "../node_modules/react-native-keychain"
   RNLocalize:
@@ -4025,7 +4052,7 @@ SPEC CHECKSUMS:
   glog: eb93e2f488219332457c3c4eafd2738ddc7e80b8
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  hermes-engine: d964ee751f070aa0180450bfb8276807f12a2281
+  hermes-engine: 4ec27e7c84ed7950da6e65008539685455d8bef4
   HtmlToPdf: 6a9c28f54ec810d1d120a698a9b3c83e2bdb1672
   libportal-ios: d9aa55474e2d5be8e38e96345dd37be34fda45b4
   libportal-react-native: 91b6bec36f7e92a0bcc4e9d51d6ce3ee7c163728
@@ -4033,12 +4060,14 @@ SPEC CHECKSUMS:
   MMKVCore: 3d16ce9f7d411e135020915fde98a056859a1efa
   MultiplatformBleAdapter: b1fddd0d499b96b607e00f0faa8e60648343dc1d
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  NitroIap: 4567529625c807049c148f8cecfc0d774d67b584
   NitroMmkv: 320feb7789986e3ba45582d5c630ebcfeca807ae
-  NitroModules: ea5dc6c43666f4a75e71e372eaca6d3605856e51
+  NitroModules: 7d693306799405ca141ef5c24efc0936f20a09c0
+  openiap: a6c203f0e8f4ace4f05477f90a2967327ef3ad70
   PDFGenerator: 17d6bc525db0a3fcd156fbf00f9d1b8d5cc75d1e
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   QRCoder: cbd2bee531cc86d286df7942334cfed94c803ae4
-  RCT-Folly: b29feb752b08042c62badaef7d453f3bb5e6ae23
+  RCT-Folly: 121436bcc4611f6bde5c09bf35f0a7a82cef1969
   RCTDeprecation: c7d33f6bc08dbb8be7dfa70d219bfb034480a406
   RCTRequired: 42b13c9504609bae9a9f65673a6b4fcbd8d07bd1
   RCTSwiftUI: cef2010e1e5e699600b2064d3aa702e53c35816c
@@ -4135,7 +4164,6 @@ SPEC CHECKSUMS:
   RNFBMessaging: e42061ab9fab61081c38b5661b292c1f295bbc96
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNGestureHandler: be7148bc663eac98c0ad6474b4b105f8cadd56be
-  RNIap: 61f183ac917792fae42b0326b1bef33598c1adf6
   RNKeychain: a2c134ab796272c3d605e035ab727591000b30f3
   RNLocalize: 19917c3f32cf6386f7d2957a638a4281669cae57
   RNQrGenerator: af2f0888eb81b8ff99517a3929d6399444dcc56d
