@@ -26,12 +26,18 @@ The packaged Docker setup requires read access to both private repositories:
 - `KeeperCommunity/bitcoin-keeper-relay`
 - `bithyve/SigningServer`
 
-Open a [contributor access request](https://github.com/KeeperCommunity/bitcoin-keeper/issues/new?template=contributor-access.md)
-with your GitHub username/profile, the work you want to do, and the repositories
-or other development resources you need. Link an issue and relevant contributions
-if available; prior contributions are useful context, not a mandatory threshold.
-The request is public: include no credentials or private project details. If the
-work is confidential, use your existing private contact with a Keeper maintainer.
+Contact the Keeper maintainer coordinating your contribution through your existing
+private conversation. Include your GitHub username/profile, the work you want to
+do, and the repositories or other development resources you need. Link a product
+issue and relevant contributions if available; prior contributions are useful
+context, not a mandatory threshold. If you do not yet have a maintainer contact,
+use the [community contact](../../Readme.md#community) to ask how to
+reach one privately. Do not send credentials.
+
+Access requests, approval decisions and invitation/setup status are internal
+administration. Maintainers record them in Keeper's internal development backlog;
+do not create a public GitHub issue for them. Public issues are for user-facing
+features and bugs. Security findings follow [SECURITY.md](../../SECURITY.md).
 
 Keeper maintainers review the GitHub profile, proposed work and other relevant
 context, decide whether to approve the contributor, and identify the resources
@@ -55,7 +61,8 @@ edits. Additional resources can be requested as the work expands.
    ```
 
 4. The contributor follows the [setup guide](README.md), runs `dev up` and the
-   documented checks, and reports the result. Record when access and setup are
+   [independent setup checklist](HANDOFF.md), and reports the result privately.
+   Record when access and setup are
    confirmed; an approved request alone does not prove invitations were accepted
    or the environment works.
 

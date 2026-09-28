@@ -26,8 +26,10 @@ quoting in `openspec/config.yaml` are aligned with existing dependency/config
 requirements. No app business logic or version fields change. `CI.md` records the
 pending private-source CI access and deferred SonarCloud work.
 
-`ACCESS.md` and a contributor-access issue template define profile/context review,
-approved development resources, invitations and setup confirmation. Anyone may
+`ACCESS.md` defines private contributor intake, profile/context review,
+approved development resources, invitations and setup confirmation. Access/admin
+decisions stay in the internal backlog; public issues describe user-facing features
+and bugs, and security findings use the private security process. Anyone may
 work on public code, and approved contributors may change their local environment
 without per-change approval. Access approval does not accept code or grant merge
 or release authority. These documents do not themselves grant GitHub permissions.

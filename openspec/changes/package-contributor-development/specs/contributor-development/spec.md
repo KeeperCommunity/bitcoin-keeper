@@ -68,6 +68,12 @@ The repository SHALL document how outside developers can run, change, test and p
 - **THEN** maintainers review their GitHub profile, planned work and relevant context, decide approval and scope, and arrange the approved permissions with resource owners.
 - **AND** the handoff records accepted invitations and setup results without treating a policy document as an actual access grant.
 
+#### Scenario: Internal access administration
+- **GIVEN** an access request, approval decision or invitation/setup update
+- **WHEN** the maintainer records the handoff
+- **THEN** they use Keeper's internal development backlog and private communication; no public access/admin issue is created.
+- **AND** public GitHub issues remain user-facing features or bugs; security findings use the private security process.
+
 #### Scenario: Independent local work
 - **GIVEN** public app code or approved access to private development resources
 - **WHEN** a contributor makes local changes or runs local tests

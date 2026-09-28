@@ -1,5 +1,28 @@
 # Contributor setup verification — 26 September 2026
 
+## Contributor handoff follow-up — 28 September 2026
+
+- Removed the public contributor-access issue template. Access instructions now
+  use private intake/internal tracking, matching the owner's policy. Added
+  `HANDOFF.md` for independent-machine setup and separate pass/fail/untested reports.
+- Five bootstrap regression tests, strict contributor OpenSpec validation, ten
+  local documentation links and diff whitespace checks: PASS.
+- Restarted this Mac's existing Colima profile and ran the documented `dev up`
+  against the same pinned sources, existing disposable project/volumes and build
+  caches. Health, Socket.IO, explicit unsupported-route failure, app create/read
+  and V3 testnet authorization/2FA: PASS.
+- `verify-local.sh --persistence --boundaries`: PASS, including retained app and
+  signing identity after recreation and rejection of mainnet/hosted databases.
+  This rerun is not a fresh-machine, native UI or transaction-signing test.
+- Published baseline app head `434cd7c405d8723b3c21c7ce6e82745b9b254517`, GitHub
+  run `36240719417`: app tests/coverage PASS; backend bootstrap unit tests PASS;
+  backend startup FAIL and subsequent integration checks SKIPPED. CI access is
+  still unresolved; these CI results apply to that baseline, not a later head.
+- Independent-machine verification, supported mobile Server Key acceptance,
+  backend readiness acceptance and safe CI source access remain open. No new
+  native build, full UI automation, provider-purchase or security-clearance pass
+  is claimed by this follow-up.
+
 ## Readiness before private access
 
 The owner requires the same repository hygiene before private contributor access
