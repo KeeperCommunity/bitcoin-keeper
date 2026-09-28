@@ -1,10 +1,8 @@
 # Release version verification
 
-**Current milestone:** a small test release of the version-consistency change. Per the user’s 25 September direction, security remediation is separate and private-advisory sign-in is not a prerequisite. No security fixes are claimed. Docker contributor packaging is separate from the release patch. The user reconfirmed all three public destinations: App Store, Play production and the normal public APK channel.
+**Current milestone:** T-053 maintenance candidate, authorised 28 September 2026: finish the prepared Ask Keeper navigation correction and regression-test existing Dust/Testnet behaviour. Version 2.5.15 remains untouched. Physical-device follow-up is optional; simulator coverage must be labelled accurately.
 
-T-050 addresses the Android regression from marketing version 2.5.14 to 2.3.15 despite an increased build code. Marketing versions and platform build counters must both move forward.
-
-`version.json` selects candidate 2.5.15, Android 622 and iOS 615 using authenticated store observations from September 25, 2026. The iOS counter also exceeds local source build 614. This is not publication approval or proof of tested binaries. Do not substitute the public App Store listing for uploaded-build history.
+`version.json` selects candidate 2.5.16, Android 623 and iOS 616. Authenticated Google Play tracks/uploaded bundles and App Store Connect upload history were checked on 28 September: Android highest 622 and iOS highest 615, both marketing version 2.5.15. The iOS distribution page shows 2.5.15 Ready for Distribution with no newer iOS draft. Keep private investigation and diagnostics outside public release material.
 
 1. Read all uploaded builds and release tracks for Android package `io.hexawallet.bitcoinkeeper`, and uploaded iOS builds for `io.hexawallet.keeper`. Preserve the timestamp and evidence outside the repository. Refresh before upload; preflight accepts evidence at most 24 hours old.
 2. Update the manifest with the highest known marketing version and highest uploaded build per platform. Select one greater marketing version for both stores and greater platform build counters. Check unpublished App Store version records as well.
