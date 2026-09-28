@@ -36,3 +36,13 @@ and presence/operability of tabs. A React-only pass is insufficient. Distinguish
 the user's physical iPhone 15 Pro Max evidence from simulator and emulator checks.
 Test a smaller iPhone and larger text where available. Store only disposable QA
 data in evidence; never commit user screenshots or wallet secrets without need.
+
+## Android activity recreation follow-up
+
+Fresh release testing on 28 September reproduced a native crash when the system
+font scale changed: Android attempted to restore a ScreenStackFragment without
+React Native owning its screen state. Register the installed react-native-screens
+4.24.0 RNScreensFragmentFactory in MainActivity before super.onCreate, as required
+by that version's Android setup instructions. Preserve the existing insets setup.
+This is native screen-lifecycle handling only; no wallet storage or authentication
+change. Recheck activity recreation, unlock/state retention and Ask navigation.
