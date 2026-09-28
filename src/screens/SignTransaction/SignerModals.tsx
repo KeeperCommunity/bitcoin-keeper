@@ -593,6 +593,22 @@ const getSupportedSigningOptions = (signerType: SignerType, colorMode) => {
           },
         ],
       };
+    case SignerType.ONEKEY:
+      return {
+        supportedSigningOptions: [
+          {
+            title: 'Bluetooth',
+            icon: (
+              <CircleIconWrapper
+                icon={<USBIcon />}
+                backgroundColor={`${colorMode}.pantoneGreen`}
+                width={35}
+              />
+            ),
+            name: SigningMode.USB,
+          },
+        ],
+      };
     default:
       return {
         supportedSigningOptions: [],
@@ -618,8 +634,10 @@ function SignerModals({
   bitbox02Modal,
   portalModal,
   otherSDModal,
+  oneKeyModal,
   kruxModal,
   setOtherSDModal,
+  setOneKeyModal,
   setTrezorModal,
   setBitbox02Modal,
   setJadeModal,
@@ -665,8 +683,10 @@ function SignerModals({
   bitbox02Modal: boolean;
   portalModal: boolean;
   otherSDModal: boolean;
+  oneKeyModal: boolean;
   kruxModal: boolean;
   setOtherSDModal: any;
+  setOneKeyModal: any;
   setTrezorModal: any;
   setBitbox02Modal: any;
   setJadeModal: any;
@@ -777,6 +797,18 @@ function SignerModals({
         isRemoteKey,
         serializedPSBTEnvelopFromProps,
         isMultisig,
+      })
+    );
+  };
+
+  const navigateToOneKeySigning = (vaultKey: VaultSigner) => {
+    setOneKeyModal(false);
+    navigation.dispatch(
+      CommonActions.navigate('SignWithOneKeyBle', {
+        signTransaction,
+        vaultKey,
+        isRemoteKey,
+        serializedPSBTEnvelopFromProps,
       })
     );
   };
@@ -1686,6 +1718,23 @@ function SignerModals({
                 }}
               />
             </>
+          );
+        }
+        if (signer.type === SignerType.ONEKEY) {
+          return (
+            <KeeperModal
+              key={vaultKey.xfp}
+              visible={currentSigner && oneKeyModal}
+              close={() => setOneKeyModal(false)}
+              title="Connect OneKey"
+              subTitle="Connect your OneKey via Bluetooth to sign the transaction"
+              modalBackground={`${colorMode}.modalWhiteBackground`}
+              textColor={`${colorMode}.textGreen`}
+              subTitleColor={`${colorMode}.modalSubtitleBlack`}
+              buttonText={common.proceed}
+              buttonCallback={() => navigateToOneKeySigning(vaultKey)}
+              Content={() => null}
+            />
           );
         }
 

@@ -146,7 +146,9 @@ const styles = StyleSheet.create({
   flagContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: wp(8),
+    gap: wp(4),
+    flexWrap: 'wrap',
+    flex: 1,
   },
   subText: {
     marginTop: hp(10),

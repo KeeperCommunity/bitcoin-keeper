@@ -1,4 +1,32 @@
 PODS:
+  - BleUtils (0.1.4):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - boost (1.84.0)
   - BVLinearGradient (2.8.3):
     - React-Core
@@ -126,6 +154,7 @@ PODS:
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
   - MMKVCore (2.4.0)
+  - MultiplatformBleAdapter (0.2.0)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -2166,6 +2195,35 @@ PODS:
     - React-Core
   - react-native-biometrics (2.2.0):
     - React-Core
+  - react-native-ble-plx (3.5.0):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - MultiplatformBleAdapter (= 0.2.0)
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - react-native-blob-util (0.24.7):
     - boost
     - DoubleConversion
@@ -3567,6 +3625,7 @@ PODS:
   - ZXingObjC/All (3.6.9)
 
 DEPENDENCIES:
+  - "BleUtils (from `../node_modules/@onekeyfe/react-native-ble-utils`)"
   - boost (from `../node_modules/react-native/third-party-podspecs/boost.podspec`)
   - BVLinearGradient (from `../node_modules/react-native-linear-gradient`)
   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
@@ -3625,6 +3684,7 @@ DEPENDENCIES:
   - React-mutationobservernativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)
   - react-native-background-timer (from `../node_modules/react-native-background-timer`)
   - react-native-biometrics (from `../node_modules/react-native-biometrics`)
+  - react-native-ble-plx (from `../node_modules/react-native-ble-plx`)
   - react-native-blob-util (from `../node_modules/react-native-blob-util`)
   - react-native-change-icon (from `../node_modules/react-native-change-icon`)
   - react-native-config (from `../node_modules/react-native-config`)
@@ -3708,6 +3768,7 @@ SPEC REPOS:
     - GoogleUtilities
     - libwebp
     - MMKVCore
+    - MultiplatformBleAdapter
     - nanopb
     - openiap
     - PDFGenerator
@@ -3720,6 +3781,8 @@ SPEC REPOS:
     - ZXingObjC
 
 EXTERNAL SOURCES:
+  BleUtils:
+    :path: "../node_modules/@onekeyfe/react-native-ble-utils"
   boost:
     :podspec: "../node_modules/react-native/third-party-podspecs/boost.podspec"
   BVLinearGradient:
@@ -3827,6 +3890,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-background-timer"
   react-native-biometrics:
     :path: "../node_modules/react-native-biometrics"
+  react-native-ble-plx:
+    :path: "../node_modules/react-native-ble-plx"
   react-native-blob-util:
     :path: "../node_modules/react-native-blob-util"
   react-native-change-icon:
@@ -3970,6 +4035,7 @@ CHECKOUT OPTIONS:
     :git: https://github.com/bithyve/libportal-ios.git
 
 SPEC CHECKSUMS:
+  BleUtils: 0fd18e5fd2732c89771dc79941c7320ac9c42015
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   BVLinearGradient: cb006ba232a1f3e4f341bb62c42d1098c284da70
   CocoaAsyncSocket: 065fd1e645c7abab64f7a6a2007a48038fdc6a99
@@ -3983,7 +4049,7 @@ SPEC CHECKSUMS:
   FirebaseInstallations: 047343aa91fd6a1ebfa3eb374ddecf36a8aaddfd
   FirebaseMessaging: ed18fb50634e6e85b5d3e77e628c21e2c928cc53
   fmt: 530618a01105dae0fa3a2f27c81ae11fa8f67eac
-  glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
+  glog: eb93e2f488219332457c3c4eafd2738ddc7e80b8
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   hermes-engine: 4ec27e7c84ed7950da6e65008539685455d8bef4
@@ -3992,6 +4058,7 @@ SPEC CHECKSUMS:
   libportal-react-native: 91b6bec36f7e92a0bcc4e9d51d6ce3ee7c163728
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   MMKVCore: 3d16ce9f7d411e135020915fde98a056859a1efa
+  MultiplatformBleAdapter: b1fddd0d499b96b607e00f0faa8e60648343dc1d
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   NitroIap: 4567529625c807049c148f8cecfc0d774d67b584
   NitroMmkv: 320feb7789986e3ba45582d5c630ebcfeca807ae
@@ -4039,6 +4106,7 @@ SPEC CHECKSUMS:
   React-mutationobservernativemodule: 867e9c215f21b4308fa98473f3c38585b5897e44
   react-native-background-timer: 4638ae3bee00320753647900b21260b10587b6f7
   react-native-biometrics: ecca256a9e1c8b430f78c4e3dcb16b57ea1418e0
+  react-native-ble-plx: effae4e8e465c52768497f87abd2b95791eb2de2
   react-native-blob-util: 6dec9023ecc3ee5ac8ad377598e943f9ca63f741
   react-native-change-icon: 2abab62ecabf10adf6e03cc9516484a27385b580
   react-native-config: 8e425892a531627c52db765be3088185cb871e19

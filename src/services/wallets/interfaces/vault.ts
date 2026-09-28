@@ -84,6 +84,7 @@ export type SignerExtraData = {
   familyName?: string;
   recordID?: string;
   thumbnailPath?: string;
+  bleConnectId?: string; // OneKey BLE connectId for direct reconnection
 };
 
 export interface HealthCheckDetails {

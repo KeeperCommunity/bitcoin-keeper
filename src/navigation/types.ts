@@ -97,9 +97,11 @@ export type AppStackParams = {
   ScanNode: undefined;
   PrivacyAndDisplay: undefined;
   ConnectChannel: undefined;
+  SignMessageOneKeyBle: undefined;
   RegisterWithChannel: undefined;
   SetupOtherSDScreen: undefined;
   SignWithChannel: undefined;
+  SignWithOneKeyBle: undefined;
   CosignerDetails: { signer: Signer };
   AdditionalDetails: { signer: Signer };
   KeyHistory: undefined;

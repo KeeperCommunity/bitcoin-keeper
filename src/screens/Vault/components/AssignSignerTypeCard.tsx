@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
-import { Box, Toast, useColorMode } from '@gluestack-ui/themed-native-base';
+import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { SignerType, XpubTypes } from 'src/services/wallets/enums';
 import { Signer, Vault } from 'src/services/wallets/interfaces/vault';
 import { hp, windowHeight, windowWidth, wp } from 'src/constants/responsive';
@@ -26,6 +26,10 @@ import WalletUtilities from 'src/services/wallets/operations/utils';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import TickIcon from 'src/assets/images/icon_tick.svg';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import OneKeyBleModal from 'src/components/OneKeyBleModal';
+import { getDeviceTypeName } from 'src/services/onekeyBle/deviceConstants';
+import type { SearchDevice } from '@onekeyfe/hd-core';
+import type { OneKeyDeviceInfo } from 'src/services/onekeyBle';
 
 type AssignSignerTypeCardProps = {
   type: SignerType;
@@ -36,7 +40,7 @@ type AssignSignerTypeCardProps = {
   primaryMnemonic: string;
   signer?: Signer;
   isImportFlow?: boolean;
-  onTypeSelection?: (type: SignerType) => void;
+  onTypeSelection?: (type: SignerType, signerUpdates?: Partial<Signer>) => void;
 };
 
 function AssignSignerTypeCard({
@@ -51,6 +55,7 @@ function AssignSignerTypeCard({
 }: AssignSignerTypeCardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [validationModal, showValidationModal] = useState(false);
+  const [oneKeyIdentifyVisible, setOneKeyIdentifyVisible] = useState(false);
   const [otp, setOtp] = useState('');
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
@@ -59,21 +64,51 @@ function AssignSignerTypeCard({
   const { common, vault: vaultText, error: errorText } = translations;
   const navigation = useNavigation();
 
+  const persistSignerType = (signerType: SignerType, signerUpdates: Partial<Signer> = {}) => {
+    const signerName =
+      signerUpdates.signerName || getSignerNameFromType(signerType, signer?.isMock);
+
+    if (isImportFlow) {
+      navigation.goBack();
+      onTypeSelection(signerType, { ...signerUpdates, signerName });
+    } else {
+      dispatch(updateSignerDetails(signer, 'type', signerType));
+      dispatch(updateSignerDetails(signer, 'signerName', signerName));
+      Object.entries(signerUpdates).forEach(([key, value]) => {
+        if (key !== 'signerName') dispatch(updateSignerDetails(signer, key, value));
+      });
+    }
+  };
+
   const changeSignerType = () => {
     setShowConfirm(false);
     if (type === SignerType.POLICY_SERVER) {
       showValidationModal(true);
+    } else if (type === SignerType.ONEKEY) {
+      setOneKeyIdentifyVisible(true);
     } else {
-      if (isImportFlow) {
-        navigation.goBack();
-        onTypeSelection(type);
-      } else {
-        dispatch(updateSignerDetails(signer, 'type', type));
-        dispatch(
-          updateSignerDetails(signer, 'signerName', getSignerNameFromType(type, signer.isMock))
-        );
-      }
+      persistSignerType(type);
     }
+  };
+
+  const onOneKeyIdentified = ({
+    device,
+    deviceInfo,
+  }: {
+    device: SearchDevice;
+    deviceInfo: OneKeyDeviceInfo;
+  }) => {
+    const bleName = device?.name;
+    const signerUpdates: Partial<Signer> = {
+      signerName: getDeviceTypeName(device),
+      extraData: { ...signer?.extraData, bleConnectId: deviceInfo.connectId },
+    };
+
+    if (bleName && bleName !== 'Unknown') {
+      signerUpdates.signerDescription = bleName;
+    }
+
+    persistSignerType(SignerType.ONEKEY, signerUpdates);
   };
 
   const validateServerKey = async () => {
@@ -275,6 +310,14 @@ function AssignSignerTypeCard({
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         Content={otpContent}
+      />
+
+      <OneKeyBleModal
+        visible={oneKeyIdentifyVisible}
+        close={() => setOneKeyIdentifyVisible(false)}
+        mode="identify"
+        signer={signer}
+        onDeviceIdentified={onOneKeyIdentified}
       />
     </>
   );

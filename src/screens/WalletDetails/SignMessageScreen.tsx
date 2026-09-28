@@ -14,14 +14,17 @@ import KeeperModal from 'src/components/KeeperModal';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import { useAppSelector } from 'src/store/hooks';
 import WalletOperations from 'src/services/wallets/operations';
+import WalletUtilities from 'src/services/wallets/operations/utils';
 import useWallets from 'src/hooks/useWallets';
 import { useDispatch } from 'react-redux';
 import { refreshWallets } from 'src/store/sagaActions/wallets';
 import useVault from 'src/hooks/useVault';
-import { EntityKind, KeyGenerationMode } from 'src/services/wallets/enums';
+import useSigners from 'src/hooks/useSigners';
+import { EntityKind, KeyGenerationMode, SignerType } from 'src/services/wallets/enums';
 import ShowXPub from 'src/components/XPub/ShowXPub';
 import { CommonActions } from '@react-navigation/native';
 import { InteracationMode } from '../Vault/HardwareModalMap';
+import BLEIcon from 'src/assets/images/usb_white.svg';
 import CircleIconWrapper from 'src/components/CircleIconWrapper';
 import QRComms from 'src/assets/images/qr_comms.svg';
 import ImportIcon from 'src/assets/images/import.svg';
@@ -34,11 +37,20 @@ const MEDIUM_MODES = {
   IMPORT: 'IMPORT',
 };
 
+const getVaultExternalAddressIndex = (vault, targetAddress: string) => {
+  const externalAddresses = vault?.specs?.addresses?.external || {};
+  for (const key in externalAddresses) {
+    if (externalAddresses[key] === targetAddress) return Number(key);
+  }
+  return null;
+};
+
 export const SignMessageScreen = ({ route, navigation }) => {
   const { walletId = null, vaultId = null, type } = route.params;
   const wallet = useWallets({ walletIds: [walletId] }).wallets[0];
   const { activeVault } = useVault({ vaultId: vaultId ?? '' });
-  const { xpriv, addresses } = wallet.specs;
+  const { vaultSigners } = useSigners(vaultId ?? '');
+  const { xpriv, addresses } = wallet?.specs ?? {};
   const receiveAddressCache = addresses?.external;
   const { colorMode } = useColorMode();
   const [message, setMessage] = useState('');
@@ -114,8 +126,67 @@ export const SignMessageScreen = ({ route, navigation }) => {
     navigation.pop();
   };
 
+  const hasOneKeySigner =
+    activeVault?.signers?.some((s) => {
+      const signerInfo = vaultSigners?.find(
+        (vs) => vs.masterFingerprint === s.masterFingerprint
+      );
+      return signerInfo?.type === SignerType.ONEKEY;
+    }) ?? false;
+
   const onSigningMediumSelection = (medium) => {
     setMediumModal(false);
+
+    // OneKey BLE direct signing
+    if (medium === 'BLE') {
+      const messageAddress = address || activeVault?.specs?.addresses?.external?.[0];
+      if (!messageAddress) {
+        showToast('Please enter the address', <ToastErrorIcon />);
+        return;
+      }
+
+      const validAddress = WalletUtilities.isValidAddress(messageAddress, bitcoinNetwork);
+      if (!validAddress) {
+        showToast('Please enter a valid address', <ToastErrorIcon />);
+        return;
+      }
+
+      const addressIndex = getVaultExternalAddressIndex(activeVault, messageAddress);
+      if (addressIndex == null) {
+        showToast('Please enter a valid address from the select wallet', <ToastErrorIcon />);
+        return;
+      }
+
+      const oneKeyVaultKey = activeVault?.signers?.find((s) => {
+        const signerInfo = vaultSigners?.find(
+          (vs) => vs.masterFingerprint === s.masterFingerprint
+        );
+        return signerInfo?.type === SignerType.ONEKEY;
+      });
+      const oneKeySigner = vaultSigners?.find(
+        (vs) =>
+          vs.type === SignerType.ONEKEY &&
+          vs.masterFingerprint === oneKeyVaultKey?.masterFingerprint
+      );
+      if (oneKeyVaultKey && oneKeySigner) {
+        navigation.dispatch(
+          CommonActions.navigate('SignMessageOneKeyBle', {
+            message: message.trim(),
+            address: messageAddress,
+            derivationPath: `${oneKeyVaultKey.derivationPath}/0/${addressIndex}`,
+            signer: oneKeySigner,
+            onSignatureReceived: (sig: string, addr: string) => {
+              setSignature(sig);
+              if (addr) setAddress(addr);
+            },
+          })
+        );
+      } else {
+        showToast('OneKey signer not found. Please try again.', <ToastErrorIcon />);
+      }
+      return;
+    }
+
     if (mediumMode == MEDIUM_MODES.EXPORT) {
       if (medium === KeyGenerationMode.QR) {
         const qrData = WalletOperations.createSignMessageString(
@@ -321,7 +392,7 @@ export const SignMessageScreen = ({ route, navigation }) => {
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={() => mediumSelectionContent(onSigningMediumSelection)}
+        Content={() => mediumSelectionContent(onSigningMediumSelection, hasOneKeySigner && mediumMode === MEDIUM_MODES.EXPORT)}
       />
     </ScreenWrapper>
   );
@@ -374,7 +445,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const mediumSelectionContent = (onSigningMediumSelection) => {
+const mediumSelectionContent = (onSigningMediumSelection, showBleOption = false) => {
   const { colorMode } = useColorMode();
 
   const options = [
@@ -400,6 +471,21 @@ const mediumSelectionContent = (onSigningMediumSelection) => {
       ),
       name: KeyGenerationMode.FILE,
     },
+    ...(showBleOption
+      ? [
+          {
+            title: 'OneKey (BLE)',
+            icon: (
+              <CircleIconWrapper
+                icon={<BLEIcon />}
+                backgroundColor={`${colorMode}.pantoneGreen`}
+                width={35}
+              />
+            ),
+            name: 'BLE',
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -410,7 +496,7 @@ const mediumSelectionContent = (onSigningMediumSelection) => {
             key={option.name}
             name={option.title}
             icon={option.icon}
-            onSelect={onSigningMediumSelection}
+            onSelect={() => onSigningMediumSelection(option.name)}
           />
         ))}
     </Box>
