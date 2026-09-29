@@ -127,18 +127,24 @@ export const SignMessageScreen = ({ route, navigation }) => {
   };
 
   const hasOneKeySigner =
-    activeVault?.signers?.some((s) => {
-      const signerInfo = vaultSigners?.find(
-        (vs) => vs.masterFingerprint === s.masterFingerprint
-      );
+    activeVault?.isMultiSig === false &&
+    (activeVault.signers?.some((s) => {
+      const signerInfo = vaultSigners?.find((vs) => vs.masterFingerprint === s.masterFingerprint);
       return signerInfo?.type === SignerType.ONEKEY;
-    }) ?? false;
+    }) ?? false);
 
   const onSigningMediumSelection = (medium) => {
     setMediumModal(false);
 
     // OneKey BLE direct signing
     if (medium === 'BLE') {
+      if (!hasOneKeySigner) {
+        showToast(
+          'OneKey message signing supports single-signature wallets only.',
+          <ToastErrorIcon />
+        );
+        return;
+      }
       const messageAddress = address || activeVault?.specs?.addresses?.external?.[0];
       if (!messageAddress) {
         showToast('Please enter the address', <ToastErrorIcon />);

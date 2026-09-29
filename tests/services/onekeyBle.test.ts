@@ -1,13 +1,16 @@
 import { BleManager } from 'react-native-ble-plx';
 import HardwareBLESDK from '@onekeyfe/hd-ble-sdk';
+import * as bitcoinMessage from 'bitcoinjs-message';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { NetworkType } from 'src/services/wallets/enums';
 import {
   assertOneKeyFingerprint,
   ensureOneKeyBLEReady,
   fetchOneKeySignerData,
+  getOneKeyDeviceInfo,
   searchOneKeyDevices,
   signPsbtWithOneKey,
+  signMessageWithOneKey,
 } from 'src/services/onekeyBle';
 
 jest.mock('@onekeyfe/hd-ble-sdk', () => ({
@@ -16,6 +19,9 @@ jest.mock('@onekeyfe/hd-ble-sdk', () => ({
   searchDevices: jest.fn(),
   btcGetPublicKey: jest.fn(),
   btcSignPsbt: jest.fn(),
+  btcSignMessage: jest.fn(),
+  getFeatures: jest.fn(),
+  cancel: jest.fn(),
 }));
 jest.mock('@onekeyfe/hd-core', () => ({
   UI_EVENT: 'UI_EVENT',
@@ -28,7 +34,7 @@ jest.mock('src/services/wallets/operations/taproot-utils/noble_ecc', () => ({}))
 jest.mock('bip32', () => ({ __esModule: true, default: () => ({}) }));
 
 const sdk = HardwareBLESDK as unknown as Record<string, jest.Mock>;
-const adapter = { onStateChange: jest.fn(), state: jest.fn() };
+const adapter = { onStateChange: jest.fn(), state: jest.fn(), stopDeviceScan: jest.fn() };
 const remove = jest.fn();
 
 beforeEach(() => {
@@ -42,6 +48,7 @@ beforeEach(() => {
   } as Awaited<ReturnType<typeof PermissionsAndroid.requestMultiple>>);
   (BleManager as unknown as jest.Mock).mockImplementation(() => adapter);
   adapter.state.mockResolvedValue('PoweredOn');
+  adapter.stopDeviceScan.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -112,10 +119,13 @@ test('successful scans clear their timeout', async () => {
 });
 
 test('a stalled scan fails after fifteen seconds', async () => {
-  sdk.searchDevices.mockReturnValueOnce(new Promise(() => {}));
+  let finishScan;
+  sdk.searchDevices.mockReturnValueOnce(new Promise((resolve) => { finishScan = resolve; }));
   const result = expect(searchOneKeyDevices()).rejects.toThrow('BLE scan timed out');
   await jest.advanceTimersByTimeAsync(15000);
   await result;
+  finishScan({ success: true, payload: [] });
+  await jest.advanceTimersByTimeAsync(1);
 });
 
 test('a failed scan clears its timeout and surfaces the SDK error', async () => {
@@ -199,4 +209,141 @@ test.each([
       serializedPSBT: 'cHNidP8=',
     })
   ).rejects.toThrow(message);
+});
+
+test('message signatures are returned as Base64 and pass Bitcoin message verification', async () => {
+  const message = 'review fixture';
+  const address = 'bc1q0xcqpzrky6eff2g52qdye53xkk9jxkvrh6yhyw';
+  const signature = bitcoinMessage.sign(message, Buffer.alloc(32, 1), true, undefined, {
+    segwitType: 'p2wpkh',
+  });
+  sdk.btcSignMessage.mockResolvedValueOnce({
+    success: true,
+    payload: { address, signature: signature.toString('hex') },
+  });
+
+  const result = await signMessageWithOneKey({
+    connectId: 'test-device',
+    deviceId: 'test-id',
+    path: "m/84'/0'/0'/0/0",
+    message,
+    networkType: NetworkType.MAINNET,
+  });
+  expect(bitcoinMessage.verify(message, result.address, result.signature, undefined, true)).toBe(true);
+});
+
+test('an already-cancelled flow does not request permissions or start scanning', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  await expect(ensureOneKeyBLEReady(controller.signal)).rejects.toThrow('cancelled');
+  await expect(searchOneKeyDevices(controller.signal)).rejects.toThrow('cancelled');
+  expect(PermissionsAndroid.requestMultiple).not.toHaveBeenCalled();
+  expect(sdk.searchDevices).not.toHaveBeenCalled();
+});
+
+test('cancelling Bluetooth readiness removes its timer and subscription', async () => {
+  adapter.onStateChange.mockReturnValueOnce({ remove });
+  const controller = new AbortController();
+  const result = expect(ensureOneKeyBLEReady(controller.signal)).rejects.toThrow('cancelled');
+  await jest.advanceTimersByTimeAsync(1);
+  controller.abort();
+  await result;
+  expect(remove).toHaveBeenCalledTimes(1);
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test('cancelling a pending scan stops native scanning and removes the timeout', async () => {
+  let finishScan;
+  sdk.searchDevices.mockReturnValueOnce(new Promise((resolve) => { finishScan = resolve; }));
+  const controller = new AbortController();
+  const result = expect(searchOneKeyDevices(controller.signal)).rejects.toThrow('cancelled');
+  await jest.advanceTimersByTimeAsync(1);
+  controller.abort();
+  await result;
+  expect(sdk.cancel).toHaveBeenCalledTimes(1);
+  expect(adapter.stopDeviceScan).toHaveBeenCalledTimes(1);
+  expect(jest.getTimerCount()).toBe(0);
+  finishScan({ success: true, payload: [] });
+  await jest.advanceTimersByTimeAsync(1);
+});
+
+test('a scan timeout removes its cancellation listener and stops scanning', async () => {
+  let finishScan;
+  sdk.searchDevices.mockReturnValueOnce(new Promise((resolve) => { finishScan = resolve; }));
+  const controller = new AbortController();
+  const removeListener = jest.spyOn(controller.signal, 'removeEventListener');
+  const result = expect(searchOneKeyDevices(controller.signal)).rejects.toThrow('timed out');
+  await jest.advanceTimersByTimeAsync(15000);
+  await result;
+  expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
+  expect(adapter.stopDeviceScan).toHaveBeenCalledTimes(1);
+  expect(jest.getTimerCount()).toBe(0);
+  finishScan({ success: true, payload: [] });
+  await jest.advanceTimersByTimeAsync(1);
+});
+
+test('a retry waits for the cancelled SDK scan to finish before starting a new scan', async () => {
+  let finishOldScan;
+  sdk.searchDevices.mockReturnValueOnce(new Promise((resolve) => { finishOldScan = resolve; }));
+  sdk.searchDevices.mockResolvedValueOnce({ success: true, payload: [{ connectId: 'new-device' }] });
+  const controller = new AbortController();
+  const cancelled = expect(searchOneKeyDevices(controller.signal)).rejects.toThrow('cancelled');
+  await jest.advanceTimersByTimeAsync(1);
+  controller.abort();
+  await cancelled;
+  const nextScan = searchOneKeyDevices(new AbortController().signal);
+  await jest.advanceTimersByTimeAsync(1);
+  expect(sdk.searchDevices).toHaveBeenCalledTimes(1);
+  // Simulate the SDK's delayed native scan cleanup after cancellation.
+  await adapter.stopDeviceScan();
+  finishOldScan({ success: true, payload: [] });
+  await expect(nextScan).resolves.toEqual([{ connectId: 'new-device' }]);
+  expect(sdk.searchDevices).toHaveBeenCalledTimes(2);
+});
+
+test('cancelling device identification prevents a later fingerprint request', async () => {
+  let finishFeatures;
+  sdk.getFeatures.mockReturnValueOnce(new Promise((resolve) => { finishFeatures = resolve; }));
+  const controller = new AbortController();
+  const result = expect(getOneKeyDeviceInfo('test-device', controller.signal)).rejects.toThrow('cancelled');
+  await jest.advanceTimersByTimeAsync(1);
+  controller.abort();
+  await result;
+  finishFeatures({ success: true, payload: { device_id: 'test-id' } });
+  await jest.advanceTimersByTimeAsync(1);
+  expect(sdk.cancel).toHaveBeenCalledWith('test-device');
+  expect(sdk.btcGetPublicKey).not.toHaveBeenCalled();
+});
+
+test('cancelling key import prevents the remaining public-key requests', async () => {
+  let finishKey;
+  sdk.btcGetPublicKey.mockReturnValueOnce(new Promise((resolve) => { finishKey = resolve; }));
+  const controller = new AbortController();
+  const result = expect(fetchOneKeySignerData({
+    connectId: 'test-device', deviceId: 'test-id', networkType: NetworkType.MAINNET,
+    signal: controller.signal,
+  })).rejects.toThrow('cancelled');
+  await jest.advanceTimersByTimeAsync(1);
+  controller.abort();
+  await result;
+  finishKey({ success: true, payload: { xpub: 'fixture-xpub', root_fingerprint: 0x1234abcd } });
+  await jest.advanceTimersByTimeAsync(1);
+  expect(sdk.btcGetPublicKey).toHaveBeenCalledTimes(1);
+  expect(sdk.cancel).toHaveBeenCalledWith('test-device');
+});
+
+test('cancelling a pending PSBT signature rejects and ignores the later result', async () => {
+  let finishSigning;
+  sdk.btcSignPsbt.mockReturnValueOnce(new Promise((resolve) => { finishSigning = resolve; }));
+  const controller = new AbortController();
+  const result = expect(signPsbtWithOneKey({
+    connectId: 'test-device', deviceId: 'test-id', networkType: NetworkType.MAINNET,
+    serializedPSBT: 'cHNidP8=', signal: controller.signal,
+  })).rejects.toThrow('cancelled');
+  await jest.advanceTimersByTimeAsync(1);
+  controller.abort();
+  await result;
+  finishSigning({ success: true, payload: { psbt: '70736274ff' } });
+  await jest.advanceTimersByTimeAsync(1);
+  expect(sdk.cancel).toHaveBeenCalledWith('test-device');
 });

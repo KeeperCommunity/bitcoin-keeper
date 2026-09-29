@@ -66,6 +66,7 @@ let sdkInstance: CoreApi | null = null;
 let sdkInitPromise: Promise<CoreApi> | null = null;
 let bleManager: BleManager | null = null;
 let uiListenerBound = false;
+let pendingScan: Promise<SDKResult<SearchDevice[]>> | null = null;
 
 const SCAN_TIMEOUT_MS = 15_000;
 const bip32 = BIP32Factory(ecc);
@@ -151,6 +152,44 @@ export const getOneKeySdk = async (): Promise<CoreApi> => {
   }
 };
 
+const cancellationError = () => new Error('OneKey operation cancelled');
+
+const checkCancellation = (signal?: AbortSignal) => {
+  if (signal?.aborted) throw cancellationError();
+};
+
+const callWithCancellation = async <T>(
+  sdk: CoreApi,
+  call: () => Promise<T>,
+  signal?: AbortSignal,
+  connectId?: string
+): Promise<T> => {
+  checkCancellation(signal);
+  if (!signal) return call();
+
+  let onAbort: () => void;
+  try {
+    return await Promise.race([
+      new Promise<never>((_, reject) => {
+        onAbort = () => {
+          try {
+            sdk.cancel(connectId);
+          } finally {
+            reject(cancellationError());
+          }
+        };
+        signal.addEventListener('abort', onAbort);
+      }),
+      Promise.resolve().then(() => {
+        checkCancellation(signal);
+        return call();
+      }),
+    ]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+};
+
 // ─── BLE readiness ────────────────────────────────────────────────────────────
 
 const ensureAndroidBLEPermissions = async (): Promise<boolean> => {
@@ -174,18 +213,21 @@ const ensureAndroidBLEPermissions = async (): Promise<boolean> => {
  * for the settled state via onStateChange (with emitCurrentState=true) and resolve as soon
  * as we get something actionable, or after a 3 s timeout.
  */
-const waitForBleState = (mgr: BleManager): Promise<string> =>
+const waitForBleState = (mgr: BleManager, signal?: AbortSignal): Promise<string> =>
   new Promise((resolve, reject) => {
     let sub: ReturnType<BleManager['onStateChange']> | undefined;
     let settled = false;
     const timeout = setTimeout(() => {
       if (settled) return;
-      settled = true;
       sub?.remove();
+      sub = undefined;
       // Propagate adapter failures rather than leaving the caller pending.
       Promise.resolve()
-        .then(() => mgr.state())
-        .then(resolve, reject);
+        .then(() => {
+          checkCancellation(signal);
+          return mgr.state();
+        })
+        .then(finish, fail);
     }, 3000);
 
     const finish = (state: string) => {
@@ -193,10 +235,23 @@ const waitForBleState = (mgr: BleManager): Promise<string> =>
       settled = true;
       clearTimeout(timeout);
       sub?.remove();
+      signal?.removeEventListener('abort', onAbort);
       resolve(state);
     };
 
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      sub?.remove();
+      signal?.removeEventListener('abort', onAbort);
+      reject(error);
+    };
+    const onAbort = () => fail(cancellationError());
+
     try {
+      checkCancellation(signal);
+      signal?.addEventListener('abort', onAbort);
       sub = mgr.onStateChange((state) => {
         if (state !== 'Unknown' && state !== 'Resetting') {
           finish(state);
@@ -205,22 +260,22 @@ const waitForBleState = (mgr: BleManager): Promise<string> =>
       // emitCurrentState may invoke the callback before the subscription is returned.
       if (settled) sub.remove();
     } catch (error) {
-      settled = true;
-      clearTimeout(timeout);
-      sub?.remove();
-      reject(error);
+      fail(error);
     }
   });
 
-export const ensureOneKeyBLEReady = async () => {
+export const ensureOneKeyBLEReady = async (signal?: AbortSignal) => {
+  checkCancellation(signal);
   const hasPermission = await ensureAndroidBLEPermissions();
+  checkCancellation(signal);
   if (!hasPermission) {
     return { ready: false as const, reason: 'MISSING_PERMISSION' as const };
   }
 
   if (!bleManager) bleManager = new BleManager();
 
-  const bleState = await waitForBleState(bleManager);
+  const bleState = await waitForBleState(bleManager, signal);
+  checkCancellation(signal);
   if (bleState !== 'PoweredOn') {
     return { ready: false as const, reason: 'BLE_OFF' as const };
   }
@@ -230,20 +285,52 @@ export const ensureOneKeyBLEReady = async () => {
 
 // ─── Device discovery ─────────────────────────────────────────────────────────
 
-export const searchOneKeyDevices = async (): Promise<SearchDevice[]> => {
+export const searchOneKeyDevices = async (signal?: AbortSignal): Promise<SearchDevice[]> => {
+  checkCancellation(signal);
   const sdk = await getOneKeySdk();
+  checkCancellation(signal);
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  const scan = async () => {
+    // The SDK's scan timer still runs after cancel. Wait for it to settle so
+    // its eventual stopDeviceScan cannot interrupt the next scan.
+    while (pendingScan) {
+      await pendingScan.catch(() => undefined);
+      checkCancellation(signal);
+      if (timedOut) throw new Error('BLE scan timed out');
+    }
+    checkCancellation(signal);
+    const request = sdk.searchDevices() as Promise<SDKResult<SearchDevice[]>>;
+    pendingScan = request;
+    try {
+      return await request;
+    } finally {
+      if (pendingScan === request) pendingScan = null;
+    }
+  };
   try {
-    const result = await Promise.race([
-      sdk.searchDevices() as Promise<SDKResult<SearchDevice[]>>,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error('BLE scan timed out')), SCAN_TIMEOUT_MS);
-      }),
-    ]);
+    const result = await callWithCancellation(
+      sdk,
+      () =>
+        Promise.race([
+          scan(),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => {
+              timedOut = true;
+              reject(new Error('BLE scan timed out'));
+            }, SCAN_TIMEOUT_MS);
+          }),
+        ]),
+      signal
+    );
     if (!result?.success) throw new Error(getErrorMessage(result));
     return result.payload || [];
   } finally {
     clearTimeout(timeout);
+    if (signal?.aborted || timedOut) {
+      // ble-plx 3.5 shares the same manager with the SDK transport.
+      await bleManager?.stopDeviceScan();
+    }
   }
 };
 
@@ -251,9 +338,18 @@ export const searchOneKeyDevices = async (): Promise<SearchDevice[]> => {
  * Resolve device_id and master fingerprint from a connected device.
  * Returns both so callers can verify device identity.
  */
-export const getOneKeyDeviceInfo = async (connectId: string): Promise<OneKeyDeviceInfo> => {
+export const getOneKeyDeviceInfo = async (
+  connectId: string,
+  signal?: AbortSignal
+): Promise<OneKeyDeviceInfo> => {
+  checkCancellation(signal);
   const sdk = await getOneKeySdk();
-  const result = (await sdk.getFeatures(connectId)) as SDKResult<Features>;
+  const result = (await callWithCancellation(
+    sdk,
+    () => sdk.getFeatures(connectId),
+    signal,
+    connectId
+  )) as SDKResult<Features>;
   if (!result?.success) throw new Error(getErrorMessage(result));
 
   const deviceId = result?.payload?.device_id;
@@ -268,11 +364,17 @@ export const getOneKeyDeviceInfo = async (connectId: string): Promise<OneKeyDevi
     result?.payload?.label || result?.payload?.ble_name || `OneKey ${deviceId.slice(-4)}`;
 
   // Fetch root fingerprint via a lightweight key derivation
-  const fpResult = (await sdk.btcGetPublicKey(connectId, deviceId, {
-    path: "m/84'/0'/0'",
-    showOnOneKey: false,
-    useEmptyPassphrase: true,
-  })) as SDKResult<any>;
+  const fpResult = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcGetPublicKey(connectId, deviceId, {
+        path: "m/84'/0'/0'",
+        showOnOneKey: false,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<any>;
 
   if (!fpResult?.success) throw new Error(getErrorMessage(fpResult));
 
@@ -378,12 +480,15 @@ export const fetchOneKeySignerData = async ({
   deviceId,
   networkType,
   accountNumber = 0,
+  signal,
 }: {
   connectId: string;
   deviceId: string;
   networkType: NetworkType;
   accountNumber?: number;
+  signal?: AbortSignal;
 }): Promise<OneKeySignerData> => {
+  checkCancellation(signal);
   const sdk = await getOneKeySdk();
   const coinType = getCoinTypeByNetwork(networkType);
 
@@ -391,25 +496,43 @@ export const fetchOneKeySignerData = async ({
   const multiSigPath = `m/48'/${coinType}'/${accountNumber}'/2'`;
   const taprootPath = `m/86'/${coinType}'/${accountNumber}'`;
 
-  const singleSigResult = (await sdk.btcGetPublicKey(connectId, deviceId, {
-    path: singleSigPath,
-    showOnOneKey: false,
-    useEmptyPassphrase: true,
-  })) as SDKResult<any>;
+  const singleSigResult = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcGetPublicKey(connectId, deviceId, {
+        path: singleSigPath,
+        showOnOneKey: false,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<any>;
   if (!singleSigResult?.success) throw new Error(getErrorMessage(singleSigResult));
 
-  const multiSigResult = (await sdk.btcGetPublicKey(connectId, deviceId, {
-    path: multiSigPath,
-    showOnOneKey: false,
-    useEmptyPassphrase: true,
-  })) as SDKResult<any>;
+  const multiSigResult = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcGetPublicKey(connectId, deviceId, {
+        path: multiSigPath,
+        showOnOneKey: false,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<any>;
   if (!multiSigResult?.success) throw new Error(getErrorMessage(multiSigResult));
 
-  const taprootResult = (await sdk.btcGetPublicKey(connectId, deviceId, {
-    path: taprootPath,
-    showOnOneKey: false,
-    useEmptyPassphrase: true,
-  })) as SDKResult<any>;
+  const taprootResult = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcGetPublicKey(connectId, deviceId, {
+        path: taprootPath,
+        showOnOneKey: false,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<any>;
   if (!taprootResult?.success) throw new Error(getErrorMessage(taprootResult));
 
   const mfp = toMasterFingerprint(
@@ -444,21 +567,30 @@ export const signPsbtWithOneKey = async ({
   deviceId,
   networkType,
   serializedPSBT,
+  signal,
 }: {
   connectId: string;
   deviceId: string;
   networkType: NetworkType;
   serializedPSBT: string;
+  signal?: AbortSignal;
 }): Promise<string> => {
+  checkCancellation(signal);
   const sdk = await getOneKeySdk();
   const psbtHex = Buffer.from(serializedPSBT, 'base64').toString('hex');
   const coin = getCoinNameByNetwork(networkType);
 
-  const result = (await sdk.btcSignPsbt(connectId, deviceId, {
-    psbt: psbtHex,
-    coin,
-    useEmptyPassphrase: true,
-  })) as SDKResult<{ psbt: string }>;
+  const result = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcSignPsbt(connectId, deviceId, {
+        psbt: psbtHex,
+        coin,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<{ psbt: string }>;
 
   if (!result?.success) throw new Error(getErrorMessage(result));
 
@@ -476,27 +608,36 @@ export const verifyAddressOnOneKey = async ({
   path,
   networkType,
   multisigConfig,
+  signal,
 }: {
   connectId: string;
   deviceId: string;
   path: string;
   networkType: NetworkType;
   multisigConfig?: OneKeyMultisigAddressConfig;
+  signal?: AbortSignal;
 }): Promise<string> => {
+  checkCancellation(signal);
   const sdk = await getOneKeySdk();
   const coin = getCoinNameByNetwork(networkType);
   const multisig = multisigConfig
     ? buildMultisigRedeemScript({ ...multisigConfig, networkType })
     : undefined;
 
-  const result = (await sdk.btcGetAddress(connectId, deviceId, {
-    path: multisig ? getHDPathArray(path) : path,
-    coin,
-    showOnOneKey: true,
-    multisig,
-    scriptType: multisig ? getMultisigAddressScriptType(path) : undefined,
-    useEmptyPassphrase: true,
-  })) as SDKResult<{ address: string }>;
+  const result = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcGetAddress(connectId, deviceId, {
+        path: multisig ? getHDPathArray(path) : path,
+        coin,
+        showOnOneKey: true,
+        multisig,
+        scriptType: multisig ? getMultisigAddressScriptType(path) : undefined,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<{ address: string }>;
 
   if (!result?.success) throw new Error(getErrorMessage(result));
   if (!result?.payload?.address) throw new Error('OneKey returned empty address');
@@ -512,29 +653,38 @@ export const signMessageWithOneKey = async ({
   path,
   message,
   networkType,
+  signal,
 }: {
   connectId: string;
   deviceId: string;
   path: string;
   message: string;
   networkType: NetworkType;
+  signal?: AbortSignal;
 }): Promise<{ address: string; signature: string }> => {
+  checkCancellation(signal);
   const sdk = await getOneKeySdk();
   const coin = getCoinNameByNetwork(networkType);
   const messageHex = Buffer.from(message, 'utf8').toString('hex');
 
-  const result = (await sdk.btcSignMessage(connectId, deviceId, {
-    path,
-    messageHex,
-    coin,
-    useEmptyPassphrase: true,
-  })) as SDKResult<{ address: string; signature: string }>;
+  const result = (await callWithCancellation(
+    sdk,
+    () =>
+      sdk.btcSignMessage(connectId, deviceId, {
+        path,
+        messageHex,
+        coin,
+        useEmptyPassphrase: true,
+      }),
+    signal,
+    connectId
+  )) as SDKResult<{ address: string; signature: string }>;
 
   if (!result?.success) throw new Error(getErrorMessage(result));
   if (!result?.payload?.signature) throw new Error('OneKey returned empty signature');
 
   return {
     address: result.payload.address,
-    signature: result.payload.signature,
+    signature: Buffer.from(result.payload.signature, 'hex').toString('base64'),
   };
 };

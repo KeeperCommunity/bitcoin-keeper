@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
-import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
+import { CommonActions, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import WalletHeader from 'src/components/WalletHeader';
 import Text from 'src/components/KeeperText';
@@ -42,6 +42,7 @@ function SignMessageOneKeyBle() {
   const { colorMode } = useColorMode();
   const { params } = useRoute();
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const { showToast } = useToastMessage();
   const { translations } = useContext(LocalizationContext);
   const { common } = translations;
@@ -55,23 +56,25 @@ function SignMessageOneKeyBle() {
   const [statusMessage, setStatusMessage] = useState('Preparing...');
   const [sdkPrompt, setSdkPrompt] = useState('');
 
-  // Listen to SDK UI events
+  // Each focused visit owns its timer, SDK listener and pending operations.
   useEffect(() => {
+    if (!isFocused) return undefined;
+    const controller = new AbortController();
     const sub = onekeyUIEmitter.addListener(ONEKEY_UI_EVENT, (event: OneKeyUIEvent) => {
-      if (UI_PROMPTS[event]) {
+      if (!controller.signal.aborted && UI_PROMPTS[event]) {
         setSdkPrompt(UI_PROMPTS[event]);
       }
     });
-    return () => sub.remove();
-  }, []);
+    const timer = setTimeout(() => runSignMessage(controller.signal), 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      sub.remove();
+    };
+  }, [isFocused]);
 
-  // Auto-run on mount
-  useEffect(() => {
-    const timer = setTimeout(() => runSignMessage(), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const runSignMessage = async () => {
+  const runSignMessage = async (signal: AbortSignal) => {
+    if (signal.aborted) return;
     try {
       if (!signer || !derivationPath) {
         showToast('Signer not found. Please try again.', <ToastErrorIcon />);
@@ -79,7 +82,8 @@ function SignMessageOneKeyBle() {
         return;
       }
 
-      const bleReady = await ensureOneKeyBLEReady();
+      const bleReady = await ensureOneKeyBLEReady(signal);
+      if (signal.aborted) return;
       if (!bleReady.ready) {
         showToast('Please turn on Bluetooth and try again', <ToastErrorIcon />);
         navigation.dispatch(CommonActions.goBack());
@@ -95,11 +99,13 @@ function SignMessageOneKeyBle() {
 
       // BLE needs a brief scan to discover peripherals
       setStatusMessage('Connecting to device...');
-      await searchOneKeyDevices();
+      await searchOneKeyDevices(signal);
+      if (signal.aborted) return;
 
       setStatusMessage('Reading device info...');
       setSdkPrompt('');
-      const deviceInfo = await getOneKeyDeviceInfo(storedConnectId);
+      const deviceInfo = await getOneKeyDeviceInfo(storedConnectId, signal);
+      if (signal.aborted) return;
       assertOneKeyFingerprint(deviceInfo, signer);
 
       setStatusMessage('Signing message...');
@@ -110,7 +116,9 @@ function SignMessageOneKeyBle() {
         path: derivationPath,
         message,
         networkType,
+        signal,
       });
+      if (signal.aborted) return;
 
       setSdkPrompt('');
       if (address && result.address !== address) {
@@ -123,6 +131,7 @@ function SignMessageOneKeyBle() {
       onSignatureReceived?.(result.signature, result.address);
       navigation.dispatch(CommonActions.goBack());
     } catch (error) {
+      if (signal.aborted) return;
       captureError(error);
       showToast(error?.message || common.somethingWrong, <ToastErrorIcon />);
       navigation.dispatch(CommonActions.goBack());

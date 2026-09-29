@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { ActivityIndicator, FlatList, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { useDispatch } from 'react-redux';
@@ -92,6 +93,13 @@ function OneKeyBleModal({
   const { showToast } = useToastMessage();
   const { translations } = useContext(LocalizationContext);
   const { common } = translations;
+  const isFocused = useIsFocused();
+  const operation = useRef<AbortController | null>(null);
+
+  const closeModal = () => {
+    operation.current?.abort();
+    close();
+  };
 
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const networkType =
@@ -106,7 +114,9 @@ function OneKeyBleModal({
 
   // Listen to SDK UI events
   useEffect(() => {
+    if (!visible || !isFocused) return undefined;
     const handler = (event: OneKeyUIEvent) => {
+      if (!operation.current || operation.current.signal.aborted) return;
       if (event === 'idle') {
         setSdkPrompt('idle');
         if (phase === 'sdk-prompt') setPhase('connecting');
@@ -117,38 +127,52 @@ function OneKeyBleModal({
     };
     const subscription = onekeyUIEmitter.addListener(ONEKEY_UI_EVENT, handler);
     return () => { subscription.remove(); };
-  }, [phase]);
+  }, [phase, visible, isFocused]);
 
   // Reset state when modal opens
   useEffect(() => {
-    if (visible) {
+    if (visible && isFocused) {
+      const controller = new AbortController();
+      operation.current = controller;
       setDevices([]);
       setScanning(false);
       setStatusMessage('');
       setErrorMessage('');
       setSdkPrompt('idle');
 
-      if (mode === 'health-check' || mode === 'verify-address') {
+      const directConnect = mode === 'health-check' || mode === 'verify-address';
+      if (directConnect) {
         // Direct connect modes: skip scan
         setPhase('connecting');
-        setTimeout(() => mode === 'verify-address' ? runVerifyAddress() : runHealthCheck(), 300);
       } else {
         // Setup, identify, and recovery show scan UI so the user can choose among nearby devices.
         setPhase('scan');
-        setTimeout(() => scanDevices(), 300);
       }
+      const timer = setTimeout(() => {
+        if (mode === 'verify-address') runVerifyAddress();
+        else if (mode === 'health-check') runHealthCheck();
+        else scanDevices();
+      }, 300);
+      return () => {
+        clearTimeout(timer);
+        controller.abort();
+        if (operation.current === controller) operation.current = null;
+      };
     }
-  }, [visible]);
+    return undefined;
+  }, [visible, isFocused]);
 
   // ─── Scan ──────────────────────────────────────────────────────────────────
 
   const scanDevices = async () => {
-    if (scanning) return;
+    const signal = operation.current?.signal;
+    if (scanning || !signal || signal.aborted) return;
     try {
       setScanning(true);
       setErrorMessage('');
       setDevices([]);
-      const bleReady = await ensureOneKeyBLEReady();
+      const bleReady = await ensureOneKeyBLEReady(signal);
+      if (signal.aborted) return;
       if (!bleReady.ready) {
         const message =
           bleReady.reason === 'MISSING_PERMISSION'
@@ -158,28 +182,32 @@ function OneKeyBleModal({
         showToast(message, <ToastErrorIcon />);
         return;
       }
-      const found = await searchOneKeyDevices();
+      const found = await searchOneKeyDevices(signal);
+      if (signal.aborted) return;
       setDevices(found || []);
     } catch (error) {
+      if (signal.aborted) return;
       captureError(error);
       const message = error?.message || common.somethingWrong;
       setErrorMessage(message);
       showToast(message, <ToastErrorIcon />);
     } finally {
-      setScanning(false);
+      if (!signal.aborted) setScanning(false);
     }
   };
 
   // ─── Setup: tap device → connect → import keys ─────────────────────────────
 
   const handleSetupTap = async (device: SearchDevice) => {
-    if (!device?.connectId) return;
+    const signal = operation.current?.signal;
+    if (!device?.connectId || !signal || signal.aborted) return;
     try {
       setErrorMessage('');
       setPhase('connecting');
       setStatusMessage('Connecting to device...');
 
-      const deviceInfo = await getOneKeyDeviceInfo(device.connectId);
+      const deviceInfo = await getOneKeyDeviceInfo(device.connectId, signal);
+      if (signal.aborted) return;
 
       // Clear any SDK prompt after device info is fetched
       setPhase('connecting');
@@ -189,7 +217,9 @@ function OneKeyBleModal({
         deviceId: deviceInfo.deviceId,
         networkType,
         accountNumber,
+        signal,
       });
+      if (signal.aborted) return;
 
       // Clear any SDK prompt after keys imported
       setPhase('connecting');
@@ -214,8 +244,9 @@ function OneKeyBleModal({
         <TickIcon />
       );
       onSignerAdded?.(newSigner);
-      close();
+      closeModal();
     } catch (error) {
+      if (signal.aborted) return;
       captureError(error);
       const message = error?.message || common.somethingWrong;
       setErrorMessage(message);
@@ -227,13 +258,15 @@ function OneKeyBleModal({
   // ─── Identify: tap device → connect → match fingerprint ───────────────────
 
   const handleIdentifyTap = async (device: SearchDevice) => {
-    if (!device?.connectId || !signer) return;
+    const signal = operation.current?.signal;
+    if (!device?.connectId || !signer || !signal || signal.aborted) return;
     try {
       setErrorMessage('');
       setPhase('connecting');
       setStatusMessage('Connecting to device...');
 
-      const deviceInfo = await getOneKeyDeviceInfo(device.connectId);
+      const deviceInfo = await getOneKeyDeviceInfo(device.connectId, signal);
+      if (signal.aborted) return;
 
       try {
         assertOneKeyFingerprint(deviceInfo, signer);
@@ -248,8 +281,9 @@ function OneKeyBleModal({
       setPhase('done');
       showToast('OneKey verified successfully', <TickIcon />);
       onDeviceIdentified?.({ device, deviceInfo });
-      close();
+      closeModal();
     } catch (error) {
+      if (signal.aborted) return;
       captureError(error);
       const message = error?.message || common.somethingWrong;
       setErrorMessage(message);
@@ -261,30 +295,34 @@ function OneKeyBleModal({
   // ─── Health Check: direct connect via stored connectId ─────────────────────
 
   const runHealthCheck = async () => {
-    if (!signer) return;
+    const signal = operation.current?.signal;
+    if (!signer || !signal || signal.aborted) return;
     try {
       setPhase('connecting');
 
-      const bleReady = await ensureOneKeyBLEReady();
+      const bleReady = await ensureOneKeyBLEReady(signal);
+      if (signal.aborted) return;
       if (!bleReady.ready) {
         showToast('Please turn on Bluetooth and try again', <ToastErrorIcon />);
-        close();
+        closeModal();
         return;
       }
 
       const storedConnectId = signer?.extraData?.bleConnectId;
       if (!storedConnectId) {
         showToast('No stored connection info. Please re-add this device.', <ToastErrorIcon />);
-        close();
+        closeModal();
         return;
       }
 
       // BLE needs a brief scan to discover peripherals before connecting
       setStatusMessage('Connecting to device...');
-      await searchOneKeyDevices();
+      await searchOneKeyDevices(signal);
+      if (signal.aborted) return;
 
       setStatusMessage('Verifying device...');
-      const deviceInfo = await getOneKeyDeviceInfo(storedConnectId);
+      const deviceInfo = await getOneKeyDeviceInfo(storedConnectId, signal);
+      if (signal.aborted) return;
       assertOneKeyFingerprint(deviceInfo, signer);
 
       // Clear any SDK prompt after verification
@@ -298,44 +336,50 @@ function OneKeyBleModal({
       );
       setPhase('done');
       showToast('OneKey verification successful', <TickIcon />);
-      close();
+      closeModal();
     } catch (error) {
+      if (signal.aborted) return;
       captureError(error);
       showToast(error?.message || common.somethingWrong, <ToastErrorIcon />);
-      close();
+      closeModal();
     }
   };
 
   // ─── Verify Address: direct connect → show address on device ─────────────
 
   const runVerifyAddress = async () => {
+    const signal = operation.current?.signal;
+    if (!signal || signal.aborted) return;
     if (!signer || !vaultKey || !receivingAddress || receiveAddressIndex === undefined) {
       showToast('Missing address verification details. Please try again.', <ToastErrorIcon />);
-      close();
+      closeModal();
       return;
     }
     try {
       setPhase('connecting');
 
-      const bleReady = await ensureOneKeyBLEReady();
+      const bleReady = await ensureOneKeyBLEReady(signal);
+      if (signal.aborted) return;
       if (!bleReady.ready) {
         showToast('Please turn on Bluetooth and try again', <ToastErrorIcon />);
-        close();
+        closeModal();
         return;
       }
 
       const storedConnectId = signer?.extraData?.bleConnectId;
       if (!storedConnectId) {
         showToast('No stored connection info. Please re-add this device.', <ToastErrorIcon />);
-        close();
+        closeModal();
         return;
       }
 
       setStatusMessage('Connecting to device...');
-      await searchOneKeyDevices();
+      await searchOneKeyDevices(signal);
+      if (signal.aborted) return;
 
       setStatusMessage('Reading device info...');
-      const deviceInfo = await getOneKeyDeviceInfo(storedConnectId);
+      const deviceInfo = await getOneKeyDeviceInfo(storedConnectId, signal);
+      if (signal.aborted) return;
       assertOneKeyFingerprint(deviceInfo, signer);
 
       setPhase('connecting');
@@ -366,7 +410,9 @@ function OneKeyBleModal({
         path: addressPath,
         networkType,
         multisigConfig,
+        signal,
       });
+      if (signal.aborted) return;
 
       setPhase('connecting');
 
@@ -381,11 +427,12 @@ function OneKeyBleModal({
       } else {
         showToast('Address mismatch! The address on device does not match.', <ToastErrorIcon />);
       }
-      close();
+      closeModal();
     } catch (error) {
+      if (signal.aborted) return;
       captureError(error);
       showToast(error?.message || common.somethingWrong, <ToastErrorIcon />);
-      close();
+      closeModal();
     }
   };
 
@@ -524,7 +571,7 @@ function OneKeyBleModal({
   return (
     <KeeperModal
       visible={visible}
-      close={close}
+      close={closeModal}
       title={title}
       subTitle={subTitle}
       showCloseIcon
