@@ -63,7 +63,12 @@ import ElectrumClient, {
 import idx from 'idx';
 import _ from 'lodash';
 import { SyncedWallet } from 'src/services/wallets/interfaces';
-import { checkSignerAccountsMatch, getAccountFromSigner, getKeyUID } from 'src/utils/utilities';
+import {
+  checkSignerAccountsMatch,
+  getAccountFromSigner,
+  getKeyUID,
+  sanitizeSeedKeyForBackup,
+} from 'src/utils/utilities';
 import { COLLABORATIVE_SCHEME } from 'src/screens/SigningDevices/SetupCollaborativeWallet';
 import { RootState } from '../store';
 
@@ -109,6 +114,7 @@ import {
   deleteVaultImageWorker,
   updateAppImageWorker,
   updateVaultImageWorker,
+  setServerBackupFailed,
 } from './bhr';
 import {
   relaySignersUpdateFail,
@@ -435,20 +441,20 @@ export function* addSigningDeviceWorker({
         multiSigMatch ||
         taprootMatch;
 
-        if (signerMergeCondition) {
-          const { type, signerName } = [SignerType.UNKOWN_SIGNER, SignerType.OTHER_SD].includes(
-            existingSigner.type
-          )
-            ? newSigner
-            : existingSigner;
-          signersToUpdate.push({
-            ...existingSigner,
-            type,
-            signerXpubs: _.merge(existingSigner.signerXpubs, newSigner.signerXpubs),
-            signerName,
-          });
-          continue;
-        }
+      if (signerMergeCondition) {
+        const { type, signerName } = [SignerType.UNKOWN_SIGNER, SignerType.OTHER_SD].includes(
+          existingSigner.type
+        )
+          ? newSigner
+          : existingSigner;
+        signersToUpdate.push({
+          ...existingSigner,
+          type,
+          signerXpubs: _.merge(existingSigner.signerXpubs, newSigner.signerXpubs),
+          signerName,
+        });
+        continue;
+      }
 
       const singleSigDifferent = keysDifferent(XpubTypes.P2WPKH, newSigner, existingSigner);
       const multiSigDifferent = keysDifferent(XpubTypes.P2WSH, newSigner, existingSigner);
@@ -725,7 +731,10 @@ function* refreshWalletsWorker({
         }
       }
 
-      if (synchedWallet.entityKind === EntityKind.VAULT && synchedWallet.type === VaultType.CANARY) {
+      if (
+        synchedWallet.entityKind === EntityKind.VAULT &&
+        synchedWallet.type === VaultType.CANARY
+      ) {
         yield put(uaiChecks([uaiType.CANARAY_WALLET]));
       }
 
@@ -800,14 +809,13 @@ function* refreshWalletsWorker({
         }
       }
 
-      const { taintedAddresses, initialTaintAddresses, dustSpendTxids } =
-        classifyDustByAddress(
-          synchedWallet as any,
-          externalAddresses,
-          internalAddresses,
-          manualOverrideAddresses,
-          options.dustScan ? 'full' : 'current'
-        );
+      const { taintedAddresses, initialTaintAddresses, dustSpendTxids } = classifyDustByAddress(
+        synchedWallet as any,
+        externalAddresses,
+        internalAddresses,
+        manualOverrideAddresses,
+        options.dustScan ? 'full' : 'current'
+      );
 
       // Mark UTXOs — only restore snapshot for soft/hard refresh or when user made a manual override;
       // always re-run classification otherwise so reclassification is not blocked.
@@ -1176,15 +1184,45 @@ function* updateKeyDetailsWorker({ payload }) {
     if (!updatedFlag) {
       updatedRegsteredVaults.push(value);
     }
-    yield call(dbManager.updateObjectByPrimaryId, RealmSchema.VaultSigner, 'xpub', signer.xpub, {
-      registeredVaults: updatedRegsteredVaults,
-    });
-    return;
+    const saved = yield call(
+      dbManager.updateObjectByPrimaryId,
+      RealmSchema.VaultSigner,
+      'xpub',
+      signer.xpub,
+      { registeredVaults: updatedRegsteredVaults }
+    );
+    if (saved !== true) {
+      yield put(relaySignersUpdateFail('Key registration could not be saved'));
+      return false;
+    }
+    // VaultSigner is shared by every vault using this xpub. Back up each fresh
+    // containing vault so an older copy cannot overwrite the restored metadata.
+    try {
+      const vaults: Vault[] = yield call(dbManager.getCollection, RealmSchema.Vault);
+      for (const vault of vaults) {
+        if (vault.signers.some((key) => key.xpub === signer.xpub)) {
+          const response = yield call(updateVaultImageWorker, {
+            payload: { vault, isUpdate: true },
+          });
+          if (!response?.updated) yield call(setServerBackupFailed);
+        }
+      }
+    } catch (error) {
+      yield call(setServerBackupFailed);
+    }
+    return true;
   }
 
-  yield call(dbManager.updateObjectByPrimaryId, RealmSchema.VaultSigner, 'xpub', signer.xpub, {
-    [key]: value,
-  });
+  const updated = yield call(
+    dbManager.updateObjectByPrimaryId,
+    RealmSchema.VaultSigner,
+    'xpub',
+    signer.xpub,
+    {
+      [key]: value,
+    }
+  );
+  return updated === true;
 }
 
 export const updateKeyDetails = createWatcher(updateKeyDetailsWorker, UPDATE_KEY_DETAILS);
@@ -1364,7 +1402,10 @@ function* mergeSimilarKeysWorker({ payload }: { payload: { signer: Signer } }) {
           RealmSchema.KeeperApp
         );
         const encryptionKey = generateEncryptionKey(primarySeed);
-        const encrytedSigner = encrypt(encryptionKey, JSON.stringify(signer));
+        const encrytedSigner = encrypt(
+          encryptionKey,
+          JSON.stringify(sanitizeSeedKeyForBackup(signer))
+        );
         const updated = yield call(Relay.migrateXfp, id, [
           {
             oldSignerId: s.masterFingerprint,

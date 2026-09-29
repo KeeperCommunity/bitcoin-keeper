@@ -803,6 +803,7 @@
     "keeperVerified": "Keeper Verified Successfully",
     "SeedErrorToast": "Please fill in all seed word fields",
     "appRecoveredSuccessfulTitle": "App Recovered Successfully!",
+    "recoveryIncomplete": "Recovery could not be completed. Your backup may be unavailable or some data could not be restored. Please try again.",
     "appRecoveredSuccessfulSubTitle": "All your wallets and data about your vault has been recovered",
     "appRecoveredSuccessfulDesc": "The vault keys always stay within the signing devices and therefore do not have to be recovered",
     "mobileKey": "Mobile Key",
@@ -2217,5 +2218,49 @@
     "disclaimerPoint3": "Your messages are processed securely to help Ask Keeper respond.",
     "disclaimerLearnMore": "Learn more about Ask Keeper",
     "disclaimerCta": "Got it"
+  },
+  "recoveryBackup": {
+  "title": "Assisted Server Backup",
+  "backUp": "Back Up Now",
+  "check": "Check Again",
+  "back": "Back",
+  "slow": "This is taking longer than usual. A slow connection or a large backup can take more time.",
+  "leave": "You can leave this screen. Return here to check the result. If the app closes, check again when you reopen it.",
+  "disabled": {
+    "title": "Backup is off",
+    "body": "Enable Assisted Server Backup in Backup and Recovery to use this check."
+  },
+  "checking": {
+    "title": "Checking your backup",
+    "body": "Comparing your encrypted backup with the recovery data on this device."
+  },
+  "different": {
+    "title": "Your backup needs updating",
+    "body": "Your Assisted Server Backup differs from this device. Back up now to update it, then Keeper will check that it matches."
+  },
+  "preparing": {
+    "title": "Preparing your backup",
+    "body": "Preparing and encrypting the recovery data on this device."
+  },
+  "uploading": {
+    "title": "Updating your backup",
+    "body": "Sending your encrypted backup to Keeper’s servers."
+  },
+  "verifying": {
+    "title": "Verifying your backup",
+    "body": "Reading your backup back from the server and checking that the recovery data matches."
+  },
+  "verified": {
+    "title": "Backup verified",
+    "body": "Your Assisted Server Backup matches the recovery data checked on this device. Keep your Recovery Key safe; you still need it for recovery."
+  },
+  "conflict": {
+    "title": "Backup needs review",
+    "body": "The server backup contains recovery data that is missing or different on this device. Keeper has not replaced it. Check your other Keeper devices before making changes, then check again."
+  },
+  "unverified": {
+    "title": "Backup not verified",
+    "body": "Keeper could not confirm that your backup matches. Your connection may have been interrupted, the backup may be too large, or data may have changed during the check. Check again before assuming the backup is complete."
   }
+}
 }

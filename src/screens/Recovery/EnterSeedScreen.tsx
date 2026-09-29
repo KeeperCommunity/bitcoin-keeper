@@ -1,5 +1,12 @@
 import * as bip39 from 'bip39';
-import { Box, Input, Pressable, ScrollView, View, useColorMode } from '@gluestack-ui/themed-native-base';
+import {
+  Box,
+  Input,
+  Pressable,
+  ScrollView,
+  View,
+  useColorMode,
+} from '@gluestack-ui/themed-native-base';
 import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { hp, wp } from 'src/constants/responsive';
@@ -130,7 +137,13 @@ function EnterSeedScreen({ route, navigation }) {
         dispatch(setAppImageError(''));
         setRecoveryLoading(false);
         setShowNetworkModal(true);
-      } else openInvalidSeedsModal();
+      } else if (appImageError === 'Invalid mnemonic') {
+        openInvalidSeedsModal();
+      } else {
+        setRecoveryLoading(false);
+        showToast(seed.recoveryIncomplete, <ToastErrorIcon />);
+        dispatch(setAppImageError(''));
+      }
     }
   }, [appImageError]);
 

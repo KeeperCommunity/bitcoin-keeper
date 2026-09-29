@@ -1,8 +1,8 @@
 # Release version verification
 
-**Current milestone:** T-053 maintenance candidate, authorised 28 September 2026: finish the prepared Ask Keeper navigation correction and regression-test existing Dust/Testnet behaviour. Version 2.5.15 remains untouched. Physical-device follow-up is optional; simulator coverage must be labelled accurately.
+**Current milestone:** Now candidate 2.5.17: Recovery Key backup comparison/repair and complete data restore, Version History, PIN handling, and the privately reviewed timelock prevention change. Keep advisory details and private fixtures out of public release material.
 
-`version.json` selects candidate 2.5.16, Android 623 and iOS 616. Authenticated Google Play tracks/uploaded bundles and App Store Connect upload history were checked on 28 September: Android highest 622 and iOS highest 615, both marketing version 2.5.15. The iOS distribution page shows 2.5.15 Ready for Distribution with no newer iOS draft. Keep private investigation and diagnostics outside public release material.
+`version.json` selects 2.5.17, Android 624 and iOS 617. Authenticated Google Play evidence on 29 September shows highest uploaded Android code 623; App Store Connect shows latest iOS upload 2.5.16 (616), Complete, and the production version Ready for Distribution. Refresh store baselines again before upload. The paired Recovery relay is deployed and its live encrypted repair/readback smoke passed. Independent security acceptance and final physical testing remain pending.
 
 1. Read all uploaded builds and release tracks for Android package `io.hexawallet.bitcoinkeeper`, and uploaded iOS builds for `io.hexawallet.keeper`. Preserve the timestamp and evidence outside the repository. Refresh before upload; preflight accepts evidence at most 24 hours old.
 2. Update the manifest with the highest known marketing version and highest uploaded build per platform. Select one greater marketing version for both stores and greater platform build counters. Check unpublished App Store version records as well.

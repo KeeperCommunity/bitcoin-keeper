@@ -1,3 +1,4 @@
+import { backupPost } from '../backup/transport';
 import { NetworkType } from 'src/services/wallets/enums';
 import { SubScriptionPlan } from 'src/models/interfaces/Subscription';
 import {
@@ -106,16 +107,25 @@ export default class Relay {
     return res.data || res.json;
   };
 
-  public static updateAppImage = async (
-    appImage
-  ): Promise<{
+  public static updateAppImage = async (appImage: {
+    appId: string;
+    publicId?: string;
+    walletsObject?: Record<string, string>;
+    signersObject?: Record<string, string>;
+    networkType?: string;
+    subscription?: string;
+    version?: string;
+    nodes?: string[];
+    // Required to clear nodes: older clients send [] for unrelated updates.
+    replaceNodes?: boolean;
+  }): Promise<{
     status: string;
     updated: boolean;
     err?: string;
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}updateAppImage`, appImage);
+      const res = await backupPost(`${RELAY}updateAppImage`, appImage);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -150,7 +160,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteAppImageEntity`, entityList);
+      const res = await backupPost(`${RELAY}deleteAppImageEntity`, entityList);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -168,7 +178,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteVaults`, entityList);
+      const res = await backupPost(`${RELAY}deleteVaults`, entityList);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -188,7 +198,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}updateVaultImage`, vaultData);
+      const res = await backupPost(`${RELAY}updateVaultImage`, vaultData);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -275,7 +285,7 @@ export default class Relay {
     updated: boolean;
   }> => {
     try {
-      const res = (await RestClient.post(`${RELAY}modifyLabels`, {
+      const res = (await backupPost(`${RELAY}modifyLabels`, {
         appId,
         addLabels,
         deleteLabels,
@@ -429,6 +439,7 @@ export default class Relay {
   public static backupAllSignersAndVaults = async (
     allData
   ): Promise<{
+    updated?: boolean;
     status?: number;
     data?: {
       updated: boolean;
@@ -437,7 +448,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}backupAllSignersAndVaults`, allData);
+      const res = await backupPost(`${RELAY}backupAllSignersAndVaults`, allData);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -482,7 +493,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteBackup`, body);
+      const res = await backupPost(`${RELAY}deleteBackup`, body);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -804,4 +815,3 @@ export default class Relay {
     }
   };
 }
-

@@ -51,9 +51,11 @@ export const SIGNER_POLICY_MIGRATION_VERSION = '2.1.0';
 export function* applyUpgradeSequence({
   previousVersion,
   newVersion,
+  isRecovery = false,
 }: {
   previousVersion: string;
   newVersion: string;
+  isRecovery?: boolean;
 }) {
   console.log(`applying upgrade sequence - from: ${previousVersion} to ${newVersion}`);
 
@@ -80,15 +82,15 @@ export function* applyUpgradeSequence({
   }
 
   yield put(setAppVersion(newVersion));
-  yield put(updateVersionHistory(previousVersion, newVersion));
+  yield put(updateVersionHistory(previousVersion, newVersion, isRecovery));
 }
 
-function* updateVersionHistoryWorker({
+export function* updateVersionHistoryWorker({
   payload,
 }: {
-  payload: { previousVersion: string; newVersion: string };
+  payload: { previousVersion: string; newVersion: string; isRecovery?: boolean };
 }) {
-  const { previousVersion, newVersion } = payload;
+  const { previousVersion, newVersion, isRecovery = false } = payload;
   try {
     const app: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
     const response = yield call(Relay.updateAppImage, {
@@ -98,7 +100,7 @@ function* updateVersionHistoryWorker({
     yield call(dbManager.createObject, RealmSchema.VersionHistory, {
       version: `${newVersion}(${DeviceInfo.getBuildNumber()})`,
       date: new Date().toString(),
-      title: `Upgraded from ${previousVersion} to ${newVersion}`,
+      title: isRecovery ? 'Recovered Wallet' : `Upgraded from ${previousVersion} to ${newVersion}`,
     });
     const firebaseApp = getApp();
     const messagingInstance = getMessaging(firebaseApp);

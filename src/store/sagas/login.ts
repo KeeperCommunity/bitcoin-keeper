@@ -51,7 +51,7 @@ import { createWatcher } from '../utilities';
 import { fetchExchangeRates } from '../sagaActions/send_and_receive';
 import { setLoginMethod } from '../reducers/settings';
 import { setSubscription } from 'src/store/sagaActions/settings';
-import { backupAllSignersAndVaults } from '../sagaActions/bhr';
+import { checkBackupFreshness } from '../sagaActions/bhr';
 import { uaiChecks } from '../sagaActions/uai';
 import { applyUpgradeSequence } from './upgrade';
 import { resetSyncing } from '../reducers/wallets';
@@ -214,7 +214,7 @@ function* credentialsAuthWorker({ payload }) {
       }
       if (appId) {
         try {
-          const { id, publicId, subscription }: KeeperApp = yield call(
+          const { id }: KeeperApp = yield call(
             dbManager.getObjectByIndex,
             RealmSchema.KeeperApp
           );
@@ -249,10 +249,15 @@ function* credentialsAuthWorker({ payload }) {
 
           yield put(resetSyncing());
 
-          const { pendingAllBackup, automaticCloudBackup } = yield select(
-            (state: RootState) => state.bhr
-          );
-          if (pendingAllBackup && automaticCloudBackup) yield put(backupAllSignersAndVaults());
+          const {
+            pendingAllBackup,
+            automaticCloudBackup,
+            backupRepairCompletedByAppId = {},
+          } = yield select((state: RootState) => state.bhr);
+          // Check without uploading; a mismatch requires Back Up Now.
+          if (automaticCloudBackup && (pendingAllBackup || !backupRepairCompletedByAppId[id])) {
+            yield put(checkBackupFreshness());
+          }
           if (!allAccounts.length) {
             // upgraded app
             yield put(addAccount(appId));

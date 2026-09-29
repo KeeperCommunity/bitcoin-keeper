@@ -1,3 +1,4 @@
+import { resolveInitialTimelock } from 'src/services/wallets/operations/miniscript/initialTimelock';
 import { CommonActions, useNavigation, useFocusEffect } from '@react-navigation/native';
 import React, { useEffect, useState, useRef, useCallback, useContext } from 'react';
 import {
@@ -375,7 +376,11 @@ function VaultMigrationController({
       return;
     }
 
-    let initialTimelock = 0;
+    const initialTimelock = resolveInitialTimelock(
+      miniscriptTypes,
+      initialTimelockDuration,
+      (label) => getTimelockDuration(label, bitcoinNetworkType)
+    );
 
     const multisigScriptType = MultisigScriptType.MINISCRIPT_MULTISIG;
     // let currentSyncedBlockHeight = currentBlockHeight;
@@ -395,14 +400,6 @@ function VaultMigrationController({
     //     return;
     //   }
     // }
-
-    if (initialTimelockDuration) {
-      initialTimelock = getTimelockDuration(initialTimelockDuration, bitcoinNetworkType);
-      if (!initialTimelock) {
-        showToast('Failed to determine initial timelock duration', <ToastErrorIcon />);
-        return;
-      }
-    }
 
     const inheritanceSignerWithTimelocks = [];
     const emergencySignerWithTimelocks = [];

@@ -209,21 +209,16 @@ function LoginScreen({ navigation, route }) {
   };
 
   const onPressNumber = (text) => {
-    let tmpPasscode = passcode;
-    if (passcode.length < 4) {
-      if (text !== 'x') {
-        tmpPasscode += text;
-        setPasscode(tmpPasscode);
-      }
-    }
-    if (passcode && text === 'x') {
-      setPasscode(passcode.slice(0, -1));
+    if (text === 'x') {
+      setPasscode((current) => current.slice(0, -1));
       setLoginError(false);
+    } else {
+      setPasscode((current) => (current.length < 4 ? current + text : current));
     }
   };
 
-  const onDeletePressed = (text) => {
-    setPasscode(passcode.slice(0, passcode.length - 1));
+  const onDeletePressed = () => {
+    setPasscode((current) => current.slice(0, -1));
   };
 
   useEffect(() => {
