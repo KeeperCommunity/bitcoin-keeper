@@ -52,3 +52,26 @@ for (const file of ['src/components/Backup/BackupHealthCheckList.tsx', 'src/scre
     assert.ok(!actions.some(a=>a.type==='enabled'&&a.value)); assert.ok(!ui.some(a=>(a[0]==='enabled'||a[0]==='success')&&a[1]));
   });
 }
+
+
+test('home backup warning opens comparison without starting a backup', () => {
+  const file = 'src/components/HomeScreenHeader.tsx';
+  const source = ts.createSourceFile(file, fs.readFileSync(path.join(__dirname, '../..', file), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let callback;
+  function visit(node) {
+    if (ts.isPropertyAssignment(node) && node.name.getText(source) === '[uaiType.SERVER_BACKUP_FAILURE]') callback = node.initializer.getText(source);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  assert.ok(callback);
+  const actions = [], destinations = [];
+  vm.runInNewContext(ts.transpileModule(`(${callback})()`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText, {
+    localLatestUnseenUai: { id: 'disposable-backup-warning' },
+    dispatch: action => actions.push(action),
+    uaiActioned: payload => ({ type: 'uaiActioned', payload }),
+    backupAllSignersAndVaults: () => ({ type: 'backupAllSignersAndVaults' }),
+    navigation: { navigate: route => destinations.push(route) },
+  });
+  assert.deepEqual(destinations, ['AssistedBackupStatus']);
+  assert.ok(!actions.some(action => action.type === 'backupAllSignersAndVaults'), 'view details must not write a backup before the user chooses Back Up Now');
+});
