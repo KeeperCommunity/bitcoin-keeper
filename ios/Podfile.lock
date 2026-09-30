@@ -1,5 +1,5 @@
 PODS:
-  - BleUtils (0.1.4):
+  - BleUtils (0.1.9):
     - boost
     - DoubleConversion
     - fast_float
@@ -2195,7 +2195,7 @@ PODS:
     - React-Core
   - react-native-biometrics (2.2.0):
     - React-Core
-  - react-native-ble-plx (3.5.0):
+  - react-native-ble-plx (3.5.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4035,7 +4035,7 @@ CHECKOUT OPTIONS:
     :git: https://github.com/bithyve/libportal-ios.git
 
 SPEC CHECKSUMS:
-  BleUtils: 0fd18e5fd2732c89771dc79941c7320ac9c42015
+  BleUtils: e58e160cddeaff75f47a2bbadb5f480cbcaf39bd
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   BVLinearGradient: cb006ba232a1f3e4f341bb62c42d1098c284da70
   CocoaAsyncSocket: 065fd1e645c7abab64f7a6a2007a48038fdc6a99
@@ -4106,7 +4106,7 @@ SPEC CHECKSUMS:
   React-mutationobservernativemodule: 867e9c215f21b4308fa98473f3c38585b5897e44
   react-native-background-timer: 4638ae3bee00320753647900b21260b10587b6f7
   react-native-biometrics: ecca256a9e1c8b430f78c4e3dcb16b57ea1418e0
-  react-native-ble-plx: effae4e8e465c52768497f87abd2b95791eb2de2
+  react-native-ble-plx: 152b07bdf772c95e30c0251649d462b5154a0e13
   react-native-blob-util: 6dec9023ecc3ee5ac8ad377598e943f9ca63f741
   react-native-change-icon: 2abab62ecabf10adf6e03cc9516484a27385b580
   react-native-config: 8e425892a531627c52db765be3088185cb871e19

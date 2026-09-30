@@ -2789,57 +2789,58 @@
   resolved "https://registry.yarnpkg.com/@nolyfill/is-core-module/-/is-core-module-1.0.39.tgz#3dc35ba0f1e66b403c00b39344f870298ebb1c8e"
   integrity sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==
 
-"@onekeyfe/hd-ble-sdk@1.1.16":
-  version "1.1.16"
-  resolved "https://registry.npmjs.org/@onekeyfe/hd-ble-sdk/-/hd-ble-sdk-1.1.16.tgz#124c5cb9bb3c0d16b6ca2ea615e1867cbf55ba18"
-  integrity sha512-8t5mhPS7QQkcQXAqJJ0VVr+7EX5vT327U32cUYwxdf5N/opvNRkNc3k1io8N8YO6XprGk5+vAqWLT95/C30/Bw==
+"@onekeyfe/hd-ble-sdk@1.1.31":
+  version "1.1.31"
+  resolved "https://registry.npmjs.org/@onekeyfe/hd-ble-sdk/-/hd-ble-sdk-1.1.31.tgz#f25c3ed71d7fe2f8000cb948a0cbacaff01fbf88"
+  integrity sha512-jxGGFODh5/6k/Z/FzzDLieJ2p3RKimfu2QtFdpb939JnSub3gFXx0FwdQi/bWVjib3cG/4qy9nCeGnboCfz+uQ==
   dependencies:
-    "@onekeyfe/hd-core" "1.1.16"
-    "@onekeyfe/hd-shared" "1.1.16"
-    "@onekeyfe/hd-transport-react-native" "1.1.16"
+    "@onekeyfe/hd-core" "1.1.31"
+    "@onekeyfe/hd-shared" "1.1.31"
+    "@onekeyfe/hd-transport-react-native" "1.1.31"
 
-"@onekeyfe/hd-core@1.1.16":
-  version "1.1.16"
-  resolved "https://registry.npmjs.org/@onekeyfe/hd-core/-/hd-core-1.1.16.tgz#31df132b7cc7e31275b39fdd0a08f001a7afa9a1"
-  integrity sha512-ViTzwUySTXWB81kVHvZuxaHScfcQUZ1+Tgk9We7UXz8zKwLRsU5GfIbqpS1qSZA65/OCCB/fJoMA0zto84FH0Q==
+"@onekeyfe/hd-core@1.1.31":
+  version "1.1.31"
+  resolved "https://registry.npmjs.org/@onekeyfe/hd-core/-/hd-core-1.1.31.tgz#a52ce95aa3011447b3ded1ea97ac29bcccc13133"
+  integrity sha512-S8nZkzkrQC7+h6sqdrlDnwp/CuxWvMRDtE+J06ukb0F6SOH1ETg8Q9ysHoOTT0xa2wA/7aICLwbJ/8+sjnhKCg==
   dependencies:
-    "@onekeyfe/hd-shared" "1.1.16"
-    "@onekeyfe/hd-transport" "1.1.16"
-    axios "1.12.2"
+    "@onekeyfe/hd-shared" "1.1.31"
+    "@onekeyfe/hd-transport" "1.1.31"
+    axios "1.15.2"
     bignumber.js "^9.0.2"
     bytebuffer "^5.0.1"
     jszip "^3.10.1"
     parse-uri "^1.0.7"
     semver "^7.3.7"
 
-"@onekeyfe/hd-shared@1.1.16":
-  version "1.1.16"
-  resolved "https://registry.npmjs.org/@onekeyfe/hd-shared/-/hd-shared-1.1.16.tgz#7fa2b8f1e52348c924a8fc0be18f7d2f0f1b9043"
-  integrity sha512-PLIK9yZyT8TpbfN+4EaBKzY4mFXSVNBvOLNKmIxH/GnIy5hDBdGyybbhtCTEXjGr55aFLwR0GBy1I+nYXQmoEw==
+"@onekeyfe/hd-shared@1.1.31":
+  version "1.1.31"
+  resolved "https://registry.npmjs.org/@onekeyfe/hd-shared/-/hd-shared-1.1.31.tgz#e58edab90d5b15433b956640b9dd3e5fdbbf3e26"
+  integrity sha512-4GB0ExCCwI/oLgUfH7v1kUl1ggARcZrD6/X2Vws6DcwcnIK6/RWLe0/KZtPbvY23eG3RkoldV5vbZJw0Y0rubg==
 
-"@onekeyfe/hd-transport-react-native@1.1.16":
-  version "1.1.16"
-  resolved "https://registry.npmjs.org/@onekeyfe/hd-transport-react-native/-/hd-transport-react-native-1.1.16.tgz#381e7117e08767bc28c28ab23218a32540a7ea66"
-  integrity sha512-CDlmOWYKgJ2pxelEC4w8dSG44Iz6bSJ1LY65lbFdutZ4ZO84GtUmceZ//K+i88dbULKe4qogcyqKG7P6EZcTqA==
+"@onekeyfe/hd-transport-react-native@1.1.31":
+  version "1.1.31"
+  resolved "https://registry.npmjs.org/@onekeyfe/hd-transport-react-native/-/hd-transport-react-native-1.1.31.tgz#7c0db19f0562734425cb131fd4e77db248827bf0"
+  integrity sha512-lhIfXPJ0W6bYDvteGVlBDCv0SaOZUtS+FLt7bAuZCQU7of8ULjp9SDekpnVhUirh+ymezgiw/XAvJa+DUYrSdg==
   dependencies:
-    "@onekeyfe/hd-shared" "1.1.16"
-    "@onekeyfe/hd-transport" "1.1.16"
-    "@onekeyfe/react-native-ble-utils" "^0.1.4"
-    react-native-ble-plx "3.5.0"
+    "@onekeyfe/hd-core" "1.1.31"
+    "@onekeyfe/hd-shared" "1.1.31"
+    "@onekeyfe/hd-transport" "1.1.31"
+    "@onekeyfe/react-native-ble-utils" "^0.1.6"
+    react-native-ble-plx "3.5.1"
 
-"@onekeyfe/hd-transport@1.1.16":
-  version "1.1.16"
-  resolved "https://registry.npmjs.org/@onekeyfe/hd-transport/-/hd-transport-1.1.16.tgz#3ec4ee1f786df1a630e79113dc561b33c5d57bd9"
-  integrity sha512-z+HKqYkGz+Ub1GV+REFqJqTG+tpZt7296O3qIlwmsURWdWXX4TcpXmCQDcXMt7vru8m9A4MUMkpGr+23MFBluw==
+"@onekeyfe/hd-transport@1.1.31":
+  version "1.1.31"
+  resolved "https://registry.npmjs.org/@onekeyfe/hd-transport/-/hd-transport-1.1.31.tgz#2c9e0aed611fa0b6354203339ac6aaa0661d4d12"
+  integrity sha512-ONwDmmAeq9eNnjotCHw2uOdf7iGtue1i2x4JG/D1dglLVnDuubl+5m4ydYVhFHkccVRA2eG4CLHFhgQ+qbM4/A==
   dependencies:
     bytebuffer "^5.0.1"
     long "^4.0.0"
     protobufjs "^6.11.2"
 
-"@onekeyfe/react-native-ble-utils@^0.1.4":
-  version "0.1.4"
-  resolved "https://registry.npmjs.org/@onekeyfe/react-native-ble-utils/-/react-native-ble-utils-0.1.4.tgz#4a262d30cd226e94f1c697c08a3a85a44310690c"
-  integrity sha512-DTKjjFKdkGktx/qqdu7STFAjpD6ZI3Rdfcyvv/a1Ho4GBs9F/nOJyxEhqiUNbY4XZoVHSwYy2cxYrdX4zGY6eA==
+"@onekeyfe/react-native-ble-utils@^0.1.6":
+  version "0.1.9"
+  resolved "https://registry.npmjs.org/@onekeyfe/react-native-ble-utils/-/react-native-ble-utils-0.1.9.tgz#032627f167e811d8322e10de5055ad0dbedaf9ce"
+  integrity sha512-1Xv0oN5693rrksccQd2TnGWvserAM0Agmpl/3p0QaRcG+lU5Wl5uqbdQcReRvF7gg4ecdXvOV9IIcYn/Jg32hg==
 
 "@otplib/core@^12.0.1":
   version "12.0.1"
@@ -5240,14 +5241,14 @@ axe-core@^4.10.0:
   resolved "https://registry.yarnpkg.com/axe-core/-/axe-core-4.11.3.tgz#d23cf404edaa5f97bdfd9afed6eea8405e5326e7"
   integrity sha512-zBQouZixDTbo3jMGqHKyePxYxr1e5W8UdTmBQ7sNtaA9M2bE32daxxPLS/jojhKOHxQ7LWwPjfiwf/fhaJWzlg==
 
-axios@1.12.2:
-  version "1.12.2"
-  resolved "https://registry.npmjs.org/axios/-/axios-1.12.2.tgz#6c307390136cf7a2278d09cec63b136dfc6e6da7"
-  integrity sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==
+axios@1.15.2:
+  version "1.15.2"
+  resolved "https://registry.npmjs.org/axios/-/axios-1.15.2.tgz#eb8fb6d30349abace6ade5b4cb4d9e8a0dc23e5b"
+  integrity sha512-wLrXxPtcrPTsNlJmKjkPnNPK2Ihe0hn0wGSaTEiHRPxwjvJwT3hKmXF4dpqxmPO9SoNb2FsYXj/xEo0gHN+D5A==
   dependencies:
-    follow-redirects "^1.15.6"
-    form-data "^4.0.4"
-    proxy-from-env "^1.1.0"
+    follow-redirects "^1.15.11"
+    form-data "^4.0.5"
+    proxy-from-env "^2.1.0"
 
 axios@1.8.2:
   version "1.8.2"
@@ -7770,9 +7771,9 @@ flushwritable@^1.0.0:
   resolved "https://registry.yarnpkg.com/flushwritable/-/flushwritable-1.0.0.tgz#3e328d8fde412ad47e738e3be750b4d290043498"
   integrity sha512-3VELfuWCLVzt5d2Gblk8qcqFro6nuwvxwMzHaENVDHI7rxcBRtMCwTk/E9FXcgh+82DSpavPNDueA9+RxXJoFg==
 
-follow-redirects@^1.15.6:
+follow-redirects@^1.15.11, follow-redirects@^1.15.6:
   version "1.16.0"
-  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.16.0.tgz#28474a159d3b9d11ef62050a14ed60e4df6d61bc"
+  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.16.0.tgz#28474a159d3b9d11ef62050a14ed60e4df6d61bc"
   integrity sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==
 
 for-each@^0.3.3, for-each@^0.3.5:
@@ -7782,7 +7783,7 @@ for-each@^0.3.3, for-each@^0.3.5:
   dependencies:
     is-callable "^1.2.7"
 
-form-data@^4.0.0, form-data@^4.0.4:
+form-data@^4.0.0:
   version "4.0.5"
   resolved "https://registry.npmjs.org/form-data/-/form-data-4.0.5.tgz#b49e48858045ff4cbf6b03e1805cebcad3679053"
   integrity sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==
@@ -7792,6 +7793,17 @@ form-data@^4.0.0, form-data@^4.0.4:
     es-set-tostringtag "^2.1.0"
     hasown "^2.0.2"
     mime-types "^2.1.12"
+
+form-data@^4.0.5:
+  version "4.0.6"
+  resolved "https://registry.npmjs.org/form-data/-/form-data-4.0.6.tgz#28e864e1b786dbebb68db1f452f9635278665827"
+  integrity sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==
+  dependencies:
+    asynckit "^0.4.0"
+    combined-stream "^1.0.8"
+    es-set-tostringtag "^2.1.0"
+    hasown "^2.0.4"
+    mime-types "^2.1.35"
 
 fresh@~0.5.2:
   version "0.5.2"
@@ -8114,6 +8126,13 @@ hasown@^2.0.2:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/hasown/-/hasown-2.0.3.tgz#5e5c2b15b60370a4c7930c383dfb76bf17bc403c"
   integrity sha512-ej4AhfhfL2Q2zpMmLo7U1Uv9+PyhIZpgQLGT1F9miIGmiCJIoCgSmczFdrc97mWT4kVY72KA+WnnhJ5pghSvSg==
+  dependencies:
+    function-bind "^1.1.2"
+
+hasown@^2.0.4:
+  version "2.0.4"
+  resolved "https://registry.npmjs.org/hasown/-/hasown-2.0.4.tgz#8c62d8cb90beb2aad5d0a5b67581ad9854c3f003"
+  integrity sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==
   dependencies:
     function-bind "^1.1.2"
 
@@ -10047,7 +10066,7 @@ mime-db@1.52.0:
   resolved "https://registry.yarnpkg.com/mime-db/-/mime-db-1.54.0.tgz#cddb3ee4f9c64530dff640236661d42cb6a314f5"
   integrity sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==
 
-mime-types@^2.1.12, mime-types@^2.1.27, mime-types@~2.1.34:
+mime-types@^2.1.12, mime-types@^2.1.27, mime-types@^2.1.35, mime-types@~2.1.34:
   version "2.1.35"
   resolved "https://registry.yarnpkg.com/mime-types/-/mime-types-2.1.35.tgz#381a871b62a734450660ae3deee44813f70d959a"
   integrity sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==
@@ -10970,6 +10989,11 @@ proxy-from-env@^1.1.0:
   resolved "https://registry.yarnpkg.com/proxy-from-env/-/proxy-from-env-1.1.0.tgz#e102f16ca355424865755d2c9e8ea4f24d58c3e2"
   integrity sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==
 
+proxy-from-env@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.npmjs.org/proxy-from-env/-/proxy-from-env-2.1.0.tgz#a7487568adad577cfaaa7e88c49cab3ab3081aba"
+  integrity sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==
+
 public-encrypt@^4.0.0:
   version "4.0.3"
   resolved "https://registry.yarnpkg.com/public-encrypt/-/public-encrypt-4.0.3.tgz#4fcc9d77a07e48ba7527e7cbe0de33d0701331e0"
@@ -11176,10 +11200,10 @@ react-native-biometrics@2.2.0:
   resolved "https://registry.yarnpkg.com/react-native-biometrics/-/react-native-biometrics-2.2.0.tgz#6fc3e801b83389ae1f6c9c41f7b37b50e7014c4e"
   integrity sha512-V2O0s2ic7PxVP76CguCfBXvVEyazbjtWv7r20T7D+ZQqBB1XSZ1WzK/Gnr12CVRxHLUZ3/tKHOsz7mzIaXyNoA==
 
-react-native-ble-plx@3.5.0:
-  version "3.5.0"
-  resolved "https://registry.npmjs.org/react-native-ble-plx/-/react-native-ble-plx-3.5.0.tgz#6cfa33c007bf5cc8b573dfcca8915de57cec60be"
-  integrity sha512-PeSnRswHLwLRVMQkOfDaRICtrGmo94WGKhlSC09XmHlqX2EuYgH+vNJpGcLkd8lyiYpEJyf8wlFAdj9Akliwmw==
+react-native-ble-plx@3.5.1:
+  version "3.5.1"
+  resolved "https://registry.npmjs.org/react-native-ble-plx/-/react-native-ble-plx-3.5.1.tgz#344ce0d8803cf63d35b4f0588f18f795a05afea7"
+  integrity sha512-SxksmrUt9jG6DOarrrdkb5c/HBLSfZOKauo/9VQSSi3WJA4bmF78GkrtXrgSoGNk0m1ksacFTjB5DuL39xZq/g==
 
 react-native-blob-util@0.24.7:
   version "0.24.7"
