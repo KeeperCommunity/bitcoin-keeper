@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unstable-nested-components */
 import Text from 'src/components/KeeperText';
 import { Box, StatusBar, useColorMode } from '@gluestack-ui/themed-native-base';
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { widthPercentageToDP } from 'react-native-responsive-screen';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
@@ -104,6 +104,7 @@ function LoginScreen({ navigation, route }) {
   const { common } = translations;
   const { allAccounts, biometricEnabledAppId } = useAppSelector((state) => state.account);
   const [forgotModal, setForgotModal] = useState(false);
+  const completedLogin = useRef(false);
 
   const onChangeTorStatus = (status: TorStatus) => {
     settorStatus(status);
@@ -262,8 +263,14 @@ function LoginScreen({ navigation, route }) {
     }
   }, [isAuthenticated, internalCheck]);
 
+  useEffect(() => {
+    if (isAuthenticated && !internalCheck) void loginModalAction();
+  }, [isAuthenticated, internalCheck]);
+
   const loginModalAction = async () => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !completedLogin.current) {
+      completedLogin.current = true;
+      setLogging(false);
       setLoginModal(false);
       if (relogin) {
         navigation.navigate({
@@ -278,9 +285,12 @@ function LoginScreen({ navigation, route }) {
         navigation.reset({ index: 0, routes: [{ name: 'NewKeeperApp' }] });
       }
       dispatch(credsAuthenticated(false));
-      const res = await Relay.getAccountManagerDetails(appId);
-      if (res) dispatch(setAccountManagerDetails(res));
-      else dispatch(setAccountManagerDetails(null));
+      try {
+        const res = await Relay.getAccountManagerDetails(appId);
+        dispatch(setAccountManagerDetails(res || null));
+      } catch {
+        dispatch(setAccountManagerDetails(null));
+      }
     }
   };
 

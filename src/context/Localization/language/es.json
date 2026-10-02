@@ -223,8 +223,8 @@
     "failedToConnectTor": "Failed to connect to tor",
     "networkCallsAndTor": "Network calls and some functions may work slower when the Tor is enabled",
     "checkConnection": "Please check your internet connection and try again. If you continue offline, some features may not be available.",
-    "incorrectPassword": "Incorrect Password",
-    "youEnteredIncorrectPasscode": "The passcode you entered is incorrect. Please try again. If you’ve forgotten your passcode, you can recover your wallet using the Forgot Passcode flow with your recovery key.",
+    "incorrectPassword": "Código incorrecto",
+    "youEnteredIncorrectPasscode": "El código introducido es incorrecto. Inténtalo de nuevo.",
     "checkinternetConnection": "Please check your internet connection and try again.",
     "forgotPasscode": "Forgot passcode?",
     "resetPasscodeTitle": "Reset Passcode",
@@ -2217,7 +2217,7 @@
   },
   "different": {
     "title": "Actualiza tu copia",
-    "body": "Tu copia de seguridad asistida difiere de este dispositivo. Guarda una copia ahora y Keeper comprobará que coincide."
+    "body": "Guardar ahora reemplaza la copia del servidor con los datos de recuperación actuales de este dispositivo, incluidos los elementos ocultos y archivados. Los elementos que no estén en este dispositivo se eliminarán de la copia. Revisa primero tus otros dispositivos Keeper. Después, Keeper volverá a leer y verificar la copia."
   },
   "preparing": {
     "title": "Preparando la copia",

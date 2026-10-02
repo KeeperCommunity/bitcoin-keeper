@@ -56,7 +56,10 @@ jest.mock('src/services/rest/RestClient', () => ({
   TorStatus: {},
 }));
 jest.mock('src/storage/realm/dbManager', () => ({}));
-jest.mock('src/services/backend/Relay', () => ({}));
+jest.mock('src/services/backend/Relay', () => ({
+  __esModule: true,
+  default: { getAccountManagerDetails: jest.fn(async () => null) },
+}));
 jest.mock('react-native-biometrics', () => jest.fn(() => ({})));
 jest.mock('@react-native-firebase/app', () => ({ getApp: jest.fn() }));
 jest.mock('@react-native-firebase/messaging', () => ({
@@ -88,6 +91,7 @@ function mount(component: React.ReactElement) {
 beforeEach(() => {
   jest.useFakeTimers();
   mockDispatch.mockClear();
+  mockState.login.isAuthenticated = false;
 });
 afterEach(() => {
   act(() => screen?.unmount());
@@ -96,6 +100,21 @@ afterEach(() => {
 });
 
 describe('PIN entry under batched rapid taps', () => {
+  test('successful local authentication enters the app without a second tap', async () => {
+    const navigation = { replace: jest.fn() };
+    const route = { params: {} };
+    mount(<LoginScreen navigation={navigation} route={route} />);
+    await act(async () => {
+      mockState.login.isAuthenticated = true;
+      screen.update(<LoginScreen navigation={navigation} route={route} />);
+    });
+    expect(navigation.replace).toHaveBeenCalledWith('App');
+    await act(async () => {
+      screen.update(<LoginScreen navigation={navigation} route={route} />);
+    });
+    expect(navigation.replace).toHaveBeenCalledTimes(1);
+  });
+
   test('login keeps every digit, caps at four and deletes in order', () => {
     mount(<LoginScreen navigation={{}} route={{ params: {} }} />);
     enter('123456');

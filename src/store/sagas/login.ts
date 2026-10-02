@@ -1,4 +1,4 @@
-import { call, delay, put, race, select } from 'redux-saga/effects';
+import { call, put, select } from 'redux-saga/effects';
 import {
   decrypt,
   encrypt,
@@ -55,10 +55,10 @@ import { checkBackupFreshness } from '../sagaActions/bhr';
 import { uaiChecks } from '../sagaActions/uai';
 import { applyUpgradeSequence } from './upgrade';
 import { resetSyncing } from '../reducers/wallets';
+import { autoSyncWallets } from '../sagaActions/wallets';
 import { connectToNode } from '../sagaActions/network';
 import { fetchDelayedPolicyUpdate, fetchSignedDelayedTransaction } from '../sagaActions/storage';
 import { setAutomaticCloudBackup, setBackupType } from '../reducers/bhr';
-import { autoWalletsSyncWorker } from './wallets';
 import {
   addAccount,
   saveDefaultWalletState,
@@ -225,16 +225,10 @@ function* credentialsAuthWorker({ payload }) {
           yield put(fetchExchangeRates());
           yield put(fetchSignedDelayedTransaction());
           yield put(fetchDelayedPolicyUpdate());
-          yield race({
-            sync: call(autoWalletsSyncWorker, {
-              payload: {
-                syncAll: false,
-                hardRefresh: false,
-                addNotifications: true,
-              },
-            }),
-            timeout: delay(15000),
-          });
+          // Wallet/node refresh runs through its watcher after local unlock.
+          // Waiting for network work here can hold the success modal for 15s.
+          yield put(resetSyncing());
+          yield put(autoSyncWallets(false, false, true));
 
           yield put(
             uaiChecks([
@@ -246,8 +240,6 @@ function* credentialsAuthWorker({ payload }) {
               uaiType.POLICY_DELAY,
             ])
           );
-
-          yield put(resetSyncing());
 
           const {
             pendingAllBackup,

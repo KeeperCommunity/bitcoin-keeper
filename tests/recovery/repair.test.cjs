@@ -26,9 +26,26 @@ test('lost upload acknowledgement is resolved by readback without duplicate uplo
   assert.equal(await f.run(true), 'verified'); assert.deepEqual(f.calls, ['getBackupSnapshot','repairAppBackup','getBackupSnapshot']);
 });
 
-test('server-only wallet is preserved and blocks replacement', async () => {
-  const f = harness(); f.remote.wallets.other = encryption.encrypt(encryption.generateEncryptionKey(f.app.primarySeed), JSON.stringify(wallet('other')));
-  assert.equal(await f.run(true), 'conflict'); assert.deepEqual(f.calls, ['getBackupSnapshot']); assert.ok(f.remote.wallets.other);
+test('server-only wallet needs user action, then repair removes it and verifies readback', async () => {
+  const f = harness({ post: async ({ path, payload }) => {
+    if (path.endsWith('repairAppBackup')) assert.equal(payload.replaceCurrentState, true);
+  } }); f.remote.wallets.other = encryption.encrypt(encryption.generateEncryptionKey(f.app.primarySeed), JSON.stringify(wallet('other')));
+  assert.equal(await f.run(), 'different'); assert.deepEqual(f.calls, ['getBackupSnapshot']); assert.ok(f.remote.wallets.other);
+  assert.equal(await f.run(true), 'verified'); assert.deepEqual(f.calls.slice(1), ['getBackupSnapshot','repairAppBackup','getBackupSnapshot']);
+  assert.equal(f.remote.wallets.other, undefined);
+});
+
+test('current-state repair keeps hidden keys and archived wallets while dropping deleted records', async () => {
+  const f = harness();
+  const key = encryption.generateEncryptionKey(f.app.primarySeed);
+  f.local.Signer.push({ id:'hidden-key', masterFingerprint:'hidden', signerXpubs:{}, hidden:true });
+  f.local.Vault.push({ ...wallet('archived'), archived:true, signers:[], scheme:{m:1,n:1} });
+  f.remote.wallets.deleted = encryption.encrypt(key, JSON.stringify(wallet('deleted')));
+  assert.equal(await f.run(), 'different');
+  assert.equal(await f.run(true), 'verified');
+  assert.equal(f.remote.wallets.deleted, undefined);
+  assert.equal(JSON.parse(encryption.decrypt(key, f.remote.signers['hidden-key'])).hidden, true);
+  assert.deepEqual(f.remote.vaults, ['archived']);
 });
 
 test('same IDs with different recovery keys are a conflict', async () => {

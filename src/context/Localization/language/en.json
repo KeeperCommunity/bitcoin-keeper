@@ -223,8 +223,8 @@
     "failedToConnectTor": "Failed to connect to tor",
     "networkCallsAndTor": "Network calls and some functions may work slower when the Tor is enabled",
     "checkConnection": "Please check your internet connection and try again. If you continue offline, some features may not be available.",
-    "incorrectPassword": "Incorrect Password",
-    "youEnteredIncorrectPasscode": "The passcode you entered is incorrect. Please try again. If you’ve forgotten your passcode, you can recover your wallet using the Forgot Passcode flow with your recovery key.",
+    "incorrectPassword": "Incorrect passcode",
+    "youEnteredIncorrectPasscode": "The passcode you entered is incorrect. Try again.",
     "checkinternetConnection": "Please check your internet connection and try again.",
     "forgotPasscode": "Forgot passcode?",
     "resetPasscodeTitle": "Reset Passcode",
@@ -2236,7 +2236,7 @@
   },
   "different": {
     "title": "Your backup needs updating",
-    "body": "Your Assisted Server Backup differs from this device. Back up now to update it, then Keeper will check that it matches."
+    "body": "Back Up Now replaces the server backup with this device’s current recovery data, including hidden and archived items. Items absent from this device will be removed from the backup. Check other Keeper devices first. Keeper will then read back and verify the result."
   },
   "preparing": {
     "title": "Preparing your backup",

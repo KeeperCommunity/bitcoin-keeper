@@ -105,7 +105,14 @@ export async function compareImages(
     for (const [id, record] of Object.entries(remote[kind])) {
       checkpoint();
       const current = local[kind][id];
-      if (!current || canonical(identity(kind, current)) !== canonical(identity(kind, record)))
+      // A server-only record may have been deliberately removed on this device.
+      // Surface it as a difference so the user can explicitly replace the
+      // backup with the current recoverable state. Never upload during a check.
+      if (!current) {
+        result = 'different';
+        continue;
+      }
+      if (canonical(identity(kind, current)) !== canonical(identity(kind, record)))
         return 'conflict';
       for (const counter of [
         'nextFreeAddressIndex',

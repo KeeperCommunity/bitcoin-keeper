@@ -205,7 +205,10 @@ export function inspectBackup(
         try {
           const response = await boundedBackupPost(
             `${config.RELAY}repairAppBackup`,
-            { ...payload, expectedRevision },
+            // This explicit action replaces the server snapshot with the
+            // current local state, including intentional deletions. The relay
+            // still checks the revision atomically before accepting it.
+            { ...payload, expectedRevision, replaceCurrentState: true },
             deadline
           );
           if (response.data?.updated !== true) throw new Error('Backup rejected');
