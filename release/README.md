@@ -1,15 +1,17 @@
 # Release version verification
 
-**Current milestone:** Now candidate 2.5.17: Recovery Key backup comparison/repair and complete data restore, Version History, PIN handling, and the privately reviewed timelock prevention change. Keep advisory details and private fixtures out of public release material.
+**Current milestone:** R02 / 2.6.2: faster entry after local authentication, Assisted Server Backup current-state correctness, narrow timelock prevention, and the selected cloud credential follow-ups. Keep private advisory details, credentials and fixtures out of public release material.
 
-`version.json` selects 2.5.17, Android 624 and iOS 617. Authenticated Google Play evidence on 29 September shows highest uploaded Android code 623; App Store Connect shows latest iOS upload 2.5.16 (616), Complete, and the production version Ready for Distribution. Refresh store baselines again before upload. The paired Recovery relay is deployed and its live encrypted repair/readback smoke passed. Independent security acceptance and final physical testing remain pending.
+`version.json` selects 2.6.2, Android 625 and iOS 618. Authenticated store checks on 5 October 2026 found highest uploaded Android code 624 and iOS build 617, both at 2.5.17. Refresh these baselines before upload. Development builds and local relay validation are separate from reviewed production builds, deployment and store submission. R02 is not released.
+
+For R02, the owner accepts real-phone upgrade, Face ID and camera feedback after release. Do not require Developer Mode or physical-device connections to finish preparation. Record simulator, automated and funded testnet evidence accurately; they do not establish physical or hardware-signer acceptance. Already-affected-wallet assessment and consented repair are scheduled for R04 / 2.6.3; R03 is the backend open-source milestone.
 
 1. Read all uploaded builds and release tracks for Android package `io.hexawallet.bitcoinkeeper`, and uploaded iOS builds for `io.hexawallet.keeper`. Preserve the timestamp and evidence outside the repository. Refresh before upload; preflight accepts evidence at most 24 hours old.
 2. Update the manifest with the highest known marketing version and highest uploaded build per platform. Select one greater marketing version for both stores and greater platform build counters. Check unpublished App Store version records as well.
 3. Run `npm run version:apply` to synchronize package.json, Android versionName/versionCode and both Keeper iOS targets. Both Info.plist files must reference `$(CURRENT_PROJECT_VERSION)` and `$(MARKETING_VERSION)`; hardcoded values are rejected. Review the diff, then run `npm run version:check` and `npm run test:release`.
 4. Reconcile release source with the published versions, prepare a clean release checkout and set `KEEPER_RELEASE_COMMIT` to its complete verified commit SHA. Run `npm run release:preflight`. The manifest cannot contain its own commit SHA.
 5. Build from a reviewed production configuration and existing signing identities. Check extracted IPA, APK and AAB metadata against the manifest, verify signing fingerprints and record checksums. A source preflight does not verify the resulting binaries.
-6. Test the signed builds, including upgrades, before public submission.
+6. Test the signed builds before public submission; record the R02 physical-device deferral above separately.
 
 Both existing Fastlane `live` lanes run preflight before building and consume `.env.production` without downloading over `.env`. They no longer increment production build numbers. Android notifications require explicit `KEEPER_NOTIFY_SLACK=1`.
 
@@ -29,7 +31,7 @@ Android production signing reads `STORE_PASSWORD`, `KEY_PASSWORD`, and `KEY_ALIA
 
 ## Manual release checks
 
-- Upgrade an existing installation with a designated test wallet on a physical iPhone and Android device; do not uninstall first. Confirm unlock, wallet visibility and settings survive.
+- Post-release for R02 by owner decision: upgrade an existing installation with a designated test wallet on a physical iPhone and Android device; do not uninstall first. Confirm unlock, wallet visibility and settings survive.
 - Check the displayed marketing version and native build counter against the release manifest on both platforms.
 - Open Ask Keeper on both platforms and send a non-sensitive sample question to the intended backend. Confirm the response and error/retry behavior; local isolated-backend entry checks do not test AI responses.
 - Open Wallet Settings > Dust Report. Check an empty test wallet, then a designated testnet fixture with Do Not Spend coins. Confirm the report, ordinary-spend exclusion, and Donate Dust confirmation/amount/fee behavior. Record separately whether a testnet signing transaction completed; an empty-wallet result cannot verify donation.

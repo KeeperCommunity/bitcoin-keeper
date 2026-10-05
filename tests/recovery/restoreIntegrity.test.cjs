@@ -64,6 +64,31 @@ function recoveryFixture() {
 const completed = (f) => f.actions.some((a) => a.type === 'setAppCreated' && a.payload === true);
 const errors = (f) => f.actions.filter((a) => a.type === 'setAppImageError' && a.payload);
 
+test(
+  'hundreds of synchronous Realm writes complete recovery without stalling',
+  { timeout: 15000 },
+  async () => {
+    const f = recoveryFixture();
+    const key = encryption.generateEncryptionKey(f.app.primarySeed);
+    const labels = Array.from({ length: 600 }, (_, index) => ({
+      id: `label-${index}`,
+      label: `Saved label ${index}`,
+      ref: `tx-${index}`,
+      type: 'TXN',
+    }));
+    f.response.labels = labels.map((label) => ({
+      id: `encrypted-${label.id}`,
+      content: encryption.encrypt(key, JSON.stringify(label)),
+    }));
+    f.remote.labels = f.response.labels.map((label) => label.id);
+    await f.restore();
+    assert.deepEqual(errors(f), []);
+    assert.equal(completed(f), true);
+    assert.deepEqual(plain(f.collections.Tags), labels);
+    assert.equal(f.actions.at(-1).type, 'appImagerecoveryRetry');
+  }
+);
+
 test('clean recovery recreates keys, BTC/USDT, archived vault, labels and custom nodes', async () => {
   const f = recoveryFixture();
   await f.restore();

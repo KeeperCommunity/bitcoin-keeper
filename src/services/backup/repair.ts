@@ -167,6 +167,7 @@ export function inspectBackup(
       const local = await captureBackupImage(assertCurrent);
       assertCurrent();
       let expectedRevision: string;
+      let needsVaultRepair = false;
       const read = async () => {
         const response = await boundedBackupPost(
           `${config.RELAY}getBackupSnapshot`,
@@ -177,10 +178,50 @@ export function inspectBackup(
         if (!/^[a-f0-9]{64}$/.test(response.data?.revision))
           throw new Error('Backup snapshot revision unavailable');
         expectedRevision = response.data.revision;
-        return decodeImage(key, response.data, appId, assertCurrent);
+        const unavailable = response.data.unavailableVaultIds ?? [];
+        if (!Array.isArray(unavailable) || new Set(unavailable).size !== unavailable.length)
+          throw new Error('Invalid unavailable backup records');
+        const references = response.data.appImage?.vaults;
+        if (
+          unavailable.length &&
+          (!Array.isArray(references) ||
+            new Set(references).size !== references.length ||
+            unavailable.some(
+              (id) =>
+                typeof id !== 'string' ||
+                !id ||
+                !references.includes(id) ||
+                response.data.allVaultImages?.some((record) => record.vaultId === id)
+            ))
+        )
+          throw new Error('Invalid unavailable backup references');
+        // A legacy shared-wallet image may have been overwritten by another
+        // participant. The relay withholds that participant's ciphertext. Only
+        // this explicit backup check may compare the remaining records; clean
+        // restore still rejects the incomplete reference list.
+        const availableResponse = unavailable.length
+          ? {
+              ...response.data,
+              appImage: {
+                ...response.data.appImage,
+                vaults: references.filter((id) => !unavailable.includes(id)),
+              },
+            }
+          : response.data;
+        const decoded = await decodeImage(key, availableResponse, appId, assertCurrent);
+        needsVaultRepair =
+          unavailable.length > 0 ||
+          response.data.allVaultImages.some(
+            (record) =>
+              typeof record.isArchived === 'boolean' &&
+              record.isArchived !== !!decoded.vaults[record.vaultId]?.archived
+          );
+        return decoded;
       };
       const remote = await read();
-      const comparison = await compareImages(local, remote, assertCurrent);
+      const contentComparison = await compareImages(local, remote, assertCurrent);
+      const comparison =
+        contentComparison === 'matched' && needsVaultRepair ? 'different' : contentComparison;
       assertCurrent();
       if (comparison === 'conflict') {
         notify('conflict');
@@ -216,7 +257,11 @@ export function inspectBackup(
           // A lost response is not proof the upload failed. Always read back.
         }
         notify('verifying');
-        if ((await compareImages(local, await read(), assertCurrent)) !== 'matched')
+        const verifiedRemote = await read();
+        if (
+          needsVaultRepair ||
+          (await compareImages(local, verifiedRemote, assertCurrent)) !== 'matched'
+        )
           throw new Error('Backup not verified');
       }
       if (

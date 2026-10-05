@@ -118,6 +118,7 @@ function fixture(options = {}) {
     ...enums,
     ...account,
     prepareRecoveryImage,
+    pauseBackup: image.pauseBackup,
     console: { log() {}, error() {} },
     Buffer,
     _: require('lodash'),

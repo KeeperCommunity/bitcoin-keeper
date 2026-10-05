@@ -1,7 +1,7 @@
 import { buffers, END, eventChannel } from 'redux-saga';
 import { inspectBackup, RepairPhase } from 'src/services/backup/repair';
 import { prepareRecoveryImage } from 'src/services/backup/restore';
-import { BackupImage } from 'src/services/backup/image';
+import { BackupImage, pauseBackup } from 'src/services/backup/image';
 import { markBackupMutation } from 'src/services/backup/transport';
 import * as bip39 from 'bip39';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
@@ -189,16 +189,6 @@ export function* updateVaultImageWorker({
     JSON.stringify(sanitizeVaultSignersForSeedKeyBackup(vault))
   );
 
-  if (isUpdate) {
-    const response = yield call(Relay.updateVaultImage, {
-      isUpdate,
-      appId: id,
-      vaultId: vault.id,
-      vault: vaultEncrypted,
-    });
-    return response;
-  }
-
   const signersData: Array<{
     signerId: string;
     xfpHash: string;
@@ -211,6 +201,18 @@ export function* updateVaultImageWorker({
     });
   }
 
+  if (isUpdate) {
+    const response = yield call(Relay.updateVaultImage, {
+      isUpdate,
+      signersData,
+      appId: id,
+      vaultId: vault.id,
+      vault: vaultEncrypted,
+      isArchived: !!vault.archived,
+    });
+    return response;
+  }
+
   // TODO to be removed
   const subscriptionStrings = JSON.stringify(subscription);
 
@@ -220,6 +222,7 @@ export function* updateVaultImageWorker({
       vaultId: vault.id,
       signersData,
       vault: vaultEncrypted,
+      isArchived: !!vault.archived,
       subscription: subscriptionStrings,
       ...(archiveVaultId && { archiveVaultId }),
     });
@@ -705,6 +708,9 @@ function* writeRecoveredObject(schema: RealmSchema, record: any) {
   // throwing. Never count that record as recovered or report partial success.
   const written = yield call(dbManager.createObject, schema, record);
   if (written !== true) throw new Error('Recovery data unavailable');
+  // Realm writes complete synchronously. Break the saga's synchronous effect
+  // chain between records so a large restore cannot exhaust the JS stack.
+  yield call(pauseBackup);
 }
 
 function* healthCheckSatutsUpdateWorker({

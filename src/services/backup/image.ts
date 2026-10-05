@@ -65,6 +65,41 @@ export function recoveryContent(kind: keyof BackupImage, record: any) {
   return { ...result, specs };
 }
 
+function vaultSchemeIdentity(scheme: any) {
+  const miniscript = scheme?.miniscriptScheme;
+  const elements = miniscript?.miniscriptElements;
+  if (!elements) return scheme;
+  const keyIdentity = (key: any) => ({
+    ...key,
+    uniqueKeyIdentifier: key.uniqueKeyIdentifier ?? null,
+  });
+  // Realm defaults optional key identifiers to null and does not persist the
+  // compiler's phase weights. Compare the compiled policy/script unchanged;
+  // only then can these non-persisted weights be excluded from key identity.
+  const hasCompiledPolicy = !!miniscript.miniscript && !!miniscript.miniscriptPolicy;
+  return {
+    ...scheme,
+    miniscriptScheme: {
+      ...miniscript,
+      miniscriptElements: {
+        ...elements,
+        keysInfo: elements.keysInfo?.map(keyIdentity),
+        phases: elements.phases?.map((phase: any) => {
+          const normalized = {
+            ...phase,
+            paths: phase.paths?.map((path: any) => ({
+              ...path,
+              keys: path.keys?.map(keyIdentity),
+            })),
+          };
+          if (hasCompiledPolicy) delete normalized.probability;
+          return normalized;
+        }),
+      },
+    },
+  };
+}
+
 function identity(kind: keyof BackupImage, record: any) {
   if (kind === 'wallets')
     return {
@@ -81,14 +116,26 @@ function identity(kind: keyof BackupImage, record: any) {
   if (kind === 'vaults')
     return {
       networkType: record.networkType,
-      scheme: record.scheme,
+      scheme: vaultSchemeIdentity(record.scheme),
       signers: record.signers,
       scriptType: record.scriptType,
     };
   if (kind === 'signers')
     return {
       masterFingerprint: record.masterFingerprint,
-      signerXpubs: record.signerXpubs,
+      // Realm adds empty script-type lists when a newly added signer is saved.
+      // Incremental backups can contain the pre-persistence form. Empty lists
+      // do not change key identity; populated lists and private keys still do.
+      signerXpubs: Object.fromEntries(
+        Object.entries(record.signerXpubs || {})
+          .filter(([, keys]) => !Array.isArray(keys) || keys.length > 0)
+          .map(([type, keys]) => [
+            type,
+            Array.isArray(keys)
+              ? keys.map((key) => ({ ...key, xpriv: key.xpriv ?? null }))
+              : keys,
+          ])
+      ),
       networkType: record.networkType,
       type: record.type,
     };

@@ -305,9 +305,33 @@ function VaultMigrationController({
   // The getCurrentTimeForLock and getTimelockDuration control whether
   // a vault created will use UNIX timestamp or block height based timelocks.
 
-  const getCurrentTimeForLock = () => {
+  const getCurrentTimeForLock = async () => {
     if (activeVault && isVaultUsingBlockHeightTimelock(activeVault)) {
-      return currentBlockHeight;
+      let currentSyncedBlockHeight = currentBlockHeight;
+      if (
+        !Number.isSafeInteger(currentSyncedBlockHeight) ||
+        currentSyncedBlockHeight <= 0 ||
+        currentSyncedBlockHeight >= 500000000
+      ) {
+        try {
+          currentSyncedBlockHeight = (await WalletUtilities.fetchCurrentBlockHeight())
+            .currentBlockHeight;
+        } catch {
+          throw new Error(
+            'Failed to fetch current chain data, please check your connection and try again'
+          );
+        }
+      }
+      if (
+        !Number.isSafeInteger(currentSyncedBlockHeight) ||
+        currentSyncedBlockHeight <= 0 ||
+        currentSyncedBlockHeight >= 500000000
+      ) {
+        throw new Error(
+          'Failed to fetch current chain data, please check your connection and try again'
+        );
+      }
+      return currentSyncedBlockHeight;
     }
     return Math.floor(Date.now() / 1000);
   };
@@ -383,23 +407,7 @@ function VaultMigrationController({
     );
 
     const multisigScriptType = MultisigScriptType.MINISCRIPT_MULTISIG;
-    // let currentSyncedBlockHeight = currentBlockHeight;
-    // if (!currentSyncedBlockHeight) {
-    //   try {
-    //     currentSyncedBlockHeight = (await WalletUtilities.fetchCurrentBlockHeight())
-    //       .currentBlockHeight;
-    //   } catch (err) {
-    //     console.log('Failed to re-fetch current block height: ' + err);
-    //   }
-    //   if (!currentSyncedBlockHeight) {
-    //     showToast(
-    //       'Failed to fetch current chain data, please check your connection and try again',
-    //       <ToastErrorIcon />
-    //     );
-    //     setCreating(false);
-    //     return;
-    //   }
-    // }
+    const currentTimeForLock = await getCurrentTimeForLock();
 
     const inheritanceSignerWithTimelocks = [];
     const emergencySignerWithTimelocks = [];
@@ -413,7 +421,7 @@ function VaultMigrationController({
         }
         inheritanceSignerWithTimelocks.push({
           signer: key,
-          timelock: getCurrentTimeForLock() + initialTimelock + timelock,
+          timelock: currentTimeForLock + initialTimelock + timelock,
         });
       }
     }
@@ -427,7 +435,7 @@ function VaultMigrationController({
         }
         emergencySignerWithTimelocks.push({
           signer: key,
-          timelock: getCurrentTimeForLock() + initialTimelock + timelock,
+          timelock: currentTimeForLock + initialTimelock + timelock,
         });
       }
     }
@@ -437,7 +445,7 @@ function VaultMigrationController({
       inheritanceSignerWithTimelocks,
       emergencySignerWithTimelocks,
       vaultInfo.vaultScheme,
-      initialTimelock ? getCurrentTimeForLock() + initialTimelock : 0
+      initialTimelock ? currentTimeForLock + initialTimelock : 0
     );
 
     if (!miniscriptElements) {
