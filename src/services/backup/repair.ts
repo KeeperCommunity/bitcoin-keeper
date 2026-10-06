@@ -10,6 +10,7 @@ import {
 } from 'src/utils/utilities';
 import {
   BACKUP_DEADLINE_MS,
+  backupQueuedRevision,
   backupRevision,
   boundedBackupPost,
   withBackupSession,
@@ -158,17 +159,22 @@ export function inspectBackup(
     if (active) active.phase = phase;
     listeners.forEach((listener) => listener(phase));
   };
-  const result = withBackupSession(appId, async () => {
+  const inspectOnce = async (allowRetry: boolean): Promise<RepairPhase | 'retry'> => {
     let stage: InspectionStage = 'local-capture';
+    let changedRevision = 0;
     const deadline = Date.now() + BACKUP_DEADLINE_MS;
     const revision = backupRevision(appId);
     const assertCurrent = () => {
       if (
         Date.now() >= deadline ||
-        (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id !== appId ||
-        backupRevision(appId) !== revision
+        (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id !== appId
       )
         throw new Error('Backup changed during check');
+      const currentRevision = backupRevision(appId);
+      if (currentRevision !== revision) {
+        changedRevision = currentRevision;
+        throw new Error('Backup changed during check');
+      }
     };
     try {
       notify('checking');
@@ -293,13 +299,26 @@ export function inspectBackup(
       notify('verified');
       return 'verified';
     } catch {
+      // A routine incremental write can be queued while a read-only check is
+      // running. Retry behind that write once before declaring the check failed.
+      if (
+        changedRevision &&
+        allowRetry &&
+        !repair &&
+        backupQueuedRevision(appId) >= changedRevision
+      )
+        return 'retry';
       // Only log the stage. Errors and response objects may contain encrypted
       // backup data, account identifiers, headers, or request bodies.
       console.warn('Assisted Server Backup check failed at stage:', stage);
       notify('unverified');
       return 'unverified';
     }
-  });
+  };
+  const runOnce = (allowRetry: boolean) => withBackupSession(appId, () => inspectOnce(allowRetry));
+  const result: Promise<RepairPhase> = runOnce(true).then(async (phase) =>
+    phase === 'retry' ? ((await runOnce(false)) as RepairPhase) : phase
+  );
   inFlight.set(appId, { repair, promise: result, listeners });
   const clean = () => {
     if (inFlight.get(appId)?.promise === result) inFlight.delete(appId);

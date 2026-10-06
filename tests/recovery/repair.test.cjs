@@ -30,6 +30,52 @@ test('read-only failure identifies its stage without logging error contents or b
   assert.deepEqual(f.calls, ['getBackupSnapshot']);
 });
 
+test('read-only check retries once after a concurrent incremental backup changes its revision', async () => {
+  let f, changed = false, write;
+  f = harness({ post: async ({ path, remote }) => {
+    if (path.endsWith('getBackupSnapshot') && !changed) {
+      changed = true;
+      write = f.transport.backupPost('fixture/updateAppImage', { appId: f.app.id });
+    }
+    if (path.endsWith('updateAppImage')) {
+      remote.wallets.wallet = encryption.encrypt(
+        encryption.generateEncryptionKey(f.app.primarySeed), JSON.stringify(wallet())
+      );
+    }
+  } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'verified');
+  await write;
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'updateAppImage', 'getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'verified']);
+  assert.deepEqual(f.diagnostics, []);
+});
+
+test('early revision change without a queued write stays unverified', async () => {
+  let f;
+  f = harness({ post: async ({ path }) => {
+    if (path.endsWith('getBackupSnapshot')) f.transport.markBackupMutation(f.app.id);
+  } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'unverified']);
+});
+
+test('continuous queued writes limit a read-only check to one retry', async () => {
+  let f;
+  const writes = [];
+  f = harness({ post: async ({ path }) => {
+    if (path.endsWith('getBackupSnapshot'))
+      writes.push(f.transport.backupPost('fixture/updateAppImage', { appId: f.app.id }));
+  } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'unverified');
+  await Promise.all(writes);
+  assert.equal(f.calls.filter((path) => path === 'getBackupSnapshot').length, 2);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'unverified']);
+});
+
 test('lost upload acknowledgement is resolved by readback without duplicate upload', async () => {
   const f = harness({ lostResponse: true }); f.local.Wallet.push(wallet());
   assert.equal(await f.run(true), 'verified'); assert.deepEqual(f.calls, ['getBackupSnapshot','repairAppBackup','getBackupSnapshot']);
@@ -96,6 +142,7 @@ test('mutation arriving during upload invalidates completion and remains queued 
   let f;
   f = harness({ post: async ({ path }) => { if (path.endsWith('repairAppBackup')) f.transport.markBackupMutation(f.app.id); } });
   f.local.Wallet.push(wallet()); assert.equal(await f.run(true), 'unverified'); assert.ok(!f.phases.includes('verified'));
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'repairAppBackup', 'getBackupSnapshot']);
 });
 
 test('account switch during check cannot upload one account with another account data', async () => {
@@ -109,6 +156,12 @@ test('chunked encryption remains compatible with existing recovery including Uni
   const cipher = await image.encryptRecord('test-only', record);
   assert.equal(yielded, true); assert.deepEqual(JSON.parse(encryption.decrypt('test-only',cipher)),record);
   assert.deepEqual(JSON.parse(JSON.stringify(await image.decryptRecord('test-only',cipher))), record);
+});
+
+test('existing large CryptoJS ciphertext remains readable by streamed backup verification', async () => {
+  const record = { id: 'legacy-large', text: 'a'.repeat(100_000) + '🔑বাংলা' };
+  const ciphertext = encryption.encrypt('test-only', JSON.stringify(record));
+  assert.equal(JSON.stringify(await image.decryptRecord('test-only', ciphertext)), JSON.stringify(record));
 });
 
 test('oversized record fails without uploading or truncating', async () => {

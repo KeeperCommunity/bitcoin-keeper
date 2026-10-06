@@ -31,6 +31,7 @@ function harness(options = {}) {
       if (options.readError) throw Error('offline');
       return { data: options.response || { appImage: remote, allVaultImages: vaults, labels, revision: revision() } };
     }
+    if (path.endsWith('updateAppImage')) return { data: { updated: true } };
     if (payload.expectedRevision !== revision()) throw Error('Backup changed');
     if (options.reject) return { data: { updated: false } };
     remote.wallets = { ...payload.walletObject }; remote.signers = { ...payload.signersObject }; remote.nodes = payload.nodes;

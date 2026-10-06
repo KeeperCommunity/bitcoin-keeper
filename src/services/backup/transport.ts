@@ -3,7 +3,9 @@ import RestClient from '../rest/RestClient';
 // One queue per account covers repair, incremental writes, labels and deletion.
 const queues = new Map<string, Promise<unknown>>();
 const revisions = new Map<string, number>();
+const queuedMutationRevisions = new Map<string, number>();
 export const backupRevision = (id: string) => revisions.get(id) || 0;
+export const backupQueuedRevision = (id: string) => queuedMutationRevisions.get(id) || 0;
 export const markBackupMutation = (id: string) => revisions.set(id, backupRevision(id) + 1);
 export const BACKUP_STALL_MS = 30_000;
 export const BACKUP_DEADLINE_MS = 10 * 60_000;
@@ -67,5 +69,7 @@ export function backupPost(path: string, body: any) {
   const appId = body.appId || body.appID;
   if (!appId) return Promise.reject(new Error('Missing backup account'));
   markBackupMutation(appId);
-  return withBackupSession(appId, () => boundedBackupPost(path, body));
+  const result = withBackupSession(appId, () => boundedBackupPost(path, body));
+  queuedMutationRevisions.set(appId, backupRevision(appId));
+  return result;
 }
