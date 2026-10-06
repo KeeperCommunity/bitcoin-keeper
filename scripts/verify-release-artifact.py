@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect packaged release metadata and required feature markers without dumping secrets.
 
-APK: Android SDK aapt and apksigner are required.
+APK: Android SDK aapt2 and apksigner are required.
 AAB: BUNDLETOOL_JAR and Java are required.
 IPA: Python standard library; signing is verified separately by codesign/export evidence.
 This verifier supplements device tests; bytecode markers do not prove feature behavior.
@@ -74,6 +74,18 @@ def output(command):
     return result.stdout
 
 
+def android_tool(name, override):
+    if os.environ.get(override):
+        return os.environ[override]
+    for variable in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
+        sdk = os.environ.get(variable)
+        if sdk:
+            candidates = sorted((Path(sdk) / "build-tools").glob("*/" + name), reverse=True)
+            if candidates:
+                return str(candidates[0])
+    return name
+
+
 def inspect(path, manifest):
     suffix = path.suffix.lower()
     with zipfile.ZipFile(path) as archive:
@@ -88,7 +100,7 @@ def inspect(path, manifest):
             bundle = archive.read(app_prefix + "/main.jsbundle")
             verify_channel(archive, suffix, info=info, app_prefix=app_prefix)
         elif suffix == ".apk":
-            text = output([os.environ.get("AAPT", "aapt"), "dump", "badging", str(path)])
+            text = output([android_tool("aapt2", "AAPT2"), "dump", "badging", str(path)])
             match = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", text)
             if not match:
                 raise ValueError("Cannot read APK package/version metadata")
@@ -119,7 +131,7 @@ def inspect(path, manifest):
               "channelUrl": "verified",
               "signing": "separate verification required"}
     if suffix == ".apk":
-        certs = output([os.environ.get("APKSIGNER", "apksigner"), "verify", "--print-certs", str(path)])
+        certs = output([android_tool("apksigner", "APKSIGNER"), "verify", "--print-certs", str(path)])
         expected = os.environ.get("KEEPER_ANDROID_CERT_SHA256", "").lower().replace(":", "")
         if not re.fullmatch(r"[0-9a-f]{64}", expected):
             raise ValueError("Set KEEPER_ANDROID_CERT_SHA256 to the independently verified release certificate")
