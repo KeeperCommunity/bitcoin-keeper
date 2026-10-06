@@ -94,7 +94,7 @@ const USDTWalletCreationModal = ({ visible, close }: { visible: boolean; close: 
                   icon={option.icon}
                   backgroundColor={`${colorMode}.pantoneGreen`}
                 />
-                <Box>
+                <Box style={styles.optionText}>
                   <Text color={`${colorMode}.secondaryText`} fontSize={15} medium>
                     {option.title}
                   </Text>
@@ -124,4 +124,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  optionText: { flex: 1, flexShrink: 1 },
 });
