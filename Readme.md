@@ -60,6 +60,16 @@ Refer to platform-specific documentation for detailed setup requirements.
    yarn install
    ```
 
+## Contributing and local backends
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and
+[the local development guide](dev/local-backend/README.md) for a reproducible
+backend setup using public [Relay](https://github.com/KeeperCommunity/Relay)
+and [SigningServer](https://github.com/KeeperCommunity/SigningServer) sources.
+The local stack uses disposable testnet fixtures and needs no production
+credentials. Keep native app builds on your host; the backend runs in Docker.
+Report suspected vulnerabilities through [private reporting](SECURITY.md).
+
 ## Build and Run
 
 ### Varients
