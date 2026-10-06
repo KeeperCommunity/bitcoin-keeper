@@ -32,17 +32,17 @@ Settings grouping should separate:
 
 ### Requirement: USDT wallet creation entry point
 
-On mainnet, Settings > Keys & Wallets MUST show "Add USDT Wallet". It MUST open the existing USDT create/import choice. On testnet, the entry point MUST be absent. Moving this entry point MUST NOT remove existing USDT wallets or change their send, receive, GasFree, backup, or management behavior.
+Settings > Keys & Wallets MUST show "Add USDT Wallet" when the active Bitcoin network matches `USDTWalletSupportedNetwork` (testnet in development mode, mainnet otherwise). It MUST open the existing USDT create/import choice. On the unsupported network, the entry point MUST be absent. Moving this entry point MUST NOT remove existing USDT wallets or change their send, receive, GasFree, backup, or management behavior.
 
 #### Scenario: Open USDT wallet creation from Settings
 
-- GIVEN the user is on mainnet
+- GIVEN the user is on `USDTWalletSupportedNetwork`
 - WHEN the user opens Settings > Keys & Wallets and taps "Add USDT Wallet"
 - THEN the user can choose "Create Wallet" or "Import Wallet"
 
-#### Scenario: USDT creation unavailable on testnet
+#### Scenario: USDT creation unavailable on the unsupported network
 
-- GIVEN the user is on testnet
+- GIVEN the active network differs from `USDTWalletSupportedNetwork`
 - WHEN the user opens Settings > Keys & Wallets
 - THEN "Add USDT Wallet" is not shown
 

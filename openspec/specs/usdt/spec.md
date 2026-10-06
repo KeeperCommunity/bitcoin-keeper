@@ -20,17 +20,17 @@ visually and functionally distinct from all Bitcoin and multi-key entities.
 
 ### Requirement: USDT Wallet Availability
 
-The app MUST offer USDT wallet creation and import from Settings > Keys & Wallets only when the active Bitcoin network is mainnet. The home Add Wallet control and onboarding MUST lead to Bitcoin wallet flows without a currency picker. On testnet, Settings MUST NOT show the Add USDT Wallet entry point. Moving this entry point MUST NOT delete or migrate existing USDT wallets.
+The app MUST offer USDT wallet creation and import from Settings > Keys & Wallets only when the active Bitcoin network matches `USDTWalletSupportedNetwork` (testnet in development mode, mainnet otherwise). The home Add Wallet control and onboarding MUST lead to Bitcoin wallet flows without a currency picker. Moving this entry point MUST NOT delete or migrate existing USDT wallets.
 
-#### Scenario: USDT entry point shown on mainnet (happy path)
+#### Scenario: USDT entry point shown on the supported network (happy path)
 
-- GIVEN the user is authenticated and the app is configured for mainnet
+- GIVEN the user is authenticated and the active network matches `USDTWalletSupportedNetwork`
 - WHEN the user opens Settings > Keys & Wallets
 - THEN an "Add USDT Wallet" item opens a choice to create or import a USDT wallet
 
-#### Scenario: USDT entry point hidden on testnet
+#### Scenario: USDT entry point hidden on the unsupported network
 
-- GIVEN the user is authenticated and the app is configured for testnet
+- GIVEN the user is authenticated and the active network differs from `USDTWalletSupportedNetwork`
 - WHEN the user opens Settings > Keys & Wallets
 - THEN the "Add USDT Wallet" item is absent
 
