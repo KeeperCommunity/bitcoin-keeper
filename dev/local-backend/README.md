@@ -8,21 +8,21 @@ acceptance, merges and official releases.
 
 ## Prerequisites
 
-**Source access is currently required:** both pinned backend repositories,
-`KeeperCommunity/bitcoin-keeper-relay` and `bithyve/SigningServer`, are private.
-Follow the [contributor access process](ACCESS.md) to request development access.
-Keeper maintainers review your GitHub profile and planned contribution, approve
-the needed resources, and arrange access. Public app development needs no
-permission; once source access is granted, local backend work needs no approval
-for each change. App setup alone does not grant private repository access.
+**Full stack source access is currently required:**
+`KeeperCommunity/bitcoin-keeper-relay` remains private. Follow the
+[contributor access process](ACCESS.md) if your work needs the full Docker stack.
+[KeeperCommunity/SigningServer](https://github.com/KeeperCommunity/SigningServer)
+is public; its source, install, build and unit tests are available independently
+without Relay access. Public app and SigningServer development need no access
+approval. App setup alone does not grant private Relay access.
 
 - Git, Python 3.9+, Docker Engine with Compose v2.20+ (or a newer Compose release). On macOS use Docker Desktop or Colima; Linux can use Docker Engine. Start the engine before setup. Reserve about 3–4 GB for Docker and run native builds sequentially on a 16 GB Mac.
-- Access to the GitHub repositories in `sources.lock.json`. First setup downloads sources, container images and dependencies. Subsequent starts can reuse them.
+- Read access to the private Relay repository for `dev up`. SigningServer needs only anonymous GitHub access. First setup downloads sources, container images and dependencies. Subsequent starts can reuse them.
 - Mobile: Node 20.19.4+ (Node 22 is a suitable supported baseline), Yarn Classic 1.22.22. Use the committed `yarn.lock`.
 - Android: Android Studio, JDK 17, SDK platform 36, build tools 35.0.0, NDK 27.1.12297006, CMake 3.22.1 and platform tools. Set `JAVA_HOME` and `ANDROID_HOME`. These versions come from this app's Gradle files.
 - iOS: macOS, Xcode with an iOS simulator runtime, Ruby 3.3.0 (`.ruby-version`) and Bundler. Use the root `Gemfile.lock` and `ios/Podfile.lock`.
 
-The fresh-checkout validation on this Mac uses Apple Silicon, Xcode 26.4, Node 25.9.0, Yarn 1.22.22, JDK 17 and Ruby 3.3.0. App tests also pass in GitHub Linux CI on Node 22; Linux backend setup is blocked on private source access. Full contributor setup on Intel Macs, Linux and Windows/WSL still needs independent verification; iOS builds require macOS. See [verification](VERIFICATION.md) for actual results and limitations.
+Earlier native validation on this Mac used Apple Silicon, Xcode 26.4, Node 25.9.0, Yarn 1.22.22, JDK 17 and Ruby 3.3.0. App tests also passed in GitHub Linux CI on Node 22; Linux full-stack setup remains blocked on private Relay access. Full contributor setup on Intel Macs, Linux and Windows/WSL still needs independent verification; iOS builds require macOS. See [verification](VERIFICATION.md) for actual results and limitations.
 
 Native tool installation: [React Native 0.83 environment guide](https://reactnative.dev/docs/0.83/set-up-your-environment). Follow the repo-specific Android versions above when they differ from that guide.
 
@@ -36,7 +36,7 @@ cd bitcoin-keeper
 ```
 
 After the change is merged, contributors can use the normal `sprint` checkout.
-The backend source-access prerequisite above still applies.
+The private Relay access prerequisite still applies to `dev up`.
 
 From this app checkout's root:
 
@@ -48,6 +48,28 @@ yarn install --frozen-lockfile --non-interactive
 ```
 
 `up` fetches the exact backend Git revisions, applies the local development adapters, builds containers, waits for readiness and runs real disposable API checks. `env` creates `.env.local` with restrictive permissions; it refuses to overwrite an existing different configuration. Existing `.env` and production files are not used or modified.
+
+## SigningServer without Relay access
+
+For SigningServer changes that do not need the mobile app or Relay, use the
+[public repository's instructions](https://github.com/KeeperCommunity/SigningServer#install-and-verify):
+
+```sh
+git clone https://github.com/KeeperCommunity/SigningServer.git
+cd SigningServer
+npm ci --ignore-scripts
+npm run compile
+npm test
+```
+
+Use Node 22 and report the exact tested commit. The server's unit tests use
+disposable local fixtures; they do not establish full app/backend integration or
+live signing behavior. To check this app PR's local adapter against its pinned
+public source, run `./dev/local-backend/dev prepare-signing` from the app clone.
+That command checks the adapter digests and applies it under ignored
+`.sources/signing/` without fetching Relay or starting Docker. Submit upstream
+SigningServer changes to its own repository. Full `dev up`, API checks and native
+app setup still require approved private Relay access.
 
 The JavaScript install hook only installs the repo's Node compatibility shims. Native dependencies are separate explicit steps below. It no longer runs CocoaPods on Android-only machines or rewrites `android/local.properties` with a Mac-specific path.
 
@@ -144,7 +166,7 @@ Signing identities are randomly generated per signing volume and stored with res
 ## Troubleshooting
 
 - Docker unavailable: start Docker Desktop or Colima, then rerun `doctor`.
-- Repository access denied: arrange access to the named GitHub repository and rerun `prepare`; no application secret is needed.
+- Relay repository access denied: request approved read access and rerun `prepare`; no application secret is needed. SigningServer fetch failures should be checked against its public pinned revision and network connection.
 - Stale source/adapter marker: save edits and move the relevant `.sources/relay` or `.sources/signing` directory aside. Bootstrap refuses to overwrite it.
 - Health succeeds but a feature fails: consult the capability table; cloud integrations are not restored by local startup.
 - App cannot reach local services: check `.env.local`, rebuild with `ENVFILE=.env.local`, and rerun Android port forwarding. Changing an env file requires a native rebuild.

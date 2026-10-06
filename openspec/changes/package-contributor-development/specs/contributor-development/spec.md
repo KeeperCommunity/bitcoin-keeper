@@ -19,7 +19,7 @@ and failed checks SHALL NOT be reported as passing.
 The contributor tooling SHALL fetch exact source revisions and validate local adapter digests before building isolated backend services.
 
 #### Scenario: Fresh checkout
-- **GIVEN** Git, Python, approved read access to the pinned private backend repositories and a running Docker/Compose engine
+- **GIVEN** Git, Python, approved read access to private Relay, anonymous access to public SigningServer and a running Docker/Compose engine
 - **WHEN** the developer runs `dev up`
 - **THEN** pinned sources are prepared, services become healthy and disposable API checks pass without production secrets.
 
@@ -27,6 +27,11 @@ The contributor tooling SHALL fetch exact source revisions and validate local ad
 - **GIVEN** a previously prepared source tree or an existing app environment file
 - **WHEN** setup runs again
 - **THEN** developer edits are preserved and incompatible existing configuration produces actionable instructions without overwriting files.
+
+#### Scenario: Public SigningServer preparation
+- **GIVEN** a fresh app checkout without private Relay access or cached backend files
+- **WHEN** the developer runs `dev prepare-signing`
+- **THEN** the pinned public SigningServer is fetched and its local adapter is checked and applied without fetching Relay or starting Docker.
 
 ### Requirement: Persistent isolated testnet services
 The local backend SHALL publish only loopback ports, retain database and signing identities across restarts, and reject mainnet or hosted database configuration.

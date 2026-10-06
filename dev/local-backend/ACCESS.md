@@ -1,9 +1,10 @@
 # Contributor access
 
-Anyone can fork the public app, make local changes, run available tests and submit
-pull requests without Keeper's permission. Contributors with access to the
-required backend sources can also run and modify their local Docker services
-without approval for each command or change.
+Anyone can fork the public app and
+[SigningServer](https://github.com/KeeperCommunity/SigningServer), make local
+changes, run available tests and submit pull requests without Keeper's permission.
+Contributors with Relay access can also run and modify the full local Docker
+stack without approval for each command or change.
 
 ## Repository readiness comes before access
 
@@ -14,17 +15,18 @@ record credential rotation and exposure cleanup where needed, review dependency
 and security findings, and confirm reproducible setup. A profile approval does
 not waive these checks. Current-source cleanup alone is not history cleanup.
 
-The backend readiness review is in progress; broader access must wait for its
-recorded acceptance. Detailed findings stay in private records. Developers who
-already have appropriate access can continue their local work without per-change
-permission.
+The private Relay readiness review is in progress; broader Relay access must wait
+for its recorded acceptance. SigningServer is already public, so its contribution
+does not wait on Relay publication or access approval. Detailed findings stay in
+private records. Developers who already have appropriate Relay access can
+continue their local work without per-change permission.
 
 ## Request private development resources
 
-The packaged Docker setup requires read access to both private repositories:
-
-- `KeeperCommunity/bitcoin-keeper-relay`
-- `bithyve/SigningServer`
+The full packaged Docker setup requires read access to the private
+`KeeperCommunity/bitcoin-keeper-relay` repository. SigningServer is public at
+`KeeperCommunity/SigningServer` and needs no invitation. Its independent setup is
+documented in the [development guide](README.md#signingserver-without-relay-access).
 
 Contact the Keeper maintainer coordinating your contribution through your existing
 private conversation. Include your GitHub username/profile, the work you want to
@@ -48,8 +50,8 @@ edits. Additional resources can be requested as the work expands.
 
 1. Confirm repository readiness, then review the request and record the decision
    and approved resource scope.
-2. Ask an owner of each private repository to grant the approved GitHub account
-   access. Read access is sufficient for this Docker bootstrap. Approve additional
+2. Ask a Relay repository owner to grant the approved GitHub account access.
+   Read access is sufficient for this Docker bootstrap. Approve additional
    development permissions when the contribution needs them.
 3. The contributor accepts the invitations and authenticates Git on their own
    machine using their own GitHub identity. Do not share a maintainer's account or
@@ -57,7 +59,6 @@ edits. Additional resources can be requested as the work expands.
 
    ```sh
    git ls-remote https://github.com/KeeperCommunity/bitcoin-keeper-relay.git HEAD
-   git ls-remote https://github.com/bithyve/SigningServer.git HEAD
    ```
 
 4. The contributor follows the [setup guide](README.md), runs `dev up` and the
@@ -66,9 +67,9 @@ edits. Additional resources can be requested as the work expands.
    confirmed; an approved request alone does not prove invitations were accepted
    or the environment works.
 
-No specific contributor has been granted access by adding these instructions.
-Repository visibility remains private. This document does not configure GitHub
-teams, invitations or permission rules.
+No specific contributor has been granted Relay access by adding these
+instructions. Relay remains private; its publication is deferred. This document
+does not configure GitHub teams, invitations or permission rules.
 
 ## Code acceptance and official releases
 
@@ -81,8 +82,8 @@ to production systems, release keys or store accounts. See
 ## CI access is a separate setup step
 
 An approved human contributor's GitHub access does not grant access to GitHub
-Actions. The current backend job cannot fetch the private sources with the app
-repository's token. Maintainers still need to provision a dedicated, appropriately
+Actions. The current full-stack backend job cannot fetch private Relay with the
+app repository's token. Maintainers still need to provision a dedicated, appropriately
 scoped automation identity and a reviewed workflow that protects its credentials
 from contributor-controlled code. Do not put a personal token in the workflow or
 expose private-repository credentials to fork PRs. Until that setup is implemented

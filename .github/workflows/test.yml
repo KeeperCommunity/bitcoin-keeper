@@ -37,6 +37,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  signing:
+    name: Public SigningServer adapter
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: ./dev/local-backend/dev prepare-signing
+      - run: npm ci --ignore-scripts
+        working-directory: dev/local-backend/.sources/signing
+      - run: npm run compile
+        working-directory: dev/local-backend/.sources/signing
+      - run: npm test
+        working-directory: dev/local-backend/.sources/signing
+
   backend:
     name: Local backend and bootstrap
     runs-on: ubuntu-latest

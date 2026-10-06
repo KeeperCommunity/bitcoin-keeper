@@ -11,8 +11,8 @@
     }
   },
   "signing": {
-    "url": "https://github.com/bithyve/SigningServer.git",
-    "revision": "5ad45119ab014ea58efecabd54702b488d8fd254",
+    "url": "https://github.com/KeeperCommunity/SigningServer.git",
+    "revision": "b82dc4f4a8f75676b70b12545d59c7906556a92b",
     "assets": {
       "files/.dockerignore": "78d9a1e03c57cfc1c7fb79ff2335aa2393bb075d0ac4a23feae81371728190be",
       "files/Dockerfile.local": "04a0bfca3903eb1363f8804b7c181424747c949aed543a89fe7a02316ccafa3d",

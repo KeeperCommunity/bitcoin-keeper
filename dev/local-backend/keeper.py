@@ -52,11 +52,13 @@ def compose(*args, **kwargs):
                 '-f', HERE / 'compose.yaml', *args], env=env, **kwargs)
 
 
-def prepare():
+def prepare(only=None):
     lock = json.loads((HERE / 'sources.lock.json').read_text())
     sources = HERE / '.sources'
     sources.mkdir(exist_ok=True)
     for name, spec in lock.items():
+        if only is not None and name != only:
+            continue
         adapter = HERE / 'adapters' / name
         for asset, digest in spec['assets'].items():
             if hashlib.sha256((adapter / asset).read_bytes()).hexdigest() != digest:
@@ -80,9 +82,11 @@ def prepare():
             try:
                 run(['git', '-C', checkout, 'fetch', '--quiet', '--depth=1', 'origin', spec['revision']])
             except subprocess.CalledProcessError as error:
+                access = ('Relay remains private and requires approved GitHub read access. '
+                          if name == 'relay' else
+                          'SigningServer is public; check the pinned revision and network connection. ')
                 raise ValueError(f'{name}: cannot fetch the pinned backend revision. '
-                                 'These backend repositories currently require approved GitHub read access. '
-                                 'Check source access and network connectivity; no existing checkout was replaced.') from error
+                                 f'{access}No existing checkout was replaced.') from error
             run(['git', '-C', checkout, 'checkout', '--quiet', '--detach', spec['revision']])
             run(['git', '-C', checkout, 'apply', '--check', adapter / 'local.patch'])
             run(['git', '-C', checkout, 'apply', adapter / 'local.patch'])
@@ -140,13 +144,15 @@ def doctor():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['doctor', 'prepare', 'up', 'stop', 'status', 'logs', 'verify', 'env', 'android-forward'])
+    parser.add_argument('command', choices=['doctor', 'prepare', 'prepare-signing', 'up', 'stop', 'status', 'logs', 'verify', 'env', 'android-forward'])
     parser.add_argument('--serial', help='Android emulator/device serial for android-forward')
     args = parser.parse_args()
     if args.command == 'doctor':
         doctor()
     elif args.command == 'prepare':
         prepare()
+    elif args.command == 'prepare-signing':
+        prepare(only='signing')
     elif args.command == 'up':
         prepare()
         compose('up', '-d', '--build', '--wait', '--wait-timeout', '180')

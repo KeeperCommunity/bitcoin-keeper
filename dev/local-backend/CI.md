@@ -2,19 +2,20 @@
 
 ## Readiness before access; CI provisioning pending
 
-Keeper uses [approved contributor access](ACCESS.md) for the private backend
-repositories. Backend source/history readiness and security review must be
-accepted before expanding access; private visibility does not waive that review. Public app development and local changes do not require individual
-permission. Maintainers review contributors and grant the development resources
-they need; acceptance of code and official releases remain separate decisions.
+Keeper uses [approved contributor access](ACCESS.md) for private Relay.
+Relay source/history readiness and security review must be accepted before
+expanding access; private visibility does not waive that review. The published
+[SigningServer](https://github.com/KeeperCommunity/SigningServer) can be developed
+and tested independently without Relay access. Acceptance of code and official
+releases remain separate maintainer decisions.
 
-The Linux backend job passed bootstrap unit tests, then failed fetching the
-relay source. Anonymous GitHub API checks return 404 for both pinned backend
-repositories; authenticated checks confirm both are private. This Mac's saved
-read credentials explain why local setup passed. The app repository's CI token
-does not supply read access to those repositories.
+The Linux backend job passed bootstrap unit tests, then failed fetching private
+Relay. SigningServer is now public and pinned to its public revision; the app
+repository's CI token still does not supply Relay read access. The full-stack
+job remains blocked there. SigningServer's own public test and source-readiness
+checks are separate from this app job.
 
-The access policy is decided; provisioning an automation identity and a reviewed
+The Relay access policy is decided; provisioning an automation identity and a reviewed
 credential-handling workflow is still pending. Human contributor approval does
 not fix CI access. Do not publish private sources or use a developer's personal
 token to hide the failure. The Docker check remains failing until CI source
@@ -24,8 +25,10 @@ untrusted code with secrets.
 
 ## Active checks
 
-The `Contributor checks` workflow runs app tests with coverage and the local
-backend bootstrap/API/persistence checks. Pull requests are checked against their
+The `Contributor checks` workflow runs app tests with coverage, a separate public
+SigningServer adapter fetch/install/compile/test job, and the full local
+backend bootstrap/API/persistence checks. The SigningServer job needs no private
+source access; it does not establish full-stack readiness. Pull requests are checked against their
 proposed merge with the target branch. The app test command does not force Jest
 to exit or ignore failures. Vault tests close their Electrum connection and the
 test harness closes HTTP keep-alive agents after each test suite.

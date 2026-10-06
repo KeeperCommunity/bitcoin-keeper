@@ -13,13 +13,14 @@ need write access to the Keeper repository or production credentials. Follow the
 backend setup, Android Studio/Xcode builds and troubleshooting. Docker runs the
 backend; native SDKs and the mobile app run on your host.
 
-The current Docker backend depends on two private source repositories. You need
-approved read access to both; a fork of this app is not enough. Follow the
-[contributor access process](dev/local-backend/ACCESS.md): maintainers review your
-GitHub profile and proposed work, then grant approved development resources.
-Public app development needs no permission, and approved contributors do not
-need approval for each local command, experiment or edit. Access approval is
-separate from acceptance of contributed code.
+The [SigningServer source](https://github.com/KeeperCommunity/SigningServer) is
+public and can be cloned, installed, built, tested and contributed to on its own.
+The full Docker app/backend setup still needs the private Keeper relay source;
+a fork of this app and public SigningServer access are not enough. Follow the
+[contributor access process](dev/local-backend/ACCESS.md) when your work needs
+Relay. Public app and SigningServer development need no access approval, and
+approved contributors do not need approval for each local command or edit.
+Access approval is separate from acceptance of contributed code.
 
 The guide's [capability table](dev/local-backend/README.md#what-works-locally) lists
 supported local flows and unavailable integrations. The

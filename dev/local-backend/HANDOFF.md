@@ -1,7 +1,8 @@
 # Independent contributor setup check
 
-Use this after Keeper has accepted repository readiness and granted the needed
-source access. A maintainer's working Mac does not establish that the guide works
+Use this full-stack checklist after Keeper has accepted private Relay readiness and
+granted Relay access. SigningServer-only work needs no Relay invitation; follow
+[its independent setup](README.md#signingserver-without-relay-access). A maintainer's working Mac does not establish that the guide works
 on another developer's machine. This check does not authorize code acceptance or
 an official release.
 
@@ -10,7 +11,7 @@ an official release.
 1. Use your own approved GitHub identity and a fresh app clone at the exact commit
    supplied by the maintainer. Record `git rev-parse HEAD`. Do not copy another
    developer's `.env`, databases, signing volume, account credentials or key files.
-2. Follow [README.md](README.md) for the toolchain, private source access and a
+2. Follow [README.md](README.md) for the toolchain, private Relay access and a
    running Docker engine. If other Keeper projects are running, choose a distinct
    Compose project and three unused ports as documented there.
 3. Run `./dev/local-backend/dev up`. It must prepare the pinned sources, start the

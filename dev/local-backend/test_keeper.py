@@ -74,6 +74,19 @@ class PreserveDeveloperWork(unittest.TestCase):
                 keeper.prepare()
         self.assertEqual(list((self.here / '.sources').iterdir()), [])
 
+    def test_signing_prepare_does_not_fetch_private_relay(self):
+        (self.here / 'sources.lock.json').write_text(json.dumps({
+            'relay': {'assets': {}, 'url': 'https://github.com/example/private-relay.git', 'revision': 'a' * 40},
+            'signing': {'assets': {}, 'url': 'https://github.com/example/public-signing.git', 'revision': 'b' * 40},
+        }))
+        with patch.object(keeper, 'run', side_effect=[
+                None, None, subprocess.CalledProcessError(128, ['git', 'fetch'])]) as command:
+            with self.assertRaisesRegex(ValueError, 'SigningServer is public'):
+                keeper.prepare(only='signing')
+        self.assertEqual(command.call_count, 3)
+        self.assertIn('https://github.com/example/public-signing.git', command.call_args_list[1].args[0])
+        self.assertEqual(list((self.here / '.sources').iterdir()), [])
+
 
 if __name__ == '__main__':
     unittest.main()
