@@ -308,19 +308,19 @@ A watch-only or zero-balance wallet that is hidden MUST be deletable from the wa
 
 ### Requirement: USDT Wallet Distinction
 
-The app MUST distinguish USDT wallets from Bitcoin wallets at every level of the interface. USDT wallets MUST NOT appear in the Bitcoin wallet list on the home screen and MUST be accessible from a dedicated USDT section.
+The app MUST distinguish USDT wallets from Bitcoin wallets at every level of the interface. Existing visible USDT wallets MUST remain in the unified home wallet list with a distinct USDT identity. Their creation and import entry point is in Settings > Keys & Wallets.
 
-#### Scenario: USDT wallet absent from Bitcoin home list
+#### Scenario: USDT wallet remains visible on home
 
 - GIVEN the user has both a Bitcoin wallet and a USDT wallet
 - WHEN the user views the main home screen wallet list
-- THEN the USDT wallet does not appear alongside Bitcoin wallets
+- THEN the USDT wallet appears alongside Bitcoin wallets with a distinct USDT identifier and balance unit
 
-#### Scenario: USDT wallet accessible from dedicated section
+#### Scenario: USDT wallet detail remains accessible
 
 - GIVEN the user has a USDT wallet
-- WHEN the user navigates to the USDT section of the home screen
-- THEN the USDT wallet is listed there with its balance and transaction history
+- WHEN the user taps the USDT wallet card on the home screen
+- THEN the USDT wallet detail opens with its balance and transaction history
 
 ---
 
@@ -334,7 +334,7 @@ The app MUST distinguish USDT wallets from Bitcoin wallets at every level of the
 - Watch-only wallet shows: "This wallet can show balances and transactions, but cannot send bitcoin."
 - Buy, Sell, Swap, Acquire entry points are absent from wallet creation and management.
 - No subscription/tier gating.
-- USDT wallets are in a distinct section (not the Bitcoin wallet list).
+- Existing USDT wallets remain visible in the unified home wallet list with distinct USDT identity.
 
 ---
 

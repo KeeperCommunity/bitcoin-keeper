@@ -486,6 +486,7 @@
     "restoreExistingWallet": "Restore an existing wallet",
     "walletWithFamily": "Create wallet with family and friends",
     "addNewWallet": "Add a New Wallet",
+    "AddUSDTWallet": "Add USDT Wallet",
     "createOrImportWallet": "Create a new wallet or import existing one",
     "collaborativeSessionExists": "Collaborative wallet setup session already exists",
     "collaborativeSessionExistsDesc": "You already have a collaborative wallet setup session in progress, would you like to continue the session or start a new one?",

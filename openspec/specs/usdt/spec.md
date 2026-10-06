@@ -20,19 +20,26 @@ visually and functionally distinct from all Bitcoin and multi-key entities.
 
 ### Requirement: USDT Wallet Availability
 
-The app MUST only offer USDT wallet creation and import when the active Bitcoin network is mainnet. On testnet the USDT wallet option MUST NOT be shown in the wallet-type picker.
+The app MUST offer USDT wallet creation and import from Settings > Keys & Wallets only when the active Bitcoin network is mainnet. The home Add Wallet control and onboarding MUST lead to Bitcoin wallet flows without a currency picker. On testnet, Settings MUST NOT show the Add USDT Wallet entry point. Moving this entry point MUST NOT delete or migrate existing USDT wallets.
 
-#### Scenario: USDT option shown on mainnet (happy path)
+#### Scenario: USDT entry point shown on mainnet (happy path)
 
 - GIVEN the user is authenticated and the app is configured for mainnet
-- WHEN the user taps the "Add Wallet" control on the home screen
-- THEN a currency-type picker appears offering both a Bitcoin wallet option and a USDT (Dollar) wallet option
+- WHEN the user opens Settings > Keys & Wallets
+- THEN an "Add USDT Wallet" item opens a choice to create or import a USDT wallet
 
-#### Scenario: USDT option hidden on testnet
+#### Scenario: USDT entry point hidden on testnet
 
 - GIVEN the user is authenticated and the app is configured for testnet
-- WHEN the user taps the "Add Wallet" control on the home screen
-- THEN the currency-type picker shows only the Bitcoin wallet option and the USDT wallet option is absent
+- WHEN the user opens Settings > Keys & Wallets
+- THEN the "Add USDT Wallet" item is absent
+
+#### Scenario: Add Wallet remains Bitcoin focused
+
+- GIVEN the user is on the home screen on either network
+- WHEN the user taps "Add Wallet"
+- THEN the Bitcoin wallet create, import, and collaborative wallet choices appear directly
+- AND no USDT choice appears in that flow
 
 ---
 
@@ -42,7 +49,7 @@ The app MUST allow the user to create a new USDT wallet by supplying a name and 
 
 #### Scenario: Create a new USDT wallet (happy path)
 
-- GIVEN the user selects the USDT wallet option and then "Create wallet" from the wallet-type picker
+- GIVEN the user opens "Add USDT Wallet" in Settings and selects "Create Wallet"
 - WHEN the user enters a valid wallet name (up to 18 characters) and optionally a description, then confirms
 - THEN a new USDT wallet is created and appears in the home-screen wallet list
 - AND the wallet's creation is persisted to the relay server as part of the app image backup
@@ -67,7 +74,7 @@ The app MUST allow the user to import an existing USDT wallet by providing its B
 
 #### Scenario: Import a USDT wallet via mnemonic (happy path)
 
-- GIVEN the user selects the USDT wallet option and then "Import wallet" from the wallet-type picker
+- GIVEN the user opens "Add USDT Wallet" in Settings and selects "Import Wallet"
 - WHEN the user enters the correct seed phrase for an existing USDT wallet
 - THEN the wallet is imported and appears in the home-screen wallet list with its corresponding Tron address
 

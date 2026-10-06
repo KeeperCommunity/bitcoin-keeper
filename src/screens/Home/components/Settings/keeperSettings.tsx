@@ -1,5 +1,5 @@
 import { Box, ScrollView, useColorMode } from '@gluestack-ui/themed-native-base';
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import Colors from 'src/theme/Colors';
 import PlebContainer from './Component/PlebContainer';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -24,12 +24,22 @@ import { useAppSelector } from 'src/store/hooks';
 import { setShowTipModal } from 'src/store/reducers/settings';
 import { useDispatch } from 'react-redux';
 import SupportDeveloperIcon from 'src/assets/images/supportDeveloper.svg';
+import UsdtWalletLogo from 'src/assets/images/usdt-wallet-logo.svg';
+import { USDTWalletSupportedNetwork } from 'src/services/wallets/factories/USDTWalletFactory';
+import USDTWalletCreationModal from './USDTWalletCreationModal';
 
 const KeeperSettings = ({ route }) => {
   const { colorMode } = useColorMode();
   const navigation = useNavigation();
   const { translations } = useContext(LocalizationContext);
-  const { signer: signerText, inheritancePlanning, settings, common } = translations;
+  const {
+    signer: signerText,
+    inheritancePlanning,
+    settings,
+    common,
+    wallet: walletText,
+  } = translations;
+  const [createUsdtWallet, setCreateUsdtWallet] = useState(false);
   const {
     BackAndRecovery,
     General,
@@ -52,6 +62,7 @@ const KeeperSettings = ({ route }) => {
   }, []); // Empty dependency array means this runs once on mount
 
   const { backupAllLoading } = useAppSelector((state) => state.bhr);
+  const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const dispatch = useDispatch();
 
   return (
@@ -87,7 +98,18 @@ const KeeperSettings = ({ route }) => {
         subtitleColor={`${colorMode}.balanceText`}
         backgroundColor={`${colorMode}.textInputBackground`}
         borderColor={`${colorMode}.separator`}
-        items={keysAndwallet}
+        items={[
+          ...keysAndwallet,
+          ...(bitcoinNetworkType === USDTWalletSupportedNetwork
+            ? [
+                {
+                  title: walletText.AddUSDTWallet,
+                  icon: <UsdtWalletLogo width={14} height={14} />,
+                  onPress: () => setCreateUsdtWallet(true),
+                },
+              ]
+            : []),
+        ]}
       />
       <SettingCard
         header={common.tips}
@@ -154,6 +176,10 @@ const KeeperSettings = ({ route }) => {
       />
       {DeleteBackupModal}
       <ActivityIndicatorView visible={backupAllLoading} showLoader />
+      <USDTWalletCreationModal
+        visible={createUsdtWallet}
+        close={() => setCreateUsdtWallet(false)}
+      />
     </ScrollView>
   );
 };

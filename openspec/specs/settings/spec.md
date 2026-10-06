@@ -30,6 +30,24 @@ Settings grouping should separate:
 
 ## Requirements
 
+### Requirement: USDT wallet creation entry point
+
+On mainnet, Settings > Keys & Wallets MUST show "Add USDT Wallet". It MUST open the existing USDT create/import choice. On testnet, the entry point MUST be absent. Moving this entry point MUST NOT remove existing USDT wallets or change their send, receive, GasFree, backup, or management behavior.
+
+#### Scenario: Open USDT wallet creation from Settings
+
+- GIVEN the user is on mainnet
+- WHEN the user opens Settings > Keys & Wallets and taps "Add USDT Wallet"
+- THEN the user can choose "Create Wallet" or "Import Wallet"
+
+#### Scenario: USDT creation unavailable on testnet
+
+- GIVEN the user is on testnet
+- WHEN the user opens Settings > Keys & Wallets
+- THEN "Add USDT Wallet" is not shown
+
+---
+
 ### Requirement: Node Configuration
 
 The app MUST allow the user to add, connect, disconnect, and delete custom Electrum
