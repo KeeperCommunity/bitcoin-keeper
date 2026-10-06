@@ -107,6 +107,7 @@ platform :ios do
     sh("node", File.expand_path("../../scripts/release-version.cjs", __dir__), "release-check")
     production_env = File.expand_path("../../.env.production", __dir__)
     UI.user_error!("Missing reviewed .env.production") unless File.file?(production_env)
+    sh("node", File.expand_path("../../scripts/verify-channel-config.cjs", __dir__), production_env)
     ENV['ENVFILE'] = production_env
 
     get_certificates( # Create or get certificate, and install it
