@@ -25,9 +25,21 @@ test('read-only failure identifies its stage without logging error contents or b
   const f = harness({ adapter: async () => { throw Error('private-fixture-identifier'); } });
   f.local.Wallet.push(wallet());
   assert.equal(await f.run(), 'unverified');
-  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request']]);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request', 'other']]);
   assert.ok(!JSON.stringify(f.diagnostics).includes('private-fixture-identifier'));
   assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
+for (const [error, category] of [
+  [{ response: { status: 404, data: 'private-fixture-identifier' }, config: { headers: { Authorization: 'private-fixture-identifier' } } }, 'http-4xx'],
+  [{ response: { status: 503, data: 'private-fixture-identifier' } }, 'http-5xx'],
+  [{ code: 'ECONNABORTED', message: 'private-fixture-identifier' }, 'timeout'],
+  [{ code: 'ERR_NETWORK', message: 'private-fixture-identifier' }, 'network'],
+]) test(`snapshot transport diagnostics classify ${category} without request data`, async () => {
+  const f = harness({ adapter: async () => { throw error; } });
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request', category]]);
+  assert.ok(!JSON.stringify(f.diagnostics).includes('private-fixture-identifier'));
 });
 
 test('read-only check retries once after a concurrent incremental backup changes its revision', async () => {

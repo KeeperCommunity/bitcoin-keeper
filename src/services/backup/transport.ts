@@ -10,6 +10,30 @@ export const markBackupMutation = (id: string) => revisions.set(id, backupRevisi
 export const BACKUP_STALL_MS = 30_000;
 export const BACKUP_DEADLINE_MS = 10 * 60_000;
 
+export type BackupRequestFailure = 'http-4xx' | 'http-5xx' | 'timeout' | 'network' | 'other';
+
+export class BackupRequestError extends Error {
+  constructor(public readonly category: BackupRequestFailure) {
+    super('Backup request could not be completed');
+  }
+}
+
+function requestFailureCategory(error: unknown, aborted: boolean): BackupRequestFailure {
+  if (aborted) return 'timeout';
+  if (!error || typeof error !== 'object') return 'other';
+  const failure = error as { response?: { status?: unknown }; status?: unknown; code?: unknown; name?: unknown; message?: unknown };
+  const status = failure.response?.status ?? failure.status;
+  if (typeof status === 'number') {
+    if (status >= 400 && status < 500) return 'http-4xx';
+    if (status >= 500 && status < 600) return 'http-5xx';
+    return 'other';
+  }
+  if (failure.code === 'ECONNABORTED' || failure.code === 'ETIMEDOUT' || failure.name === 'AbortError')
+    return 'timeout';
+  if (failure.code === 'ERR_NETWORK' || failure.message === 'Network Error') return 'network';
+  return 'other';
+}
+
 export function withBackupSession<T>(id: string, work: () => Promise<T>): Promise<T> {
   const previous = queues.get(id) || Promise.resolve();
   const result = previous.catch(() => undefined).then(work);
@@ -37,7 +61,7 @@ export async function boundedBackupPost(
     idle = setTimeout(() => controller.abort(), BACKUP_STALL_MS);
   };
   const remaining = deadline - Date.now();
-  if (remaining <= 0) throw new Error('Backup deadline exceeded');
+  if (remaining <= 0) throw new BackupRequestError('timeout');
   const total = setTimeout(() => controller.abort(), remaining);
   resetIdle();
   try {
@@ -56,9 +80,9 @@ export async function boundedBackupPost(
         }
       },
     });
-  } catch {
+  } catch (error) {
     // Do not propagate Axios errors: they can contain request bodies and headers.
-    throw new Error('Backup request could not be completed');
+    throw new BackupRequestError(requestFailureCategory(error, controller.signal.aborted));
   } finally {
     clearTimeout(idle);
     clearTimeout(total);

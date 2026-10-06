@@ -10,6 +10,7 @@ import {
 } from 'src/utils/utilities';
 import {
   BACKUP_DEADLINE_MS,
+  BackupRequestError,
   backupQueuedRevision,
   backupRevision,
   boundedBackupPost,
@@ -298,7 +299,7 @@ export function inspectBackup(
       assertCurrent();
       notify('verified');
       return 'verified';
-    } catch {
+    } catch (error) {
       // A routine incremental write can be queued while a read-only check is
       // running. Retry behind that write once before declaring the check failed.
       if (
@@ -308,9 +309,10 @@ export function inspectBackup(
         backupQueuedRevision(appId) >= changedRevision
       )
         return 'retry';
-      // Only log the stage. Errors and response objects may contain encrypted
+      // Only log fixed categories. Errors and responses can contain encrypted
       // backup data, account identifiers, headers, or request bodies.
-      globalThis.console.warn('Assisted Server Backup check failed at stage:', stage);
+      const category = error instanceof BackupRequestError ? error.category : 'non-transport';
+      globalThis.console.warn('Assisted Server Backup check failed at stage:', stage, category);
       notify('unverified');
       return 'unverified';
     }
