@@ -310,7 +310,7 @@ export function inspectBackup(
         return 'retry';
       // Only log the stage. Errors and response objects may contain encrypted
       // backup data, account identifiers, headers, or request bodies.
-      console.warn('Assisted Server Backup check failed at stage:', stage);
+      globalThis.console.warn('Assisted Server Backup check failed at stage:', stage);
       notify('unverified');
       return 'unverified';
     }
