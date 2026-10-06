@@ -15,12 +15,11 @@ backend; native SDKs and the mobile app run on your host.
 
 The [SigningServer source](https://github.com/KeeperCommunity/SigningServer) is
 public and can be cloned, installed, built, tested and contributed to on its own.
-The full Docker app/backend setup still needs the private Keeper relay source;
-a fork of this app and public SigningServer access are not enough. Follow the
-[contributor access process](dev/local-backend/ACCESS.md) when your work needs
-Relay. Public app and SigningServer development need no access approval, and
-approved contributors do not need approval for each local command or edit.
-Access approval is separate from acceptance of contributed code.
+The full Docker app/backend setup uses the public
+[Relay](https://github.com/KeeperCommunity/Relay) and SigningServer sources;
+it requires no repository invitation. Optional private development resources
+follow a separate [access process](dev/local-backend/ACCESS.md). Access approval
+is separate from acceptance of contributed code.
 
 The guide's [capability table](dev/local-backend/README.md#what-works-locally) lists
 supported local flows and unavailable integrations. The

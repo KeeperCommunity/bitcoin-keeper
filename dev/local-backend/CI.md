@@ -1,27 +1,14 @@
 # Contributor checks and analysis
 
-## Readiness before access; CI provisioning pending
+## Public backend CI
 
-Keeper uses [approved contributor access](ACCESS.md) for private Relay.
-Relay source/history readiness and security review must be accepted before
-expanding access; private visibility does not waive that review. The published
-[SigningServer](https://github.com/KeeperCommunity/SigningServer) can be developed
-and tested independently without Relay access. Acceptance of code and official
-releases remain separate maintainer decisions.
-
-The Linux backend job passed bootstrap unit tests, then failed fetching private
-Relay. SigningServer is now public and pinned to its public revision; the app
-repository's CI token still does not supply Relay read access. The full-stack
-job remains blocked there. SigningServer's own public test and source-readiness
-checks are separate from this app job.
-
-The Relay access policy is decided; provisioning an automation identity and a reviewed
-credential-handling workflow is still pending. Human contributor approval does
-not fix CI access. Do not publish private sources or use a developer's personal
-token to hide the failure. The Docker check remains failing until CI source
-access is actually implemented and verified. Fork PRs must not receive these
-credentials or private source artifacts; do not use `pull_request_target` to run
-untrusted code with secrets.
+The app's local backend workflow now pins the public
+[Relay](https://github.com/KeeperCommunity/Relay) and
+[SigningServer](https://github.com/KeeperCommunity/SigningServer). It requires no
+private repository token or production credential. Earlier Linux backend runs
+failed while fetching the private Relay; those runs do not establish the result
+for this public pin. Review the workflow result on this commit before claiming a
+passing full-stack job. Code acceptance and releases remain maintainer decisions.
 
 ## Active checks
 

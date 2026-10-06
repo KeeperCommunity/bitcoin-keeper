@@ -16,12 +16,12 @@
 - [x] Rebuild iOS/Android for updated backend ports and verify disposable onboarding, native app records, Wallets and More Options; distinguish automated assertion failures and visual continuation.
 
 ## 3. Handoff
-- [ ] Complete backend source/history credential hygiene, security/dependency review and reproducible setup before granting broader private access; private visibility does not waive readiness.
+- [x] Publish a clean-history Relay source after source/history credential, content, dependency and reproducible-setup review; keep the legacy credential-bearing repository private.
 - [x] Document approved contributor access, GitHub profile/context review, resource grants and invitation/setup confirmation; no per-local-change permission.
 - [x] Keep access/admin intake internal and remove the public contributor-access issue template; retain public issues for user-facing features and bugs.
-- [ ] Provision and verify private backend CI access without exposing credentials to fork code; retain the honest failing check until resolved.
+- [ ] Verify the full backend CI workflow using only public backend sources and no private-source credential.
 - [x] Validate native builds and authorized local backend setup against `sprint`.
-- [x] Make CI execute tests and publish coverage; backend source access remains a failure. SonarCloud is explicitly deferred, not reported as passing.
+- [x] Make CI execute tests and publish coverage. SonarCloud is explicitly deferred, not reported as passing.
 - [x] Review and obtain approval for the concrete commit/push before publishing (approved in this task on 26 September 2026).
 - [ ] Have a second developer/machine execute the published setup.
 - [x] Prepare an independent-machine checklist and private results template, distinguishing passed, failed/blocked and untested checks.

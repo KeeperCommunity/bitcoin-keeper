@@ -20,10 +20,11 @@ None.
 
 The integration targets `sprint`. Repair CI coverage handoff and test teardown,
 align Ruby lockfile constraints with the existing Gemfile, and correct OpenSpec
-YAML parsing. CI runs backend checks and publishes app coverage. Private backend
-access uses maintainer approval based on contributor profiles and planned work;
-local changes require no per-change permission. CI source-access provisioning
-remains pending. SonarCloud is explicitly deferred by the project owner, with
+YAML parsing. CI runs backend checks and publishes app coverage. Optional private
+development resources use maintainer approval based on contributor profiles and
+planned work; local changes require no per-change permission. Backend source
+pins now point to public clean-history repositories. SonarCloud is explicitly
+deferred by the project owner, with
 configuration and prior findings retained for future restoration.
 
 Testnet local development only; no released Wallet, Vault, Signer or UTXO behavior changes. No subscription gating, Realm/MMKV changes, migration or hardware compatibility changes. Local signing keys persist in disposable Docker volumes. Runtime backend egress is blocked. Native mobile network access remains separate. No screen changes, so no new Maestro selectors/flows are required.

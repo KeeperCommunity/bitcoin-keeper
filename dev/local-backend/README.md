@@ -8,21 +8,19 @@ acceptance, merges and official releases.
 
 ## Prerequisites
 
-**Full stack source access is currently required:**
-`KeeperCommunity/bitcoin-keeper-relay` remains private. Follow the
-[contributor access process](ACCESS.md) if your work needs the full Docker stack.
-[KeeperCommunity/SigningServer](https://github.com/KeeperCommunity/SigningServer)
-is public; its source, install, build and unit tests are available independently
-without Relay access. Public app and SigningServer development need no access
-approval. App setup alone does not grant private Relay access.
+Both [Relay](https://github.com/KeeperCommunity/Relay) and
+[SigningServer](https://github.com/KeeperCommunity/SigningServer) are public.
+The full local Docker stack uses pinned revisions of these clean public sources
+and needs no repository invitation or production credentials. Optional private
+development resources have a separate [access process](ACCESS.md).
 
 - Git, Python 3.9+, Docker Engine with Compose v2.20+ (or a newer Compose release). On macOS use Docker Desktop or Colima; Linux can use Docker Engine. Start the engine before setup. Reserve about 3–4 GB for Docker and run native builds sequentially on a 16 GB Mac.
-- Read access to the private Relay repository for `dev up`. SigningServer needs only anonymous GitHub access. First setup downloads sources, container images and dependencies. Subsequent starts can reuse them.
+- Anonymous GitHub access to both public backends. First setup downloads sources, container images and dependencies. Subsequent starts can reuse them.
 - Mobile: Node 20.19.4+ (Node 22 is a suitable supported baseline), Yarn Classic 1.22.22. Use the committed `yarn.lock`.
 - Android: Android Studio, JDK 17, SDK platform 36, build tools 35.0.0, NDK 27.1.12297006, CMake 3.22.1 and platform tools. Set `JAVA_HOME` and `ANDROID_HOME`. These versions come from this app's Gradle files.
 - iOS: macOS, Xcode with an iOS simulator runtime, Ruby 3.3.0 (`.ruby-version`) and Bundler. Use the root `Gemfile.lock` and `ios/Podfile.lock`.
 
-Earlier native validation on this Mac used Apple Silicon, Xcode 26.4, Node 25.9.0, Yarn 1.22.22, JDK 17 and Ruby 3.3.0. App tests also passed in GitHub Linux CI on Node 22; Linux full-stack setup remains blocked on private Relay access. Full contributor setup on Intel Macs, Linux and Windows/WSL still needs independent verification; iOS builds require macOS. See [verification](VERIFICATION.md) for actual results and limitations.
+Earlier native validation on this Mac used Apple Silicon, Xcode 26.4, Node 25.9.0, Yarn 1.22.22, JDK 17 and Ruby 3.3.0. App tests also passed in GitHub Linux CI on Node 22. Full contributor setup on Intel Macs, Linux and Windows/WSL still needs independent verification; iOS builds require macOS. See [verification](VERIFICATION.md) for actual results and limitations.
 
 Native tool installation: [React Native 0.83 environment guide](https://reactnative.dev/docs/0.83/set-up-your-environment). Follow the repo-specific Android versions above when they differ from that guide.
 
@@ -36,7 +34,7 @@ cd bitcoin-keeper
 ```
 
 After the change is merged, contributors can use the normal `sprint` checkout.
-The private Relay access prerequisite still applies to `dev up`.
+`dev up` fetches only public backend sources.
 
 From this app checkout's root:
 
@@ -69,7 +67,7 @@ public source, run `./dev/local-backend/dev prepare-signing` from the app clone.
 That command checks the adapter digests and applies it under ignored
 `.sources/signing/` without fetching Relay or starting Docker. Submit upstream
 SigningServer changes to its own repository. Full `dev up`, API checks and native
-app setup still require approved private Relay access.
+app setup use the public Relay source.
 
 The JavaScript install hook only installs the repo's Node compatibility shims. Native dependencies are separate explicit steps below. It no longer runs CocoaPods on Android-only machines or rewrites `android/local.properties` with a Mac-specific path.
 
@@ -155,9 +153,9 @@ The relay health field `signing: false` describes the relay, not the separate si
 
 ## Sources, data and network boundaries
 
-`sources.lock.json` pins both backend revisions and adapter SHA-256 checksums. The Node, Mongo and nginx base images are pinned by digest. Backend dependency installs use frozen Yarn / npm lockfiles; OS packages in the relay build still use Debian repositories, so this is a reproducible development workflow, not a bit-for-bit reproducible image build.
+`sources.lock.json` pins both public backend revisions and the SigningServer adapter SHA-256 checksums. Relay's public source already includes local mode, so it needs no app-side adapter. The Node, Mongo and nginx base images are pinned by digest. Backend dependency installs use frozen Yarn / npm lockfiles; OS packages in the relay build still use Debian repositories, so this is a reproducible development workflow, not a bit-for-bit reproducible image build.
 
-`adapters/` contains the local-mode modifications prepared on this Mac for maintainer review. Patches apply to their pinned source; replacement config files avoid distributing removed historical credential text in patch deletions. `.sources/` is generated and ignored. Bootstrap never overwrites an existing checkout; reruns preserve local backend edits. After editing a backend, rerun `up` to rebuild. To change pins/adapters, save your backend edits and move the generated checkout aside first. Eventually merge local-mode support into the backend repositories and replace adapters with those reviewed commit IDs. Do not deploy these development adapters to production.
+`adapters/signing/` contains the local-mode modifications for the pinned public SigningServer source. `.sources/` is generated and ignored. Bootstrap never overwrites an existing checkout; reruns preserve local backend edits. After editing a backend, rerun `up` to rebuild. To change pins/adapters, save your backend edits and move the generated checkout aside first. Do not deploy the development adapter to production.
 
 Only the gateway publishes host ports, all on `127.0.0.1`. Mongo, relay and signing share an internal network with no external egress; the gateway also has a host-access network. Compose waits on service health, following [Docker's startup ordering](https://docs.docker.com/compose/how-tos/startup-order/). Build-time dependency downloads still use the internet. Mobile native integrations are outside Docker; this is not a fully offline mobile mode.
 
@@ -166,7 +164,7 @@ Signing identities are randomly generated per signing volume and stored with res
 ## Troubleshooting
 
 - Docker unavailable: start Docker Desktop or Colima, then rerun `doctor`.
-- Relay repository access denied: request approved read access and rerun `prepare`; no application secret is needed. SigningServer fetch failures should be checked against its public pinned revision and network connection.
+- Backend source fetch failure: check the public pinned revision and network connection; no application secret is needed.
 - Stale source/adapter marker: save edits and move the relevant `.sources/relay` or `.sources/signing` directory aside. Bootstrap refuses to overwrite it.
 - Health succeeds but a feature fails: consult the capability table; cloud integrations are not restored by local startup.
 - App cannot reach local services: check `.env.local`, rebuild with `ENVFILE=.env.local`, and rerun Android port forwarding. Changing an env file requires a native rebuild.

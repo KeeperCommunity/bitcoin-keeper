@@ -82,19 +82,18 @@ def prepare(only=None):
             try:
                 run(['git', '-C', checkout, 'fetch', '--quiet', '--depth=1', 'origin', spec['revision']])
             except subprocess.CalledProcessError as error:
-                access = ('Relay remains private and requires approved GitHub read access. '
-                          if name == 'relay' else
-                          'SigningServer is public; check the pinned revision and network connection. ')
-                raise ValueError(f'{name}: cannot fetch the pinned backend revision. '
-                                 f'{access}No existing checkout was replaced.') from error
+                raise ValueError(f'{name}: cannot fetch the pinned public backend revision. '
+                                 'Check the revision and network connection. '
+                                 'No existing checkout was replaced.') from error
             run(['git', '-C', checkout, 'checkout', '--quiet', '--detach', spec['revision']])
-            run(['git', '-C', checkout, 'apply', '--check', adapter / 'local.patch'])
-            run(['git', '-C', checkout, 'apply', adapter / 'local.patch'])
-            for asset in (adapter / 'files').rglob('*'):
-                if asset.is_file():
-                    dest = checkout / asset.relative_to(adapter / 'files')
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(asset, dest)
+            if spec['assets']:
+                run(['git', '-C', checkout, 'apply', '--check', adapter / 'local.patch'])
+                run(['git', '-C', checkout, 'apply', adapter / 'local.patch'])
+                for asset in (adapter / 'files').rglob('*'):
+                    if asset.is_file():
+                        dest = checkout / asset.relative_to(adapter / 'files')
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(asset, dest)
             (checkout / '.keeper-source.json').write_text(json.dumps(spec, indent=2) + '\n')
             checkout.rename(target)
 

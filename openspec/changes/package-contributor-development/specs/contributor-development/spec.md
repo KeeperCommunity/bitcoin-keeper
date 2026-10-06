@@ -19,7 +19,7 @@ and failed checks SHALL NOT be reported as passing.
 The contributor tooling SHALL fetch exact source revisions and validate local adapter digests before building isolated backend services.
 
 #### Scenario: Fresh checkout
-- **GIVEN** Git, Python, approved read access to private Relay, anonymous access to public SigningServer and a running Docker/Compose engine
+- **GIVEN** Git, Python, anonymous access to public Relay and SigningServer, and a running Docker/Compose engine
 - **WHEN** the developer runs `dev up`
 - **THEN** pinned sources are prepared, services become healthy and disposable API checks pass without production secrets.
 
@@ -29,7 +29,7 @@ The contributor tooling SHALL fetch exact source revisions and validate local ad
 - **THEN** developer edits are preserved and incompatible existing configuration produces actionable instructions without overwriting files.
 
 #### Scenario: Public SigningServer preparation
-- **GIVEN** a fresh app checkout without private Relay access or cached backend files
+- **GIVEN** a fresh app checkout without cached backend files
 - **WHEN** the developer runs `dev prepare-signing`
 - **THEN** the pinned public SigningServer is fetched and its local adapter is checked and applied without fetching Relay or starting Docker.
 
@@ -68,7 +68,7 @@ The repository SHALL document how outside developers can run, change, test and p
 - **THEN** they first confirm source/history credential hygiene, required credential rotation, security/dependency review and reproducible setup; private visibility does not waive readiness.
 
 #### Scenario: Private resource access
-- **GIVEN** a contributor who needs private backend sources or other development resources
+- **GIVEN** a contributor who needs optional private development resources
 - **WHEN** they follow the documented access request process
 - **THEN** maintainers review their GitHub profile, planned work and relevant context, decide approval and scope, and arrange the approved permissions with resource owners.
 - **AND** the handoff records accepted invitations and setup results without treating a policy document as an actual access grant.

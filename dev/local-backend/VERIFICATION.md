@@ -1,5 +1,31 @@
 # Contributor setup verification
 
+## Public Relay transition — 7 October 2026
+
+- Clean-history [Relay](https://github.com/KeeperCommunity/Relay) is public at
+  `3e1a01bd2fd5381d8546229922c431ce50bedad4`; the legacy credential-bearing
+  Relay repository remains private. GitHub private vulnerability reporting is
+  enabled on the public repository.
+- An anonymous Relay clone at that exact commit passed a frozen Node 22 install,
+  compilation, 104 tests across nine suites with disposable MongoDB, current
+  source and full-history secret scans, and the runtime dependency audit. A
+  separate local Compose run served ready/local health, persisted a synthetic
+  app record and returned 503 for an unavailable hosted integration. Its
+  disposable containers and volumes were removed.
+- This app PR's public Relay pin and public SigningServer pin were fetched with
+  Git credential helpers disabled. Six bootstrap regression tests passed. The
+  isolated full stack passed health, Socket.IO, unsupported-route behavior,
+  synthetic app record create/read, and V3 testnet signer authorization and
+  valid/invalid 2FA. No production credentials or funded wallets were used.
+- The optional persistence/boundary rerun stopped during Docker network
+  recreation with an engine input/output error after the host filled its disk.
+  That rerun is **not passed**. Free space was recovered, but no further Docker
+  build is being run while concurrent mobile QA uses the machine. CI on the
+  updated app commit and an independent developer/machine remain pending.
+- No new native mobile build, physical-device check, hosted provider delivery,
+  real signing transaction, or production deployment is claimed by this
+  contributor source-pin change.
+
 ## Public SigningServer follow-up — 6 October 2026
 
 - The pinned SigningServer source is now the public

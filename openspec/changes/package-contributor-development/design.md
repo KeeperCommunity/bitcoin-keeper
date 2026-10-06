@@ -4,7 +4,7 @@ Keep the mobile checkout and native IDEs on the host. Python standard-library co
 
 Docker runs Mongo, relay/channel, testnet signing and an nginx loopback gateway. Backend containers use an internal network. Startup is health-gated; the app template supplies disposable local identifiers. Compose project names and host ports support an independent acceptance environment.
 
-Pin source commits rather than mutable branches. Bundle the prepared local-mode adapters in this app change while upstream backend commits are unpublished; config replacements avoid copying removed historical credentials into patches. Review adapter hashes when updating and eventually replace them with upstream commits.
+Pin source commits rather than mutable branches. Relay's public source contains local mode directly. Bundle only the SigningServer local-mode adapter, verify its hashes when updating, and replace it with an upstream commit when that implementation is merged.
 
 The setup hook remains platform neutral; Android reads ANDROID_HOME and iOS runs root Bundler/CocoaPods explicitly. No Redux slices, sagas, PSBT data flow, Realm schemas, MMKV keys or UI components change.
 
@@ -24,7 +24,7 @@ configuration and prior findings remain documented. `test-setup.js` and the vaul
 test close test-owned connections. `Gemfile.lock`, `ios/Podfile.lock` and the YAML
 quoting in `openspec/config.yaml` are aligned with existing dependency/config
 requirements. No app business logic or version fields change. `CI.md` records the
-pending private-source CI access and deferred SonarCloud work.
+public-source CI verification and deferred SonarCloud work.
 
 `ACCESS.md` defines private contributor intake, profile/context review,
 approved development resources, invitations and setup confirmation. Access/admin
