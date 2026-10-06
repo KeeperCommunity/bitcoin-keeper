@@ -6,11 +6,13 @@ on:
       - sprint
       - dev
       - main
+      - release/2.6.3
   pull_request:
     branches:
       - sprint
       - dev
       - main
+      - release/2.6.3
 
 jobs:
   test:
