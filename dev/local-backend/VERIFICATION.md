@@ -1,4 +1,41 @@
-# Contributor setup verification — 26 September 2026
+# Contributor setup verification
+
+## Public SigningServer follow-up — 6 October 2026
+
+- The pinned SigningServer source is now the public
+  `KeeperCommunity/SigningServer` revision
+  `b82dc4f4a8f75676b70b12545d59c7906556a92b`. Its local adapter checksum
+  check and patch application pass. With Node 22, the adapted source passes
+  `npm ci --ignore-scripts`, `npm run compile` and `npm test` (2 suites, 108 tests).
+  The new independent GitHub SigningServer adapter job passes those same steps.
+- SigningServer's previously cancelled current-source readiness job was rerun at
+  its public head: current-source and history scans both pass on the rerun.
+  Its own public test workflow also passes. Dependency review remains open;
+  successful source scans and tests are not security acceptance.
+- A separate anonymous app checkout at app commit
+  `41e482ec97ebffb0beff43ed807b1205fb26ed8e` used an empty home and package
+  cache, disabled Git credential helpers and prompts, and copied no backend
+  source or environment files. `dev prepare` stopped at private Relay as expected.
+  `dev prepare-signing` fetched the public pin and applied its adapter without
+  Relay. `dev env` created a local-only file with mode `0600`; six bootstrap
+  regression tests passed. No full Docker stack or native build was possible
+  without Relay access.
+- A separate anonymous SigningServer clone, with an initially empty package
+  cache and no Git credentials, passed `npm ci --ignore-scripts`,
+  `npm run compile` and `npm test` (2 suites, 108 tests). The local anonymous app
+  Yarn install was stopped before completion when this Mac had about 1.5 GB free;
+  no local anonymous app JavaScript install or Jest pass is claimed. On the same
+  app commit, GitHub Linux CI passed frozen Yarn install, 17 Jest suites / 183
+  tests, strict active OpenSpec validation and LCOV upload. Its full backend job
+  passed bootstrap tests but failed fetching private Relay; later API/persistence
+  checks were skipped. These CI results do not establish an independent
+  full-stack checkout or native app acceptance.
+- Relay remains private and its publication is deferred. Safe CI Relay access,
+  independent full-stack setup, remaining dependency/security review and
+  maintainer acceptance remain open. No production deployment or credential
+  change was part of this follow-up.
+
+## Earlier evidence — 26–28 September 2026
 
 ## Contributor handoff follow-up — 28 September 2026
 
@@ -127,9 +164,9 @@ Fresh worktree and node_modules, host SDKs/caches reused:
   LCOV artifact upload. Measured line coverage is 57.37% (1451/2529) within the
   existing configured source scope; no 80% coverage claim is made.
 - GitHub Linux bootstrap unit tests: PASS. Docker startup: FAIL during source
-  fetch because both backend repositories are private and CI lacks access. This
-  requires CI access provisioning; approved contributors also need their own
-  source access before setup. It is not a passing setup check.
+  fetch because both backend repositories were private at the time and CI lacked
+  access. Current full-stack CI still requires private Relay access. This is not
+  a passing full-stack setup check.
 - SonarCloud: both the original and updated scanner failed before analysis; repository binding
   still points at the old organization. See [CI notes](CI.md). No analysis pass
   or security clearance is claimed.
