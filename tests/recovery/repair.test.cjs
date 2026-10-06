@@ -21,6 +21,15 @@ for (const failure of ['readError','reject','corruptWrite']) test(`${failure} ne
   if (failure === 'readError') assert.deepEqual(f.calls, ['getBackupSnapshot']);
 });
 
+test('read-only failure identifies its stage without logging error contents or backup identifiers', async () => {
+  const f = harness({ adapter: async () => { throw Error('private-fixture-identifier'); } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request']]);
+  assert.ok(!JSON.stringify(f.diagnostics).includes('private-fixture-identifier'));
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
 test('lost upload acknowledgement is resolved by readback without duplicate upload', async () => {
   const f = harness({ lostResponse: true }); f.local.Wallet.push(wallet());
   assert.equal(await f.run(true), 'verified'); assert.deepEqual(f.calls, ['getBackupSnapshot','repairAppBackup','getBackupSnapshot']);

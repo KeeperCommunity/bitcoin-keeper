@@ -21,7 +21,7 @@ function harness(options = {}) {
   const remote = { appId: app.id, wallets: {}, signers: {}, nodes: [], vaults: [], labels: [] };
   let vaults = [], labels = [];
   const revision = () => require('node:crypto').createHash('sha256').update(JSON.stringify({remote,vaults,labels})).digest('hex');
-  const calls = [], phases = [];
+  const calls = [], phases = [], diagnostics = [];
   const db = { getObjectByIndex: (schema) => schema === 'KeeperApp' ? app : local[schema] };
   const rest = { post: async (path, payload, _headers, config) => {
     calls.push(path.replace('fixture/', ''));
@@ -48,8 +48,8 @@ function harness(options = {}) {
     'src/utils/service-utilities/encryption': encryption,
     'src/utils/utilities': { getKeyUID: s => s.id || s.masterFingerprint, sanitizeSeedKeyForBackup: s => s, sanitizeVaultSignersForSeedKeyBackup: s => s },
     './transport': transport, './image': image,
-  });
-  return { app, local, remote, calls, phases, transport, repair,
+  }, { console: { warn: (...args) => diagnostics.push(args) } });
+  return { app, local, remote, calls, phases, diagnostics, transport, repair,
     run: (write = false) => repair.inspectBackup(app.id, write, phase => phases.push(phase)) };
 }
 const wallet = (id = 'wallet', networkType = 'MAINNET') => ({ id, networkType, type: 'DEFAULT',

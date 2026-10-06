@@ -35,6 +35,16 @@ export type RepairPhase =
   | 'verified'
   | 'conflict'
   | 'unverified';
+type InspectionStage =
+  | 'local-capture'
+  | 'snapshot-request'
+  | 'snapshot-validation'
+  | 'snapshot-decryption'
+  | 'comparison'
+  | 'repair-preparation'
+  | 'repair-upload'
+  | 'repair-readback'
+  | 'local-recheck';
 const inFlight = new Map<
   string,
   {
@@ -149,6 +159,7 @@ export function inspectBackup(
     listeners.forEach((listener) => listener(phase));
   };
   const result = withBackupSession(appId, async () => {
+    let stage: InspectionStage = 'local-capture';
     const deadline = Date.now() + BACKUP_DEADLINE_MS;
     const revision = backupRevision(appId);
     const assertCurrent = () => {
@@ -168,12 +179,14 @@ export function inspectBackup(
       assertCurrent();
       let expectedRevision: string;
       let needsVaultRepair = false;
-      const read = async () => {
+      const read = async (readback = false) => {
+        stage = readback ? 'repair-readback' : 'snapshot-request';
         const response = await boundedBackupPost(
           `${config.RELAY}getBackupSnapshot`,
           { appId },
           deadline
         );
+        if (!readback) stage = 'snapshot-validation';
         assertCurrent();
         if (!/^[a-f0-9]{64}$/.test(response.data?.revision))
           throw new Error('Backup snapshot revision unavailable');
@@ -208,6 +221,7 @@ export function inspectBackup(
               },
             }
           : response.data;
+        if (!readback) stage = 'snapshot-decryption';
         const decoded = await decodeImage(key, availableResponse, appId, assertCurrent);
         needsVaultRepair =
           unavailable.length > 0 ||
@@ -219,6 +233,7 @@ export function inspectBackup(
         return decoded;
       };
       const remote = await read();
+      stage = 'comparison';
       const contentComparison = await compareImages(local, remote, assertCurrent);
       const comparison =
         contentComparison === 'matched' && needsVaultRepair ? 'different' : contentComparison;
@@ -232,6 +247,7 @@ export function inspectBackup(
         return 'different';
       }
       if (comparison === 'different') {
+        stage = 'repair-preparation';
         notify('preparing');
         const payload = await encodeImage(app, local, assertCurrent);
         assertCurrent();
@@ -243,6 +259,7 @@ export function inspectBackup(
           throw new Error('Local backup changed');
         assertCurrent();
         notify('uploading');
+        stage = 'repair-upload';
         try {
           const response = await boundedBackupPost(
             `${config.RELAY}repairAppBackup`,
@@ -257,13 +274,16 @@ export function inspectBackup(
           // A lost response is not proof the upload failed. Always read back.
         }
         notify('verifying');
-        const verifiedRemote = await read();
+        stage = 'repair-readback';
+        const verifiedRemote = await read(true);
+        stage = 'repair-readback';
         if (
           needsVaultRepair ||
           (await compareImages(local, verifiedRemote, assertCurrent)) !== 'matched'
         )
           throw new Error('Backup not verified');
       }
+      stage = 'local-recheck';
       if (
         (await compareImages(local, await captureBackupImage(assertCurrent), assertCurrent)) !==
         'matched'
@@ -273,6 +293,9 @@ export function inspectBackup(
       notify('verified');
       return 'verified';
     } catch {
+      // Only log the stage. Errors and response objects may contain encrypted
+      // backup data, account identifiers, headers, or request bodies.
+      console.warn('Assisted Server Backup check failed at stage:', stage);
       notify('unverified');
       return 'unverified';
     }
