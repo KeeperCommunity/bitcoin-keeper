@@ -122,6 +122,7 @@ function recoveryFixture(backupVersion: string) {
     BackupType: { SEED: 'SEED' },
     EntityKind: { USDT_WALLET: 'USDT_WALLET' },
     BackupAction: { SEED_BACKUP_CONFIRMED: 'confirmed' },
+    pauseBackup: () => {},
     NetworkType: { MAINNET: 'MAINNET', TESTNET: 'TESTNET' },
     uaiType: {},
     moment: () => ({ unix: () => 1 }),
