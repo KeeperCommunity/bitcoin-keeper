@@ -19,6 +19,8 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
+LIVE_CHANNEL = "https://channel.bitcoinkeeper.app/"
+RETIRED_CHANNELS = ("https://keeper-channel.herokuapp.com/", "https://keeper-dev-channel.herokuapp.com/")
 
 
 def require_equal(actual, expected, label):
@@ -35,6 +37,34 @@ def verify_features(bundle):
             missing.append(feature)
     if missing:
         raise ValueError("Required packaged feature markers absent: " + ", ".join(missing))
+
+
+def verify_channel(archive, suffix, info=None, app_prefix=None):
+    if suffix == ".ipa":
+        executable = info.get("CFBundleExecutable")
+        if not executable or "/" in executable:
+            raise ValueError("Cannot identify main iOS executable for channel verification")
+        members = [app_prefix + "/" + executable]
+    elif suffix == ".aab":
+        members = [name for name in archive.namelist()
+                   if name.startswith("base/") and (name.endswith(".dex") or name == "base/resources.pb")]
+    else:
+        members = [name for name in archive.namelist()
+                   if re.fullmatch(r"classes\d*\.dex", name) or name == "resources.arsc"]
+    if not members:
+        raise ValueError("No native release payload available for channel verification")
+    expected = LIVE_CHANNEL.encode()
+    retired = [url.encode() for url in RETIRED_CHANNELS]
+    found_live = False
+    found_retired = False
+    for member in members:
+        data = archive.read(member)
+        found_live |= expected in data
+        found_retired |= any(url in data for url in retired)
+    if found_retired:
+        raise ValueError("Packaged native configuration contains a retired pairing channel")
+    if not found_live:
+        raise ValueError("Live pairing channel absent from packaged native configuration")
 
 
 def output(command):
@@ -54,7 +84,9 @@ def inspect(path, manifest):
             info = plistlib.loads(archive.read(names[0]))
             app_id, version, build = (info.get(k) for k in ("CFBundleIdentifier", "CFBundleShortVersionString", "CFBundleVersion"))
             platform = "ios"
-            bundle = archive.read(names[0].rsplit("/", 1)[0] + "/main.jsbundle")
+            app_prefix = names[0].rsplit("/", 1)[0]
+            bundle = archive.read(app_prefix + "/main.jsbundle")
+            verify_channel(archive, suffix, info=info, app_prefix=app_prefix)
         elif suffix == ".apk":
             text = output([os.environ.get("AAPT", "aapt"), "dump", "badging", str(path)])
             match = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", text)
@@ -63,6 +95,7 @@ def inspect(path, manifest):
             app_id, build, version = match.groups()
             platform = "android"
             bundle = archive.read("assets/index.android.bundle")
+            verify_channel(archive, suffix)
         elif suffix == ".aab":
             jar = os.environ.get("BUNDLETOOL_JAR")
             if not jar or not Path(jar).is_file():
@@ -72,6 +105,7 @@ def inspect(path, manifest):
             app_id, build, version = root.get("package"), root.get(ANDROID_NS + "versionCode"), root.get(ANDROID_NS + "versionName")
             platform = "android"
             bundle = archive.read("base/assets/index.android.bundle")
+            verify_channel(archive, suffix)
         else:
             raise ValueError("Expected an IPA, APK or AAB")
     expected_id = {"ios": "io.hexawallet.keeper", "android": "io.hexawallet.bitcoinkeeper"}[platform]
@@ -82,6 +116,7 @@ def inspect(path, manifest):
     result = {"artifact": path.name, "applicationId": app_id, "version": version, "build": str(build),
               "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
               "bundleSha256": hashlib.sha256(bundle).hexdigest(), "featureMarkers": "present",
+              "channelUrl": "verified",
               "signing": "separate verification required"}
     if suffix == ".apk":
         certs = output([os.environ.get("APKSIGNER", "apksigner"), "verify", "--print-certs", str(path)])
