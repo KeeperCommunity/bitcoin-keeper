@@ -21,6 +21,10 @@
 /src/screens/SignTransaction/signWithSD.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SignTransaction/SignerModals.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SignTransaction/SignTransactionScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SignTransaction/SignWithQR.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SignTransaction/SignWithColdCard.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/HandleFileScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/QRScreens/SignWithChannel.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 
 # Recovery Key / seed recovery, encryption and backup primitives.
 /src/store/sagas/storage.ts @ben-kaufman @Parsh @cakesoft-utkarsh
@@ -33,6 +37,8 @@
 /ios/cloudbackup/CloudBackupHelper.swift @ben-kaufman @Parsh @cakesoft-utkarsh
 /android/app/src/main/java/com/hexa_keeper/CloudBackupModule.kt @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/utils/service-utilities/encryption.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/utils/service-utilities/utils.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/utils/utilities.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 
 # Spend construction, UTXO handling and wallet state changes.
 /src/store/sagas/send_and_receive.ts @ben-kaufman @Parsh @cakesoft-utkarsh
@@ -46,11 +52,13 @@
 /src/storage/secure-store.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/realm.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/RealmProvider.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/dbManager.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/schema/wallet.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/schema/vault.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/schema/usdtWallet.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/schema/backup.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/schema/app.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/schema/index.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 
 # Inheritance, Emergency Key, Server Key and wallet migration flows where
 # screen/controller code performs security-sensitive state changes.
@@ -60,6 +68,11 @@
 /src/screens/Vault/AddReserveKey.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/Vault/ResetInitialTimelock.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/Vault/VaultMigrationController.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/HardwareModalMap.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/ChoosePolicyNew.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/AdditionalUsers.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/ServerKeySuccessScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/SignerAdvanceSettings.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SigningDevices/SetupSigningServer.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SigningDevices/SetupAdditionalServerKey.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SigningDevices/ImportSatochipSeed.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
