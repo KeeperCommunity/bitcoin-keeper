@@ -2,7 +2,7 @@
 
 ## Choose Copilot effort
 
-Repository default: **Lite**. Before requesting the first review or marking the PR ready, verify the Copilot effort in the PR's GitHub Reviewers controls and override it for the change. A remembered PR choice can override the repository default. GitHub controls the underlying review model; the chat model selector does not change it.
+Repository default: **Lite**. Before requesting the first review or marking the PR ready, verify the Copilot effort in the PR's GitHub Reviewers controls and override it for the change. A remembered PR choice can override the repository default. GitHub controls the underlying review model; the chat model selector does not change it. See [GitHub's code review documentation](https://docs.github.com/en/copilot/concepts/agents/code-review).
 
 - **Lite:** routine UI or styling, noncritical copy, documentation, and isolated changes with known low risk.
 - **Balanced:** keys, signing, recovery, backup, authentication, pairing, transactions, migrations, security-critical copy, security dependencies, permissions, complex or cross-service changes, and unknown risk. Use Balanced for mixed changes that include these areas.
@@ -28,4 +28,4 @@ Record these in the PR description:
 
 Request Ben (`ben-kaufman`), Utkarsh (`cakesoft-utkarsh`), and Parsh (`Parsh`) when they have review access. Record pending invitations accurately; keep review-owner proposals draft until GitHub recognizes the owners and required checks pass.
 
-One independent approval from any one of these developers is required, together with passing required checks and resolution of relevant review concerns. All three approvals are unnecessary. The PR author cannot approve their own change, and Copilot feedback does not satisfy the human approval requirement. Product signoff remains separate. Do not merge automatically.
+One independent approval from any one of these developers is required, together with passing required checks and resolution of relevant review concerns. All three approvals are unnecessary. The PR author cannot approve their own change, and Copilot feedback does not satisfy the human approval requirement. Product signoff remains separate. Do not bypass required checks or independent human approval.
