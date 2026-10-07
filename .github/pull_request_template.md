@@ -27,3 +27,9 @@ Target branch:
 
 Keeper maintainers own security review, acceptance, merging and official releases.
 Passing checks does not constitute approval.
+
+## Signoff
+
+- Copilot review findings: <!-- Addressed, explained, or pending. Maintainer checks the actual comments. -->
+- Developer approval: <!-- One approval required for sprint PRs. -->
+- Product owner signoff: <!-- Link the owner's PR comment for product behavior, UX, or copy changes; otherwise state not applicable. -->

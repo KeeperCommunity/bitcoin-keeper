@@ -107,9 +107,10 @@ official builds. Contributors do not need release permissions to participate.
 Copilot code review is requested automatically for pull requests targeting
 `sprint`. Read its actual comments and check each claim against the changed code
 and relevant tests. Fix valid findings or explain why a comment does not apply
-before requesting final human review. A developer's approval remains the code
-review gate. The product owner may record product signoff in the PR discussion;
-signoff from the PR author does not count as GitHub's required approval.
+before requesting final human review. One developer approval remains the code
+review gate. For changes to product behavior, UX, or copy, the product owner
+records separate product signoff in the PR discussion. A PR author's product
+signoff does not count as GitHub's required developer approval.
 
 Some existing CI checks use maintainer-managed services or secrets. If a check is
 unavailable on a fork PR, report it in the PR so maintainers can arrange review;
