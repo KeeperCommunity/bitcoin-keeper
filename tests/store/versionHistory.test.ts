@@ -47,15 +47,28 @@ function writeHistory(action) {
   return write.payload.args[1];
 }
 
+function recoverWithoutDuplicateHistory(action) {
+  const worker = updateVersionHistoryWorker(action);
+  expect(worker.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
+  expect(worker.next({ id: 'test-app' } as any).value).toEqual(
+    call(Relay.updateAppImage, { appId: 'test-app', version: newVersion })
+  );
+  expect(worker.next({} as any).done).toBe(true);
+}
+
 describe('Version History retains recovery provenance through required upgrades', () => {
-  test.each([true, false])('upgrade passes recovery=%s to the history writer', (isRecovery) => {
+  test.each([true, false])('upgrade handles recovery=%s without duplicate history', (isRecovery) => {
     const upgrade = applyUpgradeSequence({ previousVersion, newVersion, isRecovery });
     expect(upgrade.next().value).toEqual(put(setAppVersion(newVersion)));
     const history = upgrade.next().value as any;
     expect(history).toEqual(put(updateVersionHistory(previousVersion, newVersion, isRecovery)));
-    const record = writeHistory(history.payload.action);
-    expect(record.version).toBe('2.5.16(624)');
-    expect(record.title).toBe(isRecovery ? 'Recovered Wallet' : 'Upgraded from 2.5.15 to 2.5.16');
+    if (isRecovery) {
+      recoverWithoutDuplicateHistory(history.payload.action);
+    } else {
+      const record = writeHistory(history.payload.action);
+      expect(record.version).toBe('2.5.16(624)');
+      expect(record.title).toBe('Upgraded from 2.5.15 to 2.5.16');
+    }
     expect(upgrade.next().done).toBe(true);
   });
 
@@ -89,7 +102,7 @@ function recoveryFixture(backupVersion: string) {
       ts.isFunctionDeclaration(node) &&
       ['getAppImageWorker', 'recoverApp', 'writeRecoveredObject'].includes(node.name?.text)
   );
-  const writes = new Map();
+  const writes = [];
   const recoveryUpgrades = [];
   const errors = [];
   const scope: any = {
@@ -142,7 +155,7 @@ function recoveryFixture(backupVersion: string) {
     addSigningDeviceWorker: () => {},
     dbManager: {
       createObject: (schema, record) => {
-        if (schema === RealmSchema.VersionHistory) writes.set(record.version, record);
+        if (schema === RealmSchema.VersionHistory) writes.push(record);
         return true;
       },
       createObjectBulk: () => {},
@@ -218,8 +231,8 @@ function recoveryFixture(backupVersion: string) {
         const action = effect.payload.action;
         if (action.type === 'setAppImageError' && action.payload) errors.push(action.payload);
         if (action.type === 'UPDATE_VERSION_HISTORY') {
-          const record = writeHistory(action);
-          writes.set(record.version, record);
+          if (action.payload.isRecovery) recoverWithoutDuplicateHistory(action);
+          else writes.push(writeHistory(action));
         }
       }
       result = generator.next(response);
@@ -235,7 +248,7 @@ test.each(['2.5.15', '2.5.16'])(
   (backupVersion) => {
     const { writes, recoveryUpgrades, errors } = recoveryFixture(backupVersion);
     expect(errors).toEqual([]);
-    expect([...writes.values()]).toEqual([
+    expect(writes).toEqual([
       expect.objectContaining({
         version: '2.5.16(624)',
         title: 'Recovered Wallet',

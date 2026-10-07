@@ -97,11 +97,15 @@ export function* updateVersionHistoryWorker({
       appId: app.id,
       version: newVersion,
     });
-    yield call(dbManager.createObject, RealmSchema.VersionHistory, {
-      version: `${newVersion}(${DeviceInfo.getBuildNumber()})`,
-      date: new Date().toString(),
-      title: isRecovery ? 'Recovered Wallet' : `Upgraded from ${previousVersion} to ${newVersion}`,
-    });
+    // recoverApp already records the single "Recovered Wallet" entry. Keep the
+    // image/version and notification updates here without writing it twice.
+    if (!isRecovery) {
+      yield call(dbManager.createObject, RealmSchema.VersionHistory, {
+        version: `${newVersion}(${DeviceInfo.getBuildNumber()})`,
+        date: new Date().toString(),
+        title: `Upgraded from ${previousVersion} to ${newVersion}`,
+      });
+    }
     const firebaseApp = getApp();
     const messagingInstance = getMessaging(firebaseApp);
     unsubscribeFromTopic(messagingInstance, getReleaseTopic(previousVersion));

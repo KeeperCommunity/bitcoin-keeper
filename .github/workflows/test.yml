@@ -32,3 +32,9 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Run recovery regression tests
+        run: npm run test:recovery
+
+      - name: Run release and packaged-artifact tests
+        run: npm run test:release

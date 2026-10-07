@@ -46,6 +46,13 @@ test('rejects stale and future-dated evidence', () => {
     assert.ok(validateIntent(m, { now }).some((e) => e.includes('refresh authenticated store baseline')));
   }
 });
+
+test('draft validation permits stale evidence while publication validation rejects it', () => {
+  const m = intent();
+  m.baselines.android.verifiedAt = '2026-09-20T00:00:00Z';
+  assert.deepEqual(validateIntent(m, { now, requireEvidence: false }), []);
+  assert.ok(validateIntent(m, { now, requireEvidence: true }).some((e) => e.includes('refresh authenticated store baseline')));
+});
 test('rejects the similarly named non-production Play package', () => {
   const m = intent(); m.baselines.android.applicationId = 'io.hexawallet.keeper';
   assert.ok(validateIntent(m, { now }).some((e) => e.includes('wrong production application ID')));

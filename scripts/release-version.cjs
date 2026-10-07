@@ -140,7 +140,9 @@ function main() {
       ios: iosConfigurations(sources.ios).map(({ id, version, build }) => ({ id, version, build })) }, null, 2));
     return;
   }
-  const errors = validateIntent(manifest);
+  // Store evidence must be fresh for publication, not for draft edits or
+  // checking that the source and manifest still agree.
+  const errors = validateIntent(manifest, { requireEvidence: command === 'release-check' });
   if (errors.length) throw new Error(errors.join('\n'));
   if (command === 'apply') {
     const updated = applyVersions(manifest, sources);

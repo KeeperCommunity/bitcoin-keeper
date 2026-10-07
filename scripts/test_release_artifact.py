@@ -26,9 +26,10 @@ class PackagedBuildTests(unittest.TestCase):
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("Payload/Keeper.app/Info.plist", plistlib.dumps({
                 "CFBundleIdentifier": app_id, "CFBundleShortVersionString": version,
-                "CFBundleVersion": build,
+                "CFBundleVersion": build, "CFBundleExecutable": "Keeper",
             }, fmt=plistlib.FMT_BINARY))
             archive.writestr("Payload/Keeper.app/main.jsbundle", bundle)
+            archive.writestr("Payload/Keeper.app/Keeper", artifact.LIVE_CHANNEL.encode())
         return path
 
     def test_candidate_metadata_and_hashes(self):
@@ -63,6 +64,7 @@ class PackagedBuildTests(unittest.TestCase):
         path = Path(self.directory.name) / "Keeper.apk"
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("assets/index.android.bundle", FEATURES)
+            archive.writestr("classes.dex", artifact.LIVE_CHANNEL.encode())
         metadata = "package: name='io.hexawallet.bitcoinkeeper' versionCode='622' versionName='2.5.15'"
         for actual, should_pass in [("a" * 64, True), ("b" * 64, False)]:
             with self.subTest(actual=actual), patch.dict(os.environ, {"KEEPER_ANDROID_CERT_SHA256": "a" * 64}), \
@@ -77,6 +79,7 @@ class PackagedBuildTests(unittest.TestCase):
         path = Path(self.directory.name) / "Keeper.aab"
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("base/assets/index.android.bundle", FEATURES)
+            archive.writestr("base/classes.dex", artifact.LIVE_CHANNEL.encode())
         xml = '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.hexawallet.bitcoinkeeper" android:versionCode="622" android:versionName="2.5.15" />'
         with patch.dict(os.environ, {"BUNDLETOOL_JAR": str(path)}), patch.object(artifact, "output", return_value=xml):
             self.assertEqual(artifact.inspect(path, MANIFEST)["build"], "622")

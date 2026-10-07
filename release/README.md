@@ -1,17 +1,17 @@
 # Release version verification
 
-**Current milestone:** R02 / 2.6.2: faster entry after local authentication, Assisted Server Backup current-state correctness, narrow timelock prevention, and the selected cloud credential follow-ups. Keep private advisory details, credentials and fixtures out of public release material.
+**Current source intent:** 2.6.3 is the pairing-channel hotfix baseline. R3 is a separate internal work bucket; this manifest does not declare an R3 mobile delivery. Keep private advisory details, credentials and fixtures out of public release material.
 
-`version.json` selects 2.6.2, Android 625 and iOS 618. Authenticated store checks on 5 October 2026 found highest uploaded Android code 624 and iOS build 617, both at 2.5.17. Refresh these baselines before upload. Development builds and local relay validation are separate from reviewed production builds, deployment and store submission. R02 is not released.
+`version.json` selects 2.6.3, Android 626 and iOS 619. Its recorded authenticated store baselines on 6 October 2026 are Android 625 and iOS 618, both at 2.6.2. Refresh these baselines before upload. Development builds and local relay validation are separate from reviewed production builds, deployment and store submission.
 
-For R02, the owner accepts real-phone upgrade, Face ID and camera feedback after release. Do not require Developer Mode or physical-device connections to finish preparation. Record simulator, automated and funded testnet evidence accurately; they do not establish physical or hardware-signer acceptance. Already-affected-wallet assessment and consented repair are scheduled for R04 / 2.6.3; R03 is the backend open-source milestone.
+The owner will perform real-phone and other manual live checks after release. Do not require Developer Mode or physical-device connections to finish preparation. Record simulator, automated and disposable testnet evidence accurately; they do not establish physical or hardware-signer acceptance.
 
 1. Read all uploaded builds and release tracks for Android package `io.hexawallet.bitcoinkeeper`, and uploaded iOS builds for `io.hexawallet.keeper`. Preserve the timestamp and evidence outside the repository. Refresh before upload; preflight accepts evidence at most 24 hours old.
 2. Update the manifest with the highest known marketing version and highest uploaded build per platform. Select one greater marketing version for both stores and greater platform build counters. Check unpublished App Store version records as well.
 3. Run `npm run version:apply` to synchronize package.json, Android versionName/versionCode and both Keeper iOS targets. Both Info.plist files must reference `$(CURRENT_PROJECT_VERSION)` and `$(MARKETING_VERSION)`; hardcoded values are rejected. Review the diff, then run `npm run version:check` and `npm run test:release`.
 4. Reconcile release source with the published versions, prepare a clean release checkout and set `KEEPER_RELEASE_COMMIT` to its complete verified commit SHA. Run `npm run release:preflight`. The manifest cannot contain its own commit SHA.
 5. Build from a reviewed production configuration and existing signing identities. Check extracted IPA, APK and AAB metadata against the manifest, verify signing fingerprints and record checksums. A source preflight does not verify the resulting binaries.
-6. Test the signed builds before public submission; record the R02 physical-device deferral above separately.
+6. Run all feasible automated, simulator/emulator and disposable checks before public submission; record the owner's post-release manual checks separately.
 
 Both existing Fastlane `live` lanes run preflight before building and consume `.env.production` without downloading over `.env`. They no longer increment production build numbers. Android notifications require explicit `KEEPER_NOTIFY_SLACK=1`.
 
@@ -23,7 +23,7 @@ Run `python3 scripts/verify-release-artifact.py /absolute/path/to/build.ipa` (or
 
 The verifier checks the production application ID, marketing version, native counter, and bundled Ask Keeper / Dust route and data markers, then emits artifact and bundle SHA-256 hashes. Marker presence supplements device testing; it does not prove behavior or source provenance. Compiler-generated component names are unsuitable markers because release optimization removes them.
 
-For Android, set `AAPT` and `APKSIGNER` to SDK build-tool paths (or put them on PATH), `BUNDLETOOL_JAR` to an installed bundletool jar, and `KEEPER_ANDROID_CERT_SHA256` to the certificate fingerprint independently verified from the established public APK. The verifier checks the APK signature and certificate. IPA code signing/provisioning and AAB signing still require separate verification before distribution. The seven packaged-artifact regression tests run with `npm run test:release` alongside the source-version tests; Python 3 is required.
+For Android, set `AAPT2` and `APKSIGNER` to SDK build-tool paths (or put them on PATH), `BUNDLETOOL_JAR` to an installed bundletool jar, and `KEEPER_ANDROID_CERT_SHA256` to the certificate fingerprint independently verified from the established public APK. The verifier checks the APK signature and certificate. IPA code signing/provisioning and AAB signing still require separate verification before distribution. The seven packaged-artifact regression tests run with `npm run test:release` alongside the source-version tests; Python 3 is required.
 
 The normal public APK channel is the repository's GitHub Releases. Publish the APK together with `SHA256SUM.asc` and `KEEPER_DETACHED_SIGN.sign` using the established PGP identity, as documented in the root README. Do not replace release signing keys to work around missing access.
 
