@@ -22,33 +22,28 @@ import {
 import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
-import QRScanner from 'src/components/QRScanner';
+import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
 import { VaultType } from 'src/services/wallets/enums';
 import BackgroundTimer from 'react-native-background-timer';
 import { useAppSelector } from 'src/store/hooks';
 import WalletHeader from 'src/components/WalletHeader';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
+import useToastMessage from 'src/hooks/useToastMessage';
+import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 
 function ScanAndInstruct({ onBarCodeRead }) {
   const { colorMode } = useColorMode();
-  const [channelCreated, setChannelCreated] = useState(false);
   const { translations } = useContext(LocalizationContext);
   const { vault: vaultTranslation } = translations;
-
-  const callback = (data) => {
-    onBarCodeRead(data);
-    setChannelCreated(true);
-  };
-  return !channelCreated ? (
-    <QRScanner onScanCompleted={callback} />
-  ) : (
-    // TODO: Move this to a component
-    <VStack marginTop={'40%'}>
-      <Text numberOfLines={2} color={`${colorMode}.greenText`} style={styles.instructions}>
-        {vaultTranslation.registerVaultFromDesktop}
-      </Text>
-      <ActivityIndicator style={{ marginTop: hp(20), alignSelf: 'center', padding: '2%' }} />
-    </VStack>
+  return (
+    <ChannelRequestScanner onScanCompleted={onBarCodeRead}>
+      <VStack marginTop={'40%'}>
+        <Text numberOfLines={2} color={`${colorMode}.greenText`} style={styles.instructions}>
+          {vaultTranslation.registerVaultFromDesktop}
+        </Text>
+        <ActivityIndicator style={{ marginTop: hp(20), alignSelf: 'center', padding: '2%' }} />
+      </VStack>
+    </ChannelRequestScanner>
   );
 }
 
@@ -64,7 +59,8 @@ function RegisterWithChannel() {
   };
   const { signer } = useSignerFromKey(vaultKey);
   const { translations } = useContext(LocalizationContext);
-  const { choosePlan } = translations;
+  const { choosePlan, error: errorText } = translations;
+  const { showToast } = useToastMessage();
   const [channel] = useState(io(config.CHANNEL_URL));
   const decryptionKey = useRef();
 
@@ -84,20 +80,26 @@ function RegisterWithChannel() {
   const firstExtAdd = vault.specs.addresses.external[0]; // for cross validation from desktop app.
 
   const onBarCodeRead = (data) => {
-    decryptionKey.current = data;
-    const sha = crypto.createHash('sha256');
-    sha.update(data);
-    const room = sha.digest().toString('hex');
-    const requestBody = {
-      action: EMIT_MODES.REGISTER_MULTISIG,
-      signerType,
-      descriptorString,
-      miniscriptPolicy,
-      walletName,
-      firstExtAdd,
-    };
-    const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
-    channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
+    try {
+      decryptionKey.current = data;
+      const sha = crypto.createHash('sha256');
+      sha.update(data);
+      const room = sha.digest().toString('hex');
+      const requestBody = {
+        action: EMIT_MODES.REGISTER_MULTISIG,
+        signerType,
+        descriptorString,
+        miniscriptPolicy,
+        walletName,
+        firstExtAdd,
+      };
+      const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
+      channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
+      return true;
+    } catch {
+      showToast(errorText.failedToConnectDesktop, <ToastErrorIcon />);
+      return false;
+    }
   };
 
   useEffect(() => {

@@ -26,7 +26,7 @@ import {
 import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { getPsbtForHwi } from 'src/hardware';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
-import QRScanner from 'src/components/QRScanner';
+import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
 import { updateKeyDetails } from 'src/store/sagaActions/wallets';
 import BackgroundTimer from 'react-native-background-timer';
 import WalletHeader from 'src/components/WalletHeader';
@@ -37,23 +37,17 @@ import { validatePSBT } from 'src/utils/utilities';
 
 function ScanAndInstruct({ onBarCodeRead }) {
   const { colorMode } = useColorMode();
-  const [channelCreated, setChannelCreated] = useState(false);
   const { translations } = useContext(LocalizationContext);
   const { choosePlan } = translations;
-
-  const callback = (data) => {
-    onBarCodeRead(data);
-    setChannelCreated(true);
-  };
-  return !channelCreated ? (
-    <QRScanner onScanCompleted={callback} />
-  ) : (
-    <VStack marginTop={'40%'}>
-      <Text numberOfLines={2} color={`${colorMode}.greenText`} style={styles.instructions}>
-        {choosePlan.continuesigntransWithDesktop}
-      </Text>
-      <ActivityIndicator style={{ marginTop: hp(20), alignSelf: 'center', padding: '2%' }} />
-    </VStack>
+  return (
+    <ChannelRequestScanner onScanCompleted={onBarCodeRead}>
+      <VStack marginTop={'40%'}>
+        <Text numberOfLines={2} color={`${colorMode}.greenText`} style={styles.instructions}>
+          {choosePlan.continuesigntransWithDesktop}
+        </Text>
+        <ActivityIndicator style={{ marginTop: hp(20), alignSelf: 'center', padding: '2%' }} />
+      </VStack>
+    </ChannelRequestScanner>
   );
 }
 
@@ -107,21 +101,27 @@ function SignWithChannel() {
   }
 
   const onBarCodeRead = async (data) => {
-    decryptionKey.current = data;
-    const sha = crypto.createHash('sha256');
-    sha.update(data);
-    const room = sha.digest().toString('hex');
-    const psbt = await getPsbtForHwi(serializedPSBT, activeVault);
-    const requestBody = {
-      action: EMIT_MODES.SIGN_TX,
-      signerType,
-      psbt,
-      miniscriptPolicy,
-      walletName,
-      hmac,
-    };
-    const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
-    channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
+    try {
+      decryptionKey.current = data;
+      const sha = crypto.createHash('sha256');
+      sha.update(data);
+      const room = sha.digest().toString('hex');
+      const psbt = await getPsbtForHwi(serializedPSBT, activeVault);
+      const requestBody = {
+        action: EMIT_MODES.SIGN_TX,
+        signerType,
+        psbt,
+        miniscriptPolicy,
+        walletName,
+        hmac,
+      };
+      const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
+      channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
+      return true;
+    } catch {
+      showToast(errorText.failedToConnectDesktop, <ToastErrorIcon />);
+      return false;
+    }
   };
 
   useEffect(() => {
