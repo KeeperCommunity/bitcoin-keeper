@@ -98,7 +98,25 @@ def backup_roundtrip(relay, fixture):
     require(request(relay, '/getBackupSnapshot', {'appId': fixture}) == repaired,
             'Rejected stale repair changed the backup')
     print('PASS revisioned backup create/read and stale-revision preservation')
-    return repaired
+    changed = dict(replacement, expectedRevision=repaired['revision'],
+                   walletObject={'qa': 'second-synthetic-encrypted-wallet'})
+    require(request(relay, '/repairAppBackup', changed).get('updated') is True,
+            'Second disposable backup image was not saved')
+    second = request(relay, '/getBackupSnapshot', {'appId': fixture})
+    restored = dict(replacement, expectedRevision=second['revision'])
+    require(request(relay, '/repairAppBackup', restored).get('updated') is True,
+            'Restoring disposable backup content failed')
+    final = request(relay, '/getBackupSnapshot', {'appId': fixture})
+    require(len({repaired['revision'], second['revision'], final['revision']}) == 3 and
+            final['appImage']['wallets'] == repaired['appImage']['wallets'],
+            'A backup revision repeated after its content changed and returned')
+    obsolete = dict(changed, expectedRevision=repaired['revision'])
+    require(request(relay, '/repairAppBackup', obsolete, expected=409).get('error') ==
+            'BACKUP_CHANGED', 'An obsolete revision was accepted after content returned')
+    require(request(relay, '/getBackupSnapshot', {'appId': fixture}) == final,
+            'Rejected obsolete repair changed the restored backup')
+    print('PASS restored content retains a new revision and rejects obsolete repairs')
+    return final
 
 
 def main():
