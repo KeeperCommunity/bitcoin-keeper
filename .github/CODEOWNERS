@@ -1,0 +1,55 @@
+# Security-sensitive Bitcoin Keeper code.
+#
+# Changes matching these paths require review from at least one core developer:
+# @ben-kaufman, @Parsh, or @cakesoft-utkarsh.
+#
+# Keep this list intentionally narrow. Routine UI, copy, docs, and non-security
+# changes should not require a code-owner review.
+
+# Protect the review policy itself.
+/.github/CODEOWNERS @ben-kaufman @Parsh @cakesoft-utkarsh
+
+# Key generation, derivation, wallet/vault construction, transaction creation,
+# coin selection, miniscript/timelocks, and private-key handling.
+/src/services/wallets/factories/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/services/wallets/operations/ @ben-kaufman @Parsh @cakesoft-utkarsh
+
+# Hardware signer integrations and signing protocols.
+/src/hardware/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/services/qr/bc-ur-registry/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/services/backend/SigningServer.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SignTransaction/signWithSD.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+
+# Recovery Key / seed recovery, encryption and backup primitives.
+/src/store/sagas/storage.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/store/sagas/bhr.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Recovery/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SeedScreens/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/BackupWallet/ViewRecoveryKeyScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/nativemodules/CloudBackup.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/utils/service-utilities/encryption.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+
+# Spend construction, UTXO handling and wallet state changes.
+/src/store/sagas/send_and_receive.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/store/sagas/wallets.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/store/sagas/utxos.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+
+# Wallet data migrations and security-critical wallet/vault schemas.
+/src/store/migrations.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/migrations.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/schema/wallet.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/schema/vault.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/schema/usdtWallet.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/storage/realm/schema/backup.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+
+# Inheritance, Emergency Key, Server Key and wallet migration flows where
+# screen/controller code performs security-sensitive state changes.
+/src/screens/Vault/AddEmergencyKey.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/ResetEmergencyKey.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/ResetInheritanceKey.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/VaultMigrationController.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/SetupSigningServer.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/SetupAdditionalServerKey.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/ImportSatochipSeed.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/ResetSatochipSeed.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/SatochipSeedImportModal.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
