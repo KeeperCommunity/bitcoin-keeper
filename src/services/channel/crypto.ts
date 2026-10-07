@@ -1,8 +1,14 @@
 // Shared with Keeper Desktop: AES-256-GCM, 12-byte IV and 16-byte authentication tag.
 const crypto = require('crypto');
 
+export class InvalidChannelQRCodeError extends Error {
+  constructor() {
+    super('Invalid Desktop pairing code');
+  }
+}
+
 const pairingKey = (password: string) => {
-  if (!/^[a-f0-9]{64}$/i.test(password)) throw new Error('Invalid Desktop pairing code');
+  if (!/^[a-f0-9]{64}$/i.test(password)) throw new InvalidChannelQRCodeError();
   return Buffer.from(password, 'hex');
 };
 

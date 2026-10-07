@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet , TouchableOpacity} from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import { Box, ScrollView, VStack, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -38,6 +38,7 @@ import ReceiveAddress from '../Recieve/ReceiveAddress';
 import ReceiveQR from '../Recieve/ReceiveQR';
 import QRScanner from 'src/components/QRScanner';
 import { getUSBSignerDetails } from 'src/hardware/usbSigner';
+import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { SignerType, VaultType } from 'src/services/wallets/enums';
 import WalletOperations from 'src/services/wallets/operations';
 import { getKeyUID } from 'src/utils/utilities';
@@ -199,7 +200,10 @@ function ConnectChannel() {
       return true;
     } catch (error) {
       console.log('Error in onBarCodeRead:', error);
-      if (error.message && error.message.includes('TypeError: invalid key length 1')) {
+      if (
+        error instanceof InvalidChannelQRCodeError ||
+        error.message?.includes('TypeError: invalid key length 1')
+      ) {
         showToast(errorText.QrScannedDesptopInvalid, <ToastErrorIcon />);
       } else {
         showToast(errorText.failedToConnectDesktop, <ToastErrorIcon />);

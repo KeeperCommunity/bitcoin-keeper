@@ -23,6 +23,7 @@ import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
 import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
+import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { VaultType } from 'src/services/wallets/enums';
 import BackgroundTimer from 'react-native-background-timer';
 import { useAppSelector } from 'src/store/hooks';
@@ -96,8 +97,13 @@ function RegisterWithChannel() {
       const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
       channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
       return true;
-    } catch {
-      showToast(errorText.failedToConnectDesktop, <ToastErrorIcon />);
+    } catch (error) {
+      showToast(
+        error instanceof InvalidChannelQRCodeError
+          ? errorText.QrScannedDesptopInvalid
+          : errorText.failedToConnectDesktop,
+        <ToastErrorIcon />
+      );
       return false;
     }
   };

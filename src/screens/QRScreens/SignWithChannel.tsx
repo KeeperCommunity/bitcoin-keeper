@@ -27,6 +27,7 @@ import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { getPsbtForHwi } from 'src/hardware';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
+import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { updateKeyDetails } from 'src/store/sagaActions/wallets';
 import BackgroundTimer from 'react-native-background-timer';
 import WalletHeader from 'src/components/WalletHeader';
@@ -118,8 +119,13 @@ function SignWithChannel() {
       const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
       channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
       return true;
-    } catch {
-      showToast(errorText.failedToConnectDesktop, <ToastErrorIcon />);
+    } catch (error) {
+      showToast(
+        error instanceof InvalidChannelQRCodeError
+          ? errorText.QrScannedDesptopInvalid
+          : errorText.failedToConnectDesktop,
+        <ToastErrorIcon />
+      );
       return false;
     }
   };

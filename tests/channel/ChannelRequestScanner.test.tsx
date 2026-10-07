@@ -2,7 +2,19 @@ import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 import ChannelRequestScanner from '../../src/services/channel/ChannelRequestScanner';
 
-jest.mock('src/components/QRScanner', () => 'QRScanner');
+jest.mock('src/components/QRScanner', () => {
+  const React = require('react');
+  return function MockQRScanner({ onScanCompleted }) {
+    const hasScanned = React.useRef(false);
+    return React.createElement('QRScanner', {
+      onScanCompleted: (data) => {
+        if (hasScanned.current) return;
+        hasScanned.current = true;
+        return onScanCompleted(data);
+      },
+    });
+  };
+});
 
 describe('Desktop request scanner', () => {
   it('waits for asynchronous preparation and sends only one request per scan', async () => {

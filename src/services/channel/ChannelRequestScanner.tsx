@@ -10,6 +10,7 @@ export default function ChannelRequestScanner({
   children: ReactNode;
 }) {
   const [requestSent, setRequestSent] = useState(false);
+  const [scanAttempt, setScanAttempt] = useState(0);
   const preparing = useRef(false);
   const sent = useRef(false);
   const onScan = async (data: string) => {
@@ -19,10 +20,13 @@ export default function ChannelRequestScanner({
       if (await onScanCompleted(data)) {
         sent.current = true;
         setRequestSent(true);
+      } else {
+        // QRScanner latches after one decoded QR. A new instance can scan again.
+        setScanAttempt((attempt) => attempt + 1);
       }
     } finally {
       preparing.current = false;
     }
   };
-  return requestSent ? <>{children}</> : <QRScanner onScanCompleted={onScan} />;
+  return requestSent ? <>{children}</> : <QRScanner key={scanAttempt} onScanCompleted={onScan} />;
 }

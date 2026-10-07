@@ -1,4 +1,8 @@
-import { createCipherGcm, createDecipherGcm } from '../../src/services/channel/crypto';
+import {
+  createCipherGcm,
+  createDecipherGcm,
+  InvalidChannelQRCodeError,
+} from '../../src/services/channel/crypto';
 import vectors from './desktop-crypto-vectors.json';
 const crypto = require('crypto');
 
