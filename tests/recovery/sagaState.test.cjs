@@ -12,20 +12,100 @@ const bhr = loadModule('src/store/reducers/bhr.ts', {
   'src/storage': { reduxStorage:{} },
   'redux-persist': { persistReducer: (_config,reducer) => reducer },
 });
-function runInspection(f, repair) {
+function inspectionRunner(f) {
   const filename = 'src/store/sagas/bhr.ts';
   const source = ts.createSourceFile(filename,fs.readFileSync(path.join(__dirname,'../..',filename),'utf8'),ts.ScriptTarget.Latest,true);
-  const code = source.statements.filter(n => ts.isFunctionDeclaration(n) && n.name?.text === 'runBackupInspection').map(n => n.getText(source)).join('\n');
-  const scope = { ...saga, ...effects, ...bhr, inspectBackup:f.repair.inspectBackup,
+  const code = source.statements.filter(n =>
+    (ts.isFunctionDeclaration(n) && n.name?.text === 'runBackupInspection') ||
+    (ts.isVariableStatement(n) && n.declarationList.declarations.some(d => d.name?.text === 'backupInspectionOwners'))
+  ).map(n => n.getText(source)).join('\n');
+  const operations = [];
+  const scope = { ...saga, ...effects, ...bhr, inspectBackup:(...args) => {
+    const operation = f.repair.inspectBackup(...args);
+    operations.push(operation);
+    return operation;
+  },
     RealmSchema:{KeeperApp:'KeeperApp',UAI:'UAI'},
     dbManager:{ getObjectByIndex:()=>f.app, getObjectByField:()=>[] },
     uaiType:{SERVER_BACKUP_FAILURE:'failure'}, uaiActionedWorker:()=>{}, addToUaiStackWorker:()=>{},
   };
   vm.runInNewContext(ts.transpileModule(code,{ compilerOptions:{ target:ts.ScriptTarget.ES2020 }}).outputText,scope);
   let state = bhr.default(undefined,{type:'init'}); const actions = [];
-  const task = saga.runSaga({getState:()=>({bhr:state}),dispatch:action=>{ actions.push(action); state=bhr.default(state,action); }},scope.runBackupInspection,repair).toPromise();
-  return {task,get state(){ return state; }, actions};
+  return {
+    start(repair) {
+      const sagaTask = saga.runSaga({getState:()=>({bhr:state}),dispatch:action=>{ actions.push(action); state=bhr.default(state,action); }},scope.runBackupInspection,repair);
+      return {task:sagaTask.toPromise(),sagaTask,settled:()=>Promise.all(operations),get state(){ return state; },actions};
+    },
+  };
 }
+const runInspection = (f, repair) => inspectionRunner(f).start(repair);
+
+const gate = () => {
+  let release;
+  const promise = new Promise(resolve => { release = resolve; });
+  return {promise,release};
+};
+
+test('queued repair keeps actions disabled after the read-only wrapper finishes', async (t) => {
+  const read = gate(), readStarted = gate(), upload = gate(), uploadStarted = gate();
+  t.after(() => { read.release(); upload.release(); });
+  let firstRead = true;
+  const f = harness({post:async ({path}) => {
+    if (path.endsWith('getBackupSnapshot') && firstRead) {
+      firstRead = false; readStarted.release(); await read.promise;
+    }
+    if (path.endsWith('repairAppBackup')) { uploadStarted.release(); await upload.promise; }
+  }});
+  f.local.Wallet.push(wallet());
+  const runner = inspectionRunner(f);
+  const check = runner.start(false);
+  await readStarted.promise;
+  const repair = runner.start(true);
+  read.release();
+  assert.equal(await check.task, false);
+  await uploadStarted.promise;
+  assert.equal(repair.state.backupRepairRunningByAppId.disposable, true);
+  assert.equal(repair.actions.some(a => a.type === 'bhr/setBackupRepairRunning' && !a.payload.running), false);
+  upload.release();
+  assert.equal(await repair.task, true);
+  assert.equal(repair.state.backupRepairRunningByAppId.disposable, false);
+});
+
+test('cancelling a coalesced wrapper does not clear another running repair', async (t) => {
+  const upload = gate(), uploadStarted = gate();
+  t.after(() => upload.release());
+  const f = harness({post:async ({path}) => {
+    if (path.endsWith('repairAppBackup')) { uploadStarted.release(); await upload.promise; }
+  }});
+  f.local.Wallet.push(wallet());
+  const runner = inspectionRunner(f), first = runner.start(true);
+  await uploadStarted.promise;
+  const second = runner.start(true);
+  first.sagaTask.cancel();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(second.state.backupRepairRunningByAppId.disposable, true);
+  upload.release();
+  await first.task;
+  assert.equal(await second.task, true);
+  assert.equal(second.state.backupRepairRunningByAppId.disposable, false);
+  assert.equal(f.calls.filter(path => path === 'repairAppBackup').length, 1);
+});
+
+test('cancellation retains progress until its non-cancellable inspection actually settles', async (t) => {
+  const read = gate(), readStarted = gate();
+  t.after(() => read.release());
+  const f = harness({post:async () => { readStarted.release(); await read.promise; }});
+  const run = runInspection(f, false);
+  await readStarted.promise;
+  run.sagaTask.cancel();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(run.state.backupRepairRunningByAppId.disposable, true);
+  read.release();
+  await run.task;
+  await run.settled();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(run.state.backupRepairRunningByAppId.disposable, false);
+});
 
 test('only verified readback sets durable per-account completion and clears pending', async () => {
   const f = harness(); f.local.Wallet.push(wallet()); const run=runInspection(f,true);

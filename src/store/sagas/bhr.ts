@@ -978,18 +978,24 @@ export const deleteAppImageEntityWatcher = createWatcher(
   DELETE_APP_IMAGE_ENTITY
 );
 
+const backupInspectionOwners = new Map<string, number>();
+
 function* runBackupInspection(repair: boolean) {
   const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-  yield put(setBackupRepairRunning({ appId: id, running: true }));
+  backupInspectionOwners.set(id, (backupInspectionOwners.get(id) ?? 0) + 1);
   let finalPhase: RepairPhase = 'unverified';
-  const updates = eventChannel<RepairPhase>((emit) => {
-    inspectBackup(id, repair, (phase) => emit(phase)).then(
-      () => emit(END),
-      () => emit(END)
-    );
-    return () => {};
-  }, buffers.expanding());
+  let inspection: Promise<RepairPhase> | undefined;
+  let updates: ReturnType<typeof eventChannel<RepairPhase>> | undefined;
   try {
+    yield put(setBackupRepairRunning({ appId: id, running: true }));
+    updates = eventChannel<RepairPhase>((emit) => {
+      inspection = inspectBackup(id, repair, (phase) => emit(phase));
+      inspection.then(
+        () => emit(END),
+        () => emit(END)
+      );
+      return () => {};
+    }, buffers.expanding());
     while (true) {
       const phase = yield takeMaybe(updates);
       if (phase === END) break;
@@ -1024,8 +1030,14 @@ function* runBackupInspection(repair: boolean) {
     }
     return finalPhase === 'verified';
   } finally {
-    updates.close();
-    yield put(setBackupRepairRunning({ appId: id, running: false }));
+    updates?.close();
+    // Cancellation closes this listener, but does not stop its shared operation.
+    // Keep ownership until that operation settles, including a queued repair.
+    if (inspection) yield call(() => inspection.catch(() => undefined));
+    const remaining = (backupInspectionOwners.get(id) ?? 1) - 1;
+    if (remaining) backupInspectionOwners.set(id, remaining);
+    else backupInspectionOwners.delete(id);
+    yield put(setBackupRepairRunning({ appId: id, running: remaining > 0 }));
   }
 }
 
