@@ -77,6 +77,7 @@ const signer = (fingerprint, networkType, type = enums.SignerType.COLDCARD, acco
 function fixture(options = {}) {
   const appId = require('crypto').createHash('sha256').update(Buffer.from('ab'.repeat(32), 'hex')).digest('hex');
   const state = {
+    storage: { appId },
     bhr: {
       automaticCloudBackup: true,
       pendingAllBackup: false,
@@ -213,6 +214,12 @@ function fixture(options = {}) {
     semver: require('semver'),
     setupRecoveryKeySigningKey: () => signer('RECOVERY', NetworkType.MAINNET, enums.SignerType.SEED_WORDS),
     applyUpgradeSequence: () => {},
+    refreshWalletsWorker: async () => {
+      calls.push(['sync']);
+      if (options.syncGate) await options.syncGate;
+      if (options.switchAppDuringSync) state.storage.appId = 'another-app';
+      return options.syncFails !== true;
+    },
   };
   const names = [
     'setBackupRepairCompleted',
@@ -235,6 +242,7 @@ function fixture(options = {}) {
     'setAppId',
     'setAppCreated',
     'autoSyncWallets',
+    'checkBackupFreshness',
     'uaiChecks',
     'loadConciergeUser',
     'loadConciergeTickets',
@@ -264,7 +272,7 @@ function fixture(options = {}) {
     functions('src/store/sagas/wallets.ts', [
       'addNewWalletsWorker', 'addSigningDeviceWorker', 'mergeSimilarKeysWorker',
       'updateVaultSignerXprivWorker', 'updateSignerDetailsWorker',
-      'updateKeyDetailsWorker',
+      'updateKeyDetailsWorker', 'autoWalletsSyncWorker',
     ]);
   vm.runInNewContext(
     ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText,

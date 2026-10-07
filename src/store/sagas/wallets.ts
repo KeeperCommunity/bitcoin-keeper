@@ -71,6 +71,7 @@ import {
 } from 'src/utils/utilities';
 import { COLLABORATIVE_SCHEME } from 'src/screens/SigningDevices/SetupCollaborativeWallet';
 import { RootState } from '../store';
+import { checkBackupFreshness } from '../sagaActions/bhr';
 
 import {
   initiateVaultMigration,
@@ -633,7 +634,7 @@ function* refreshWalletsWorker({
   });
 
   try {
-    if (!wallets || wallets.length === 0) return;
+    if (!wallets || wallets.length === 0) return true;
 
     if (!ELECTRUM_CLIENT.isClientConnected) {
       ElectrumClient.resetCurrentPeerIndex();
@@ -882,6 +883,7 @@ function* refreshWalletsWorker({
         yield put(setPendingDustToast(synchedWallet.id));
       }
     } // end for (synchedWalletWithUTXOs)
+    return true;
   } catch (err) {
     if ([ELECTRUM_NOT_CONNECTED_ERR, ELECTRUM_NOT_CONNECTED_ERR_TOR].includes(err?.message)) {
       yield put(
@@ -897,6 +899,7 @@ function* refreshWalletsWorker({
       );
       captureError(err);
     }
+    return false;
   } finally {
     yield put(setSyncing({ wallets, isSyncing: false }));
   }
@@ -907,9 +910,14 @@ export const refreshWalletsWatcher = createWatcher(refreshWalletsWorker, REFRESH
 export function* autoWalletsSyncWorker({
   payload,
 }: {
-  payload: { syncAll?: boolean; hardRefresh?: boolean; addNotifications?: boolean };
+  payload: {
+    syncAll?: boolean;
+    hardRefresh?: boolean;
+    addNotifications?: boolean;
+    backupCheckAppId?: string;
+  };
 }) {
-  const { syncAll, hardRefresh, addNotifications } = payload;
+  const { syncAll, hardRefresh, addNotifications, backupCheckAppId } = payload;
   const wallets: Wallet[] = yield call(dbManager.getObjectByIndex, RealmSchema.Wallet, null, true);
   const vaults: Vault[] = yield call(dbManager.getObjectByIndex, RealmSchema.Vault, null, true);
   const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
@@ -923,8 +931,9 @@ export function* autoWalletsSyncWorker({
   }
   walletsToSync = walletsToSync.filter((wallet) => wallet.networkType === bitcoinNetworkType);
 
+  let refreshSucceeded = true;
   if (walletsToSync.length) {
-    yield call(refreshWalletsWorker, {
+    refreshSucceeded = yield call(refreshWalletsWorker, {
       payload: {
         wallets: walletsToSync,
         options: {
@@ -933,6 +942,20 @@ export function* autoWalletsSyncWorker({
         },
       },
     });
+  }
+  // Check backup freshness only after the refreshed wallet specs are persisted.
+  // A failed refresh or account switch must not verify a stale snapshot.
+  if (backupCheckAppId && refreshSucceeded) {
+    const { appId } = yield select((state: RootState) => state.storage);
+    const { automaticCloudBackup, pendingAllBackup, backupRepairCompletedByAppId = {} } =
+      yield select((state: RootState) => state.bhr);
+    if (
+      appId === backupCheckAppId &&
+      automaticCloudBackup &&
+      (pendingAllBackup || !backupRepairCompletedByAppId[appId])
+    ) {
+      yield put(checkBackupFreshness());
+    }
   }
 }
 
