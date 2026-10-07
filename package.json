@@ -148,8 +148,8 @@
     "@types/react": "19.2.0",
     "@types/react-native": "0.73.0",
     "@types/react-test-renderer": "19.1.0",
-    "@typescript-eslint/eslint-plugin": "5.62.0",
-    "@typescript-eslint/parser": "5.62.0",
+    "@typescript-eslint/eslint-plugin": "^8.36.0",
+    "@typescript-eslint/parser": "^8.36.0",
     "babel-jest": "29.7.0",
     "babel-plugin-module-resolver": "4.1.0",
     "babel-plugin-transform-remove-console": "6.9.4",
@@ -172,7 +172,8 @@
     "react-test-renderer": "19.2.0",
     "redux-mock-store": "1.5.5",
     "rn-nodeify": "github:tradle/rn-nodeify#338d8d6ba8438403093e9409e9a9d88ad884926f",
-    "typescript": "5.0.4"
+    "typescript": "5.0.4",
+    "eslint-plugin-jest": "^29.0.1"
   },
   "resolutions": {},
   "react-native": {
