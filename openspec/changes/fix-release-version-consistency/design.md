@@ -41,6 +41,6 @@ DESIGN.md reviewed: no UI change, so existing typography, colors, components and
 
 ## Open Questions
 
-- Candidate selected: 2.5.15, Android 622, iOS 615. Refresh store baselines before upload.
+- This baseline records 2.6.3, Android 626, iOS 619, matching `release/version.json` and the release guide. R3 is an internal work bucket; any subsequent app delivery needs refreshed store baselines and new version intent before building or uploading.
 - Canonical release source after reconciling iOS and Android published-build provenance.
 - Public APK channel is GitHub Releases with SHA256SUM.asc and KEEPER_DETACHED_SIGN.sign. Existing local keystore certificate matches public APK 2.5.13; PGP signing access remains to be resolved.

@@ -60,5 +60,8 @@ jobs:
       - name: Run recovery regression tests
         run: npm run test:recovery
 
+      - name: Verify checked-out release version consistency
+        run: npm run version:check
+
       - name: Run release and packaged-artifact tests
         run: npm run test:release
