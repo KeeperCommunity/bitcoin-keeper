@@ -108,7 +108,9 @@ Copilot code review is requested automatically for pull requests targeting
 `sprint`. Read its actual comments and check each claim against the changed code
 and relevant tests. Fix valid findings or explain why a comment does not apply
 before requesting final human review. One developer approval remains the code
-review gate. For changes to product behavior, UX, or copy, the product owner
+review gate. GitHub requests Ben and Utkarsh when a PR is ready for review;
+either developer can provide that approval. For changes to product behavior,
+UX, or copy, the product owner
 records separate product signoff in the PR discussion. A PR author's product
 signoff does not count as GitHub's required developer approval.
 
