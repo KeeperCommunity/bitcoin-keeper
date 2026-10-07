@@ -50,7 +50,7 @@ describe('Keeper Desktop AES-GCM wire contract', () => {
     'rejects malformed pairing codes before sending (%s)',
     (key) => {
       expect(() => createCipherGcm(JSON.stringify(vectors.request.plaintext), key)).toThrow(
-        'Invalid Desktop pairing code'
+        InvalidChannelQRCodeError
       );
     }
   );
