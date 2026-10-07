@@ -88,13 +88,16 @@ for (const repair of [false, true]) {
     assert.equal(checked.status, 'fulfilled');
     assert.equal(migrated.status, 'fulfilled');
     assert.equal(migrated.value.updated, true);
+    const heldResponse = events.indexOf(`snapshot-response:${repair ? 2 : 1}`);
+    const acknowledged = events.indexOf('migration-acknowledged');
+    assert.ok(heldResponse >= 0 && acknowledged > heldResponse,
+      'Fingerprint migration must wait for the held backup response');
     if (!repair && checked.value === 'verified') {
       // A read-only retry may verify a new snapshot after queued writes drain.
       // The invalidated first attempt must never publish verified completion.
       assert.deepEqual(f.calls, ['getBackupSnapshot', 'migrateXfps', 'getBackupSnapshot']);
       assert.equal(reads, 2);
       assert.equal(f.phases.filter((phase) => phase === 'verified').length, 1);
-      const acknowledged = events.indexOf('migration-acknowledged');
       const freshRequest = events.indexOf('snapshot-request:2');
       const freshResponse = events.indexOf('snapshot-response:2');
       const verified = events.indexOf('phase:verified');
