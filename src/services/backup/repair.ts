@@ -160,10 +160,12 @@ export function inspectBackup(
     if (active) active.phase = phase;
     listeners.forEach((listener) => listener(phase));
   };
+  let deadline: number;
   const inspectOnce = async (allowRetry: boolean): Promise<RepairPhase | 'retry'> => {
     let stage: InspectionStage = 'local-capture';
     let changedRevision = 0;
-    const deadline = Date.now() + BACKUP_DEADLINE_MS;
+    // One deadline covers both read-only attempts; a retry must not double it.
+    deadline ??= Date.now() + BACKUP_DEADLINE_MS;
     const revision = backupRevision(appId);
     const assertCurrent = () => {
       if (
@@ -301,12 +303,26 @@ export function inspectBackup(
       return 'verified';
     } catch (error) {
       // A routine incremental write can be queued while a read-only check is
-      // running. Retry behind that write once before declaring the check failed.
+      // running. A transient snapshot request can also fail while the backup is
+      // healthy. Retry either case once behind queued writes, within the same
+      // deadline. Never retry a repair, invalid response, or account switch.
+      let accountIsCurrent = false;
+      try {
+        accountIsCurrent = (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id === appId;
+      } catch {
+        // Realm may already be closed during an account switch.
+      }
+      const queuedWriteChanged = changedRevision && backupQueuedRevision(appId) >= changedRevision;
+      const transientSnapshotFailure =
+        stage === 'snapshot-request' &&
+        error instanceof BackupRequestError &&
+        ['http-5xx', 'network', 'timeout'].includes(error.category);
       if (
-        changedRevision &&
         allowRetry &&
         !repair &&
-        backupQueuedRevision(appId) >= changedRevision
+        accountIsCurrent &&
+        Date.now() < deadline &&
+        (queuedWriteChanged || transientSnapshotFailure)
       )
         return 'retry';
       // Only log fixed categories. Errors and responses can contain encrypted

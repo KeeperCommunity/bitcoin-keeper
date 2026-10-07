@@ -41,7 +41,8 @@ function harness(options = {}) {
     if (options.lostResponse) throw Error('response lost after commit');
     return { data: { updated: true } };
   } };
-  const transport = loadModule('src/services/backup/transport.ts', { '../rest/RestClient': rest });
+  const clock = options.now ? { Date: { now: options.now } } : {};
+  const transport = loadModule('src/services/backup/transport.ts', { '../rest/RestClient': rest }, clock);
   const repair = loadModule('src/services/backup/repair.ts', {
     'src/storage/realm/dbManager': db,
     'src/storage/realm/enum': { RealmSchema: new Proxy({}, { get: (_, name) => name }) },
@@ -49,7 +50,7 @@ function harness(options = {}) {
     'src/utils/service-utilities/encryption': encryption,
     'src/utils/utilities': { getKeyUID: s => s.id || s.masterFingerprint, sanitizeSeedKeyForBackup: s => s, sanitizeVaultSignersForSeedKeyBackup: s => s },
     './transport': transport, './image': image,
-  }, { console: { warn: (...args) => diagnostics.push(args) } });
+  }, { ...clock, console: { warn: (...args) => diagnostics.push(args) } });
   return { app, local, remote, calls, phases, diagnostics, transport, repair,
     run: (write = false) => repair.inspectBackup(app.id, write, phase => phases.push(phase)) };
 }
