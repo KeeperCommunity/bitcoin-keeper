@@ -1,6 +1,5 @@
-import { StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { StyleSheet, TouchableOpacity, Animated, Text as NativeText } from 'react-native';
 import React, { useState } from 'react';
-import Text from 'src/components/KeeperText';
 import ScaleSpring from '../Animations/ScaleSpring';
 import ThemedColor from '../ThemedColor/ThemedColor';
 
@@ -23,35 +22,38 @@ const KeyPadButton: React.FC<Props> = ({ title, onPressNumber, keyColor, bubbleE
     setPressed(false);
   };
 
-  return (
-    <ScaleSpring>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={() => onPressNumber(title)}
-        style={styles.keyPadElementTouchable}
-        testID={`key_${title}`}
-      >
-        {bubbleEffect && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.circleEffect,
-              pressed && styles.circleEffectActive,
-              {
-                backgroundColor: keyPad_colors,
-              },
-            ]}
-          />
-        )}
+  const button = (
+    <TouchableOpacity
+      activeOpacity={1}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={() => onPressNumber(title)}
+      style={styles.keyPadElementTouchable}
+      testID={`key_${title}`}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      {bubbleEffect && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.circleEffect,
+            pressed && styles.circleEffectActive,
+            {
+              backgroundColor: keyPad_colors,
+            },
+          ]}
+        />
+      )}
 
-        <Text style={styles.keyPadElementText} color={keyColor}>
-          {title}
-        </Text>
-      </TouchableOpacity>
-    </ScaleSpring>
+      <NativeText allowFontScaling={false} style={[styles.keyPadElementText, { color: keyColor }]}>
+        {title}
+      </NativeText>
+    </TouchableOpacity>
   );
+
+  // The passcode keypad already has press feedback; keep its touch target outside a second gesture.
+  return bubbleEffect ? button : <ScaleSpring>{button}</ScaleSpring>;
 };
 
 const styles = StyleSheet.create({

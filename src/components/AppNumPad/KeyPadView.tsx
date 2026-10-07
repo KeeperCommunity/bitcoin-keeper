@@ -1,5 +1,5 @@
-import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { useColorMode } from '@gluestack-ui/themed-native-base';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import DeleteIcon from 'src/assets/images/deleteLight.svg';
 import DeleteDarkIcon from 'src/assets/images/delete.svg';
 import React from 'react';
@@ -28,9 +28,10 @@ const KeyPadView: React.FC<Props> = ({
 }: Props) => {
   const { colorMode } = useColorMode();
 
+  // Keep keypad rows native so digit targets mount consistently in the iOS renderer.
   return (
-    <Box pointerEvents={disabled ? 'none' : 'auto'} mt="auto">
-      <Box style={styles.keyWrapperView}>
+    <View collapsable={false} pointerEvents={disabled ? 'none' : 'auto'} style={styles.container}>
+      <View collapsable={false} style={styles.keyWrapperView}>
         <KeyPadButton
           title="1"
           onPressNumber={() => onPressNumber('1')}
@@ -49,8 +50,8 @@ const KeyPadView: React.FC<Props> = ({
           keyColor={keyColor}
           bubbleEffect={bubbleEffect}
         />
-      </Box>
-      <Box style={styles.keyWrapperView}>
+      </View>
+      <View collapsable={false} style={styles.keyWrapperView}>
         <KeyPadButton
           title="4"
           onPressNumber={() => onPressNumber('4')}
@@ -69,8 +70,8 @@ const KeyPadView: React.FC<Props> = ({
           keyColor={keyColor}
           bubbleEffect={bubbleEffect}
         />
-      </Box>
-      <Box style={styles.keyWrapperView}>
+      </View>
+      <View collapsable={false} style={styles.keyWrapperView}>
         <KeyPadButton
           title="7"
           onPressNumber={() => onPressNumber('7')}
@@ -89,9 +90,9 @@ const KeyPadView: React.FC<Props> = ({
           keyColor={keyColor}
           bubbleEffect={bubbleEffect}
         />
-      </Box>
-      <Box style={styles.keyWrapperView}>
-        <Box style={styles.emptyBtnView}>
+      </View>
+      <View collapsable={false} style={styles.keyWrapperView}>
+        <View collapsable={false} style={styles.emptyBtnView}>
           {enableDecimal ? (
             <TouchableOpacity
               onPress={() => onPressNumber('.')}
@@ -104,11 +105,11 @@ const KeyPadView: React.FC<Props> = ({
               </Text>
             </TouchableOpacity>
           ) : (
-            <Box style={styles.emptyBtnView}>
+            <View collapsable={false} style={styles.emptyBtnView}>
               <Text style={{ padding: 15 }} />
-            </Box>
+            </View>
           )}
-        </Box>
+        </View>
         <KeyPadButton
           title="0"
           onPressNumber={() => onPressNumber('0')}
@@ -123,12 +124,13 @@ const KeyPadView: React.FC<Props> = ({
         >
           {ClearIcon ? ClearIcon : colorMode === 'dark' ? <DeleteIcon /> : <DeleteDarkIcon />}
         </TouchableOpacity>
-      </Box>
-    </Box>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: { marginTop: 'auto' },
   keyPadElementTouchable: {
     flex: 1,
     height: hp('8%'),
