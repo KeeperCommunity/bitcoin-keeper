@@ -1,4 +1,4 @@
-name: Run Tests
+name: CI
 
 on:
   push:
@@ -16,7 +16,27 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: yarn install --ignore-scripts
+
+      - name: Run lint
+        run: npm run lint
+
   test:
+    name: Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -30,9 +50,6 @@ jobs:
 
       - name: Install dependencies
         run: yarn install
-
-      - name: Run lint
-        run: npm run lint
 
       - name: Run tests
         run: npm run test
