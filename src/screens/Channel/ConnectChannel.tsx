@@ -36,7 +36,7 @@ import useVault from 'src/hooks/useVault';
 import { updateKeyDetails } from 'src/store/sagaActions/wallets';
 import ReceiveAddress from '../Recieve/ReceiveAddress';
 import ReceiveQR from '../Recieve/ReceiveQR';
-import QRScanner from 'src/components/QRScanner';
+import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
 import { getUSBSignerDetails } from 'src/hardware/usbSigner';
 import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { SignerType, VaultType } from 'src/services/wallets/enums';
@@ -53,35 +53,27 @@ import { setShowTipModal } from 'src/store/reducers/settings';
 
 function ScanAndInstruct({ onBarCodeRead, mode, receivingAddress }) {
   const { colorMode } = useColorMode();
-  const [channelCreated, setChannelCreated] = useState(false);
   const { translations } = useContext(LocalizationContext);
   const { settings } = translations;
 
-  const callback = (data) => {
-    let success = onBarCodeRead(data);
-    if (success) {
-      setChannelCreated(true);
-    }
-  };
-
-  return !channelCreated ? (
-    <QRScanner onScanCompleted={callback} />
-  ) : (
-    <VStack>
-      {mode === InteracationMode.ADDRESS_VERIFICATION ? (
-        <Box style={styles.addressContainer}>
-          <ReceiveQR qrValue={receivingAddress} />
-          <ReceiveAddress address={receivingAddress} />
-        </Box>
-      ) : (
-        <VStack marginTop={'40%'}>
-          <Text numberOfLines={2} color={`${colorMode}.greenText`} style={styles.instructions}>
-            {settings.KeeperDesktopApp}
-          </Text>
-          <ActivityIndicator style={{ marginTop: hp(20), alignSelf: 'center', padding: '2%' }} />
-        </VStack>
-      )}
-    </VStack>
+  return (
+    <ChannelRequestScanner onScanCompleted={onBarCodeRead}>
+      <VStack>
+        {mode === InteracationMode.ADDRESS_VERIFICATION ? (
+          <Box style={styles.addressContainer}>
+            <ReceiveQR qrValue={receivingAddress} />
+            <ReceiveAddress address={receivingAddress} />
+          </Box>
+        ) : (
+          <VStack marginTop={'40%'}>
+            <Text numberOfLines={2} color={`${colorMode}.greenText`} style={styles.instructions}>
+              {settings.KeeperDesktopApp}
+            </Text>
+            <ActivityIndicator style={{ marginTop: hp(20), alignSelf: 'center', padding: '2%' }} />
+          </VStack>
+        )}
+      </VStack>
+    </ChannelRequestScanner>
   );
 }
 
