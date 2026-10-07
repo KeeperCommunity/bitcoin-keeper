@@ -51,7 +51,6 @@ import { createWatcher } from '../utilities';
 import { fetchExchangeRates } from '../sagaActions/send_and_receive';
 import { setLoginMethod } from '../reducers/settings';
 import { setSubscription } from 'src/store/sagaActions/settings';
-import { checkBackupFreshness } from '../sagaActions/bhr';
 import { uaiChecks } from '../sagaActions/uai';
 import { applyUpgradeSequence } from './upgrade';
 import { resetSyncing } from '../reducers/wallets';
@@ -228,7 +227,7 @@ function* credentialsAuthWorker({ payload }) {
           // Wallet/node refresh runs through its watcher after local unlock.
           // Waiting for network work here can hold the success modal for 15s.
           yield put(resetSyncing());
-          yield put(autoSyncWallets(false, false, true));
+          yield put(autoSyncWallets(false, false, true, id));
 
           yield put(
             uaiChecks([
@@ -241,15 +240,6 @@ function* credentialsAuthWorker({ payload }) {
             ])
           );
 
-          const {
-            pendingAllBackup,
-            automaticCloudBackup,
-            backupRepairCompletedByAppId = {},
-          } = yield select((state: RootState) => state.bhr);
-          // Check without uploading; a mismatch requires Back Up Now.
-          if (automaticCloudBackup && (pendingAllBackup || !backupRepairCompletedByAppId[id])) {
-            yield put(checkBackupFreshness());
-          }
           if (!allAccounts.length) {
             // upgraded app
             yield put(addAccount(appId));
