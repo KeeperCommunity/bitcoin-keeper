@@ -23,7 +23,6 @@ import useToastMessage from 'src/hooks/useToastMessage';
 import { SignerType } from 'src/services/wallets/enums';
 import useSignerMap from 'src/hooks/useSignerMap';
 import { setStateFromSnapshot } from 'src/store/reducers/send_and_receive';
-import { backupAllSignersAndVaults } from 'src/store/sagaActions/bhr';
 import Fonts from 'src/constants/Fonts';
 import ThemedColor from './ThemedColor/ThemedColor';
 
@@ -164,7 +163,7 @@ const HomeScreenHeader: React.FC<HomeScreenHeaderProps> = ({
     },
     [uaiType.SERVER_BACKUP_FAILURE]: () => {
       dispatch(uaiActioned({ uaiId: localLatestUnseenUai.id, action: false }));
-      dispatch(backupAllSignersAndVaults());
+      navigation.navigate('AssistedBackupStatus');
     },
   };
 

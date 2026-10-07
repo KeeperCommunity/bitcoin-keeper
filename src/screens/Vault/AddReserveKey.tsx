@@ -98,7 +98,7 @@ function AddReserveKey({ route }) {
   const isDarkMode = colorMode === 'dark';
 
   useEffect(() => {
-    if (selectedSigner || keyToRotate) return;
+    if (selectedSigner) return;
 
     if (
       !activeVault?.id ||
@@ -117,7 +117,7 @@ function AddReserveKey({ route }) {
       (key) => key.masterFingerprint === inheritanceKeyFingerprint
     );
 
-    if (inheritanceKey) {
+    if (inheritanceKey && (!keyToRotate || getKeyUID(inheritanceKey) !== getKeyUID(keyToRotate))) {
       setSelectedSigner([inheritanceKey]);
     }
   }, [activeVault?.id, keyToRotate, selectedSigner]);
@@ -156,6 +156,7 @@ function AddReserveKey({ route }) {
       isAddInheritanceKey,
       isAddEmergencyKey,
       hasInitialTimelock,
+      initialTimelockDuration,
       currentBlockHeight,
       onGoBack: (signer) => setSelectedSigner(signer),
     });
@@ -168,6 +169,7 @@ function AddReserveKey({ route }) {
     isAddInheritanceKey,
     isAddEmergencyKey,
     hasInitialTimelock,
+    initialTimelockDuration,
     currentBlockHeight,
   ]);
 
@@ -322,10 +324,10 @@ function AddReserveKey({ route }) {
         inheritanceKeys={
           selectedSigner ? [{ key: selectedSigner[0], duration: selectedOption.label }] : []
         }
-        initialTimelockDuration={initialTimelockDuration ?? 0}
+        initialTimelockDuration={initialTimelockDuration}
         currentBlockHeight={currentBlockHeight}
         miniscriptTypes={[
-          ...(initialTimelockDuration ? [MiniscriptTypes.TIMELOCKED] : []),
+          ...(hasInitialTimelock ? [MiniscriptTypes.TIMELOCKED] : []),
           MiniscriptTypes.INHERITANCE,
         ]}
         setVaultCreatedModalVisible={setVaultCreatedModalVisible}

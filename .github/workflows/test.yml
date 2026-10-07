@@ -6,11 +6,13 @@ on:
       - sprint
       - dev
       - main
+      - release/2.6.3
   pull_request:
     branches:
       - sprint
       - dev
       - main
+      - release/2.6.3
 
 permissions:
   contents: read
@@ -54,3 +56,12 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Run recovery regression tests
+        run: npm run test:recovery
+
+      - name: Verify checked-out release version consistency
+        run: npm run version:check
+
+      - name: Run release and packaged-artifact tests
+        run: npm run test:release

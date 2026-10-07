@@ -98,8 +98,8 @@ android {
         applicationId "io.hexawallet.keeper"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 621
-        versionName "2.3.15"
+        versionCode 626
+        versionName "2.6.3"
         missingDimensionStrategy 'react-native-camera', 'general'
         missingDimensionStrategy 'store', 'play'
         multiDexEnabled true
@@ -115,12 +115,11 @@ android {
 
     signingConfigs {
         release {
-            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
-                storeFile file(MYAPP_RELEASE_STORE_FILE)
-                storePassword MYAPP_RELEASE_STORE_PASSWORD
-                keyAlias MYAPP_RELEASE_KEY_ALIAS
-                keyPassword MYAPP_RELEASE_KEY_PASSWORD
-            }
+            // Release credentials belong in the build environment, never in Git.
+            storeFile file(System.getenv('KEEPER_ANDROID_KEYSTORE') ?: 'release.keystore')
+            storePassword System.getenv('STORE_PASSWORD')
+            keyAlias System.getenv('KEY_ALIAS')
+            keyPassword System.getenv('KEY_PASSWORD')
         }
         debug {
             storeFile file('debug.keystore')
@@ -134,13 +133,16 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.release
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
+            // signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
     productFlavors {
         production {
+            signingConfig signingConfigs.release
             minSdkVersion rootProject.ext.minSdkVersion
             applicationId "io.hexawallet.bitcoinkeeper"
             targetSdkVersion rootProject.ext.targetSdkVersion

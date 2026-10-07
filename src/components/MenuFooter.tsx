@@ -20,21 +20,25 @@ const MenuFooter = ({ selectedOption, onOptionChange }) => {
 
   const menuOptions = [
     {
+      testID: 'home_tab_wallets',
       name: walletTranslation.homeWallets,
       defaultIcon: <WalletIcon />,
       selectedIcon: <ThemedSvg name={'footer_Wallet'} />,
     },
     {
+      testID: 'home_tab_keys',
       name: walletTranslation.keys,
       defaultIcon: <KeyIcon />,
       selectedIcon: <ThemedSvg name={'footer_Key'} />,
     },
     {
+      testID: 'home_tab_ask',
       name: askAi.ask,
       defaultIcon: <ConciergeIcon />,
       selectedIcon: <ThemedSvg name={'footer_concierge'} />,
     },
     {
+      testID: 'home_tab_more',
       name: walletTranslation.more,
       defaultIcon: <MoreIcon />,
       selectedIcon: <ThemedSvg name={'footer_more'} />,
@@ -53,6 +57,7 @@ const MenuFooter = ({ selectedOption, onOptionChange }) => {
         {menuOptions.map((option) => (
           <TouchableOpacity
             key={option.name}
+            testID={option.testID}
             onPress={() => onOptionChange(option.name)}
             style={[styles.menuItem]}
           >

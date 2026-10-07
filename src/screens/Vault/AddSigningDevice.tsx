@@ -243,8 +243,27 @@ const setInitialKeys = (
   keyToRotate
 ) => {
   if (activeVault) {
-    // setting initital keys (update if scheme has changed)
-    const vaultKeys = activeVault.signers.filter(
+    const isEnhancedVault =
+      activeVault.type === VaultType.MINISCRIPT &&
+      activeVault.scheme?.miniscriptScheme?.usedMiniscriptTypes?.some((type) =>
+        [
+          MiniscriptTypes.TIMELOCKED,
+          MiniscriptTypes.INHERITANCE,
+          MiniscriptTypes.EMERGENCY,
+        ].includes(type)
+      );
+    // Select the stored primary K roles before limiting the number of keys.
+    const primaryFingerprints = new Set(
+      Object.entries(
+        activeVault.scheme?.miniscriptScheme?.miniscriptElements?.signerFingerprints || {}
+      )
+        .filter(([identifier]) => /^K[1-9]\d*$/.test(identifier))
+        .map(([, fingerprint]) => fingerprint)
+    );
+    const existingKeys = isEnhancedVault
+      ? activeVault.signers.filter((key) => primaryFingerprints.has(key.masterFingerprint))
+      : activeVault.signers;
+    const vaultKeys = existingKeys.filter(
       (key) => keyToRotate && getKeyUID(key) !== getKeyUID(keyToRotate)
     );
     const isMultisig =
@@ -361,6 +380,7 @@ function Footer({
   isCollaborativeFlow,
   isAssistedWalletFlow,
   hasInitialTimelock,
+  initialTimelockDuration,
   isReserveKeyFlow,
   isEmergencyKeyFlow,
   isAddInheritanceKey,
@@ -409,7 +429,7 @@ function Footer({
           primaryLoading={relayVaultUpdateLoading}
           primaryText={keyToRotate ? 'Replace Key' : common.proceed}
           primaryCallback={
-            !hasInitialTimelock
+            !hasInitialTimelock || initialTimelockDuration !== undefined
               ? !isAddInheritanceKey
                 ? !isAddEmergencyKey
                   ? keyToRotate
@@ -423,11 +443,13 @@ function Footer({
                           isHotWallet,
                           vaultType,
                           hasInitialTimelock,
+                          initialTimelockDuration,
                           isAddInheritanceKey,
                           currentBlockHeight,
                           hotWalletInstanceNum,
                           selectedSigners: signersList,
                           vaultId,
+                          keyToRotate,
                         });
                       }
                   : () =>
@@ -461,8 +483,10 @@ function Footer({
                           isAddInheritanceKey,
                           isAddEmergencyKey,
                           hasInitialTimelock,
+                          initialTimelockDuration,
                           currentBlockHeight,
                           selectedSigners: signersList,
+                          keyToRotate,
                         })
                       )
                 : () =>
@@ -489,8 +513,10 @@ function Footer({
                         isAddInheritanceKey,
                         isAddEmergencyKey,
                         hasInitialTimelock,
+                        initialTimelockDuration,
                         currentBlockHeight,
                         selectedSigners: signersList,
+                        keyToRotate,
                       })
                     )
               : () =>
@@ -504,8 +530,10 @@ function Footer({
                       isAddInheritanceKey,
                       isAddEmergencyKey,
                       hasInitialTimelock,
+                      initialTimelockDuration,
                       currentBlockHeight,
                       selectedSigners: signersList,
+                      keyToRotate,
                     })
                   )
           }
@@ -1174,6 +1202,7 @@ function AddSigningDevice() {
       isNewSchemeFlow?: boolean;
       signerFilters?: SignerType | Array<SignerType>;
       hasInitialTimelock?: boolean;
+      initialTimelockDuration?: string;
     };
   };
   const {
@@ -1191,7 +1220,8 @@ function AddSigningDevice() {
     selectedSignersFromParams,
     isAddInheritanceKey: isAddInheritanceKeyParam = false,
     isAddEmergencyKey: isAddEmergencyKeyParam = false,
-    hasInitialTimelock,
+    hasInitialTimelock: hasInitialTimelockParam,
+    initialTimelockDuration,
     isNewSchemeFlow = false,
     currentBlockHeight,
     signerFilters = [],
@@ -1216,6 +1246,13 @@ function AddSigningDevice() {
   const [vaultKeys, setVaultKeys] = useState<VaultSigner[]>([]);
   const { activeVault, allVaults } = useVault({ vaultId });
   const scheme = isNewSchemeFlow ? schemeParam : activeVault ? activeVault.scheme : schemeParam;
+  // Existing wallets keep their policy requirement even if a caller drops the route flag.
+  const hasInitialTimelock = isNewSchemeFlow
+    ? hasInitialTimelockParam
+    : hasInitialTimelockParam ||
+      activeVault?.scheme?.miniscriptScheme?.usedMiniscriptTypes?.includes(
+        MiniscriptTypes.TIMELOCKED
+      );
   const isAddInheritanceKey = isNewSchemeFlow
     ? isAddInheritanceKeyParam
     : activeVault
@@ -1466,6 +1503,7 @@ function AddSigningDevice() {
           setCreating={setCreating}
           vaultType={vaultType}
           currentBlockHeight={currentBlockHeight}
+          initialTimelockDuration={initialTimelockDuration}
           miniscriptTypes={[
             ...(hasInitialTimelock ? [MiniscriptTypes.TIMELOCKED] : []),
             ...(isAddInheritanceKey ? [MiniscriptTypes.INHERITANCE] : []),
@@ -1519,6 +1557,7 @@ function AddSigningDevice() {
           isAddInheritanceKey={isAddInheritanceKey}
           isAddEmergencyKey={isAddEmergencyKey}
           hasInitialTimelock={hasInitialTimelock}
+          initialTimelockDuration={initialTimelockDuration}
           currentBlockHeight={currentBlockHeight}
           onGoBack={onGoBack}
           vaultKeys={vaultKeys}

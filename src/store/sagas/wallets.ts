@@ -63,9 +63,15 @@ import ElectrumClient, {
 import idx from 'idx';
 import _ from 'lodash';
 import { SyncedWallet } from 'src/services/wallets/interfaces';
-import { checkSignerAccountsMatch, getAccountFromSigner, getKeyUID } from 'src/utils/utilities';
+import {
+  checkSignerAccountsMatch,
+  getAccountFromSigner,
+  getKeyUID,
+  sanitizeSeedKeyForBackup,
+} from 'src/utils/utilities';
 import { COLLABORATIVE_SCHEME } from 'src/screens/SigningDevices/SetupCollaborativeWallet';
 import { RootState } from '../store';
+import { checkBackupFreshness } from '../sagaActions/bhr';
 
 import {
   initiateVaultMigration,
@@ -109,6 +115,7 @@ import {
   deleteVaultImageWorker,
   updateAppImageWorker,
   updateVaultImageWorker,
+  setServerBackupFailed,
 } from './bhr';
 import {
   relaySignersUpdateFail,
@@ -435,20 +442,20 @@ export function* addSigningDeviceWorker({
         multiSigMatch ||
         taprootMatch;
 
-        if (signerMergeCondition) {
-          const { type, signerName } = [SignerType.UNKOWN_SIGNER, SignerType.OTHER_SD].includes(
-            existingSigner.type
-          )
-            ? newSigner
-            : existingSigner;
-          signersToUpdate.push({
-            ...existingSigner,
-            type,
-            signerXpubs: _.merge(existingSigner.signerXpubs, newSigner.signerXpubs),
-            signerName,
-          });
-          continue;
-        }
+      if (signerMergeCondition) {
+        const { type, signerName } = [SignerType.UNKOWN_SIGNER, SignerType.OTHER_SD].includes(
+          existingSigner.type
+        )
+          ? newSigner
+          : existingSigner;
+        signersToUpdate.push({
+          ...existingSigner,
+          type,
+          signerXpubs: _.merge(existingSigner.signerXpubs, newSigner.signerXpubs),
+          signerName,
+        });
+        continue;
+      }
 
       const singleSigDifferent = keysDifferent(XpubTypes.P2WPKH, newSigner, existingSigner);
       const multiSigDifferent = keysDifferent(XpubTypes.P2WSH, newSigner, existingSigner);
@@ -627,7 +634,7 @@ function* refreshWalletsWorker({
   });
 
   try {
-    if (!wallets || wallets.length === 0) return;
+    if (!wallets || wallets.length === 0) return true;
 
     if (!ELECTRUM_CLIENT.isClientConnected) {
       ElectrumClient.resetCurrentPeerIndex();
@@ -725,7 +732,10 @@ function* refreshWalletsWorker({
         }
       }
 
-      if (synchedWallet.entityKind === EntityKind.VAULT && synchedWallet.type === VaultType.CANARY) {
+      if (
+        synchedWallet.entityKind === EntityKind.VAULT &&
+        synchedWallet.type === VaultType.CANARY
+      ) {
         yield put(uaiChecks([uaiType.CANARAY_WALLET]));
       }
 
@@ -800,14 +810,13 @@ function* refreshWalletsWorker({
         }
       }
 
-      const { taintedAddresses, initialTaintAddresses, dustSpendTxids } =
-        classifyDustByAddress(
-          synchedWallet as any,
-          externalAddresses,
-          internalAddresses,
-          manualOverrideAddresses,
-          options.dustScan ? 'full' : 'current'
-        );
+      const { taintedAddresses, initialTaintAddresses, dustSpendTxids } = classifyDustByAddress(
+        synchedWallet as any,
+        externalAddresses,
+        internalAddresses,
+        manualOverrideAddresses,
+        options.dustScan ? 'full' : 'current'
+      );
 
       // Mark UTXOs — only restore snapshot for soft/hard refresh or when user made a manual override;
       // always re-run classification otherwise so reclassification is not blocked.
@@ -860,20 +869,19 @@ function* refreshWalletsWorker({
       }
 
       // Write updated specs (with spendability) back to Realm
-      if (synchedWallet.entityKind === EntityKind.VAULT) {
-        yield call(dbManager.updateObjectById, RealmSchema.Vault, synchedWallet.id, {
-          specs: synchedWallet.specs,
-        });
-      } else {
-        yield call(dbManager.updateObjectById, RealmSchema.Wallet, synchedWallet.id, {
-          specs: synchedWallet.specs,
-        });
-      }
+      const persisted = yield call(
+        dbManager.updateObjectById,
+        synchedWallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet,
+        synchedWallet.id,
+        { specs: synchedWallet.specs }
+      );
+      if (!persisted) throw new Error('Failed to persist refreshed wallet');
 
       if (options.addNotifications && newDustUTXOs.length > 0) {
         yield put(setPendingDustToast(synchedWallet.id));
       }
     } // end for (synchedWalletWithUTXOs)
+    return true;
   } catch (err) {
     if ([ELECTRUM_NOT_CONNECTED_ERR, ELECTRUM_NOT_CONNECTED_ERR_TOR].includes(err?.message)) {
       yield put(
@@ -889,6 +897,7 @@ function* refreshWalletsWorker({
       );
       captureError(err);
     }
+    return false;
   } finally {
     yield put(setSyncing({ wallets, isSyncing: false }));
   }
@@ -899,9 +908,14 @@ export const refreshWalletsWatcher = createWatcher(refreshWalletsWorker, REFRESH
 export function* autoWalletsSyncWorker({
   payload,
 }: {
-  payload: { syncAll?: boolean; hardRefresh?: boolean; addNotifications?: boolean };
+  payload: {
+    syncAll?: boolean;
+    hardRefresh?: boolean;
+    addNotifications?: boolean;
+    backupCheckAppId?: string;
+  };
 }) {
-  const { syncAll, hardRefresh, addNotifications } = payload;
+  const { syncAll, hardRefresh, addNotifications, backupCheckAppId } = payload;
   const wallets: Wallet[] = yield call(dbManager.getObjectByIndex, RealmSchema.Wallet, null, true);
   const vaults: Vault[] = yield call(dbManager.getObjectByIndex, RealmSchema.Vault, null, true);
   const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
@@ -915,8 +929,9 @@ export function* autoWalletsSyncWorker({
   }
   walletsToSync = walletsToSync.filter((wallet) => wallet.networkType === bitcoinNetworkType);
 
+  let refreshSucceeded = true;
   if (walletsToSync.length) {
-    yield call(refreshWalletsWorker, {
+    refreshSucceeded = yield call(refreshWalletsWorker, {
       payload: {
         wallets: walletsToSync,
         options: {
@@ -925,6 +940,20 @@ export function* autoWalletsSyncWorker({
         },
       },
     });
+  }
+  // Check backup freshness only after the refreshed wallet specs are persisted.
+  // A failed refresh or account switch must not verify a stale snapshot.
+  if (backupCheckAppId && refreshSucceeded) {
+    const { appId } = yield select((state: RootState) => state.storage);
+    const { automaticCloudBackup, pendingAllBackup, backupRepairCompletedByAppId = {} } =
+      yield select((state: RootState) => state.bhr);
+    if (
+      appId === backupCheckAppId &&
+      automaticCloudBackup &&
+      (pendingAllBackup || !backupRepairCompletedByAppId[appId])
+    ) {
+      yield put(checkBackupFreshness());
+    }
   }
 }
 
@@ -1176,15 +1205,45 @@ function* updateKeyDetailsWorker({ payload }) {
     if (!updatedFlag) {
       updatedRegsteredVaults.push(value);
     }
-    yield call(dbManager.updateObjectByPrimaryId, RealmSchema.VaultSigner, 'xpub', signer.xpub, {
-      registeredVaults: updatedRegsteredVaults,
-    });
-    return;
+    const saved = yield call(
+      dbManager.updateObjectByPrimaryId,
+      RealmSchema.VaultSigner,
+      'xpub',
+      signer.xpub,
+      { registeredVaults: updatedRegsteredVaults }
+    );
+    if (saved !== true) {
+      yield put(relaySignersUpdateFail('Key registration could not be saved'));
+      return false;
+    }
+    // VaultSigner is shared by every vault using this xpub. Back up each fresh
+    // containing vault so an older copy cannot overwrite the restored metadata.
+    try {
+      const vaults: Vault[] = yield call(dbManager.getCollection, RealmSchema.Vault);
+      for (const vault of vaults) {
+        if (vault.signers.some((key) => key.xpub === signer.xpub)) {
+          const response = yield call(updateVaultImageWorker, {
+            payload: { vault, isUpdate: true },
+          });
+          if (!response?.updated) yield call(setServerBackupFailed);
+        }
+      }
+    } catch (error) {
+      yield call(setServerBackupFailed);
+    }
+    return true;
   }
 
-  yield call(dbManager.updateObjectByPrimaryId, RealmSchema.VaultSigner, 'xpub', signer.xpub, {
-    [key]: value,
-  });
+  const updated = yield call(
+    dbManager.updateObjectByPrimaryId,
+    RealmSchema.VaultSigner,
+    'xpub',
+    signer.xpub,
+    {
+      [key]: value,
+    }
+  );
+  return updated === true;
 }
 
 export const updateKeyDetails = createWatcher(updateKeyDetailsWorker, UPDATE_KEY_DETAILS);
@@ -1364,7 +1423,10 @@ function* mergeSimilarKeysWorker({ payload }: { payload: { signer: Signer } }) {
           RealmSchema.KeeperApp
         );
         const encryptionKey = generateEncryptionKey(primarySeed);
-        const encrytedSigner = encrypt(encryptionKey, JSON.stringify(signer));
+        const encrytedSigner = encrypt(
+          encryptionKey,
+          JSON.stringify(sanitizeSeedKeyForBackup(signer))
+        );
         const updated = yield call(Relay.migrateXfp, id, [
           {
             oldSignerId: s.masterFingerprint,
