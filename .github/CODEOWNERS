@@ -25,12 +25,18 @@
 /src/screens/SignTransaction/SignWithColdCard.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SigningDevices/HandleFileScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/QRScreens/SignWithChannel.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/components/RKSignersModal.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/WalletDetails/SignMessageScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Vault/SigningDeviceDetails.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/services/qr/index.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/SigningDevices/RemoteSharing.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 
 # Recovery Key / seed recovery, encryption and backup primitives.
 /src/store/sagas/storage.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/bhr.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/login.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/Recovery/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/hooks/useConfigReocvery.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SeedScreens/ @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/BackupWallet/ViewRecoveryKeyScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/nativemodules/CloudBackup.ts @ben-kaufman @Parsh @cakesoft-utkarsh
