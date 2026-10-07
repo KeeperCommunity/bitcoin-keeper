@@ -2,15 +2,24 @@
 
 ## Sprint contributor package — 7 October 2026
 
-This focused `sprint` contributor package uses the same public backend pins and
-adapter digests as the earlier sprint PR #7014 and main PR #7026. It changes the
-developer setup hook and adds contributor/security documentation and a
-public-backend CI workflow; it does not modify mobile, dependency or release
-files. Backend/bootstrap verification for this exact branch is recorded with
-its PR checks. Native app builds must be assessed against the selected app
-branch and platform separately.
-The dated sections below preserve earlier sprint and public-source evidence;
-historical private-source failures are not the current public backend result.
+The current contributor package pins public Relay
+`4c54e28738815546718775dbbdb39f0342c1b646` and public SigningServer
+`3cc7728c27328e7b0358d1f91a32d8d13feba90a`, with local adapter checksums in
+`sources.lock.json`. These are newer revisions than the earlier sprint PR #7014
+and main PR #7026. The source locks include Relay snapshot/repair and revision
+guards, compatible SigningServer dependency fixes, and digest-pinned image adapters.
+
+At app commit `19e079ae4486dacf1f79bf5e527384e608872977`, the
+[public-backend CI](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37627727798)
+passed both the SigningServer adapter and full local backend/bootstrap jobs.
+Those checks used these backend pins and exercised local snapshot/repair,
+A → B → A revisions, stale-repair rejection and persistence. Subsequent contributor
+changes have their own PR check results. Native app builds must be assessed
+against the selected app branch and platform separately.
+
+All dated sections below are historical evidence for the exact revisions named
+in those sections. They do not verify the current pins or attribute earlier
+private-source failures to the current public backend.
 
 ## Public Relay transition — 7 October 2026
 

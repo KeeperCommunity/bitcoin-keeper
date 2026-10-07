@@ -70,7 +70,7 @@ app setup use the public Relay source.
 
 The JavaScript install hook only installs the repo's Node compatibility shims. Native dependencies are separate explicit steps below. It no longer runs CocoaPods on Android-only machines or rewrites `android/local.properties` with a Mac-specific path.
 
-If default ports 3000/4002/3003 are occupied, copy `dev/local-backend/.env.example` to `dev/local-backend/.env`, set distinct ports and a unique project name, then run the commands above. Use the same settings for every invocation. Multiple copies using the same Compose project name share containers and volumes; give each independent environment a unique name. `.env.local` must match those ports. Commands work from any directory except the native/Yarn commands, which assume the app root.
+If default ports 3000/4002/3003 are occupied, copy `dev/local-backend/.env.example` to `dev/local-backend/.env`, set distinct ports and a unique project name, then run the commands above. Port 8081 is reserved for Metro and cannot be assigned to a backend service. Use the same settings for every invocation. Multiple copies using the same Compose project name share containers and volumes; give each independent environment a unique name. `.env.local` must match those ports. Commands work from any directory except the native/Yarn commands, which assume the app root.
 
 ## Android
 

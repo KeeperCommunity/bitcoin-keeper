@@ -41,6 +41,8 @@ def settings():
     if not re.fullmatch(r'[a-z0-9][a-z0-9_-]*', values['COMPOSE_PROJECT_NAME']):
         raise ValueError('COMPOSE_PROJECT_NAME must contain lowercase letters, digits, _ or -')
     ports = [int(values[k]) for k in defaults if k.endswith('_PORT')]
+    if 8081 in ports:
+        raise ValueError('Port 8081 is reserved for Metro; choose another backend port')
     if len(set(ports)) != 3 or any(p < 1024 or p > 65535 for p in ports):
         raise ValueError('Choose three distinct ports between 1024 and 65535')
     return {k: values[k] for k in defaults}

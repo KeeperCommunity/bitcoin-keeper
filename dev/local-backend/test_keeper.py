@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 import keeper
+import verify
 
 
 class PreserveDeveloperWork(unittest.TestCase):
@@ -83,6 +84,24 @@ class PreserveDeveloperWork(unittest.TestCase):
         (self.here / '.env').write_text('KEEPER_RELAY_PORT=3003\n')
         with self.assertRaisesRegex(ValueError, 'distinct ports'):
             keeper.settings()
+
+    def test_metro_port_is_reserved_for_each_backend_service(self):
+        for service in ('RELAY', 'CHANNEL', 'SIGNING'):
+            with self.subTest(service=service):
+                (self.here / '.env').write_text(f'KEEPER_{service}_PORT=8081\n')
+                with self.assertRaisesRegex(ValueError, 'reserved for Metro'):
+                    keeper.settings()
+
+    def test_invalid_two_fa_requires_the_pinned_token_failure(self):
+        with patch.object(verify, 'request', return_value={
+                'err': 'Validation failed: verification token is either invalid or has expired'}):
+            verify.verify_invalid_two_fa('3003', {'id': 'disposable-signer'})
+        for unrelated in ({'err': 'Unauthorized request'}, {'err': 'Invalid request schema'},
+                          {'valid': False}, {'valid': True}):
+            with self.subTest(response=unrelated):
+                with patch.object(verify, 'request', return_value=unrelated):
+                    with self.assertRaisesRegex(RuntimeError, 'unrelated error'):
+                        verify.verify_invalid_two_fa('3003', {'id': 'disposable-signer'})
 
     def test_fetch_failure_explains_public_revision_and_cleans_temporary_checkout(self):
         (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {

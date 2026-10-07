@@ -119,6 +119,14 @@ def backup_roundtrip(relay, fixture):
     return final
 
 
+def verify_invalid_two_fa(signing, auth):
+    rejected = request(signing, '/v3/validateSingerSetup',
+                       dict(auth, verificationToken='abcdef'), expected=400)
+    require(rejected.get('err') ==
+            'Validation failed: verification token is either invalid or has expired',
+            'Invalid 2FA check returned an unrelated error')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--persistence', action='store_true', help='Recreate this Compose stack, retaining volumes, and recheck fixtures')
@@ -172,8 +180,7 @@ def main():
         auth['verificationToken'] = token(secret)
     else:
         raise RuntimeError('Created signer did not become readable within 5 seconds')
-    invalid = dict(auth, verificationToken='abcdef')
-    request(signing, '/v3/validateSingerSetup', invalid, expected=400)
+    verify_invalid_two_fa(signing, auth)
     print('PASS testnet signer setup, authorization and valid/invalid 2FA')
     if args.persistence:
         compose('down')
