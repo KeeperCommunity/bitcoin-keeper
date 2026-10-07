@@ -134,14 +134,14 @@ const AddUsdtWallet = () => {
             {usdtWalletText.UsdtPowerdBy}
             <Text
               bold
-              style={styles.link}
+              style={[styles.link]}
               onPress={() => Linking.openURL('https://gasfree.io/home')}
             >
               {'GasFree.io'}
             </Text>{' '}
             {usdtWalletText.keeperDontControl}{' '}
             <Text
-              style={styles.link}
+              style={[styles.link]}
               bold
               onPress={() => Linking.openURL('https://gasfree.io/home')}
             >

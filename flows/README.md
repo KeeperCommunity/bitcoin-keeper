@@ -2,6 +2,16 @@
 
 This directory contains end-to-end UI automation flows for the Keeper app using Maestro.
 
+## USDT Settings route smoke check
+
+`usdt-settings-routes.yaml` starts on Home in an authenticated, disposable development app on TESTNET. It checks Settings > Keys & Wallets > Add USDT Wallet, opens the creation form and the seed import form, and returns without submitting either form. It does not create wallets or make transaction, recovery or backup requests.
+
+```bash
+maestro --udid <disposable-device-id> test flows/usdt-settings-routes.yaml
+```
+
+The default app ID is `io.hexawallet.hexakeeper.dev`; override it with `-e APP_ID=<installed-development-app-id>` when testing a different development package. Do not run against a funded/customer profile. Production USDT entry uses MAINNET; this smoke flow is intended for the development TESTNET fixture.
+
 ## Instructions
 
 Use these flows to validate onboarding, wallet, RGB assets, settings, backup, and recovery journeys on development builds.

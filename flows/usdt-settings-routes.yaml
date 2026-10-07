@@ -1,0 +1,43 @@
+appId: ${APP_ID}
+env:
+  APP_ID: io.hexawallet.hexakeeper.dev
+---
+# Start with an authenticated disposable development/testnet app on Home.
+# This check never submits a wallet, seed, send or backup request.
+- runFlow:
+    when:
+      visible: "Protect Your Recovery Key"
+    commands:
+      - tapOn: "Skip for Now"
+      - extendedWaitUntil:
+          visible: "Skip Backup"
+          timeout: 20000
+      - tapOn: "Skip Backup"
+- assertVisible: "More"
+- tapOn: "More"
+- scrollUntilVisible:
+    element:
+      id: "btn_setting_Add USDT Wallet"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "btn_setting_Add USDT Wallet"
+- assertVisible: ".*Create a new USDT wallet.*"
+- assertVisible: ".*Import Wallet.*"
+- tapOn: ".*Create a new USDT wallet.*"
+- extendedWaitUntil:
+    visible: "Add Your Wallet Details"
+    timeout: 20000
+- assertVisible: "Enter wallet name"
+- assertVisible: "Create Your Wallet"
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: "btn_setting_Add USDT Wallet"
+- tapOn: ".*Import Wallet.*"
+- extendedWaitUntil:
+    visible: "Enter Seed Words"
+    timeout: 20000
+- assertVisible: "Next"
+- tapOn:
+    id: btn_back
