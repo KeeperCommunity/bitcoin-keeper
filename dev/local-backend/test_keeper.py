@@ -36,6 +36,16 @@ class PreserveDeveloperWork(unittest.TestCase):
         self.assertEqual((self.app / '.env.local').read_text(), 'developer-settings\n')
         self.assertEqual(production.read_text(), 'existing-production-sentinel\n')
 
+    def test_swapped_ports_do_not_rewrite_each_other(self):
+        (self.here / 'app.env.local.example').write_text(
+            'RELAY=http://localhost:3000/\nCHANNEL=http://localhost:4002/\n'
+            'SIGNING=http://localhost:3003/\n')
+        (self.here / '.env').write_text('KEEPER_RELAY_PORT=4002\nKEEPER_CHANNEL_PORT=3000\n')
+        keeper.app_env()
+        self.assertEqual((self.app / '.env.local').read_text(),
+                         'RELAY=http://localhost:4002/\nCHANNEL=http://localhost:3000/\n'
+                         'SIGNING=http://localhost:3003/\n')
+
     def test_adapter_tampering_is_rejected_before_fetch(self):
         adapter = self.here / 'adapters/relay'
         adapter.mkdir(parents=True)
@@ -44,6 +54,16 @@ class PreserveDeveloperWork(unittest.TestCase):
             'assets': {'local.patch': hashlib.sha256(b'original').hexdigest()}}}))
         with patch.object(keeper, 'run') as command:
             with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
+                keeper.prepare()
+            command.assert_not_called()
+
+    def test_unlisted_adapter_file_is_rejected_before_fetch(self):
+        adapter = self.here / 'adapters/relay/files'
+        adapter.mkdir(parents=True)
+        (adapter / 'unlisted.js').write_text('unexpected')
+        (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {'assets': {}}}))
+        with patch.object(keeper, 'run') as command:
+            with self.assertRaisesRegex(ValueError, 'file set does not match'):
                 keeper.prepare()
             command.assert_not_called()
 

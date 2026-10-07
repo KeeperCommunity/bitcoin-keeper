@@ -2,7 +2,9 @@
   "relay": {
     "url": "https://github.com/KeeperCommunity/Relay.git",
     "revision": "3e1a01bd2fd5381d8546229922c431ce50bedad4",
-    "assets": {}
+    "assets": {
+      "files/Dockerfile.local": "6dde6c692430b1a91a10cdd82e6f1562023cc5974ffd4d4f58fe57fa1994407a"
+    }
   },
   "signing": {
     "url": "https://github.com/KeeperCommunity/SigningServer.git",

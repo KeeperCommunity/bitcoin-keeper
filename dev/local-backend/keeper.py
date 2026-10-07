@@ -60,6 +60,12 @@ def prepare(only=None):
         if only is not None and name != only:
             continue
         adapter = HERE / 'adapters' / name
+        adapter_files = [path for path in adapter.rglob('*') if path.is_file() or path.is_symlink()]
+        if any(path.is_symlink() for path in adapter_files):
+            raise ValueError(f'{name}: adapter symlinks are not allowed')
+        actual_assets = {path.relative_to(adapter).as_posix() for path in adapter_files}
+        if actual_assets != set(spec['assets']):
+            raise ValueError(f'{name}: adapter file set does not match source lock')
         for asset, digest in spec['assets'].items():
             if hashlib.sha256((adapter / asset).read_bytes()).hexdigest() != digest:
                 raise ValueError(f'{name}: adapter checksum mismatch: {asset}')
@@ -87,8 +93,9 @@ def prepare(only=None):
                                  'No existing checkout was replaced.') from error
             run(['git', '-C', checkout, 'checkout', '--quiet', '--detach', spec['revision']])
             if spec['assets']:
-                run(['git', '-C', checkout, 'apply', '--check', adapter / 'local.patch'])
-                run(['git', '-C', checkout, 'apply', adapter / 'local.patch'])
+                if (adapter / 'local.patch').exists():
+                    run(['git', '-C', checkout, 'apply', '--check', adapter / 'local.patch'])
+                    run(['git', '-C', checkout, 'apply', adapter / 'local.patch'])
                 for asset in (adapter / 'files').rglob('*'):
                     if asset.is_file():
                         dest = checkout / asset.relative_to(adapter / 'files')
@@ -101,8 +108,10 @@ def prepare(only=None):
 def app_env():
     config = settings()
     template = (HERE / 'app.env.local.example').read_text()
-    for port, name in [('3000', 'RELAY'), ('4002', 'CHANNEL'), ('3003', 'SIGNING')]:
-        template = template.replace(f':{port}/', f':{config[f"KEEPER_{name}_PORT"]}/')
+    ports = {'3000': config['KEEPER_RELAY_PORT'],
+             '4002': config['KEEPER_CHANNEL_PORT'],
+             '3003': config['KEEPER_SIGNING_PORT']}
+    template = re.sub(r':(3000|4002|3003)/', lambda match: f':{ports[match.group(1)]}/', template)
     dest = APP / '.env.local'
     if dest.exists():
         if dest.read_text() != template:
