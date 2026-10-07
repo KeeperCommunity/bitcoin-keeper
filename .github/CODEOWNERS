@@ -1,10 +1,19 @@
 # Security-sensitive Bitcoin Keeper code.
 #
-# Changes matching these paths require review from at least one core developer:
-# @ben-kaufman, @Parsh, or @cakesoft-utkarsh.
+# Policy: one independent human approval from any ONE of these developers:
+# Ben (@ben-kaufman), Parsh (@Parsh), or Utkarsh (@cakesoft-utkarsh).
+# The PR author cannot approve their own change. Copilot is not a human approval.
 #
-# Keep this list intentionally narrow. Routine UI, copy, docs, and non-security
-# changes should not require a code-owner review.
+# CODEOWNERS requests reviewers; mandatory approval also requires GitHub branch
+# protection/ruleset enforcement. Dismiss stale approvals after code changes.
+# Keep general required approvals at zero so unrelated PRs do not require a
+# human review; enable code-owner review for the mapped paths and verify both
+# an owned-file PR and an unowned-file PR before declaring enforcement active.
+#
+# No catch-all owner: unrelated UI, copy, docs and assets remain unowned.
+# GitHub matches files, not intent: even cosmetic edits in an owned file require
+# owner approval. New security-sensitive implementations outside this map must
+# extend it in the same PR and receive an independent core-developer review.
 
 # Protect the review policy itself.
 /.github/CODEOWNERS @ben-kaufman @Parsh @cakesoft-utkarsh
@@ -17,6 +26,7 @@
 # Hardware signer integrations and signing protocols.
 /src/hardware/ @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/services/qr/bc-ur-registry/ @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/services/qr/bbqr/ @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/services/backend/SigningServer.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SignTransaction/signWithSD.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SignTransaction/SignerModals.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
@@ -26,15 +36,19 @@
 /src/screens/SigningDevices/HandleFileScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/QRScreens/SignWithChannel.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/components/RKSignersModal.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/components/QRScanner.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/WalletDetails/SignMessageScreen.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/Vault/SigningDeviceDetails.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/services/qr/index.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SigningDevices/RemoteSharing.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Home/InititalAppController.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 
 # Recovery Key / seed recovery, encryption and backup primitives.
 /src/store/sagas/storage.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/bhr.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/login.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/services/backend/Relay.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/components/Modal/PasscodeVerify.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/Recovery/ @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/hooks/useConfigReocvery.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/screens/SeedScreens/ @ben-kaufman @Parsh @cakesoft-utkarsh
@@ -46,12 +60,16 @@
 /src/utils/service-utilities/utils.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/utils/utilities.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 
-# Spend construction, UTXO handling and wallet state changes.
+# Spend construction, UTXO handling, authentication and wallet state changes.
 /src/store/sagas/send_and_receive.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/wallets.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/utxos.ts @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Send/AddSendAmount.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Send/CustomPriorityModal.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
+/src/screens/Send/SendConfirmation.tsx @ben-kaufman @Parsh @cakesoft-utkarsh
 
-# Wallet data migrations and security-critical wallet/vault schemas.
+# Wallet data migrations, secret-persistence boundaries and critical schemas.
+/src/store/store.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/migrations.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/store/sagas/upgrade.ts @ben-kaufman @Parsh @cakesoft-utkarsh
 /src/storage/realm/migrations.ts @ben-kaufman @Parsh @cakesoft-utkarsh
