@@ -1,7 +1,86 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { fixture, enums, encryption, wallet, loadModule } = require('./sagaHarness.cjs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const { fixture, enums, encryption, wallet, loadModule, functions } = require('./sagaHarness.cjs');
 const { NetworkType, WalletType } = enums;
+
+function refreshFixture(kind, rejectWrite = false) {
+  const f = fixture({ bhr: { pendingAllBackup: true } });
+  const original = {
+    ...wallet('refresh-persistence', NetworkType.MAINNET),
+    entityKind: kind === 'Vault' ? enums.EntityKind.VAULT : enums.EntityKind.WALLET,
+    specs: {
+      receivingAddress: 'before-refresh',
+      confirmedUTXOs: [], unconfirmedUTXOs: [], transactions: [],
+      addresses: { external: {}, internal: {} },
+    },
+  };
+  f.collections[kind].push(original);
+  f.scope.getJSONFromRealmObject = (value) => JSON.parse(JSON.stringify(value));
+  f.scope.ELECTRUM_CLIENT = { isClientConnected: true };
+  f.scope.WalletUtilities.getNetworkByType = () => ({});
+  f.scope.WalletOperations = { syncWalletsViaElectrumClient: async () => {
+    const synced = f.scope.getJSONFromRealmObject(original);
+    synced.specs.receivingAddress = 'after-refresh';
+    synced.specs.hasNewUpdates = true;
+    return { synchedWallets: [{ synchedWallet: synced, newUTXOs: [] }] };
+  } };
+  f.scope.classifyDustByAddress = () => ({
+    taintedAddresses: new Set(), initialTaintAddresses: new Set(), dustSpendTxids: new Set(),
+  });
+  f.scope.setSyncing = (payload) => ({ type: 'setSyncing', payload });
+  f.scope.setElectrumNotConnectedErr = (payload) => ({ type: 'setElectrumNotConnectedErr', payload });
+  f.scope.ELECTRUM_NOT_CONNECTED_ERR = 'offline';
+  f.scope.ELECTRUM_NOT_CONNECTED_ERR_TOR = 'tor-offline';
+  f.errors = [];
+  f.scope.captureError = (error) => f.errors.push(error);
+  const persist = f.scope.dbManager.updateObjectById;
+  f.writes = [];
+  f.scope.dbManager.updateObjectById = (schema, id, patch) => {
+    f.writes.push(schema);
+    return rejectWrite ? false : persist(schema, id, patch);
+  };
+  vm.runInNewContext(ts.transpileModule(
+    functions('src/store/sagas/wallets.ts', ['refreshWalletsWorker']),
+    { compilerOptions: { target: ts.ScriptTarget.ES2020 } }
+  ).outputText, f.scope);
+  return f;
+}
+
+for (const kind of ['Wallet', 'Vault']) {
+  test(`${kind}: rejected refresh persistence returns failure and clears syncing`, async () => {
+    const f = refreshFixture(kind, true);
+    assert.equal(await f.run('refreshWalletsWorker', {
+      payload: { wallets: f.collections[kind], options: { hardRefresh: true } },
+    }), false);
+    assert.deepEqual(f.writes, [kind]);
+    assert.equal(f.collections[kind][0].specs.receivingAddress, 'before-refresh');
+    assert.deepEqual(f.actions.filter((action) => action.type === 'setSyncing')
+      .map((action) => action.payload.isSyncing), [true, false]);
+    assert.equal(f.errors.length, 1);
+    assert.ok(f.actions.some((action) => action.type === 'setElectrumNotConnectedErr' &&
+      action.payload.includes('Failed to persist refreshed wallet')));
+  });
+
+  test(`${kind}: login never inspects stale specs after rejected refresh persistence`, async () => {
+    const f = refreshFixture(kind, true);
+    await f.run('autoWalletsSyncWorker', { payload: { backupCheckAppId: f.app.id } });
+    assert.deepEqual(f.writes, [kind]);
+    assert.equal(f.collections[kind][0].specs.receivingAddress, 'before-refresh');
+    assert.equal(f.actions.some((action) => action.type === 'checkBackupFreshness'), false);
+    assert.equal(f.state.bhr.pendingAllBackup, true);
+  });
+
+  test(`${kind}: login inspects backup only after successful refresh persistence`, async () => {
+    const f = refreshFixture(kind);
+    await f.run('autoWalletsSyncWorker', { payload: { backupCheckAppId: f.app.id } });
+    assert.deepEqual(f.writes, [kind]);
+    assert.equal(f.collections[kind][0].specs.receivingAddress, 'after-refresh');
+    assert.equal(f.actions.filter((action) => action.type === 'checkBackupFreshness').length, 1);
+    assert.equal(f.errors.length, 0);
+  });
+}
 
 test('login backup inspection waits for wallet refresh to finish', async () => {
   let finishSync;

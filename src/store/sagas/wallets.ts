@@ -869,15 +869,13 @@ function* refreshWalletsWorker({
       }
 
       // Write updated specs (with spendability) back to Realm
-      if (synchedWallet.entityKind === EntityKind.VAULT) {
-        yield call(dbManager.updateObjectById, RealmSchema.Vault, synchedWallet.id, {
-          specs: synchedWallet.specs,
-        });
-      } else {
-        yield call(dbManager.updateObjectById, RealmSchema.Wallet, synchedWallet.id, {
-          specs: synchedWallet.specs,
-        });
-      }
+      const persisted = yield call(
+        dbManager.updateObjectById,
+        synchedWallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet,
+        synchedWallet.id,
+        { specs: synchedWallet.specs }
+      );
+      if (!persisted) throw new Error('Failed to persist refreshed wallet');
 
       if (options.addNotifications && newDustUTXOs.length > 0) {
         yield put(setPendingDustToast(synchedWallet.id));

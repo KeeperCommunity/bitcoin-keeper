@@ -142,7 +142,7 @@ export default class Relay {
     err?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}migrateXfps`, { appId, signerChanges });
+      const res = await backupPost(`${RELAY}migrateXfps`, { appId, signerChanges });
       const data = res.data || res.json;
       return data;
     } catch (err) {
