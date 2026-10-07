@@ -56,6 +56,11 @@ not prerequisites for contributing.
    [Android](android/fastlane/README.md) and [iOS](ios/fastlane/README.md) release
    workflows separately from local development.
 
+`sprint` is the shared integration branch. Maintainers may use a temporary
+release branch while a specific app version is stabilized. Carry fixes made on
+that branch back into `sprint` so the shared development line stays current;
+then follow the reviewed `dev` to `main` release promotion used by the project.
+
 For backend development, bootstrap creates ignored checkouts under
 `dev/local-backend/.sources/`. Save backend work in a branch/patch and submit it to
 the appropriate backend repository; an app PR does not include those ignored
