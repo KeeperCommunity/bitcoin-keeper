@@ -2,11 +2,12 @@ name: ${COMPOSE_PROJECT_NAME:-keeper-contributor}
 services:
   mongo:
     image: mongo:7.0@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    command: [mongod, --replSet, keeper-local, --bind_ip_all]
     volumes:
       - mongo-data:/data/db
     networks: [local-only]
     healthcheck:
-      test: [CMD, mongosh, --quiet, --eval, "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      test: [CMD, mongosh, --quiet, --eval, "try { rs.status(); } catch (e) { if (e.code !== 94) throw e; rs.initiate({_id: 'keeper-local', members: [{_id: 0, host: 'mongo:27017'}]}); } quit(db.hello().isWritablePrimary ? 0 : 1)"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -19,7 +20,7 @@ services:
       ENVIRONMENT: DEVELOPMENT
       BITCOIN_NETWORK: TESTNET
       VERSION: local-development
-      DATABASE_URL: mongodb://mongo:27017/keeper_local
+      DATABASE_URL: mongodb://mongo:27017/keeper_local?replicaSet=keeper-local
       PORT: "3000"
       WS_PORT: "4002"
       HEXA_ID: keeper-local-only
@@ -47,7 +48,7 @@ services:
       VERSION: local-development
       HEXA_ID: keeper-local-only
       BIT_ADMIN_KEY: keeper-local-admin-only
-      LOCAL_DATABASE_URL: mongodb://mongo:27017/keeper_signing_local
+      LOCAL_DATABASE_URL: mongodb://mongo:27017/keeper_signing_local?replicaSet=keeper-local
       RELAY: http://relay:3000/
       MNEMONIC_IDENTIFIER_V2: local-signer-v2
       MNEMONIC_IDENTIFIER_V3: local-signer-v3

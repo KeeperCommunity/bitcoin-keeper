@@ -5,6 +5,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import struct
 import subprocess
 import sys
@@ -75,6 +76,31 @@ def boundaries():
     print('PASS mainnet and hosted database configuration rejected')
 
 
+def backup_roundtrip(relay, fixture):
+    snapshot = request(relay, '/getBackupSnapshot', {'appId': fixture})
+    require(snapshot.get('exists') is True and
+            re.fullmatch(r'[a-f0-9]{64}', snapshot.get('revision', '')),
+            'Created app backup snapshot unavailable')
+    replacement = {'appId': fixture, 'publicId': fixture, 'version': '2.6.3',
+                   'expectedRevision': snapshot['revision'],
+                   'walletObject': {'qa': 'synthetic-encrypted-wallet'},
+                   'signersObject': {}, 'vaultObject': {}, 'nodes': [], 'labels': []}
+    result = request(relay, '/repairAppBackup', replacement)
+    require(result.get('updated') is True, 'Revisioned backup repair failed')
+    repaired = request(relay, '/getBackupSnapshot', {'appId': fixture})
+    require(repaired.get('revision') != snapshot['revision'] and
+            repaired.get('appImage', {}).get('wallets', {}).get('qa') ==
+            replacement['walletObject']['qa'], 'Backup repair did not persist its image')
+    stale = dict(replacement, walletObject={'qa': 'stale-replacement-must-not-persist'})
+    result = request(relay, '/repairAppBackup', stale, expected=409)
+    require(result.get('updated') is False and result.get('error') == 'BACKUP_CHANGED',
+            'Stale backup revision was accepted')
+    require(request(relay, '/getBackupSnapshot', {'appId': fixture}) == repaired,
+            'Rejected stale repair changed the backup')
+    print('PASS revisioned backup create/read and stale-revision preservation')
+    return repaired
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--persistence', action='store_true', help='Recreate this Compose stack, retaining volumes, and recheck fixtures')
@@ -106,6 +132,8 @@ def main():
             app['appImage'].get('publicId') == fixture and app['appImage'].get('_id'),
             'Persisted app record round trip failed')
     print('PASS relay app record create/read')
+    backup = backup_roundtrip(relay, fixture)
+    app = request(relay, '/getAppImage', {'appId': fixture})
     rejected = request(signing, '/v3/setupSigner', {'HEXA_ID': 'invalid'}, expected=400)
     require(rejected.get('err') == 'Unauthorized request', 'Signing authorization failed')
     result = request(signing, '/v3/setupSigner', {'HEXA_ID': 'keeper-local-only', 'policy': {'verification': {'method': 'TWO_FA'},
@@ -134,6 +162,8 @@ def main():
         compose('up', '-d', '--wait', '--wait-timeout', '180')
         health(relay, signing)
         require(request(relay, '/getAppImage', {'appId': fixture}) == app, 'App data changed after recreation')
+        require(request(relay, '/getBackupSnapshot', {'appId': fixture}) == backup,
+                'Revisioned backup changed after recreation')
         auth['verificationToken'] = token(secret)
         restored = request(signing, '/v3/fetchSignerSetup', auth)
         require(restored.get('valid') is True and restored.get('xpub') == data['bhXpub'], 'Signing identity changed after recreation')

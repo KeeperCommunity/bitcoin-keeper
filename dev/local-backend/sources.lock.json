@@ -1,14 +1,14 @@
 {
   "relay": {
     "url": "https://github.com/KeeperCommunity/Relay.git",
-    "revision": "3e1a01bd2fd5381d8546229922c431ce50bedad4",
+    "revision": "af3248acb9548a6e03eb3d1ee13b2f24d8a47651",
     "assets": {
       "files/Dockerfile.local": "6dde6c692430b1a91a10cdd82e6f1562023cc5974ffd4d4f58fe57fa1994407a"
     }
   },
   "signing": {
     "url": "https://github.com/KeeperCommunity/SigningServer.git",
-    "revision": "b82dc4f4a8f75676b70b12545d59c7906556a92b",
+    "revision": "3cc7728c27328e7b0358d1f91a32d8d13feba90a",
     "assets": {
       "files/.dockerignore": "78d9a1e03c57cfc1c7fb79ff2335aa2393bb075d0ac4a23feae81371728190be",
       "files/Dockerfile.local": "04a0bfca3903eb1363f8804b7c181424747c949aed543a89fe7a02316ccafa3d",

@@ -131,7 +131,7 @@ Skip `simctl boot` if already booted. Keep simulator signing enabled so the app 
 ./dev/local-backend/verify-local.sh --persistence --boundaries
 ```
 
-This recreates only the selected Compose project's containers, retains its volumes, and compares the same app record and testnet signing public key. It also checks startup rejection of mainnet and hosted databases. Run when no other test is using that project. Ordinary `verify` does not restart containers. Every verify run adds a disposable app/signer fixture to the local database; no testnet coins are needed and no transaction is sent. Tokens and private keys are not printed.
+This recreates only the selected Compose project's containers, retains its volumes, and compares the same app record, revisioned backup and testnet signing public key. It verifies backup snapshot reads, transactional repair and rejection of stale revisions, and checks startup rejection of mainnet and hosted databases. Run when no other test is using that project. Ordinary `verify` does not restart containers. Every verify run adds a disposable app/signer fixture and synthetic encrypted backup records to the local database; no testnet coins are needed and no transaction is sent. Tokens and private keys are not printed.
 
 For native smoke testing: launch the development app, complete onboarding with a disposable wallet, unlock, open Wallets and More Options, and select testnet before testing network functionality. An API smoke pass does not prove wallet backup/recovery or a real signing transaction.
 
@@ -157,6 +157,8 @@ The relay health field `signing: false` describes the relay, not the separate si
 `adapters/signing/` contains the local-mode modifications for the pinned public SigningServer source; `adapters/relay/` pins its local build image. `.sources/` is generated and ignored. Bootstrap never overwrites an existing checkout; reruns preserve local backend edits. After editing a backend, rerun `up` to rebuild. To change pins/adapters, save your backend edits and move the generated checkout aside first. Do not deploy the development adapters to production.
 
 Only the gateway publishes host ports, all on `127.0.0.1`. Mongo, relay and signing share an internal network with no external egress; the gateway also has a host-access network. Compose waits on service health, following [Docker's startup ordering](https://docs.docker.com/compose/how-tos/startup-order/). Build-time dependency downloads still use the internet. Mobile native integrations are outside Docker; this is not a fully offline mobile mode.
+
+Mongo starts as the single-member `keeper-local` replica set required by the backup API's transactions. Its idempotent health check initializes a new local volume and waits for a writable primary. Existing local data volumes are retained; a standalone Mongo server cannot exercise transactional backup repair.
 
 Signing identities are randomly generated per signing volume and stored with restricted permissions. Use disposable test wallets. Keep the Mongo and signing volumes together: deleting signing keys invalidates their stored Server Key records. There is deliberately no automatic reset/delete command. `docker compose down --volumes` is destructive and not part of normal setup. Do not distribute databases, keys, email captures, `.env` files or native signing credentials with the source.
 
