@@ -104,6 +104,13 @@ and test evidence. They may request revisions or additional tests, and decide
 whether a change is accepted. Only authorized maintainers merge and release
 official builds. Contributors do not need release permissions to participate.
 
+Copilot code review is requested automatically for pull requests targeting
+`sprint`. Read its actual comments and check each claim against the changed code
+and relevant tests. Fix valid findings or explain why a comment does not apply
+before requesting final human review. A developer's approval remains the code
+review gate. The product owner may record product signoff in the PR discussion;
+signoff from the PR author does not count as GitHub's required approval.
+
 Some existing CI checks use maintainer-managed services or secrets. If a check is
 unavailable on a fork PR, report it in the PR so maintainers can arrange review;
 do not request production secrets or treat an unavailable check as passing.
