@@ -89,8 +89,8 @@ private-source failures to the current public backend.
 - Removed the public contributor-access issue template. Access instructions now
   use private intake/internal tracking, matching the owner's policy. Added
   `HANDOFF.md` for independent-machine setup and separate pass/fail/untested reports.
-- Five bootstrap regression tests, strict contributor OpenSpec validation, ten
-  local documentation links and diff whitespace checks: PASS.
+- Five bootstrap regression tests, ten local documentation links and diff
+  whitespace checks: PASS.
 - Restarted this Mac's existing Colima profile and ran the documented `dev up`
   against the same pinned sources, existing disposable project/volumes and build
   caches. Health, Socket.IO, explicit unsupported-route failure, app create/read
@@ -130,8 +130,8 @@ GitHub read access reused. Project `keeper-readiness-proof` used ports
 - V3 testnet Server Key setup, authorization and valid/invalid 2FA: PASS.
 - Container recreation preserves the same app record and derived signer public
   key: PASS. Mainnet/hosted database startup rejection: PASS.
-- Five bootstrap regression tests: PASS. Active contributor OpenSpec validation:
-  PASS. Both backend test jobs and current-source scans pass in their own CI;
+- Five bootstrap regression tests: PASS. Both backend test jobs and
+  current-source scans pass in their own CI;
   their history scans remain failing, tracked privately.
 - Updated native development builds: iOS PASS after replacing a stale local
   Node path; Android PASS after selecting the installed JDK 17 (976 tasks, 58
@@ -256,7 +256,6 @@ Apple Silicon Mac, macOS 26.6.2, Xcode 26.4/iOS 26.4 simulator, Node 25.9.0, Yar
 | iOS More Options | PASS, simulator navigation and screenshot inspected |
 | Node/Mongo/nginx pinned image manifests | PASS, each includes Linux amd64 and arm64 |
 | Existing release version consistency | PASS, unchanged 2.5.15 / Android 622 / iOS 615 |
-| Strict OpenSpec validation | PASS |
 
 Native apps use a separate Metro process on port 8082 during this acceptance run, preserving the existing developer's Metro on 8081. Android's dev-server host is set to localhost with device port 8081 forwarded to host 8082. Ordinary single-checkout instructions use port 8081.
 
@@ -272,11 +271,13 @@ Native apps use a separate Metro process on port 8082 during this acceptance run
 
 ## Reproduce checks
 
+The earlier contributor OpenSpec change is not included in this checkout. Its
+validation is not a reproducible acceptance check for this source package.
+
 ```sh
 ./dev/local-backend/dev up
 ./dev/local-backend/verify-local.sh --persistence --boundaries
 python3 -B -m unittest discover -s dev/local-backend -p test_keeper.py
-npx --no-install openspec validate package-contributor-development --strict
 ```
 
 The acceptance logs and emulator fixtures remain on the maintainer's machine outside the source package. Do not include local databases, generated signing identities, recovery material or captured emails in a source review or handoff archive.

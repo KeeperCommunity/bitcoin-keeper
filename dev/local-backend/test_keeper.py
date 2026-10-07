@@ -68,6 +68,21 @@ class PreserveDeveloperWork(unittest.TestCase):
                 keeper.prepare()
             command.assert_not_called()
 
+    def test_adapter_symlinks_are_rejected_before_fetch_even_when_listed(self):
+        adapter = self.here / 'adapters/relay/files'
+        adapter.mkdir(parents=True)
+        target = self.app / 'outside-adapter.js'
+        target.write_text('fixture')
+        (adapter / 'link.js').symlink_to(target)
+        for assets in ({}, {'files/link.js': hashlib.sha256(b'fixture').hexdigest()}):
+            with self.subTest(listed=bool(assets)):
+                (self.here / 'sources.lock.json').write_text(json.dumps({
+                    'relay': {'assets': assets}}))
+                with patch.object(keeper, 'run') as command:
+                    with self.assertRaisesRegex(ValueError, 'symlinks are not allowed'):
+                        keeper.prepare()
+                    command.assert_not_called()
+
     def test_unknown_existing_checkout_is_not_overwritten(self):
         source = self.here / '.sources/relay'
         source.mkdir(parents=True)
