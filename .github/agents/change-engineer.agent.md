@@ -133,6 +133,10 @@ git commit -m "chore: archive <name>"
 and moves the change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Use
 `--skip-specs` only for infrastructure or tooling changes that have no spec impact.
 
+Read and follow [the pull request review policy](../REVIEW_POLICY.md). Use the PR template,
+select the appropriate Copilot effort before requesting review or marking ready, and record actual review
+evidence. Keep the independent human approval requirement.
+
 Then open the PR:
 - Title: `feat: <description>` or `fix: <description> (closes #<N>)`
 - Body: link to the issue + paste the archived `proposal.md` Intent and Scope (or the
