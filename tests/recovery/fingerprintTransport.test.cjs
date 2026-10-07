@@ -21,6 +21,7 @@ function relay(transport, rest = { post: () => assert.fail('Migration bypassed b
 for (const repair of [false, true]) {
   test(`fingerprint migration waits for ${repair ? 'repair readback' : 'inspection'} and invalidates its completion`, async (t) => {
     let armed = false, reads = 0, release, entered;
+    const events = [];
     const readGate = new Promise((resolve) => { release = resolve; });
     const readStarted = new Promise((resolve) => { entered = resolve; });
     t.after(() => release());
@@ -30,19 +31,26 @@ for (const repair of [false, true]) {
       .update(JSON.stringify({ remote: f.remote, vaults, labels })).digest('hex');
     f = harness({
       post: async ({ path }) => {
-        if (armed && path.endsWith('getBackupSnapshot') && ++reads === (repair ? 2 : 1)) {
-          entered();
-          await readGate;
+        if (armed && path.endsWith('getBackupSnapshot')) {
+          events.push(`snapshot-request:${++reads}`);
+          if (reads === (repair ? 2 : 1)) {
+            entered();
+            await readGate;
+          }
         }
       },
       adapter: (path, payload, config) => {
         assert.ok(config.signal, 'Every backup request must use bounded transport');
-        if (path === 'getBackupSnapshot') return { data: {
-          appImage: f.remote, allVaultImages: vaults, labels, revision: revision(),
-        } };
+        if (path === 'getBackupSnapshot') {
+          if (armed) events.push(`snapshot-response:${reads}`);
+          return { data: {
+            appImage: f.remote, allVaultImages: vaults, labels, revision: revision(),
+          } };
+        }
         if (path === 'migrateXfps') {
           assert.equal(payload.appId, f.app.id);
           assert.deepEqual(JSON.parse(JSON.stringify(payload.signerChanges)), signerChanges);
+          events.push('migration-acknowledged');
           return { data: { updated: true } };
         }
         assert.equal(path, 'repairAppBackup');
@@ -63,7 +71,10 @@ for (const repair of [false, true]) {
     f.calls.length = 0;
     f.phases.length = 0;
     armed = true;
-    const checking = f.run(repair);
+    const checking = f.repair.inspectBackup(f.app.id, repair, (phase) => {
+      f.phases.push(phase);
+      events.push(`phase:${phase}`);
+    });
     await readStarted;
     const previousRevision = f.transport.backupRevision(f.app.id);
     const migration = relay(f.transport).migrateXfp(f.app.id, signerChanges);
@@ -75,13 +86,27 @@ for (const repair of [false, true]) {
     assert.equal(requestedRevision, previousRevision + 1);
     assert.equal(migrationStartedDuringCheck, false);
     assert.equal(checked.status, 'fulfilled');
-    assert.equal(checked.value, 'unverified');
-    assert.equal(f.phases.includes('verified'), false);
     assert.equal(migrated.status, 'fulfilled');
     assert.equal(migrated.value.updated, true);
-    assert.deepEqual(f.calls, repair
-      ? ['getBackupSnapshot', 'repairAppBackup', 'getBackupSnapshot', 'migrateXfps']
-      : ['getBackupSnapshot', 'migrateXfps']);
+    if (!repair && checked.value === 'verified') {
+      // A read-only retry may verify a new snapshot after queued writes drain.
+      // The invalidated first attempt must never publish verified completion.
+      assert.deepEqual(f.calls, ['getBackupSnapshot', 'migrateXfps', 'getBackupSnapshot']);
+      assert.equal(reads, 2);
+      assert.equal(f.phases.filter((phase) => phase === 'verified').length, 1);
+      const acknowledged = events.indexOf('migration-acknowledged');
+      const freshRequest = events.indexOf('snapshot-request:2');
+      const freshResponse = events.indexOf('snapshot-response:2');
+      const verified = events.indexOf('phase:verified');
+      assert.ok(acknowledged >= 0 && freshRequest > acknowledged);
+      assert.ok(freshResponse > freshRequest && verified > freshResponse);
+    } else {
+      assert.equal(checked.value, 'unverified');
+      assert.equal(f.phases.includes('verified'), false);
+      assert.deepEqual(f.calls, repair
+        ? ['getBackupSnapshot', 'repairAppBackup', 'getBackupSnapshot', 'migrateXfps']
+        : ['getBackupSnapshot', 'migrateXfps']);
+    }
   });
 }
 
