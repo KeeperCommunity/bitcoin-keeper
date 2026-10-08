@@ -2153,6 +2153,8 @@
     "psbtMissingSignature": "This PSBT does not include a signature for the selected signer"
   },
   "usdtWalletText": {
+    "pausedTitle": "Some USDT options are paused",
+    "pausedBody": "New USDT wallets, buying, selling and swapping are unavailable for now. Your existing wallet, address, balance and transaction history remain here.",
     "pickWalletType": "Pick Your Wallet Type",
     "selectCurrency": "Select the currency you would like to use",
     "bitcoinWallet": "Bitcoin Wallet",

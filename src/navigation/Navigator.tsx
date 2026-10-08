@@ -154,10 +154,8 @@ import SetupAdditionalServerKey from 'src/screens/SigningDevices/SetupAdditional
 import { MultiUserScreen } from 'src/screens/AppSettings/MultiUserScreen';
 import { AddMultipleXpubFiles } from 'src/screens/AddSigner/AddMultipleXpubFiles';
 import { SignMessageScreen } from 'src/screens/WalletDetails/SignMessageScreen';
-import AddUsdtWallet from 'src/screens/USDT/UsdtAddWallet';
 import UsdtDetails from 'src/screens/USDT/UsdtDetails';
 import RecieveUsdt from 'src/screens/USDT/RecieveUsdt';
-import BuyUstd from 'src/screens/USDT/BuyUstd';
 import SendUsdt from 'src/screens/USDT/SendUsdt';
 import UsdtAmount from 'src/screens/USDT/UsdtAmount';
 import UsdtSendConfirmation from 'src/screens/USDT/UsdtSendConfirmation';
@@ -170,8 +168,6 @@ import KeeperSupport from 'src/screens/KeeperConcierge/KeeperSupport';
 import Advisors from 'src/screens/Advisors/Advisors';
 import FilterAdvisor from 'src/screens/Advisors/FilterAdvisor';
 import AdvisorDetail from 'src/screens/Advisors/AdvisorDetail';
-import { Swaps } from 'src/screens/Home/components/buyBtc/Swap/Swaps';
-import { SwapDetails } from 'src/screens/Home/components/buyBtc/Swap/SwapDetails';
 import { SwapHistory } from 'src/screens/Home/components/buyBtc/Swap/SwapHistory';
 import { SwapHistoryDetail } from 'src/screens/Home/components/buyBtc/Swap/SwapHistoryDetail';
 import { SwapAllHistory } from 'src/screens/Home/components/buyBtc/Swap/SwapAllHistory';
@@ -295,10 +291,8 @@ function AppStack() {
         <Stack.Screen name="AdditionalUsers" component={AdditionalUsers} />
         <Stack.Screen name="ServerKeySuccessScreen" component={ServerKeySuccessScreen} />
         <Stack.Screen name="SetupAdditionalServerKey" component={SetupAdditionalServerKey} />
-        <Stack.Screen name="addUsdtWallet" component={AddUsdtWallet} />
         <Stack.Screen name="usdtDetails" component={UsdtDetails} />
         <Stack.Screen name="usdtReceive" component={RecieveUsdt} />
-        <Stack.Screen name="buyUstd" component={BuyUstd} />
         <Stack.Screen name="sendUsdt" component={SendUsdt} />
         <Stack.Screen name="usdtAmount" component={UsdtAmount} />
         <Stack.Screen name="usdtSendConfirmation" component={UsdtSendConfirmation} />
@@ -384,8 +378,6 @@ function AppStack() {
         <Stack.Screen name="Advisors" component={Advisors} />
         <Stack.Screen name="FilterAdvisor" component={FilterAdvisor} />
         <Stack.Screen name="AdvisorDetail" component={AdvisorDetail} />
-        <Stack.Screen name="Swaps" component={Swaps} />
-        <Stack.Screen name="SwapDetails" component={SwapDetails} />
         <Stack.Screen name="SwapHistory" component={SwapHistory} />
         <Stack.Screen name="SwapHistoryDetail" component={SwapHistoryDetail} />
         <Stack.Screen name="SwapAllHistory" component={SwapAllHistory} />

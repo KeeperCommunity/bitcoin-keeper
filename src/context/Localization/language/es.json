@@ -2134,6 +2134,8 @@
     "psbtMissingSignature": "This PSBT does not include a signature for the selected signer"
   },
   "usdtWalletText": {
+    "pausedTitle": "Algunas opciones de USDT están pausadas",
+    "pausedBody": "Por ahora no se pueden crear nuevas carteras de USDT ni comprar, vender o intercambiar USDT. Tu cartera, dirección, saldo e historial de transacciones siguen aquí.",
     "pickWalletType": "Pick Your Wallet Type",
     "selectCurrency": "Select the currency you would like to use",
     "bitcoinWallet": "Bitcoin Wallet",
