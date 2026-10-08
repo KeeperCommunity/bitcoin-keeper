@@ -15,11 +15,9 @@ class AndroidInputTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             env = root / ".env.production"
-            approved = root / "approved-env-names.txt"
             env.write_text("ENVIRONMENT=production\nUNREVIEWED_TOKEN=private-example-value\n")
-            approved.write_text("ENVIRONMENT\n")
             with self.assertRaises(MODULE.InputError) as caught:
-                MODULE.check_env_names(env, approved)
+                MODULE.check_env_names(env, ["ENVIRONMENT"])
             self.assertIn("UNREVIEWED_TOKEN", str(caught.exception))
             self.assertNotIn("private-example-value", str(caught.exception))
 
@@ -27,14 +25,11 @@ class AndroidInputTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             env = root / ".env.production"
-            approved = root / "approved-env-names.txt"
             env.write_text("ENVIRONMENT=production\n")
-            approved.write_text("ENVIRONMENT\nRELAY\n")
             with self.assertRaisesRegex(MODULE.InputError, "missing environment names: RELAY"):
-                MODULE.check_env_names(env, approved)
-            approved.write_text("ENVIRONMENT\nENVIRONMENT\n")
-            with self.assertRaisesRegex(MODULE.InputError, "duplicate approved name"):
-                MODULE.check_env_names(env, approved)
+                MODULE.check_env_names(env, ["ENVIRONMENT", "RELAY"])
+            with self.assertRaisesRegex(MODULE.InputError, "duplicate pinned environment name"):
+                MODULE.check_env_names(env, ["ENVIRONMENT", "ENVIRONMENT"])
 
     def test_external_or_root_dependency_symlink_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
