@@ -34,6 +34,7 @@ export type HelpAiThread = {
   lastEscalationStage: string;
   chatMeta: HelpChatMetadata | null;
   issueCount: number;
+  failedMessageId: string | null;
 };
 
 type HelpAiState = {
@@ -66,6 +67,7 @@ const makeThread = (conversationId: string): HelpAiThread => ({
   lastEscalationStage: 'none',
   chatMeta: null,
   issueCount: 1,
+  failedMessageId: null,
 });
 
 const findOrCreateThread = (state: HelpAiState, conversationId: string) => {
@@ -153,6 +155,13 @@ const helpAiSlice = createSlice({
       thread.issueCount += 1;
       thread.updatedAt = new Date().toISOString();
     },
+    setHelpAiFailedMessageId: (
+      state,
+      action: PayloadAction<{ conversationId: string; messageId: string | null }>
+    ) => {
+      const thread = findOrCreateThread(state, action.payload.conversationId);
+      thread.failedMessageId = action.payload.messageId;
+    },
   },
 });
 
@@ -166,6 +175,7 @@ export const {
   setHelpAiEscalationStage,
   setHelpAiChatMeta,
   incrementHelpAiIssueCount,
+  setHelpAiFailedMessageId,
 } = helpAiSlice.actions;
 
 const helpAiPersistConfig = {
