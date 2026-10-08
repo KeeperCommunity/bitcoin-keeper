@@ -118,10 +118,10 @@ Detailed findings remain private.
 
 ## Fresh backend readiness integration
 
-Updated pins: relay `5f59876b43fba1be9091657a6bf3389ce43831d0`, signing
-`5ad45119ab014ea58efecabd54702b488d8fd254`. New app worktree, newly fetched
-backend sources and new Docker volumes; host image/package caches and existing
-GitHub read access reused. Project `keeper-readiness-proof` used ports
+This earlier private-backend readiness run used private Relay and SigningServer
+revisions, separate from the current public source pins. New app worktree, newly
+fetched backend sources and new Docker volumes; host image/package caches and
+existing GitHub read access reused. Project `keeper-readiness-proof` used ports
 23000/24002/23003, preserving other development projects.
 
 - Source fetch, adapter checksums/application and container builds: PASS.
