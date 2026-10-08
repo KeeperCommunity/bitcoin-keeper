@@ -40,7 +40,7 @@ Push a new dev build to Slack
 [bundle exec] fastlane android live
 ```
 
-Push a new live build to Slack and internal track on Play Store
+Build explicitly versioned production artifacts and upload to Play internal testing
 
 ----
 

@@ -11,9 +11,19 @@ import { KeeperApp } from 'src/models/interfaces/KeeperApp';
 import { createWatcher } from '../utilities';
 import { getJSONFromRealmObject } from 'src/storage/realm/utils';
 
-import { ADD_LABELS, BULK_UPDATE_LABELS, IMPORT_LABELS, MARK_UTXO_SPENDABILITY } from '../sagaActions/utxos';
+import {
+  ADD_LABELS,
+  BULK_UPDATE_LABELS,
+  IMPORT_LABELS,
+  MARK_UTXO_SPENDABILITY,
+} from '../sagaActions/utxos';
 import { resetState, setSyncingUTXOError, setSyncingUTXOs } from '../reducers/utxos';
-import { checkBackupCondition, setServerBackupFailed } from './bhr';
+import {
+  checkBackupCondition,
+  setServerBackupFailed,
+  updateAppImageWorker,
+  updateVaultImageWorker,
+} from './bhr';
 import { encrypt, generateEncryptionKey, hash256 } from 'src/utils/service-utilities/encryption';
 
 export function* addLabelsWorker({
@@ -217,30 +227,47 @@ export function* markUTXOSpendabilityWorker({
   try {
     const { wallet, txId, vout, spendability } = payload;
 
-    const schema =
-      wallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet;
+    const schema = wallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet;
 
     const storedWallet: any = yield call(dbManager.getObjectById, schema, wallet.id);
     if (!storedWallet) return;
 
     // Deep plain-JS copy so Realm embedded lists are proper arrays
-    const walletJSON = getJSONFromRealmObject(storedWallet);
+    const walletJSON = getJSONFromRealmObject(storedWallet) as unknown as Wallet | Vault;
     const specs = walletJSON.specs;
     const allUTXOArrays: Array<'confirmedUTXOs' | 'unconfirmedUTXOs'> = [
       'confirmedUTXOs',
       'unconfirmedUTXOs',
     ];
+    let changed = false;
 
     for (const arrayKey of allUTXOArrays) {
       const utxoArray: any[] = specs[arrayKey] || [];
       const idx = utxoArray.findIndex((u: any) => u.txId === txId && u.vout === vout);
       if (idx !== -1) {
+        if (utxoArray[idx].isManualOverride && utxoArray[idx].spendability === spendability) return;
         utxoArray[idx] = { ...utxoArray[idx], spendability, isManualOverride: true };
+        changed = true;
         break;
       }
     }
 
-    yield call(dbManager.updateObjectById, schema, wallet.id, { specs });
+    if (!changed) return;
+    const persisted = yield call(dbManager.updateObjectById, schema, wallet.id, { specs });
+    if (persisted !== true) return;
+    // Persist the user's choice first, then invalidate/refresh Assisted Server
+    // Backup through its normal opt-in/offline-aware incremental path.
+    try {
+      const response =
+        schema === RealmSchema.Vault
+          ? yield call(updateVaultImageWorker, {
+              payload: { vault: walletJSON as Vault, isUpdate: true },
+            })
+          : yield call(updateAppImageWorker, { payload: { wallets: [walletJSON as Wallet] } });
+      if (!response?.updated) yield call(setServerBackupFailed);
+    } catch {
+      yield call(setServerBackupFailed);
+    }
   } catch (e) {
     console.log('markUTXOSpendabilityWorker error:', e);
   }

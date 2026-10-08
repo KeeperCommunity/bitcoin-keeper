@@ -33,7 +33,7 @@ type KeeperApp = {
 
 export const ViewRecoveryKeyScreen = ({ navigation }) => {
   const { colorMode } = useColorMode();
-  const { home: homeTxt, common, BackupWallet: backupTxt } = useContext(LocalizationContext).translations;
+  const { home: homeTxt, common, BackupWallet: backupTxt, recoveryBackup } = useContext(LocalizationContext).translations;
   const { primaryMnemonic, id: appId } = useQuery(RealmSchema.KeeperApp).map(
     getJSONFromRealmObject
   )[0] as KeeperApp;
@@ -47,13 +47,18 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
   const { showToast } = useToastMessage();
 
   useEffect(() => {
-    if (backupAllSuccess || backupAllFailure) {
+    if (backupAllSuccess) {
       dispatch(setBackupAllSuccess(false));
       dispatch(setBackupAllFailure(false));
       dispatch(setAutomaticCloudBackup(true));
       setLoader(false);
       showToast(backupTxt.recoveryKeyBackedUpSuccessfully, <TickIcon />);
       navigation.goBack();
+    }
+    if (backupAllFailure) {
+      dispatch(setBackupAllFailure(false));
+      setLoader(false);
+      showToast(recoveryBackup.unverified.title);
     }
   }, [backupAllSuccess, backupAllFailure]);
 

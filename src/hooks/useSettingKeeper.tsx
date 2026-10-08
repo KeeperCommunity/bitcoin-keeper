@@ -262,7 +262,7 @@ export const useSettingKeeper = () => {
       title: settings.assistedServerBackup,
       description: settings.assistedServerBackupSubtitle,
       icon: <CloudBackupIcon width={14} height={14} />,
-      onPress: debouncedAutomaticBackupToggle,
+      onPress: () => navigation.navigate('AssistedBackupStatus'),
       rightIcon: isOnL2Above ? (
         <Switch onValueChange={debouncedAutomaticBackupToggle} value={automaticCloudBackup} />
       ) : (
