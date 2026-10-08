@@ -135,4 +135,35 @@ describe('wallet and Vault list snapshots', () => {
     expect((seen.activeVault as any)?.specs.balances.confirmed).toBe(50);
     act(() => tree.unmount());
   });
+
+  test('ID selection keeps order and survives an empty-to-populated route update', () => {
+    const first = makeManaged('first');
+    const hidden = makeManaged('hidden', {
+      presentationData: { name: 'hidden', visibility: VisibilityType.HIDDEN },
+    });
+    wallets = [first, hidden];
+    let seen: any[] = [];
+    const Probe = ({ walletIds = [] }: { walletIds?: string[] }) => {
+      seen = useWallets({ walletIds }).wallets;
+      return null;
+    };
+    let tree: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = TestRenderer.create(<Probe />);
+    });
+    expect(seen.map((wallet) => wallet.id)).toEqual(['first']);
+
+    act(() => tree.update(<Probe walletIds={['hidden', 'first', 'hidden']} />));
+    expect(seen.map((wallet) => wallet.id)).toEqual(['hidden', 'first', 'hidden']);
+    expect(hidden.toJSON).toHaveBeenCalledTimes(2);
+    act(() => tree.update(<Probe walletIds={['hidden', 'first', 'hidden']} />));
+    expect(hidden.toJSON).toHaveBeenCalledTimes(2);
+
+    network = undefined as any;
+    act(() => tree.update(<Probe walletIds={['hidden']} />));
+    expect(seen[0]).toBe(hidden);
+    act(() => tree.update(<Probe />));
+    expect(seen.map((wallet) => wallet.id)).toEqual(['first']);
+    act(() => tree.unmount());
+  });
 });
