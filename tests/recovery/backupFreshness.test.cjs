@@ -3,6 +3,33 @@ const assert = require('node:assert/strict');
 const { fixture, enums, encryption, wallet, loadModule } = require('./sagaHarness.cjs');
 const { NetworkType, WalletType } = enums;
 
+test('login backup inspection waits for wallet refresh to finish', async () => {
+  let finishSync;
+  const syncGate = new Promise((resolve) => { finishSync = resolve; });
+  const f = fixture({ bhr: { pendingAllBackup: true }, syncGate });
+  f.collections.Wallet.push(wallet('pending', NetworkType.MAINNET));
+  const running = f.run('autoWalletsSyncWorker', {
+    payload: { syncAll: false, hardRefresh: false, addNotifications: true, backupCheckAppId: f.app.id },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(f.calls.map(([type]) => type), ['sync']);
+  assert.equal(f.actions.some((action) => action.type === 'checkBackupFreshness'), false);
+  finishSync();
+  await running;
+  assert.equal(f.actions.filter((action) => action.type === 'checkBackupFreshness').length, 1);
+});
+
+test('failed refresh and account switch do not verify backup freshness', async () => {
+  for (const option of ['syncFails', 'switchAppDuringSync']) {
+    const f = fixture({ bhr: { pendingAllBackup: true }, [option]: true });
+    f.collections.Wallet.push(wallet('pending', NetworkType.MAINNET));
+    await f.run('autoWalletsSyncWorker', {
+      payload: { backupCheckAppId: f.app.id },
+    });
+    assert.equal(f.actions.some((action) => action.type === 'checkBackupFreshness'), false);
+  }
+});
+
 for (const network of [NetworkType.MAINNET, NetworkType.TESTNET]) {
   test(`wallet added after initial backup survives encrypted restore: ${network}`, async () => {
     const f = fixture();

@@ -21,7 +21,7 @@ function harness(options = {}) {
   const remote = { appId: app.id, wallets: {}, signers: {}, nodes: [], vaults: [], labels: [] };
   let vaults = [], labels = [];
   const revision = () => require('node:crypto').createHash('sha256').update(JSON.stringify({remote,vaults,labels})).digest('hex');
-  const calls = [], phases = [];
+  const calls = [], phases = [], diagnostics = [];
   const db = { getObjectByIndex: (schema) => schema === 'KeeperApp' ? app : local[schema] };
   const rest = { post: async (path, payload, _headers, config) => {
     calls.push(path.replace('fixture/', ''));
@@ -31,6 +31,7 @@ function harness(options = {}) {
       if (options.readError) throw Error('offline');
       return { data: options.response || { appImage: remote, allVaultImages: vaults, labels, revision: revision() } };
     }
+    if (path.endsWith('updateAppImage')) return { data: { updated: true } };
     if (payload.expectedRevision !== revision()) throw Error('Backup changed');
     if (options.reject) return { data: { updated: false } };
     remote.wallets = { ...payload.walletObject }; remote.signers = { ...payload.signersObject }; remote.nodes = payload.nodes;
@@ -40,7 +41,8 @@ function harness(options = {}) {
     if (options.lostResponse) throw Error('response lost after commit');
     return { data: { updated: true } };
   } };
-  const transport = loadModule('src/services/backup/transport.ts', { '../rest/RestClient': rest });
+  const clock = options.now ? { Date: { now: options.now } } : {};
+  const transport = loadModule('src/services/backup/transport.ts', { '../rest/RestClient': rest }, clock);
   const repair = loadModule('src/services/backup/repair.ts', {
     'src/storage/realm/dbManager': db,
     'src/storage/realm/enum': { RealmSchema: new Proxy({}, { get: (_, name) => name }) },
@@ -48,8 +50,8 @@ function harness(options = {}) {
     'src/utils/service-utilities/encryption': encryption,
     'src/utils/utilities': { getKeyUID: s => s.id || s.masterFingerprint, sanitizeSeedKeyForBackup: s => s, sanitizeVaultSignersForSeedKeyBackup: s => s },
     './transport': transport, './image': image,
-  });
-  return { app, local, remote, calls, phases, transport, repair,
+  }, { ...clock, console: { warn: (...args) => diagnostics.push(args) } });
+  return { app, local, remote, calls, phases, diagnostics, transport, repair,
     run: (write = false) => repair.inspectBackup(app.id, write, phase => phases.push(phase)) };
 }
 const wallet = (id = 'wallet', networkType = 'MAINNET') => ({ id, networkType, type: 'DEFAULT',

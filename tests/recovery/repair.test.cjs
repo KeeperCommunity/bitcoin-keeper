@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { encryption, image, makeImage, harness, wallet } = require('./helpers.cjs');
+const { encryption, image, makeImage, harness, wallet, loadModule } = require('./helpers.cjs');
 
 test('upgrade check detects omissions without uploading; explicit repair verifies readback', async () => {
   const f = harness(); f.local.Wallet.push(wallet());
@@ -19,6 +19,300 @@ for (const failure of ['readError','reject','corruptWrite']) test(`${failure} ne
   const f = harness({ [failure]: true }); f.local.Wallet.push(wallet());
   assert.equal(await f.run(true), 'unverified'); assert.ok(!f.phases.includes('verified'));
   if (failure === 'readError') assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
+test('read-only failure identifies its stage without logging error contents or backup identifiers', async () => {
+  const f = harness({ adapter: async () => { throw Error('private-fixture-identifier'); } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request', 'other']]);
+  assert.ok(!JSON.stringify(f.diagnostics).includes('private-fixture-identifier'));
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
+for (const [error, category] of [
+  [{ response: { status: 404, data: 'private-fixture-identifier' }, config: { headers: { Authorization: 'private-fixture-identifier' } } }, 'http-4xx'],
+  [{ response: { status: 503, data: 'private-fixture-identifier' } }, 'http-5xx'],
+  [{ code: 'ECONNABORTED', message: 'private-fixture-identifier' }, 'timeout'],
+  [{ code: 'ERR_NETWORK', message: 'private-fixture-identifier' }, 'network'],
+]) test(`snapshot transport diagnostics classify ${category} without request data`, async () => {
+  const f = harness({ adapter: async () => { throw error; } });
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request', category]]);
+  assert.ok(!JSON.stringify(f.diagnostics).includes('private-fixture-identifier'));
+});
+
+for (const [error, category] of [
+  [{ response: { status: 503, data: 'private-fixture-identifier' } }, 'http-5xx'],
+  [{ code: 'ERR_NETWORK', message: 'private-fixture-identifier' }, 'network'],
+  [{ code: 'ECONNABORTED', message: 'private-fixture-identifier' }, 'timeout'],
+]) test(`read-only ${category} failure retries once and verifies the existing backup without upload`, async () => {
+  let calls = 0;
+  const f = harness({ post: async ({ path }) => {
+    if (path.endsWith('getBackupSnapshot') && ++calls === 1) throw error;
+  } });
+  assert.equal(await f.run(), 'verified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'verified']);
+  assert.deepEqual(f.diagnostics, []);
+});
+
+for (const os of ['ios', 'android']) test(`${os} RestClient preserves the read-only retry and abortable transport`, async () => {
+  const requests = [];
+  const rest = loadModule('src/services/rest/RestClient.ts', {
+    axios: { post: async (path, body, options) => {
+      requests.push({ path, body, options });
+      if (requests.length === 1) throw { code: 'ERR_NETWORK' };
+      return { data: {
+        appImage: { appId: 'disposable', wallets: {}, signers: {}, nodes: [], vaults: [], labels: [] },
+        allVaultImages: [], labels: [], revision: 'a'.repeat(64),
+      } };
+    } },
+    'react-native-device-info': { getVersion: () => 'fixture', getBuildNumber: () => 'fixture' },
+    'react-native': { Platform: { OS: os } },
+    'src/utils/service-utilities/config': { HEXA_ID: 'fixture-only' },
+  }).default;
+  const f = harness({ adapter: (path, body, options) => rest.post(path, body, undefined, options) });
+  assert.equal(await f.run(), 'verified');
+  assert.deepEqual(requests.map(({ path }) => path), ['getBackupSnapshot', 'getBackupSnapshot']);
+  for (const { body, options } of requests) {
+    assert.deepEqual(Object.keys(body), ['appId']);
+    assert.equal(options.headers.os, os);
+    assert.equal(options.signal.aborted, false);
+    assert.equal(typeof options.onDownloadProgress, 'function');
+  }
+});
+
+test('read-only retry shares the first attempt deadline', async () => {
+  let now = 0, reads = 0;
+  const f = harness({ now: () => now, post: async ({ path }) => {
+    if (path.endsWith('getBackupSnapshot')) {
+      now += 300_000;
+      if (++reads === 1) throw { code: 'ERR_NETWORK' };
+    }
+  } });
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'unverified']);
+});
+
+test('expired inspection makes no transient retry', async () => {
+  let now = 0;
+  const f = harness({ now: () => now, post: async () => {
+    now = 600_000;
+    throw { code: 'ERR_NETWORK' };
+  } });
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
+test('persistent network failures stop after one read-only retry', async () => {
+  const f = harness({ adapter: async () => { throw { code: 'ERR_NETWORK' }; } });
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'unverified']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-request', 'network']]);
+});
+
+test('4xx responses and invalid snapshots never retry', async () => {
+  for (const options of [
+    { adapter: async () => { throw { response: { status: 404 } }; } },
+    { response: { revision: 'a'.repeat(64) } },
+  ]) {
+    const f = harness(options);
+    assert.equal(await f.run(), 'unverified');
+    assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  }
+});
+
+for (const [name, change] of [
+  ['wrong account', (response) => { response.appImage.appId = 'another-account'; }],
+  ['invalid wallet collection', (response) => { response.appImage.wallets = 1; }],
+  ['invalid signer collection', (response) => { response.appImage.signers = []; }],
+  ['non-string record', (response) => { response.appImage.wallets.wallet = 42; }],
+  ['missing referenced vault', (response) => { response.appImage.vaults = ['missing']; }],
+  ['vault ID mismatch', (response, key) => {
+    response.appImage.vaults = ['other'];
+    response.allVaultImages = [{ vaultId: 'other', vault: encryption.encrypt(key, JSON.stringify({ id: 'vault' })) }];
+  }],
+  ['invalid decrypted record type', (response, key) => {
+    response.appImage.wallets.wallet = encryption.encrypt(key, '42');
+  }],
+]) test(`snapshot ${name} reports validation failure without retry or upload`, async () => {
+  const options = {};
+  const f = harness(options);
+  const response = {
+    revision: 'a'.repeat(64),
+    appImage: { appId: f.app.id, wallets: {}, signers: {}, nodes: [], vaults: [], labels: [] },
+    allVaultImages: [], labels: [],
+  };
+  change(response, encryption.generateEncryptionKey(f.app.primarySeed));
+  options.response = response;
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-validation', 'non-transport']]);
+});
+
+test('invalid decrypted JSON reports decryption failure without retry or upload', async () => {
+  const options = {};
+  const f = harness(options);
+  options.response = {
+    revision: 'a'.repeat(64),
+    appImage: {
+      appId: f.app.id,
+      wallets: { wallet: encryption.encrypt(encryption.generateEncryptionKey(f.app.primarySeed), '{') },
+      signers: {}, nodes: [], vaults: [], labels: [],
+    },
+    allVaultImages: [], labels: [],
+  };
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-decryption', 'non-transport']]);
+});
+
+test('legacy registered empty Relay image remains recoverable, but nonempty arrays are invalid', async () => {
+  const { prepareRecoveryImage } = loadModule('src/services/backup/restore.ts', { './image': image });
+  const f = harness();
+  const key = encryption.generateEncryptionKey(f.app.primarySeed);
+  for (const signers of [undefined, []]) {
+    const recovered = await prepareRecoveryImage(
+      key, f.app.id, { appId: f.app.id, wallets: [], signers, nodes: [] }, [], []
+    );
+    assert.deepEqual(JSON.parse(JSON.stringify(recovered)), makeImage());
+  }
+  for (const malformed of [{ wallets: ['ciphertext'] }, { signers: ['ciphertext'] }]) {
+    await assert.rejects(
+      prepareRecoveryImage(
+        key, f.app.id,
+        { appId: f.app.id, wallets: [], signers: [], nodes: [], ...malformed }, [], []
+      ),
+      (error) => error instanceof image.BackupSnapshotValidationError
+    );
+  }
+});
+
+test('recovery rejects duplicate decrypted wallet IDs despite different stored keys', async () => {
+  const { prepareRecoveryImage } = loadModule('src/services/backup/restore.ts', { './image': image });
+  const f = harness();
+  const key = encryption.generateEncryptionKey(f.app.primarySeed);
+  const encrypted = encryption.encrypt(key, JSON.stringify(wallet()));
+  await assert.rejects(
+    prepareRecoveryImage(
+      key, f.app.id,
+      { appId: f.app.id, wallets: { first: encrypted, second: encrypted }, signers: {}, nodes: [] },
+      [], []
+    ),
+    (error) => error instanceof image.BackupSnapshotValidationError &&
+      error.message === 'Duplicate or unidentified backup record'
+  );
+});
+
+for (const [name, keyedWallets] of [
+  ['aliased wallet key', [['old-key', wallet('wallet')]]],
+  ['swapped wallet keys', [['one', wallet('two')], ['two', wallet('one')]]],
+]) test(`inspection rejects ${name} while recovery can still salvage records`, async () => {
+  const options = {};
+  const f = harness(options);
+  const key = encryption.generateEncryptionKey(f.app.primarySeed);
+  f.local.Wallet.push(...keyedWallets.map(([, record]) => record));
+  const appImage = {
+    appId: f.app.id,
+    wallets: Object.fromEntries(keyedWallets.map(([storedId, record]) =>
+      [storedId, encryption.encrypt(key, JSON.stringify(record))]
+    )),
+    signers: {}, nodes: [], vaults: [], labels: [],
+  };
+  options.response = { revision: 'a'.repeat(64), appImage, allVaultImages: [], labels: [] };
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-validation', 'non-transport']]);
+
+  const { prepareRecoveryImage } = loadModule('src/services/backup/restore.ts', { './image': image });
+  const recovered = await prepareRecoveryImage(key, f.app.id, appImage, [], []);
+  assert.deepEqual(Object.keys(recovered.wallets).sort(), keyedWallets.map(([, record]) => record.id).sort());
+});
+
+test('numeric decrypted wallet ID is invalid for inspection and recovery', async () => {
+  const options = {};
+  const f = harness(options);
+  const key = encryption.generateEncryptionKey(f.app.primarySeed);
+  const appImage = {
+    appId: f.app.id,
+    wallets: { wallet: encryption.encrypt(key, JSON.stringify({ ...wallet(), id: 42 })) },
+    signers: {}, nodes: [], vaults: [], labels: [],
+  };
+  options.response = { revision: 'a'.repeat(64), appImage, allVaultImages: [], labels: [] };
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-validation', 'non-transport']]);
+
+  const { prepareRecoveryImage } = loadModule('src/services/backup/restore.ts', { './image': image });
+  await assert.rejects(
+    prepareRecoveryImage(key, f.app.id, appImage, [], []),
+    (error) => error instanceof image.BackupSnapshotValidationError
+  );
+});
+
+test('transient snapshot failure after account switch makes no retry or upload', async () => {
+  const f = harness({ post: async ({ app }) => {
+    app.id = 'second';
+    throw { code: 'ERR_NETWORK' };
+  } });
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
+test('repair does not retry a failed snapshot request', async () => {
+  const f = harness({ adapter: async () => { throw { code: 'ERR_NETWORK' }; } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(true), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+});
+
+test('read-only check retries once after a concurrent incremental backup changes its revision', async () => {
+  let f, changed = false, write;
+  f = harness({ post: async ({ path, remote }) => {
+    if (path.endsWith('getBackupSnapshot') && !changed) {
+      changed = true;
+      write = f.transport.backupPost('fixture/updateAppImage', { appId: f.app.id });
+    }
+    if (path.endsWith('updateAppImage')) {
+      remote.wallets.wallet = encryption.encrypt(
+        encryption.generateEncryptionKey(f.app.primarySeed), JSON.stringify(wallet())
+      );
+    }
+  } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'verified');
+  await write;
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'updateAppImage', 'getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'verified']);
+  assert.deepEqual(f.diagnostics, []);
+});
+
+test('early revision change without a queued write stays unverified', async () => {
+  let f;
+  f = harness({ post: async ({ path }) => {
+    if (path.endsWith('getBackupSnapshot')) f.transport.markBackupMutation(f.app.id);
+  } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.phases, ['checking', 'unverified']);
+});
+
+test('continuous queued writes limit a read-only check to one retry', async () => {
+  let f;
+  const writes = [];
+  f = harness({ post: async ({ path }) => {
+    if (path.endsWith('getBackupSnapshot'))
+      writes.push(f.transport.backupPost('fixture/updateAppImage', { appId: f.app.id }));
+  } });
+  f.local.Wallet.push(wallet());
+  assert.equal(await f.run(), 'unverified');
+  await Promise.all(writes);
+  assert.equal(f.calls.filter((path) => path === 'getBackupSnapshot').length, 2);
+  assert.deepEqual(f.phases, ['checking', 'checking', 'unverified']);
 });
 
 test('lost upload acknowledgement is resolved by readback without duplicate upload', async () => {
@@ -87,6 +381,7 @@ test('mutation arriving during upload invalidates completion and remains queued 
   let f;
   f = harness({ post: async ({ path }) => { if (path.endsWith('repairAppBackup')) f.transport.markBackupMutation(f.app.id); } });
   f.local.Wallet.push(wallet()); assert.equal(await f.run(true), 'unverified'); assert.ok(!f.phases.includes('verified'));
+  assert.deepEqual(f.calls, ['getBackupSnapshot', 'repairAppBackup', 'getBackupSnapshot']);
 });
 
 test('account switch during check cannot upload one account with another account data', async () => {
@@ -100,6 +395,12 @@ test('chunked encryption remains compatible with existing recovery including Uni
   const cipher = await image.encryptRecord('test-only', record);
   assert.equal(yielded, true); assert.deepEqual(JSON.parse(encryption.decrypt('test-only',cipher)),record);
   assert.deepEqual(JSON.parse(JSON.stringify(await image.decryptRecord('test-only',cipher))), record);
+});
+
+test('existing large CryptoJS ciphertext remains readable by streamed backup verification', async () => {
+  const record = { id: 'legacy-large', text: 'a'.repeat(100_000) + '🔑বাংলা' };
+  const ciphertext = encryption.encrypt('test-only', JSON.stringify(record));
+  assert.equal(JSON.stringify(await image.decryptRecord('test-only', ciphertext)), JSON.stringify(record));
 });
 
 test('oversized record fails without uploading or truncating', async () => {
