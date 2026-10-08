@@ -86,6 +86,17 @@ post_install do |installer|
       # :ccache_enabled => true
   )
 
+  # react-native-config logs and embeds every key from its selected .env file.
+  # Run the guard in that pod's own phase before its code generator starts.
+  config_target = installer.pods_project.targets.find { |target| target.name == 'react-native-config' }
+  config_codegen = config_target&.shell_script_build_phases&.find { |phase| phase.name == '[CP-User] Config codegen' }
+  raise 'react-native-config codegen phase not found; release credential guard cannot be installed' unless config_codegen
+
+  config_codegen.shell_script = <<~SCRIPT + config_codegen.shell_script
+    set -e
+    ruby "${PODS_ROOT}/../scripts/verify-retired-env.rb" "${PODS_TARGET_SRCROOT}/ios/ReactNativeConfig" "${SRCROOT}/../.."
+  SCRIPT
+
   # fixes release issue with xCode 16, bitcode is stripped by default.
    bitcode_strip_path = `xcrun --find bitcode_strip`.chop!
    def strip_bitcode_from_framework(bitcode_strip_path, framework_relative_path)
