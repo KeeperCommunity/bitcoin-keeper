@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
@@ -11,14 +11,16 @@ const AppStateHandler = () => {
   const [appState, setAppState] = useState(AppState.currentState);
   const [lastBackgroundTime, setLastBackgroundTime] = useState(null);
   const dispatch = useDispatch();
-  let triggeredDeepLink = null;
+  const triggeredDeepLink = useRef<string | null>(null);
 
   useEffect(() => {
-    Linking.addEventListener('url', (event) => {
-      if (event.url) triggeredDeepLink = event.url;
+    const subscription = Linking.addEventListener('url', (event) => {
+      if (event.url) triggeredDeepLink.current = event.url;
     });
-    // cleanup is performed in initialAppController for all url events at once.
+    return () => subscription.remove();
+  }, []);
 
+  useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
       if (appState === 'active' && nextAppState.match(/inactive|background/)) {
         setLastBackgroundTime(Date.now());
@@ -32,7 +34,8 @@ const AppStateHandler = () => {
           lastBackgroundTime &&
           Date.now() - lastBackgroundTime > PASSCODE_TIMEOUT
         ) {
-          dispatch(setHasDeepLink(triggeredDeepLink));
+          dispatch(setHasDeepLink(triggeredDeepLink.current));
+          triggeredDeepLink.current = null;
           navigation.reset({
             index: 0,
             routes: [
