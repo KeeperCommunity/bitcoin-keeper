@@ -48,25 +48,22 @@ def read_env_names(path):
     return names
 
 
-def read_approved_names(path):
+def expected_env_names(expected):
+    if not isinstance(expected, list) or not expected:
+        raise InputError("pinned environment name list is missing or empty")
     names = set()
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        name = line.strip()
-        if not name or name.startswith("#"):
-            continue
-        if not KEY_RE.fullmatch(name):
-            raise InputError(f"invalid approved name at line {line_number}")
+    for name in expected:
+        if not isinstance(name, str) or not KEY_RE.fullmatch(name):
+            raise InputError("invalid pinned environment name")
         if name in names:
-            raise InputError(f"duplicate approved name: {name}")
+            raise InputError(f"duplicate pinned environment name: {name}")
         names.add(name)
-    if not names:
-        raise InputError("approved environment name list is empty")
     return names
 
 
-def check_env_names(env_file, approved_names_file):
+def check_env_names(env_file, expected_names):
     actual = read_env_names(env_file)
-    approved = read_approved_names(approved_names_file)
+    approved = expected_env_names(expected_names)
     unexpected = sorted(actual - approved)
     missing = sorted(approved - actual)
     if unexpected or missing:
@@ -159,7 +156,6 @@ def main():
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parent.parent)
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--env-file", type=Path, required=True)
-    parser.add_argument("--approved-env-names", type=Path, required=True)
     parser.add_argument("--android-sdk-root", type=Path, default=None)
     args = parser.parse_args()
     repo = args.repo.resolve()
@@ -177,7 +173,7 @@ def main():
     )
     check_gradle_distribution(repo, inputs["gradle_distribution_sha256"])
     check_local_dependencies(repo)
-    check_env_names(args.env_file, args.approved_env_names)
+    check_env_names(args.env_file, inputs["environment_names"])
     check_toolchain(inputs, sdk_root)
     print("Android build inputs verified; this is not a reproducibility verdict.")
 

@@ -140,12 +140,14 @@ publisher's environment. Before any production build, run:
 python3 reproducibility/verify-android-inputs.py \
   --source-commit <reviewed-40-character-commit> \
   --env-file /path/to/reviewed/.env.production \
-  --approved-env-names /path/to/reviewed/approved-env-names.txt \
   --android-sdk-root /path/to/android-sdk
 ```
 
-The approved names file contains exactly one reviewed environment key per line
-and no values. It must come from the release review. The checker rejects
+The tracked manifest contains seven source-audited environment names and no
+values. This is a **provisional future-release allowlist**: the GasFree pause
+in draft PR #7037 and integration checks for four candidate omissions must be
+reviewed before using it for a release. Changing the list requires a tracked
+source change. The checker rejects
 missing or extra names, a dirty or wrong source checkout, changed dependency
 hashes, mismatched tool versions, missing SDK packages, a symlinked
 `node_modules` root, and links from dependencies to files outside the checkout.

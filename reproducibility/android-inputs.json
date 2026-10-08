@@ -13,5 +13,14 @@
   "android_platform": {
     "path": "platforms/android-36",
     "revision": "2"
-  }
+  },
+  "environment_names": [
+    "CHANNEL_URL",
+    "ENVIRONMENT",
+    "HEXA_ID_MAINNET",
+    "HEXA_ID_TESTNET",
+    "RELAY",
+    "SIGNING_SERVER_MAINNET",
+    "SIGNING_SERVER_TESTNET"
+  ]
 }
