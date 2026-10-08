@@ -232,7 +232,9 @@ export function inspectBackup(
             }
           : response.data;
         if (!readback) stage = 'snapshot-decryption';
-        const decoded = await decodeImage(key, availableResponse, appId, assertCurrent);
+        // Restore can salvage legacy map aliases. Inspection requires the
+        // stored key to match the ID inside each encrypted wallet record.
+        const decoded = await decodeImage(key, availableResponse, appId, assertCurrent, true);
         needsVaultRepair =
           unavailable.length > 0 ||
           response.data.allVaultImages.some(

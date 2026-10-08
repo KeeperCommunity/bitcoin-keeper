@@ -249,7 +249,8 @@ export async function decodeImage(
   key: string,
   response: any,
   appId: string,
-  checkpoint = () => {}
+  checkpoint = () => {},
+  verifyWalletKeys = false
 ): Promise<BackupImage> {
   const app = response?.appImage;
   if (
@@ -300,8 +301,12 @@ export async function decodeImage(
       throw new BackupSnapshotValidationError('Duplicate or unidentified backup record');
     image[kind][id] = record;
   };
-  for (const value of Object.values(app.wallets)) {
+  for (const [storedId, value] of Object.entries(app.wallets)) {
     const record = await decode(value);
+    if (typeof record.id !== 'string' || !record.id)
+      throw new BackupSnapshotValidationError('Invalid wallet backup identity');
+    if (verifyWalletKeys && storedId !== record.id)
+      throw new BackupSnapshotValidationError('Wallet backup identity mismatch');
     add('wallets', record.id, record);
   }
   for (const [id, value] of Object.entries(app.signers)) {
