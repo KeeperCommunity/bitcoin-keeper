@@ -19,7 +19,7 @@ const vault = (id) => ({
   specs: {},
 });
 
-function registrationFixture({ incompleteReadback = false } = {}) {
+function registrationFixture({ incompleteReadback = false, afterSnapshot, afterUpload } = {}) {
   const state = {
     appImage: {
       appId: 'disposable', wallets: {}, signers: {}, nodes: [],
@@ -28,8 +28,13 @@ function registrationFixture({ incompleteReadback = false } = {}) {
     allVaultImages: [], labels: [], revision: 'a'.repeat(64),
   };
   let uploads = 0;
+  let snapshotReads = 0;
   const f = harness({ adapter: async (endpoint, payload) => {
-    if (endpoint === 'getBackupSnapshot') return { data: clone(state) };
+    if (endpoint === 'getBackupSnapshot') {
+      snapshotReads++;
+      if (afterSnapshot) await afterSnapshot(snapshotReads);
+      return { data: clone(state) };
+    }
     assert.equal(endpoint, 'repairAppBackup');
     assert.equal(payload.expectedRevision, state.revision);
     assert.equal(payload.replaceCurrentState, true);
@@ -45,6 +50,7 @@ function registrationFixture({ incompleteReadback = false } = {}) {
     if (incompleteReadback) state.allVaultImages.pop();
     state.labels = payload.labels;
     state.revision = 'b'.repeat(64);
+    if (afterUpload) await afterUpload();
     return { data: { updated: true } };
   } });
   const cipherKey = encryption.generateEncryptionKey(f.app.primarySeed);
@@ -90,6 +96,28 @@ test('an incomplete registration repair readback cannot be marked verified', asy
   assert.equal(await f.run(true), 'unverified');
   assert.equal(uploads(), 1);
   assert.deepEqual(f.calls, ['getBackupSnapshot', 'repairAppBackup', 'getBackupSnapshot']);
+});
+
+test('account switch after registration snapshot prevents an upload for the old account', async () => {
+  let fixture;
+  fixture = registrationFixture({ afterSnapshot: (read) => {
+    if (read === 1) fixture.f.app.id = 'other-disposable-account';
+  } });
+  assert.equal(await fixture.f.run(true), 'unverified');
+  assert.equal(fixture.uploads(), 0);
+  assert.deepEqual(fixture.f.calls, ['getBackupSnapshot']);
+  assert.ok(!fixture.f.phases.includes('verified'));
+});
+
+test('account switch after registration upload cannot claim a verified repair', async () => {
+  let fixture;
+  fixture = registrationFixture({ afterUpload: () => {
+    fixture.f.app.id = 'other-disposable-account';
+  } });
+  assert.equal(await fixture.f.run(true), 'unverified');
+  assert.equal(fixture.uploads(), 1, 'the upload was for the original account');
+  assert.deepEqual(fixture.f.calls, ['getBackupSnapshot', 'repairAppBackup', 'getBackupSnapshot']);
+  assert.ok(!fixture.f.phases.includes('verified'));
 });
 
 test('registration-only drift is a difference while vault key and policy drift remain conflicts', async () => {
