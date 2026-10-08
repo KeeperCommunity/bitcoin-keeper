@@ -1,15 +1,13 @@
-import { Box, StatusBar, useColorMode } from '@gluestack-ui/themed-native-base';
+import { Box, FlatList, StatusBar, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useContext } from 'react';
-import { SectionList, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import EmptyStateView from 'src/components/EmptyView/EmptyStateView';
 import TransactionElement from 'src/components/TransactionElement';
-import Text from 'src/components/KeeperText';
 import WalletHeader from 'src/components/WalletHeader';
 import { hp, wp } from 'src/constants/responsive';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import NoTransactionIcon from 'src/assets/images/noTransaction.svg';
 import { USDTTransaction } from 'src/services/wallets/operations/dollars/USDT';
-import { partitionUSDTWalletHistory } from 'src/services/wallets/factories/USDTWalletFactory';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 
 const UsdtTransactionHistory = ({ route }) => {
@@ -18,11 +16,6 @@ const UsdtTransactionHistory = ({ route }) => {
   const { translations } = useContext(LocalizationContext);
   const { common, usdtWalletText } = translations;
   const navigation = useNavigation();
-  const { onChainTransactions, earlierRequests } = partitionUSDTWalletHistory(transactions);
-  const sections = [
-    { title: '', data: onChainTransactions },
-    { title: usdtWalletText.legacyRequestTitle, data: earlierRequests },
-  ].filter((section) => section.data.length > 0);
 
   const renderTransactionElement = ({ item }) => (
     <TransactionElement
@@ -50,16 +43,10 @@ const UsdtTransactionHistory = ({ route }) => {
       </Box>
       <Box style={styles.bottomSection} backgroundColor={`${colorMode}.boxSecondaryBackground`}>
         <Box style={styles.transactionList}>
-          <SectionList
+          <FlatList
             testID="view_TransactionList"
-            sections={sections}
-            renderSectionHeader={({ section }) =>
-              section.title ? (
-                <Text medium color={`${colorMode}.primaryText`} style={styles.sectionTitle}>
-                  {section.title}
-                </Text>
-              ) : null
-            }
+            // refreshControl={<RefreshControl onRefresh={pullDownRefresh} refreshing={pullRefresh} />}
+            data={transactions}
             renderItem={renderTransactionElement}
             keyExtractor={(item: USDTTransaction) => item.txId || item.traceId}
             showsVerticalScrollIndicator={false}
@@ -96,9 +83,5 @@ const styles = StyleSheet.create({
   },
   contentContainerStyle: {
     paddingBottom: hp(100),
-  },
-  sectionTitle: {
-    paddingTop: hp(18),
-    paddingBottom: hp(8),
   },
 });

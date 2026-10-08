@@ -249,7 +249,7 @@ const UsdtTransactionDetail = ({ route }) => {
                 showIcon={false}
                 letterSpacing={2.4}
               />
-              {transaction.transferFee || transaction.fee ? (
+              {!legacyRequest && (transaction.transferFee || transaction.fee) ? (
                 <InfoCard
                   title={'Transaction Fee'}
                   describtion={`${transaction.transferFee || transaction.fee} USDT`}
@@ -257,7 +257,7 @@ const UsdtTransactionDetail = ({ route }) => {
                   letterSpacing={2.4}
                 />
               ) : null}
-              {transaction.activateFee ? (
+              {!legacyRequest && transaction.activateFee ? (
                 <InfoCard
                   title={'Activation Fee'}
                   describtion={`${transaction.activateFee} USDT`}

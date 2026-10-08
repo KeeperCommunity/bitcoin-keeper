@@ -4,11 +4,7 @@ import {
   createTronWalletFromMnemonic,
   DEFAULT_TRON_DERIVATION_PATH,
 } from '../operations/dollars/Tron';
-import USDT, {
-  isHistoricalUnverifiedUSDTRequest,
-  USDTAccountStatus,
-  USDTTransaction,
-} from '../operations/dollars/USDT';
+import USDT, { USDTAccountStatus, USDTTransaction } from '../operations/dollars/USDT';
 import BIP85 from '../operations/BIP85';
 import { BIP85Config } from '../interfaces';
 import { GasFreeTransferStatus } from '../operations/dollars/GasFree';
@@ -31,18 +27,6 @@ export interface USDTWalletSpecs {
   hasNewUpdates: boolean;
   lastSynched: number; // Last sync timestamp
 }
-
-/** Keep unverified provider requests visible without counting them as chain transfers. */
-export const partitionUSDTWalletHistory = (transactions: USDTTransaction[]) => {
-  const onChainTransactions: USDTTransaction[] = [];
-  const earlierRequests: USDTTransaction[] = [];
-  for (const transaction of transactions) {
-    (isHistoricalUnverifiedUSDTRequest(transaction) ? earlierRequests : onChainTransactions).push(
-      transaction
-    );
-  }
-  return { onChainTransactions, earlierRequests };
-};
 
 export interface USDTWalletPresentationData {
   name: string; // Custom wallet name

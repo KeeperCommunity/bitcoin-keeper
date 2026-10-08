@@ -102,11 +102,7 @@ const factory = loadTypeScript('src/services/wallets/factories/USDTWalletFactory
     VisibilityType: { DEFAULT: 'DEFAULT' },
   },
   '../operations/dollars/Tron': {},
-  '../operations/dollars/USDT': {
-    __esModule: true,
-    default: service,
-    isHistoricalUnverifiedUSDTRequest: usdtModule.isHistoricalUnverifiedUSDTRequest,
-  },
+  '../operations/dollars/USDT': { __esModule: true, default: service },
   '../operations/BIP85': { __esModule: true, default: {} },
   '../operations/dollars/GasFree': historical,
   'src/utils/service-utilities/config': {
@@ -142,12 +138,6 @@ test('stored address, chain reads and ambiguous historical request survive the p
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[0]), false);
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[1]), true);
   assert.equal(transactions[1].status, historical.GasFreeTransferStatus.WAITING);
-  const { onChainTransactions, earlierRequests } = factory.partitionUSDTWalletHistory(transactions);
-  assert.deepEqual(Array.from(onChainTransactions, (transaction) => transaction.txId), ['chain-1']);
-  assert.deepEqual(Array.from(earlierRequests, (transaction) => transaction.traceId), [
-    'historical-trace',
-  ]);
-  assert.equal(onChainTransactions.length + earlierRequests.length, transactions.length);
   assert.equal(
     usdtModule.isHistoricalUnverifiedUSDTRequest({
       traceId: 'old-request',
