@@ -1201,11 +1201,7 @@ export const updateSignerPolicyWatcher = createWatcher(
 );
 
 export function* testcoinsWorker({ payload }) {
-  const { wallet } = payload;
-  yield put(setTestCoinsReceived(false));
-  yield put(setTestCoinsFailed(false));
-  yield put(setTestCoinsPending(null));
-
+  let { wallet } = payload;
   const faucetScope = yield select((state: RootState) => ({
     appId: state.storage.appId,
     networkType: state.settings.bitcoinNetworkType,
@@ -1221,7 +1217,26 @@ export function* testcoinsWorker({ payload }) {
     );
   };
 
-  if (wallet.networkType !== NetworkType.TESTNET || !isCurrentFaucetScope()) {
+  if (!isCurrentFaucetScope()) return;
+  const currentWallet = yield call(() => {
+    if (!isCurrentFaucetScope()) return null;
+    const schema = wallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet;
+    const stored = dbManager.getObjectById(schema, wallet.id);
+    if (
+      !stored ||
+      stored.networkType !== wallet.networkType ||
+      stored.entityKind !== wallet.entityKind
+    )
+      return null;
+    return getJSONFromRealmObject(stored);
+  });
+  if (!currentWallet || !isCurrentFaucetScope()) return;
+  wallet = currentWallet;
+  yield put(setTestCoinsReceived(false));
+  yield put(setTestCoinsFailed(false));
+  yield put(setTestCoinsPending(null));
+
+  if (wallet.networkType !== NetworkType.TESTNET) {
     yield put(setTestCoinsFailed(true));
     return;
   }
@@ -1232,14 +1247,14 @@ export function* testcoinsWorker({ payload }) {
   try {
     receivingAddress = WalletOperations.getNextFreeAddress(wallet);
     network = WalletUtilities.getNetworkByType(wallet.networkType);
-    const response = yield call(
-      Relay.getTestcoins,
-      receivingAddress,
-      wallet.networkType,
-      faucetScope.appId
-    );
+    const response = yield call(() => {
+      if (!isCurrentFaucetScope()) return null;
+      return Relay.getTestcoins(receivingAddress, wallet.networkType, faucetScope.appId);
+    });
+    if (!response) return;
     txid = response.txid;
   } catch (err) {
+    if (!isCurrentFaucetScope()) return;
     if (err.message === 'FAUCET_DAILY_LIMIT_REACHED') {
       yield put(setTestCoinsQuotaReached(true));
     } else if (err.message === 'FAUCET_OUTCOME_UNKNOWN') {
@@ -1250,19 +1265,13 @@ export function* testcoinsWorker({ payload }) {
     return;
   }
 
-  if (!isCurrentFaucetScope()) {
-    yield put(setTestCoinsPending('unknown'));
-    return;
-  }
+  if (!isCurrentFaucetScope()) return;
 
   let lastAttemptSynced = false;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     let attemptSynced = false;
     try {
-      if (!isCurrentFaucetScope()) {
-        yield put(setTestCoinsPending('unknown'));
-        return;
-      }
+      if (!isCurrentFaucetScope()) return;
       let connectionMatchesScope = false;
       try {
         ElectrumClient.assertConnectionGeneration(
@@ -1276,10 +1285,7 @@ export function* testcoinsWorker({ payload }) {
       if (!ELECTRUM_CLIENT.isClientConnected || !connectionMatchesScope) {
         yield call(connectToNodeWorker);
       }
-      if (!isCurrentFaucetScope()) {
-        yield put(setTestCoinsPending('unknown'));
-        return;
-      }
+      if (!isCurrentFaucetScope()) return;
       const connectionGeneration = ElectrumClient.getConnectionGeneration();
       ElectrumClient.assertConnectionGeneration(connectionGeneration, wallet.networkType);
       const { txids } = yield call(
@@ -1288,10 +1294,7 @@ export function* testcoinsWorker({ payload }) {
         network
       );
       ElectrumClient.assertConnectionGeneration(connectionGeneration, wallet.networkType);
-      if (!isCurrentFaucetScope()) {
-        yield put(setTestCoinsPending('unknown'));
-        return;
-      }
+      if (!isCurrentFaucetScope()) return;
       attemptSynced = true;
       if (txids.some((seenTxid: string) => seenTxid.toLowerCase() === txid.toLowerCase())) {
         const refreshed = yield call(refreshWalletsWorker, {
@@ -1303,6 +1306,7 @@ export function* testcoinsWorker({ payload }) {
           const storedWallet = yield call(dbManager.getObjectById, schema, wallet.id);
           const storedData = storedWallet?.toJSON?.() || storedWallet;
           if (isFaucetTxVisible(storedData, txid)) {
+            if (!isCurrentFaucetScope()) return;
             yield put(setTestCoinsReceived(true));
             return;
           }
@@ -1314,6 +1318,7 @@ export function* testcoinsWorker({ payload }) {
     lastAttemptSynced = attemptSynced;
     if (attempt < 7) yield delay(4000);
   }
+  if (!isCurrentFaucetScope()) return;
   yield put(setTestCoinsPending(lastAttemptSynced ? 'propagation' : 'sync'));
 }
 
