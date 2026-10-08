@@ -18,6 +18,7 @@ import {
 } from './transport';
 import {
   BackupImage,
+  BackupSnapshotValidationError,
   canonical,
   compareImages,
   decodeImage,
@@ -328,7 +329,15 @@ export function inspectBackup(
       // Only log fixed categories. Errors and responses can contain encrypted
       // backup data, account identifiers, headers, or request bodies.
       const category = error instanceof BackupRequestError ? error.category : 'non-transport';
-      globalThis.console.warn('Assisted Server Backup check failed at stage:', stage, category);
+      const diagnosticStage =
+        stage === 'snapshot-decryption' && error instanceof BackupSnapshotValidationError
+          ? 'snapshot-validation'
+          : stage;
+      globalThis.console.warn(
+        'Assisted Server Backup check failed at stage:',
+        diagnosticStage,
+        category
+      );
       notify('unverified');
       return 'unverified';
     }

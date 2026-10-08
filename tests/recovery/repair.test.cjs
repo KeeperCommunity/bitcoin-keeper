@@ -125,6 +125,76 @@ test('4xx responses and invalid snapshots never retry', async () => {
   }
 });
 
+for (const [name, change] of [
+  ['wrong account', (response) => { response.appImage.appId = 'another-account'; }],
+  ['invalid wallet collection', (response) => { response.appImage.wallets = 1; }],
+  ['invalid signer collection', (response) => { response.appImage.signers = []; }],
+  ['non-string record', (response) => { response.appImage.wallets.wallet = 42; }],
+  ['missing referenced vault', (response) => { response.appImage.vaults = ['missing']; }],
+  ['duplicate decrypted IDs', (response, key) => {
+    const encrypted = encryption.encrypt(key, JSON.stringify(wallet()));
+    response.appImage.wallets = { first: encrypted, second: encrypted };
+  }],
+  ['vault ID mismatch', (response, key) => {
+    response.appImage.vaults = ['other'];
+    response.allVaultImages = [{ vaultId: 'other', vault: encryption.encrypt(key, JSON.stringify({ id: 'vault' })) }];
+  }],
+  ['invalid decrypted record type', (response, key) => {
+    response.appImage.wallets.wallet = encryption.encrypt(key, '42');
+  }],
+]) test(`snapshot ${name} reports validation failure without retry or upload`, async () => {
+  const options = {};
+  const f = harness(options);
+  const response = {
+    revision: 'a'.repeat(64),
+    appImage: { appId: f.app.id, wallets: {}, signers: {}, nodes: [], vaults: [], labels: [] },
+    allVaultImages: [], labels: [],
+  };
+  change(response, encryption.generateEncryptionKey(f.app.primarySeed));
+  options.response = response;
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-validation', 'non-transport']]);
+});
+
+test('invalid decrypted JSON reports decryption failure without retry or upload', async () => {
+  const options = {};
+  const f = harness(options);
+  options.response = {
+    revision: 'a'.repeat(64),
+    appImage: {
+      appId: f.app.id,
+      wallets: { wallet: encryption.encrypt(encryption.generateEncryptionKey(f.app.primarySeed), '{') },
+      signers: {}, nodes: [], vaults: [], labels: [],
+    },
+    allVaultImages: [], labels: [],
+  };
+  assert.equal(await f.run(), 'unverified');
+  assert.deepEqual(f.calls, ['getBackupSnapshot']);
+  assert.deepEqual(f.diagnostics, [['Assisted Server Backup check failed at stage:', 'snapshot-decryption', 'non-transport']]);
+});
+
+test('legacy registered empty Relay image remains recoverable, but nonempty arrays are invalid', async () => {
+  const { prepareRecoveryImage } = loadModule('src/services/backup/restore.ts', { './image': image });
+  const f = harness();
+  const key = encryption.generateEncryptionKey(f.app.primarySeed);
+  for (const signers of [undefined, []]) {
+    const recovered = await prepareRecoveryImage(
+      key, f.app.id, { appId: f.app.id, wallets: [], signers, nodes: [] }, [], []
+    );
+    assert.deepEqual(JSON.parse(JSON.stringify(recovered)), makeImage());
+  }
+  for (const malformed of [{ wallets: ['ciphertext'] }, { signers: ['ciphertext'] }]) {
+    await assert.rejects(
+      prepareRecoveryImage(
+        key, f.app.id,
+        { appId: f.app.id, wallets: [], signers: [], nodes: [], ...malformed }, [], []
+      ),
+      (error) => error instanceof image.BackupSnapshotValidationError
+    );
+  }
+});
+
 test('transient snapshot failure after account switch makes no retry or upload', async () => {
   const f = harness({ post: async ({ app }) => {
     app.id = 'second';
