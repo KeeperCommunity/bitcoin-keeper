@@ -123,6 +123,42 @@ while explicitly accounting for signing differences. A complete recipe must
 then build the production APK and AAB under pinned tools and compare the
 actual distributed artifacts.
 
+## Check the seven future build values against a public APK
+
+The seven names in `android-inputs.json` are already present as string
+resources in the authenticated public v2.6.3 APK. The
+[`audit-apk-build-values.py`](audit-apk-build-values.py) tool checks that an
+APK matches a supplied SHA-256, that each of those seven fields has one plain
+production value, and optionally that a seven-field candidate `.env` file
+matches them exactly. It prints field names on a mismatch but never prints,
+exports, or writes their values. It ignores all other historical APK fields,
+including old credential-bearing fields. Keep any candidate environment file
+outside Git.
+
+The expected digest must come from a trusted release check, not from the same
+untrusted APK being inspected. For the PGP-verified
+[v2.6.3 GitHub release APK](https://github.com/KeeperCommunity/bitcoin-keeper/releases/tag/v2.6.3),
+run:
+
+```sh
+python3 reproducibility/audit-apk-build-values.py \
+  --apk /path/to/Bitcoin_Keeper_v2.6.3.apk \
+  --expected-apk-sha256 a20d934ebd80ece779d3c171c7906bb4aff010337989ec1b826cab55c50eba46 \
+  --aapt2 /path/to/android-sdk/build-tools/35.0.0/aapt2 \
+  --env-file /path/outside/repository/to/candidate.env
+```
+
+Omit `--env-file` to check APK field presence only. Candidate entries must be
+simple `KEY=value` lines with exactly the seven approved names. A mismatch can
+indicate an intentional endpoint or identifier change; the release engineer
+must confirm it before using that candidate. This check neither reconstructs
+the complete historical v2.6.3 `.env.production` nor proves that a release was
+built from public source. Run its focused tests with:
+
+```sh
+python3 -m unittest reproducibility/test_audit_apk_build_values.py
+```
+
 [WalletScrutiny's script rules](https://github.com/WalletScrutiny/WalletScrutinyCom/blob/master/docs/script_verifications.md)
 require Docker, Podman, or Nix; a script ending in `build.sh`; a `--binary`
 argument; and an adjacent `COMPARISON_RESULTS.yaml`. No such script or results
