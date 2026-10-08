@@ -5,8 +5,17 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import Text from 'src/components/KeeperText';
 import ScreenWrapper from 'src/components/ScreenWrapper';
+import WalletCreationChooser, { WalletChoiceCard } from 'src/components/WalletCreationChooser';
 import { customTheme } from 'src/navigation/themes';
 import Colors from 'src/theme/Colors';
+import {
+  ContactDecisionState,
+  ContactEnrollmentState,
+  decideContactRequest,
+  initialContactEnrollment,
+  reduceContactEnrollment,
+  reviewContactRequest,
+} from 'src/services/wallets/recoverable/contactRecoveryFlow';
 import {
   HARDWARE_CHOICES,
   initialPreviewDraft,
@@ -23,6 +32,30 @@ type Palette = {
   border: string;
   accent: string;
   warning: string;
+};
+
+type PreviewSurface =
+  | 'wallets'
+  | 'chooser'
+  | 'simple'
+  | 'hot'
+  | 'cold'
+  | 'advanced'
+  | 'import'
+  | 'seedless'
+  | 'recovery'
+  | 'cloud'
+  | 'contact';
+
+// Public placeholder metadata for an isolated UI sample. No wallet, policy, or credential exists.
+const SAMPLE_POLICY_HASH = '0'.repeat(64);
+const SAMPLE_NOW = 1_000_000;
+const SAMPLE_REQUEST = {
+  requestId: 'sample-request-only',
+  walletPolicyHash: SAMPLE_POLICY_HASH,
+  contactCredentialId: 'sample-no-credential',
+  replacementDeviceKeyId: 'sample-no-device-key',
+  expiresAt: SAMPLE_NOW + 600,
 };
 
 function PreviewText({ children, style, color, ...props }: any) {
@@ -153,31 +186,78 @@ function PreviewContent() {
     accent: dark ? Colors.mintGreen : Colors.primaryGreen,
     warning: dark ? Colors.DeepCharcoalGreen : Colors.dullGreen,
   };
-  const [inFlow, setInFlow] = useState(false);
+  const [surface, setSurface] = useState<PreviewSurface>('wallets');
   const [draft, setDraft] = useState<PreviewDraft>(initialPreviewDraft);
+  const [contactEnrollment, setContactEnrollment] =
+    useState<ContactEnrollmentState>(initialContactEnrollment);
+  const [contactSample, setContactSample] = useState<'overview' | 'invitation' | 'request'>(
+    'overview'
+  );
+  const [invitationDecision, setInvitationDecision] = useState<
+    'pending' | 'approval-intent' | 'declined' | 'expired'
+  >('pending');
+  const [requestDecision, setRequestDecision] = useState<ContactDecisionState | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const act = (action: PreviewAction) => setDraft((current) => reducePreviewDraft(current, action));
-  const exitFlow = () => setInFlow(false);
+  const exitFlow = () => setSurface('chooser');
+  const openRecoveryOptions = () => {
+    setContactEnrollment(
+      reduceContactEnrollment(initialContactEnrollment, {
+        type: 'START',
+        assurance: 'cloud-and-contact',
+        walletPolicyHash: SAMPLE_POLICY_HASH,
+      })
+    );
+    setContactSample('overview');
+    setInvitationDecision('pending');
+    setRequestDecision(null);
+    setSurface('recovery');
+  };
+  const startSampleInvitation = () => {
+    setInvitationDecision('pending');
+    setContactSample('invitation');
+  };
+  const startSampleRequest = () => {
+    setRequestDecision(reviewContactRequest(SAMPLE_REQUEST, SAMPLE_NOW));
+    setContactSample('request');
+  };
+  const decideSampleRequest = (decision: 'approve' | 'decline' | 'expire') => {
+    setRequestDecision((current) =>
+      current
+        ? decideContactRequest(
+            current,
+            decision,
+            decision === 'expire' ? SAMPLE_REQUEST.expiresAt : SAMPLE_NOW + 1
+          )
+        : current
+    );
+  };
   const back = () => {
-    if (draft.stage === 'complete') {
+    if (surface === 'cloud' || surface === 'contact') setSurface('recovery');
+    else if (surface === 'recovery') setSurface('seedless');
+    else if (surface === 'chooser') setSurface('wallets');
+    else if (surface === 'simple') setSurface('chooser');
+    else if (surface === 'hot' || surface === 'cold') setSurface('simple');
+    else if (surface === 'advanced' || surface === 'import') setSurface('chooser');
+    else if (surface === 'seedless' && draft.stage === 'complete') {
       act({ type: 'RESET' });
       exitFlow();
-    } else if (draft.stage === 'automatic') exitFlow();
-    else act({ type: 'BACK' });
+    } else if (surface === 'seedless' && draft.stage === 'automatic') exitFlow();
+    else if (surface === 'seedless') act({ type: 'BACK' });
   };
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!inFlow) return false;
+      if (surface === 'wallets') return false;
       back();
       return true;
     });
     return () => subscription.remove();
-  }, [inFlow, draft.stage]);
+  }, [surface, draft.stage]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [inFlow, draft.stage]);
+  }, [surface, draft.stage]);
 
   const selectedDevice = HARDWARE_CHOICES.find(({ id }) => id === draft.hardware);
   const hasDraft =
@@ -186,8 +266,30 @@ function PreviewContent() {
   return (
     <ScreenWrapper backgroundcolor={palette.background}>
       <ScreenHeading
-        title={inFlow ? 'Wallet Preview' : 'Add Wallet'}
-        onBack={inFlow ? back : undefined}
+        title={
+          surface === 'wallets'
+            ? 'Wallets'
+            : surface === 'chooser'
+            ? 'Choose a Wallet'
+            : surface === 'simple'
+            ? 'Simple Wallet'
+            : surface === 'hot'
+            ? 'Hot Wallet'
+            : surface === 'cold'
+            ? 'Cold Wallet'
+            : surface === 'advanced'
+            ? 'Advanced Wallet'
+            : surface === 'import'
+            ? 'Import Wallet'
+            : surface === 'recovery'
+            ? 'Recovery Options'
+            : surface === 'cloud'
+            ? 'Cloud Backup'
+            : surface === 'contact'
+            ? 'Recovery Contact'
+            : 'Wallet Preview'
+        }
+        onBack={surface === 'wallets' ? undefined : back}
         palette={palette}
       />
       <ScrollView
@@ -197,53 +299,132 @@ function PreviewContent() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Banner palette={palette} testID="preview-simulation-banner">
-          TESTNET PREVIEW · Simulated walkthrough. No wallet, key, address, cloud backup, or server
-          registration is created.
-        </Banner>
+        {surface !== 'chooser' && (
+          <Banner palette={palette} testID="preview-simulation-banner">
+            TESTNET PREVIEW · Simulated walkthrough. No wallet, key, address, cloud backup, or
+            server registration is created.
+          </Banner>
+        )}
 
-        {!inFlow && (
+        {surface === 'wallets' && (
           <View testID="preview-add-wallet" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
-              Recoverable Wallet
+              No wallets yet
             </PreviewText>
             <PreviewText color={palette.muted}>
-              Explore a fixed 2-of-3 wallet with an automatic Mobile Key and Server Key, then choose
-              your Hardware Key. This preview cannot receive or send bitcoin.
+              Choose the wallet setup that suits you. Nothing has been created in this preview.
             </PreviewText>
-            <Panel palette={palette}>
-              <PreviewText color={palette.text} style={styles.cardTitle}>
-                Recoverable Wallet · Preview
-              </PreviewText>
-              <PreviewText color={palette.muted}>
-                Choose hardware, consider an optional Inheritance Key, and review the complete
-                proposed policy.
-              </PreviewText>
-            </Panel>
             <PrimaryAction
-              label={hasDraft ? 'Resume' : 'Start Preview'}
-              onPress={() => setInFlow(true)}
+              label="Add Wallet"
+              onPress={() => setSurface('chooser')}
               palette={palette}
             />
-            {hasDraft && (
-              <LinkAction
-                label="Start Again"
-                testID="preview-start-again"
-                palette={palette}
-                onPress={() => {
-                  act({ type: 'RESET' });
-                  setInFlow(true);
-                }}
-              />
-            )}
             <PreviewText color={palette.muted} style={styles.note}>
-              Progress can be resumed while this preview stays open. It is cleared when the app
-              closes.
+              This preview starts without a Hot Wallet. It cannot receive or send bitcoin.
             </PreviewText>
           </View>
         )}
 
-        {inFlow && draft.stage === 'automatic' && (
+        {surface === 'chooser' && (
+          <WalletCreationChooser
+            onSimpleWallet={() => setSurface('simple')}
+            onSeedlessWallet={() => setSurface('seedless')}
+            onAdvancedWallet={() => setSurface('advanced')}
+            onImportWallet={() => setSurface('import')}
+            showSeedless
+            seedlessBadge="TESTNET PREVIEW"
+            previewNotice="Simulated choices only. No wallet, key, address, or backup is created in this testnet preview."
+            seedlessResumeHint={
+              hasDraft
+                ? 'Your Seedless Wallet walkthrough will resume where you left off.'
+                : undefined
+            }
+          />
+        )}
+
+        {surface === 'simple' && (
+          <View testID="preview-simple-wallet" style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              One key to spend
+            </PreviewText>
+            <PreviewText color={palette.muted}>
+              Choose where the key would be held. These are simulated choices in this isolated
+              preview; no wallet or key will be created.
+            </PreviewText>
+            <WalletChoiceCard
+              title="Hot Wallet"
+              icon="◉"
+              eyebrow="ON THIS PHONE"
+              description="A single key held by this phone for everyday spending."
+              testID="preview-choice-hot"
+              onPress={() => setSurface('hot')}
+            />
+            <WalletChoiceCard
+              title="Cold Wallet"
+              icon="◇"
+              eyebrow="EXTERNAL KEY"
+              description="A single key held on a separate signing device."
+              testID="preview-choice-cold"
+              onPress={() => setSurface('cold')}
+            />
+          </View>
+        )}
+
+        {(surface === 'hot' || surface === 'cold') && (
+          <View testID={`preview-${surface}-wallet`} style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              {surface === 'hot' ? 'Hot Wallet' : 'Cold Wallet'}
+            </PreviewText>
+            <PreviewText color={palette.muted}>
+              {surface === 'hot'
+                ? 'A Hot Wallet would use one key on this phone. No key is generated or stored here.'
+                : 'A Cold Wallet would use one external signing key. No device is connected or registered here.'}
+            </PreviewText>
+            <Banner palette={palette}>
+              SIMULATED CHOICE · Simple Wallet creation is not available in this preview. No wallet,
+              address, or backup exists.
+            </Banner>
+            <LinkAction
+              label="Choose Another"
+              testID="preview-choose-another-wallet"
+              palette={palette}
+              onPress={() => setSurface('chooser')}
+            />
+          </View>
+        )}
+
+        {surface === 'advanced' && (
+          <View testID="preview-advanced-wallet" style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              Custom multisig
+            </PreviewText>
+            <PreviewText color={palette.muted}>
+              Advanced Wallet is for choosing your keys and spending rules, including Miniscript
+              options such as Inheritance Key, Emergency Key, and Wallet Timelock.
+            </PreviewText>
+            <Banner palette={palette}>
+              PREVIEW ONLY · Advanced Wallet creation is not connected in this isolated app. No
+              policy, key, or wallet is created.
+            </Banner>
+          </View>
+        )}
+
+        {surface === 'import' && (
+          <View testID="preview-import-unavailable" style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              Import Wallet
+            </PreviewText>
+            <PreviewText color={palette.muted}>
+              Import is available in standard Keeper. The isolated testnet preview does not read
+              existing wallets or import files.
+            </PreviewText>
+            <Banner palette={palette}>
+              UNAVAILABLE IN PREVIEW · No existing wallet or key was accessed.
+            </Banner>
+          </View>
+        )}
+
+        {surface === 'seedless' && draft.stage === 'automatic' && (
           <View testID="preview-automatic" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Automatic Keys
@@ -290,7 +471,7 @@ function PreviewContent() {
           </View>
         )}
 
-        {inFlow && draft.stage === 'hardware' && (
+        {surface === 'seedless' && draft.stage === 'hardware' && (
           <View testID="preview-hardware" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Choose Hardware
@@ -331,7 +512,7 @@ function PreviewContent() {
           </View>
         )}
 
-        {inFlow && draft.stage === 'connect' && (
+        {surface === 'seedless' && draft.stage === 'connect' && (
           <View testID="preview-connect" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Connect Hardware
@@ -382,14 +563,14 @@ function PreviewContent() {
           </View>
         )}
 
-        {inFlow && draft.stage === 'inheritance' && (
+        {surface === 'seedless' && draft.stage === 'inheritance' && (
           <View testID="preview-inheritance" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Inheritance Key
             </PreviewText>
             <PreviewText color={palette.muted}>
-              An Inheritance Key gives your chosen heir or trusted party a delayed access path,
-              based on the wallet rules you set.
+              Proposal, not configured: an Inheritance Key would give your heir a delayed path after
+              a fixed on-chain unlock date. Opening Keeper would not reset that date.
             </PreviewText>
             <Pressable
               accessibilityRole="checkbox"
@@ -408,8 +589,10 @@ function PreviewContent() {
             </Pressable>
             {draft.inheritanceEnabled && (
               <Banner palette={palette}>
-                Selection is simulated. No heir, delay, Inheritance Key, or Miniscript policy is
-                configured here.
+                SIMULATED PROPOSAL · Your heir would need an Inheritance Key and a second signer
+                they can access without Server Key. Changing the unlock date would require a new
+                wallet and moving bitcoin. No heir, date, signer, or Miniscript policy is
+                configured.
               </Banner>
             )}
             <PrimaryAction
@@ -426,7 +609,7 @@ function PreviewContent() {
           </View>
         )}
 
-        {inFlow && draft.stage === 'review' && (
+        {surface === 'seedless' && draft.stage === 'review' && (
           <View testID="preview-review" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Review Policy
@@ -455,7 +638,7 @@ function PreviewContent() {
               </PreviewText>
               <PreviewText color={palette.muted}>
                 {draft.inheritanceEnabled
-                  ? 'After eligibility, an Inheritance Key and any eligible original signer would form the 2-of-4 spending path. The delay and Miniscript conditions are not configured in this preview.'
+                  ? 'Proposed delayed path, not configured: after a fixed on-chain unlock date, your heir would use an Inheritance Key plus a designated second signer available without Server Key. Opening Keeper would not reset the date. Changing it would require a new wallet and moving bitcoin. No date, signer, or Miniscript policy exists in this preview.'
                   : 'The proposed wallet has only the base 2-of-3 spending path.'}
               </PreviewText>
             </Panel>
@@ -478,7 +661,7 @@ function PreviewContent() {
           </View>
         )}
 
-        {inFlow && draft.stage === 'complete' && (
+        {surface === 'seedless' && draft.stage === 'complete' && (
           <View testID="preview-complete" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Walkthrough Complete
@@ -491,11 +674,270 @@ function PreviewContent() {
               review. No key, hardware device, cloud service, or Keeper server was accessed.
             </PreviewText>
             <PrimaryAction
+              label="Recovery Options"
+              onPress={openRecoveryOptions}
+              palette={palette}
+            />
+            <LinkAction
               label="Start Again"
               onPress={() => act({ type: 'RESET' })}
               palette={palette}
+              testID="preview-start-again"
             />
             <LinkAction label="Done" onPress={back} palette={palette} testID="preview-done" />
+          </View>
+        )}
+
+        {surface === 'recovery' && (
+          <View testID="preview-recovery-options" style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              Recovery Options
+            </PreviewText>
+            <PreviewText color={palette.muted}>
+              Explore proposed ways to restore this wallet's Mobile Key on another phone. These
+              paths are separate from Keeper Recovery Key restoration and do not change the wallet
+              policy.
+            </PreviewText>
+            <Banner palette={palette}>
+              SIMULATED · No Mobile Key, encrypted cloud blob, contact credential, or server
+              exchange exists. Neither option can restore or spend bitcoin.
+            </Banner>
+            <Pressable
+              accessibilityRole="button"
+              testID="preview-recovery-cloud"
+              onPress={() => setSurface('cloud')}
+            >
+              <Panel palette={palette}>
+                <PreviewText color={palette.text} style={styles.cardTitle}>
+                  Encrypted Cloud Backup
+                </PreviewText>
+                <PreviewText color={palette.muted}>
+                  A separate encrypted Mobile Key backup would need upload, download, and verified
+                  readback. None is configured here.
+                </PreviewText>
+              </Panel>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              testID="preview-recovery-contact"
+              onPress={() => setSurface('contact')}
+            >
+              <Panel palette={palette}>
+                <PreviewText color={palette.text} style={styles.cardTitle}>
+                  Recovery Contact
+                </PreviewText>
+                <PreviewText color={palette.muted}>
+                  A contact could approve a lost-phone request using a separate credential. Cloud
+                  readback and cryptographic verification would still be required.
+                </PreviewText>
+              </Panel>
+            </Pressable>
+          </View>
+        )}
+
+        {surface === 'cloud' && (
+          <View testID="preview-cloud-backup" style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              Encrypted Cloud Backup
+            </PreviewText>
+            <Panel palette={palette}>
+              <PreviewText color={palette.text} style={styles.cardTitle}>
+                Unavailable · readback not verified
+              </PreviewText>
+              <PreviewText color={palette.muted}>
+                No encrypted Mobile Key was written or downloaded. No dedicated preview iCloud or
+                Google Drive container is connected. A matching download alone would not prove
+                authenticated decryption.
+              </PreviewText>
+            </Panel>
+            {contactEnrollment.stage === 'cloud-offline' ? (
+              <Banner palette={palette} testID="preview-cloud-offline">
+                SIMULATED OFFLINE · The cloud cannot be reached. An invitation or recovery request
+                cannot continue without the backup readback. No upload was attempted.
+              </Banner>
+            ) : (
+              <Banner palette={palette} testID="preview-cloud-unverified">
+                READBACK NOT VERIFIED · Backup and recovery are blocked until a real encrypted
+                write, download, and authenticated readback succeed.
+              </Banner>
+            )}
+            {contactEnrollment.stage === 'cloud-offline' ? (
+              <PrimaryAction
+                label="Try Again"
+                onPress={() =>
+                  setContactEnrollment((current) =>
+                    reduceContactEnrollment(current, { type: 'RETRY_CLOUD' })
+                  )
+                }
+                palette={palette}
+              />
+            ) : (
+              <PrimaryAction
+                label="Simulate Offline"
+                onPress={() =>
+                  setContactEnrollment((current) =>
+                    reduceContactEnrollment(current, { type: 'CLOUD_OFFLINE' })
+                  )
+                }
+                palette={palette}
+              />
+            )}
+            <LinkAction
+              label="Recovery Options"
+              onPress={() => setSurface('recovery')}
+              palette={palette}
+              testID="preview-recovery-back"
+            />
+          </View>
+        )}
+
+        {surface === 'contact' && (
+          <View testID="preview-contact-recovery" style={styles.section}>
+            <PreviewText color={palette.text} style={styles.pageTitle}>
+              Recovery Contact
+            </PreviewText>
+            <PreviewText color={palette.muted}>
+              A contact is not an Inheritance Key or wallet signer. Contact approval would help
+              restore only the Mobile Key; another signer would still be needed to spend.
+            </PreviewText>
+            <Banner palette={palette} testID="preview-contact-blocked">
+              ENROLLMENT BLOCKED · Cloud readback is not verified. No invitation can be sent, no
+              contact credential exists, and no recovery request can be exchanged.
+            </Banner>
+            {contactEnrollment.stage === 'cloud-offline' && (
+              <Banner palette={palette} testID="preview-contact-offline">
+                SIMULATED OFFLINE · Cloud backup is unavailable. Contact recovery cannot proceed
+                without retrieving the encrypted backup.
+              </Banner>
+            )}
+            {contactSample === 'overview' && (
+              <View style={styles.section}>
+                <PreviewText color={palette.muted}>
+                  The samples below show possible decisions only. They do not bypass cloud readback
+                  or create a contact credential.
+                </PreviewText>
+                <PrimaryAction
+                  label="Sample Invite"
+                  onPress={startSampleInvitation}
+                  palette={palette}
+                />
+                <LinkAction
+                  label="Sample Request"
+                  onPress={startSampleRequest}
+                  palette={palette}
+                  testID="preview-sample-request"
+                />
+              </View>
+            )}
+            {contactSample === 'invitation' && (
+              <View testID="preview-sample-invitation" style={styles.section}>
+                <Panel palette={palette}>
+                  <PreviewText color={palette.text} style={styles.cardTitle}>
+                    Sample invitation · not sent
+                  </PreviewText>
+                  <PreviewText color={palette.muted}>
+                    A real contact would review who invited them and decide whether to accept. No
+                    invitation, contact credential, or wrapped backup key exists in this sample.
+                  </PreviewText>
+                </Panel>
+                {invitationDecision === 'pending' ? (
+                  <View style={styles.section}>
+                    <PrimaryAction
+                      label="Simulate Approval"
+                      onPress={() => setInvitationDecision('approval-intent')}
+                      palette={palette}
+                    />
+                    <LinkAction
+                      label="Simulate Decline"
+                      onPress={() => setInvitationDecision('declined')}
+                      palette={palette}
+                      testID="preview-invite-decline"
+                    />
+                    <LinkAction
+                      label="Simulate Expiry"
+                      onPress={() => setInvitationDecision('expired')}
+                      palette={palette}
+                      testID="preview-invite-expire"
+                    />
+                  </View>
+                ) : (
+                  <Banner palette={palette} testID="preview-invite-result">
+                    {invitationDecision === 'approval-intent'
+                      ? 'SIMULATED APPROVAL INTENT · No credential was enrolled and no cryptographic key wrapping occurred.'
+                      : invitationDecision === 'declined'
+                      ? 'SIMULATED DECLINE · Enrollment stops. No credential or backup access was granted.'
+                      : 'SIMULATED EXPIRY · The invitation can no longer be accepted. No credential was created.'}
+                  </Banner>
+                )}
+                <LinkAction
+                  label="Reset Sample"
+                  onPress={startSampleInvitation}
+                  palette={palette}
+                  testID="preview-invite-reset"
+                />
+                <LinkAction
+                  label="Sample Request"
+                  onPress={startSampleRequest}
+                  palette={palette}
+                  testID="preview-sample-request"
+                />
+              </View>
+            )}
+            {contactSample === 'request' && requestDecision && (
+              <View testID="preview-sample-contact-request" style={styles.section}>
+                <Panel palette={palette}>
+                  <PreviewText color={palette.text} style={styles.cardTitle}>
+                    Sample lost-phone request · not sent
+                  </PreviewText>
+                  <PreviewText color={palette.muted}>
+                    A contact would verify the person and replacement phone through a separate
+                    trusted check before deciding. This sample has no enrolled credential, device
+                    key, encrypted response, or server exchange.
+                  </PreviewText>
+                </Panel>
+                {requestDecision.stage === 'pending' ? (
+                  <View style={styles.section}>
+                    <PrimaryAction
+                      label="Simulate Approval"
+                      onPress={() => decideSampleRequest('approve')}
+                      palette={palette}
+                    />
+                    <LinkAction
+                      label="Simulate Decline"
+                      onPress={() => decideSampleRequest('decline')}
+                      palette={palette}
+                      testID="preview-request-decline"
+                    />
+                    <LinkAction
+                      label="Simulate Expiry"
+                      onPress={() => decideSampleRequest('expire')}
+                      palette={palette}
+                      testID="preview-request-expire"
+                    />
+                  </View>
+                ) : (
+                  <Banner palette={palette} testID="preview-request-result">
+                    {requestDecision.stage === 'approval-intent'
+                      ? 'SIMULATED APPROVAL INTENT · No response was encrypted or delivered, and no Mobile Key was restored.'
+                      : requestDecision.stage === 'declined'
+                      ? 'SIMULATED DECLINE · The recovery request stops. No Mobile Key was restored.'
+                      : 'SIMULATED EXPIRY · The request cannot be approved. No Mobile Key was restored.'}
+                  </Banner>
+                )}
+                <LinkAction
+                  label="Reset Sample"
+                  onPress={startSampleRequest}
+                  palette={palette}
+                  testID="preview-request-reset"
+                />
+                <LinkAction
+                  label="Sample Invite"
+                  onPress={startSampleInvitation}
+                  palette={palette}
+                  testID="preview-sample-invite"
+                />
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

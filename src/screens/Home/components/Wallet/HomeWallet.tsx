@@ -1,7 +1,10 @@
 import { Box, useColorMode, View } from '@gluestack-ui/themed-native-base';
 import React, { useContext, useState, useEffect } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import NativeConfig from 'react-native-config';
+import DeviceInfo from 'react-native-device-info';
 import DashedCta from 'src/components/DashedCta';
+import Buttons from 'src/components/Buttons';
 import WalletCard from './WalletCard';
 import Colors from 'src/theme/Colors';
 import useWallets from 'src/hooks/useWallets';
@@ -10,7 +13,8 @@ import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { Vault } from 'src/services/wallets/interfaces/vault';
 
 import useWalletAsset from 'src/hooks/useWalletAsset';
-import { EntityKind, VisibilityType, WalletType } from 'src/services/wallets/enums';
+import { EntityKind, NetworkType, VisibilityType, WalletType } from 'src/services/wallets/enums';
+import { isEmptyWalletOnboardingEnabled } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
 import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
 import KeeperModal from 'src/components/KeeperModal';
 import Text from 'src/components/KeeperText';
@@ -45,6 +49,7 @@ import TickIcon from 'src/assets/images/icon_tick.svg';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import Fab from 'src/components/Fab';
 import AddIcon from 'src/assets/images/add_white.svg';
+import AddWalletIllustration from 'src/assets/images/addWallet_illustration.svg';
 import { useUTXOSpendability } from 'src/hooks/useUTXOSpendability';
 import { clearDustToast } from 'src/store/reducers/utxos';
 
@@ -139,6 +144,17 @@ const HomeWallet = () => {
     ...allVaults,
     ...usdtWallets,
   ].filter((item) => item !== null);
+  const usePreviewWalletChooser =
+    bitcoinNetworkType === NetworkType.TESTNET &&
+    isEmptyWalletOnboardingEnabled({
+      emptyWalletFlag: NativeConfig.KEEPER_EMPTY_WALLET_ONBOARDING,
+      previewFlag: NativeConfig.KEEPER_PREVIEW,
+      testnetOnlyFlag: NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY,
+      bundleId: DeviceInfo.getBundleId(),
+    });
+  const showWalletEmptyState = usePreviewWalletChooser && allWallets.length === 0;
+  const openWalletChoice = () =>
+    navigation.dispatch(CommonActions.navigate({ name: 'WalletChoice' }));
   const [isShowAmount, setIsShowAmount] = useState(false);
   const DashedCta_hexagonBackgroundColor = ThemedColor({
     name: 'DashedCta_hexagonBackgroundColor',
@@ -280,13 +296,29 @@ const HomeWallet = () => {
   return (
     <Box style={styles.walletContainer}>
       <ActivityIndicatorView visible={syncing} showLoader />
-      <Fab
-        icon={<AddIcon height={hp(22)} width={wp(22)} />}
-        onPress={() => setPickWalletType(true)}
-      />
+      {!showWalletEmptyState && (
+        <Fab
+          icon={<AddIcon height={hp(22)} width={wp(22)} />}
+          onPress={() => (usePreviewWalletChooser ? openWalletChoice() : setPickWalletType(true))}
+        />
+      )}
       <FlatList
         data={allWallets}
         renderItem={renderWalletCard}
+        ListEmptyComponent={
+          showWalletEmptyState ? (
+            <Box style={styles.emptyWalletContainer} testID="wallets-empty-state">
+              <AddWalletIllustration width={wp(130)} height={hp(130)} />
+              <Text color={`${colorMode}.primaryText`} style={styles.emptyWalletTitle} semiBold>
+                No wallets yet
+              </Text>
+              <Text color={`${colorMode}.secondaryText`} style={styles.emptyWalletBody}>
+                Choose how you want to hold your bitcoin. A Hot Wallet has not been created.
+              </Text>
+              <Buttons primaryText="Add Wallet" primaryCallback={openWalletChoice} fullWidth />
+            </Box>
+          ) : null
+        }
         refreshControl={<RefreshControl onRefresh={pullDownRefresh} refreshing={pullRefresh} />}
         keyExtractor={(item, index) => `${item.id || index}`}
         showsVerticalScrollIndicator={false}
@@ -441,6 +473,14 @@ const styles = StyleSheet.create({
   walletContainer: {
     gap: 15,
   },
+  emptyWalletContainer: {
+    alignItems: 'center',
+    paddingTop: hp(30),
+    paddingHorizontal: wp(18),
+    gap: hp(14),
+  },
+  emptyWalletTitle: { fontSize: 20, textAlign: 'center' },
+  emptyWalletBody: { fontSize: 15, lineHeight: 23, textAlign: 'center' },
   addWalletOptionsList: {
     gap: wp(15),
     marginBottom: hp(10),

@@ -76,6 +76,7 @@ import SatochipSeedImportModal from 'src/screens/SigningDevices/SatochipSeedImpo
 import PrivacyAndDisplay from 'src/screens/AppSettings/PrivacyAndDisplay';
 import VaultConfigurationCreation from 'src/screens/Vault/VaultConfigurationRecreation';
 import AddNewWallet from 'src/screens/AddWalletScreen/AddNewWallet';
+import WalletChoiceScreen from 'src/screens/AddWalletScreen/WalletChoiceScreen';
 import ConfirmWalletDetails from 'src/screens/AddWalletScreen/ConfirmWalletDetails';
 import HomeScreen from 'src/screens/Home/HomeScreen';
 import ManageSigners from 'src/screens/SigningDevices/ManageSigners';
@@ -344,6 +345,7 @@ function AppStack() {
         <Stack.Screen name="VaultConfigurationCreation" component={VaultConfigurationCreation} />
         <Stack.Screen name="AssignSignerType" component={AssignSignerType} />
         <Stack.Screen name="AddNewWallet" component={AddNewWallet} />
+        <Stack.Screen name="WalletChoice" component={WalletChoiceScreen} />
         <Stack.Screen name="SettingApp" component={SettingsApp} />
         <Stack.Screen name="InheritanceDocumentScreen" component={InheritanceDocumentScreen} />
         <Stack.Screen name="ManageSigners" component={ManageSigners} />
