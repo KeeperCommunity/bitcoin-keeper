@@ -648,6 +648,16 @@ function* refreshWalletsWorker({
       appId: state.storage.appId,
       networkType: state.settings.bitcoinNetworkType,
     }));
+    const assertAccountRealmScope = () => {
+      const currentState = store.getState();
+      const keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
+      if (
+        currentState.storage.appId !== refreshScope.appId ||
+        currentState.settings.bitcoinNetworkType !== refreshScope.networkType ||
+        keeperApp?.id !== refreshScope.appId
+      )
+        throw new Error(WALLET_SYNC_SCOPE_CHANGED);
+    };
     wallets = wallets.filter((wallet) => wallet.networkType === refreshScope.networkType);
     if (wallets.length === 0) {
       succeeded = true;
@@ -676,7 +686,10 @@ function* refreshWalletsWorker({
     for (const wallet of wallets) {
       const schema =
         wallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet;
-      const currentWallet = yield call(dbManager.getObjectById, schema, wallet.id);
+      const currentWallet = yield call(() => {
+        assertAccountRealmScope();
+        return dbManager.getObjectById(schema, wallet.id);
+      });
       if (!currentWallet || currentWallet.networkType !== refreshScope.networkType) return false;
       currentWallets.push(getJSONFromRealmObject(currentWallet));
     }
@@ -699,12 +712,7 @@ function* refreshWalletsWorker({
 
     const connectionGeneration = ElectrumClient.getConnectionGeneration();
     const assertCurrentScope = () => {
-      const currentState = store.getState();
-      if (
-        currentState.storage.appId !== refreshScope.appId ||
-        currentState.settings.bitcoinNetworkType !== refreshScope.networkType
-      )
-        throw new Error(WALLET_SYNC_SCOPE_CHANGED);
+      assertAccountRealmScope();
       try {
         ElectrumClient.assertConnectionGeneration(connectionGeneration, refreshScope.networkType);
       } catch {
@@ -971,12 +979,14 @@ function* refreshWalletsWorker({
         writeScope.networkType !== refreshScope.networkType
       )
         return false;
-      const persisted = yield call(
-        dbManager.updateObjectById,
-        synchedWallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet,
-        synchedWallet.id,
-        { specs: synchedWallet.specs }
-      );
+      const persisted = yield call(() => {
+        assertCurrentScope();
+        return dbManager.updateObjectById(
+          synchedWallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet,
+          synchedWallet.id,
+          { specs: synchedWallet.specs }
+        );
+      });
       if (!persisted) throw new Error('Failed to persist refreshed wallet');
 
       if (options.addNotifications && newDustUTXOs.length > 0) {
@@ -1202,10 +1212,12 @@ export function* testcoinsWorker({ payload }) {
   }));
   const isCurrentFaucetScope = () => {
     const state = store.getState();
+    const keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
     return (
       state.storage.appId === faucetScope.appId &&
       state.settings.bitcoinNetworkType === faucetScope.networkType &&
-      faucetScope.networkType === wallet.networkType
+      faucetScope.networkType === wallet.networkType &&
+      keeperApp?.id === faucetScope.appId
     );
   };
 
