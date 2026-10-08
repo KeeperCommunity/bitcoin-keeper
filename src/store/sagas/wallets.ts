@@ -715,13 +715,16 @@ function* refreshWalletsWorker({
       yield call(connectToNodeWorker);
     }
 
+    assertAccountRealmScope();
+    if (!ELECTRUM_CLIENT.isClientConnected) throw new Error(ELECTRUM_NOT_CONNECTED_ERR);
+
     const connectionGeneration = ElectrumClient.getConnectionGeneration();
     const assertCurrentScope = () => {
       assertAccountRealmScope();
       try {
         ElectrumClient.assertConnectionGeneration(connectionGeneration, refreshScope.networkType);
       } catch {
-        throw new Error(WALLET_SYNC_SCOPE_CHANGED);
+        throw new Error(ELECTRUM_NOT_CONNECTED_ERR);
       }
     };
     assertCurrentScope();

@@ -149,6 +149,26 @@ test('refresh does not read or write another Realm during account handover', asy
   assert.deepEqual(f.errors, []);
 });
 
+test('manual refresh reports a disconnected current node and ends its request', async () => {
+  const f = refreshFixture('Wallet');
+  f.scope.ELECTRUM_CLIENT.isClientConnected = false;
+  f.scope.ElectrumClient.resetCurrentPeerIndex = () => {};
+  f.scope.connectToNodeWorker = () => {};
+  assert.equal(await f.run('refreshWalletsWorker', {
+    payload: {
+      wallets: f.collections.Wallet,
+      options: { hardRefresh: true },
+      requestId: 'disconnected-pull',
+    },
+  }), false);
+  assert.deepEqual(f.writes, []);
+  assert.ok(f.actions.some((action) =>
+    action.type === 'setElectrumNotConnectedErr' && action.payload.includes('Network error')));
+  const finished = f.actions.find((action) => action.type === 'finishRefreshRequest')?.payload;
+  assert.equal(finished?.requestId, 'disconnected-pull');
+  assert.equal(finished?.succeeded, false);
+});
+
 test('login backup inspection waits for wallet refresh to finish', async () => {
   let finishSync;
   const syncGate = new Promise((resolve) => { finishSync = resolve; });
