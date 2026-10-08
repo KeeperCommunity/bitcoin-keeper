@@ -20,10 +20,11 @@ function loadTypeScript(relativePath, imports = {}) {
     if (!(specifier in imports)) throw new Error(`Unexpected import: ${specifier}`);
     return imports[specifier];
   };
-  const run = vm.runInNewContext(
-    `(function (require, module, exports) { ${code}\n})`,
-    { Date, Error, Promise }
-  );
+  const run = vm.runInNewContext(`(function (require, module, exports) { ${code}\n})`, {
+    Date,
+    Error,
+    Promise,
+  });
   run(loadImport, module, module.exports);
   return module.exports;
 }
@@ -41,23 +42,26 @@ const tron = {
   getTrc20Transactions: async (...args) => {
     historyCalls.push(args);
     return {
-      transactions: [{
-        transactionId: 'chain-1',
-        from: 'TSender',
-        to: 'TStoredGasFreeAddress',
-        formattedValue: 5,
-        blockNumber: 1,
-        blockTimestamp: 100,
-      }],
+      transactions: [
+        {
+          transactionId: 'chain-1',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          formattedValue: 2,
+          blockNumber: 1,
+          blockTimestamp: 100,
+        },
+      ],
       meta: { fingerprint: '', hasMore: false },
     };
   },
 };
-const service = loadTypeScript('src/services/wallets/operations/dollars/USDT.ts', {
+const usdtModule = loadTypeScript('src/services/wallets/operations/dollars/USDT.ts', {
   './GasFree': historical,
   'src/services/wallets/enums': { NetworkType: network },
   './Tron': tron,
-}).default;
+});
+const service = usdtModule.default;
 
 const wallet = {
   networkType: network.MAINNET,
@@ -74,15 +78,17 @@ const wallet = {
     address: 'TOwner',
     privateKey: 'fixture-only',
     balance: 10,
-    transactions: [{
-      traceId: 'historical-trace',
-      from: 'TStoredGasFreeAddress',
-      to: 'TRecipient',
-      amount: '2',
-      status: historical.GasFreeTransferStatus.WAITING,
-      timestamp: 50,
-      isGasFree: true,
-    }],
+    transactions: [
+      {
+        traceId: 'historical-trace',
+        from: 'TStoredGasFreeAddress',
+        to: 'TRecipient',
+        amount: '2',
+        status: historical.GasFreeTransferStatus.WAITING,
+        timestamp: 50,
+        isGasFree: true,
+      },
+    ],
     hasNewUpdates: false,
     lastSynched: 1,
   },
@@ -115,7 +121,7 @@ test('retired provider operations fail closed without a provider import', async 
   assert.equal((await service.monitorTransfer('historical-trace')).success, false);
 });
 
-test('stored address, chain reads and historical trace survive the pause', async () => {
+test('stored address, chain reads and ambiguous historical request survive the pause', async () => {
   assert.equal(await factory.updateUSDTWalletAccountStatus(wallet), wallet.accountStatus);
   assert.equal(await factory.syncUSDTWalletBalance(wallet), 42);
   assert.equal(balanceCalls[0][0], wallet.accountStatus.gasFreeAddress);
@@ -126,6 +132,11 @@ test('stored address, chain reads and historical trace survive the pause', async
   assert.equal(transactions.length, 2);
   assert.equal(transactions[0].txId, 'chain-1');
   assert.equal(transactions[1].traceId, 'historical-trace');
+  assert.equal(transactions[0].to, transactions[1].to);
+  assert.equal(transactions[0].amount, transactions[1].amount);
+  assert.equal(transactions[1].txId, undefined);
+  assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[0]), false);
+  assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[1]), true);
   assert.equal(transactions[1].status, historical.GasFreeTransferStatus.WAITING);
 });
 

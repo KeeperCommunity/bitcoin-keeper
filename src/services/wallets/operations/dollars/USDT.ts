@@ -61,6 +61,10 @@ export interface USDTTransaction {
   isGasFree: boolean;
 }
 
+export const isHistoricalUnverifiedUSDTRequest = (
+  transaction: Pick<USDTTransaction, 'traceId' | 'txId'>
+): boolean => Boolean(transaction.traceId && !transaction.txId);
+
 export default class USDT {
   private static getUSDTAddress(networkType?: NetworkType): string {
     return USDT_ADDRESSES[networkType || NetworkType.MAINNET];
