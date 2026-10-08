@@ -128,3 +128,37 @@ require Docker, Podman, or Nix; a script ending in `build.sh`; a `--binary`
 argument; and an adjacent `COMPARISON_RESULTS.yaml`. No such script or results
 file is included here because the exact production input and complete
 third-party build path have not yet been established.
+
+## Fail closed on future build inputs
+
+`android-inputs.json` pins the Node, Yarn, JDK, Gradle wrapper, lockfile, and
+Android SDK package versions chosen for the next independent build attempt.
+These are **chosen future inputs**, not a reconstruction of the v2.6.3
+publisher's environment. Before any production build, run:
+
+```sh
+python3 reproducibility/verify-android-inputs.py \
+  --source-commit <reviewed-40-character-commit> \
+  --env-file /path/to/reviewed/.env.production \
+  --approved-env-names /path/to/reviewed/approved-env-names.txt \
+  --android-sdk-root /path/to/android-sdk
+```
+
+The approved names file contains exactly one reviewed environment key per line
+and no values. It must come from the release review. The checker rejects
+missing or extra names, a dirty or wrong source checkout, changed dependency
+hashes, mismatched tool versions, missing SDK packages, a symlinked
+`node_modules` root, and links from dependencies to files outside the checkout.
+It does not output environment values. A local dependency install is necessary;
+linking to a sibling `node_modules` directory recreates an observed historical
+build-path dependency and fails this check.
+
+This check does not yet pin the container image, Android command-line tools
+download, Maven artifacts, or every transitive native input. It does not run
+the build or compare a binary and is not a WalletScrutiny `build.sh`. The exact
+production environment names and values still need release-owner review before
+any public recipe or verdict. Run its focused tests with:
+
+```sh
+python3 -m unittest reproducibility/test_verify_android_inputs.py
+```

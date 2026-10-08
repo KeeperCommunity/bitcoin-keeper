@@ -32,3 +32,6 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Test Android reproducibility tools
+        run: python3 -B -m unittest scripts/test_compare_android_apks.py reproducibility/test_verify_android_inputs.py
