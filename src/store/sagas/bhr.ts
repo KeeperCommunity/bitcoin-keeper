@@ -1094,10 +1094,11 @@ function* deleteBackupWorker() {
 
 export const deleteBackupWatcher = createWatcher(deleteBackupWorker, DELETE_BACKUP);
 
-export function* checkBackupCondition() {
+export function* checkBackupCondition(expectedAppId?: string) {
   const { automaticCloudBackup } = yield select((state: RootState) => state.bhr);
   if (!automaticCloudBackup) return true;
   const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if (expectedAppId && id !== expectedAppId) return true;
   markBackupMutation(id);
   yield put(invalidateBackupRepair(id));
   const netInfo = yield call(NetInfo.fetch);

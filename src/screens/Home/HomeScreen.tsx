@@ -1,4 +1,4 @@
-import { AppState, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import useWallets from 'src/hooks/useWallets';
@@ -31,7 +31,6 @@ import dbManager from 'src/storage/realm/dbManager';
 import { setRecoveryKeyStatus } from 'src/store/reducers/account';
 import RecoveryKeyIcon from 'src/assets/images/recover_white.svg';
 import HelpAiEntry from '../HelpAi/HelpAiEntry';
-import { autoSyncWallets } from 'src/store/sagaActions/wallets';
 
 function NewHomeScreen({ route }) {
   const { colorMode } = useColorMode();
@@ -53,8 +52,6 @@ function NewHomeScreen({ route }) {
   const backupHistory = useQuery(RealmSchema.BackupHistory);
   const { recoveryKeyStatusByAppId } = useAppSelector((state) => state.account);
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
-  const isAuthenticated = useAppSelector((state) => state.login.isAuthenticated);
-  const appState = useRef(AppState.currentState);
   const { id } = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any;
 
   // 'idle' | 'education' | 'skipWarning'
@@ -63,16 +60,6 @@ function NewHomeScreen({ route }) {
   >('idle');
   // Session flag: prevent re-showing the education sheet after the user dismisses it
   const hasShownEducationSheetRef = useRef(false);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (appState.current?.match(/inactive|background/) && nextState === 'active' && isAuthenticated) {
-        dispatch(autoSyncWallets(false, false, false, undefined, true));
-      }
-      appState.current = nextState;
-    });
-    return () => subscription.remove();
-  }, [dispatch, isAuthenticated]);
 
   const recoveryKeyStatus = recoveryKeyStatusByAppId?.[id];
   const isConfirmed = recoveryKeyStatus === 'confirmed';
