@@ -97,7 +97,9 @@ jobs:
           test -s "$aab"
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify "$apk"
           badging=$("$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2" dump badging "$apk")
-          grep -q "package: name='io.hexawallet.bitcoinkeeper' versionCode='626' versionName='2.6.3'" <<< "$badging"
+          version=$(node -p 'require("./release/version.json").version')
+          version_code=$(node -p 'require("./release/version.json").androidVersionCode')
+          grep -Fq "package: name='io.hexawallet.bitcoinkeeper' versionCode='$version_code' versionName='$version'" <<< "$badging"
           jarsigner -verify "$aab" >/dev/null
           unzip -tq "$apk" >/dev/null
           unzip -tq "$aab" >/dev/null
