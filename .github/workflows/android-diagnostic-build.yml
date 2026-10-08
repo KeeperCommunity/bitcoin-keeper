@@ -1,0 +1,105 @@
+name: Android diagnostic build
+
+on:
+  pull_request:
+    branches:
+      - release/2.6.3
+      - sprint
+      - dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-diagnostic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.3
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android build packages
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+
+      - name: Install JavaScript dependencies without the iOS setup hook
+        run: |
+          npm install --global yarn@1.22.22
+          yarn install --frozen-lockfile --ignore-scripts --non-interactive
+          ./node_modules/.bin/patch-package
+          ./node_modules/.bin/rn-nodeify --install buffer,events,process,stream,inherits,path,assert,crypto --hack --yarn
+
+      - name: Create diagnostic configuration
+        run: |
+          cat > "$RUNNER_TEMP/keeper-diagnostic.env" <<'EOF'
+          CHANNEL_URL=https://channel.bitcoinkeeper.app/
+          ENVIRONMENT=PRODUCTION
+          HEXA_ID_MAINNET=0000000000000000000000000000000000000000000000000000000000000000
+          HEXA_ID_TESTNET=0000000000000000000000000000000000000000000000000000000000000000
+          RELAY=https://example.invalid/
+          SIGNING_SERVER_MAINNET=https://example.invalid/
+          SIGNING_SERVER_TESTNET=https://example.invalid/
+          EOF
+          node scripts/verify-channel-config.cjs "$RUNNER_TEMP/keeper-diagnostic.env"
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
+
+      - name: Confirm Gradle rejects a retired mobile credential
+        run: |
+          cp "$RUNNER_TEMP/keeper-diagnostic.env" "$RUNNER_TEMP/keeper-rejected.env"
+          printf 'GASFREE_API_KEY=diagnostic-only\n' >> "$RUNNER_TEMP/keeper-rejected.env"
+          if (cd android && ENVFILE="$RUNNER_TEMP/keeper-rejected.env" ./gradlew :app:help --no-daemon --console=plain > "$RUNNER_TEMP/rejected-build.log" 2>&1); then
+            echo 'Gradle accepted a retired mobile credential' >&2
+            exit 1
+          fi
+          if ! grep -q 'Retired API credentials must not be included in an Android build' "$RUNNER_TEMP/rejected-build.log"; then
+            tail -80 "$RUNNER_TEMP/rejected-build.log"
+            exit 1
+          fi
+
+      - name: Build APK and AAB with the public debug key
+        env:
+          STORE_PASSWORD: android
+          KEY_ALIAS: androiddebugkey
+          KEY_PASSWORD: android
+        run: |
+          export ENVFILE="$RUNNER_TEMP/keeper-diagnostic.env"
+          export KEEPER_ANDROID_KEYSTORE="$GITHUB_WORKSPACE/android/app/debug.keystore"
+          cd android
+          ./gradlew :app:assembleProductionRelease :app:bundleProductionRelease --no-daemon --console=plain
+
+      - name: Check diagnostic artifacts
+        run: |
+          apk=android/app/build/outputs/apk/production/release/app-production-release.apk
+          aab=android/app/build/outputs/bundle/productionRelease/app-production-release.aab
+          test -s "$apk"
+          test -s "$aab"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify "$apk"
+          badging=$("$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2" dump badging "$apk")
+          grep -q "package: name='io.hexawallet.bitcoinkeeper' versionCode='626' versionName='2.6.3'" <<< "$badging"
+          jarsigner -verify "$aab" >/dev/null
+          unzip -tq "$apk" >/dev/null
+          unzip -tq "$aab" >/dev/null
+          sha256sum "$apk" "$aab"
+          echo 'Diagnostic APK/AAB built with placeholder config and debug signing; no reproducibility verdict.'

@@ -22,4 +22,14 @@ if (matches.length !== 1 || matches[0] !== expected) {
   throw new Error(`Production CHANNEL_URL must be ${expected}`);
 }
 
-console.log('Production channel URL verified');
+const stages = envContents
+  .split(/\r?\n/)
+  .map(line => line.match(/^\s*(?:export\s+)?ENVIRONMENT\s*=\s*(.*?)\s*$/))
+  .filter(Boolean)
+  .map(match => match[1].replace(/^['"]|['"]$/g, ''));
+
+if (stages.length !== 1 || stages[0] !== 'PRODUCTION') {
+  throw new Error('Production ENVIRONMENT must be PRODUCTION');
+}
+
+console.log('Production channel URL and environment verified');

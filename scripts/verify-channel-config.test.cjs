@@ -7,7 +7,7 @@ const { spawnSync } = require('node:child_process');
 
 const verifier = path.join(__dirname, 'verify-channel-config.cjs');
 const prebuild = path.join(__dirname, '..', 'appcenter-pre-build.sh');
-const channel = 'CHANNEL_URL=https://channel.bitcoinkeeper.app/\n';
+const channel = 'CHANNEL_URL=https://channel.bitcoinkeeper.app/\nENVIRONMENT=PRODUCTION\n';
 
 function withTempDirectory(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'keeper-usdt-env-'));
@@ -25,6 +25,21 @@ test('release env accepts reviewed channel without retired credentials', () =>
     const result = spawnSync(process.execPath, [verifier, envFile], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
   }));
+
+for (const [caseName, stage] of [
+  ['missing', ''],
+  ['development', 'ENVIRONMENT=DEVELOPMENT\n'],
+  ['duplicate', 'ENVIRONMENT=PRODUCTION\nENVIRONMENT=PRODUCTION\n'],
+]) {
+  test(`release env rejects ${caseName} production stage`, () =>
+    withTempDirectory((directory) => {
+      const envFile = path.join(directory, '.env.production');
+      fs.writeFileSync(envFile, `CHANNEL_URL=https://channel.bitcoinkeeper.app/\n${stage}`);
+      const result = spawnSync(process.execPath, [verifier, envFile], { encoding: 'utf8' });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Production ENVIRONMENT must be PRODUCTION/);
+    }));
+}
 
 for (const name of ['GASFREE_API_KEY', 'GASFREE_API_SECRET', 'RN_GASFREE_API_KEY',
   'LETS_EXCHANGE_API_KEY', 'RN_LETS_EXCHANGE_API_KEY']) {

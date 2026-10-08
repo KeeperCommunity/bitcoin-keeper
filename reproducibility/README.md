@@ -6,6 +6,14 @@ release with a build from its public source. The comparison tool in
 inspection aid. It is **not** a WalletScrutiny build script, and this repository
 does not yet establish a reproducibility verdict for v2.6.3.
 
+The [Android diagnostic build workflow](../.github/workflows/android-diagnostic-build.yml)
+is set up to compile an APK and AAB from the combined draft with the live public
+channel URL and `ENVIRONMENT=PRODUCTION`, dummy service endpoints and IDs, and
+the checked-in debug key. It also checks that Gradle rejects a retired GasFree
+credential. A successful run would verify that the draft compiles in a clean CI
+checkout; its outputs cannot be compared to a production release for a
+reproducibility verdict. The workflow does not publish the diagnostic artifacts.
+
 ## v2.6.3 reference and measured result
 
 The public source tag is [`v2.6.3`](https://github.com/KeeperCommunity/bitcoin-keeper/releases/tag/v2.6.3),
@@ -145,9 +153,10 @@ python3 reproducibility/verify-android-inputs.py \
 
 The tracked manifest contains seven source-audited environment names and no
 values. This is a **provisional future-release allowlist**: the GasFree pause
-in draft PR #7037 and integration checks for four candidate omissions must be
-reviewed before using it for a release. Changing the list requires a tracked
-source change. The checker rejects
+is included in [combined draft PR #7035](https://github.com/KeeperCommunity/bitcoin-keeper/pull/7035),
+and integration checks for four candidate omissions must be reviewed before
+using it for a release. Changing the list requires a tracked source change.
+The checker rejects
 missing or extra names, a dirty or wrong source checkout, changed dependency
 hashes, mismatched tool versions, missing SDK packages, a symlinked
 `node_modules` root, and links from dependencies to files outside the checkout.

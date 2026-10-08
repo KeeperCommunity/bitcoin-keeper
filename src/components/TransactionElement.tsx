@@ -81,6 +81,7 @@ function TransactionElement({
       <Box
         style={[
           styles.container,
+          legacyUSDTRequest ? styles.legacyContainer : styles.standardContainer,
           isCached && [
             styles.cachedContainer,
             { backgroundColor: colorMode === 'light' ? Colors.brightCream : Colors.TertiaryBlack },
@@ -95,7 +96,7 @@ function TransactionElement({
                 <TransactionPendingIcon />
               </Box>
             )}
-            {isCached ? (
+            {legacyUSDTRequest ? null : isCached ? (
               <IconCache />
             ) : transactionType === 'Received' ? (
               colorMode === 'light' ? (
@@ -112,17 +113,19 @@ function TransactionElement({
           <Box style={styles.transactionContainer}>
             <Text
               color={`${colorMode}.primaryText`}
-              numberOfLines={1}
+              numberOfLines={legacyUSDTRequest ? undefined : 1}
               style={styles.transactionIdText}
               medium
             >
-              {labels[transactionId]?.[0]?.name || transactionId}
+              {legacyUSDTRequest
+                ? translations.usdtWalletText.legacyRequestTitle
+                : labels[transactionId]?.[0]?.name || transactionId}
             </Text>
             <Text color={viewAll_color} style={styles.transactionDate} numberOfLines={1}>
               {formattedDate}
             </Text>
             {legacyUSDTRequest && (
-              <Text color={viewAll_color} style={styles.legacyStatus} numberOfLines={1}>
+              <Text color={viewAll_color} style={styles.legacyStatus}>
                 {translations.usdtWalletText.statusUnavailable}
               </Text>
             )}
@@ -136,15 +139,17 @@ function TransactionElement({
           </Box>
         </Box>
         <Box style={styles.rowCenter}>
-          <CurrencyInfo
-            hideAmounts={false}
-            amount={amount}
-            fontSize={15}
-            color={`${colorMode}.primaryText`}
-            balanceMaxWidth={wp(80)}
-            variation={colorMode === 'light' ? 'richBlack' : 'light'}
-            wallet={wallet}
-          />
+          {!legacyUSDTRequest && (
+            <CurrencyInfo
+              hideAmounts={false}
+              amount={amount}
+              fontSize={15}
+              color={`${colorMode}.primaryText`}
+              balanceMaxWidth={wp(80)}
+              variation={colorMode === 'light' ? 'richBlack' : 'light'}
+              wallet={wallet}
+            />
+          )}
           <Box style={[styles.arrowIconWrapper]}>
             {colorMode === 'dark' ? <IconArrowWhite /> : <IconArrow />}
           </Box>
@@ -158,10 +163,16 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderRadius: 10,
-    height: hp(76),
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
+  },
+  standardContainer: {
+    height: hp(76),
+  },
+  legacyContainer: {
+    minHeight: hp(76),
+    paddingVertical: hp(8),
   },
   rowCenter: {
     marginHorizontal: wp(10),

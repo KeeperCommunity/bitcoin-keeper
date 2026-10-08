@@ -123,12 +123,14 @@ const UsdtTransactionDetail = ({ route }) => {
     <ScreenWrapper paddingHorizontal={0} backgroundcolor={`${colorMode}.primaryBackground`}>
       <Box style={styles.headerContainer}>
         <WalletHeader
-          title={usdtWalletText.transactionDetails}
-          subTitle={usdtWalletText.transactionDetailsSubTitle}
+          title={legacyRequest ? usdtWalletText.legacyRequestTitle : usdtWalletText.transactionDetails}
+          subTitle={
+            legacyRequest ? usdtWalletText.statusUnavailable : usdtWalletText.transactionDetailsSubTitle
+          }
         />
         <Box style={styles.transViewWrapper}>
           <Box style={styles.transViewIcon}>
-            {transactionType === 'Received' ? (
+            {legacyRequest ? null : transactionType === 'Received' ? (
               colorMode === 'dark' ? (
                 <IconRecieveDark />
               ) : (
@@ -149,6 +151,11 @@ const UsdtTransactionDetail = ({ route }) => {
             </Box>
           </Box>
           <Box style={styles.amountWrapper}>
+            {legacyRequest && (
+              <Text color={`${colorMode}.GreyText`}>
+                {usdtWalletText.requestedAmount}
+              </Text>
+            )}
             <Text style={styles.amountText} semiBold>
               {amount} <Text style={styles.unitText}>USDT</Text>
             </Text>
