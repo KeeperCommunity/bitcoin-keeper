@@ -6,11 +6,13 @@ on:
       - sprint
       - dev
       - main
+      - release/2.6.4
   pull_request:
     branches:
       - sprint
       - dev
       - main
+      - release/2.6.4
 
 permissions:
   actions: read
