@@ -22,6 +22,7 @@ export type WalletsState = {
   introModal: boolean;
   err: string;
   walletSyncing: {};
+  refreshRequests: Record<string, 'pending' | 'success' | 'failure'>;
   signerPolicyError?: string;
 };
 
@@ -43,6 +44,7 @@ const initialState: WalletsState = {
 
   err: '',
   walletSyncing: {},
+  refreshRequests: {},
 };
 
 export type syncingPayload = {
@@ -94,6 +96,23 @@ const walletSlice = createSlice({
     },
     resetSyncing: (state) => {
       state.walletSyncing = {};
+      state.refreshRequests = {};
+    },
+    startRefreshRequest: (state, action: PayloadAction<string>) => {
+      state.refreshRequests[action.payload] = 'pending';
+    },
+    finishRefreshRequest: (
+      state,
+      action: PayloadAction<{ requestId: string; succeeded: boolean }>
+    ) => {
+      if (state.refreshRequests[action.payload.requestId] === 'pending') {
+        state.refreshRequests[action.payload.requestId] = action.payload.succeeded
+          ? 'success'
+          : 'failure';
+      }
+    },
+    clearRefreshRequest: (state, action: PayloadAction<string>) => {
+      delete state.refreshRequests[action.payload];
     },
     setSignerPolicyError: (state, action: PayloadAction<string>) => {
       state.signerPolicyError = action.payload;
@@ -120,6 +139,9 @@ export const {
   resetWalletStateFlags,
   resetSyncing,
   setSyncing,
+  startRefreshRequest,
+  finishRefreshRequest,
+  clearRefreshRequest,
   setSignerPolicyError,
 } = walletSlice.actions;
 
@@ -134,6 +156,7 @@ const walletPersistConfig = {
     'hasNewWalletsGenerationSucceeded',
     'isGeneratingNewWallet',
     'walletSyncing',
+    'refreshRequests',
     'setSignerPolicyError',
   ],
 };

@@ -5,6 +5,35 @@ const ts = require('typescript');
 const { fixture, enums, encryption, wallet, loadModule, functions } = require('./sagaHarness.cjs');
 const { NetworkType, WalletType } = enums;
 
+test('archived-only resume keeps checking an empty hidden vault without notifications', async () => {
+  const f = fixture();
+  f.collections.Wallet.push(wallet('visible-wallet', NetworkType.MAINNET));
+  f.collections.Vault.push({
+    ...wallet('empty-archive', NetworkType.MAINNET),
+    entityKind: enums.EntityKind.VAULT,
+    archived: true,
+    presentationData: { visibility: 'HIDDEN' },
+    specs: { balances: { confirmed: 0, unconfirmed: 0 } },
+  });
+  f.collections.Vault.push({
+    ...wallet('other-network-archive', NetworkType.TESTNET),
+    entityKind: enums.EntityKind.VAULT,
+    archived: true,
+  });
+  const batches = [];
+  f.scope.refreshWalletsWorker = async ({ payload }) => {
+    batches.push(payload);
+    return true;
+  };
+
+  await f.run('autoWalletsSyncWorker', { payload: { archivedOnly: true } });
+  await f.run('autoWalletsSyncWorker', { payload: { archivedOnly: true } });
+  assert.deepEqual(batches.map(({ wallets }) => wallets.map(({ id }) => id)), [
+    ['empty-archive'], ['empty-archive'],
+  ]);
+  assert.ok(batches.every(({ options }) => options.addNotifications === false));
+});
+
 function refreshFixture(kind, rejectWrite = false) {
   const f = fixture({ bhr: { pendingAllBackup: true } });
   const original = {
@@ -52,7 +81,7 @@ for (const kind of ['Wallet', 'Vault']) {
   test(`${kind}: rejected refresh persistence returns failure and clears syncing`, async () => {
     const f = refreshFixture(kind, true);
     assert.equal(await f.run('refreshWalletsWorker', {
-      payload: { wallets: f.collections[kind], options: { hardRefresh: true } },
+      payload: { wallets: f.collections[kind], options: { hardRefresh: true }, requestId: 'failed-pull' },
     }), false);
     assert.deepEqual(f.writes, [kind]);
     assert.equal(f.collections[kind][0].specs.receivingAddress, 'before-refresh');
@@ -61,6 +90,9 @@ for (const kind of ['Wallet', 'Vault']) {
     assert.equal(f.errors.length, 1);
     assert.ok(f.actions.some((action) => action.type === 'setElectrumNotConnectedErr' &&
       action.payload.includes('Failed to persist refreshed wallet')));
+    const finished = f.actions.find((action) => action.type === 'finishRefreshRequest')?.payload;
+    assert.equal(finished?.requestId, 'failed-pull');
+    assert.equal(finished?.succeeded, false);
   });
 
   test(`${kind}: login never inspects stale specs after rejected refresh persistence`, async () => {
@@ -81,6 +113,17 @@ for (const kind of ['Wallet', 'Vault']) {
     assert.equal(f.errors.length, 0);
   });
 }
+
+test('successful pull refresh completes only after refreshed specs are persisted', async () => {
+  const f = refreshFixture('Wallet');
+  assert.equal(await f.run('refreshWalletsWorker', {
+    payload: { wallets: f.collections.Wallet, options: { hardRefresh: true }, requestId: 'saved-pull' },
+  }), true);
+  assert.equal(f.collections.Wallet[0].specs.receivingAddress, 'after-refresh');
+  const finished = f.actions.find((action) => action.type === 'finishRefreshRequest')?.payload;
+  assert.equal(finished?.requestId, 'saved-pull');
+  assert.equal(finished?.succeeded, true);
+});
 
 test('login backup inspection waits for wallet refresh to finish', async () => {
   let finishSync;

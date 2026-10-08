@@ -43,6 +43,8 @@ const encryption = loadModule('src/utils/service-utilities/encryption.ts', {
 });
 const { image } = require('./helpers.cjs');
 const { prepareRecoveryImage } = loadModule('src/services/backup/restore.ts', { './image': image });
+const { selectWalletsForSync } = loadModule('src/store/sagas/walletSyncSelection.js');
+const { acquireWalletRefresh } = loadModule('src/store/sagas/walletRefreshCoordinator.js');
 const account = loadModule('src/store/reducers/account.ts', {
   'src/services/wallets/enums': enums,
   'src/models/enums/BHR': loadModule('src/models/enums/BHR.ts'),
@@ -118,6 +120,9 @@ function fixture(options = {}) {
     ...encryption,
     ...enums,
     ...account,
+    selectWalletsForSync,
+    acquireWalletRefresh,
+    finishRefreshRequest: (payload) => ({ type: 'finishRefreshRequest', payload }),
     prepareRecoveryImage,
     pauseBackup: image.pauseBackup,
     console: { log() {}, error() {} },
@@ -138,6 +143,7 @@ function fixture(options = {}) {
     dbManager: {
       getObjectByIndex: (schema, _index, all) =>
         schema === 'KeeperApp' ? app : all ? collections[schema] : collections[schema]?.[0],
+      getObjectById: (schema, id) => collections[schema]?.find((row) => row.id === id),
       getCollection: (schema) => collections[schema] || [],
       getObjectByField: (schema) => collections[schema] || [],
       createObject: (schema, value) => {
