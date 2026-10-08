@@ -7,7 +7,7 @@
     "iosProd": "npx react-native run-ios --scheme=hexa_keeper --simulator 'iPhone 16' ",
     "start": "react-native start",
     "test": "jest",
-    "test:release": "node --test scripts/release-version.test.cjs && python3 -B -m unittest discover -s scripts -p 'test_release_artifact.py'",
+    "test:release": "node --test scripts/release-version.test.cjs scripts/verify-channel-config.test.cjs && python3 -B -m unittest discover -s scripts -p 'test_release_artifact.py'",
     "version:inspect": "node scripts/release-version.cjs inspect",
     "version:check": "node scripts/release-version.cjs check",
     "version:apply": "node scripts/release-version.cjs apply",

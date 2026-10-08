@@ -14,6 +14,7 @@ import WalletDetailHeader from '../WalletDetails/components/WalletDetailHeader';
 import DetailCards from '../WalletDetails/components/DetailCards';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import KeeperModal from 'src/components/KeeperModal';
 
 function TransactionsAndUTXOs({ transactions, setPullRefresh, pullRefresh, wallet }) {
   const [initialLoading, setInitialLoading] = useState(false);
@@ -43,6 +44,7 @@ const UsdtDetails = ({ route }) => {
   const { getWalletById } = useUSDTWallets();
   const usdtWallet = getWalletById(usdtWalletId);
   const viewAll_color = ThemedColor({ name: 'viewAll_color' });
+  const [showSendPaused, setShowSendPaused] = useState(false);
 
   return (
     <Box style={styles.wrapper}>
@@ -60,9 +62,7 @@ const UsdtDetails = ({ route }) => {
       <Box style={styles.detailCardsContainer}>
         <Box style={styles.detailCards}>
           <DetailCards
-            sendCallback={() =>
-              navigation.dispatch(CommonActions.navigate('sendUsdt', { usdtWallet }))
-            }
+            sendCallback={() => setShowSendPaused(true)}
             receiveCallback={() =>
               navigation.dispatch(CommonActions.navigate('usdtReceive', { usdtWallet }))
             }
@@ -136,6 +136,17 @@ const UsdtDetails = ({ route }) => {
           </Box>
         )}
       </VStack>
+      <KeeperModal
+        visible={showSendPaused}
+        close={() => setShowSendPaused(false)}
+        title={usdtWalletText.sendingPausedTitle}
+        subTitle={usdtWalletText.sendingPausedBody}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        buttonText={common.ok}
+        buttonCallback={() => setShowSendPaused(false)}
+      />
     </Box>
   );
 };

@@ -156,9 +156,6 @@ import { AddMultipleXpubFiles } from 'src/screens/AddSigner/AddMultipleXpubFiles
 import { SignMessageScreen } from 'src/screens/WalletDetails/SignMessageScreen';
 import UsdtDetails from 'src/screens/USDT/UsdtDetails';
 import RecieveUsdt from 'src/screens/USDT/RecieveUsdt';
-import SendUsdt from 'src/screens/USDT/SendUsdt';
-import UsdtAmount from 'src/screens/USDT/UsdtAmount';
-import UsdtSendConfirmation from 'src/screens/USDT/UsdtSendConfirmation';
 import UsdtTransactionDetail from 'src/screens/USDT/UsdtTransactionDetail';
 import UsdtTransactionHistory from 'src/screens/USDT/UsdtTransactionHistory';
 import Usdtsetting from 'src/screens/USDT/Usdtsetting';
@@ -293,9 +290,6 @@ function AppStack() {
         <Stack.Screen name="SetupAdditionalServerKey" component={SetupAdditionalServerKey} />
         <Stack.Screen name="usdtDetails" component={UsdtDetails} />
         <Stack.Screen name="usdtReceive" component={RecieveUsdt} />
-        <Stack.Screen name="sendUsdt" component={SendUsdt} />
-        <Stack.Screen name="usdtAmount" component={UsdtAmount} />
-        <Stack.Screen name="usdtSendConfirmation" component={UsdtSendConfirmation} />
         <Stack.Screen name="usdtTransactionDetail" component={UsdtTransactionDetail} />
         <Stack.Screen name="usdtTransactionHistory" component={UsdtTransactionHistory} />
         <Stack.Screen name="usdtsetting" component={Usdtsetting} />
