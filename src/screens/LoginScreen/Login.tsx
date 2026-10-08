@@ -49,7 +49,11 @@ import BounceLoader from 'src/components/BounceLoader';
 import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
-import { setAutomaticCloudBackup, setBackupType } from 'src/store/reducers/bhr';
+import {
+  setAutomaticCloudBackup,
+  setBackupType,
+  isAutomaticCloudBackupEnabled,
+} from 'src/store/reducers/bhr';
 import Relay from 'src/services/backend/Relay';
 import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 import Fonts from 'src/constants/Fonts';
@@ -84,7 +88,9 @@ function LoginScreen({ navigation, route }) {
   //   useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L4;
   const isOnPleb = false;
   const isKeeperPrivate = false;
-  const { automaticCloudBackup } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = useAppSelector((state) =>
+    isAutomaticCloudBackupEnabled(state.bhr, appId)
+  );
 
   const login_button_backGround = ThemedColor({ name: 'login_button_backGround' });
   const slider_background = ThemedColor({ name: 'slider_background' });
@@ -413,9 +419,9 @@ function LoginScreen({ navigation, route }) {
     dispatch(setSubscription(updatedSubscription.name));
     dispatch(setOfflineStatus(true));
     // disable assisted server backup for pleb
-    dispatch(setAutomaticCloudBackup(false));
+    dispatch(setAutomaticCloudBackup({ appId: app.id, enabled: false }));
     dispatch(setPlebDueToOffline(true));
-    dispatch(setAutoUpdateEnabledBeforeDowngrade(automaticCloudBackup));
+    dispatch(setAutoUpdateEnabledBeforeDowngrade({ appId: app.id, enabled: automaticCloudBackup }));
     navigation.replace('App');
   }
 

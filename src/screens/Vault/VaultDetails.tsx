@@ -155,6 +155,8 @@ function VaultDetails({ navigation, route }: ScreenProps) {
     viewTransaction = null,
   } = route.params || {};
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   const { showToast } = useToastMessage();
   const { activeVault: vault } = useVault({ vaultId });
   const [pullRefresh, setPullRefresh] = useState(false);
@@ -442,7 +444,7 @@ function VaultDetails({ navigation, route }: ScreenProps) {
       const txid = tnx?.potentialTxId || getTnxIdFromCachedTnx(tnx);
       for (const broadcastedTnx of transactions) {
         if (broadcastedTnx.txid === txid) {
-          dispatch(discardBroadcastedTnx({ cachedTxid: tnx.txid, vault }));
+          dispatch(discardBroadcastedTnx({ cachedTxid: tnx.txid, vault }, originAppId));
         }
       }
     }

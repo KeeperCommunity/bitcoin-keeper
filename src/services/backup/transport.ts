@@ -4,6 +4,12 @@ import RestClient from '../rest/RestClient';
 const queues = new Map<string, Promise<unknown>>();
 const revisions = new Map<string, number>();
 const queuedMutationRevisions = new Map<string, number>();
+let mayUploadForAccount: (appId: string, explicitChoice: boolean) => boolean = () => false;
+export const setBackupUploadGuard = (guard: (appId: string, explicitChoice: boolean) => boolean) => {
+  mayUploadForAccount = guard;
+};
+export const canAccessBackupAccount = (appId: string, explicitChoice = false) =>
+  mayUploadForAccount(appId, explicitChoice);
 export const backupRevision = (id: string) => revisions.get(id) || 0;
 export const backupQueuedRevision = (id: string) => queuedMutationRevisions.get(id) || 0;
 export const markBackupMutation = (id: string) => revisions.set(id, backupRevision(id) + 1);
@@ -89,11 +95,18 @@ export async function boundedBackupPost(
   }
 }
 
-export function backupPost(path: string, body: any) {
+export function backupPost(path: string, body: any, explicitChoice = false) {
   const appId = body.appId || body.appID;
   if (!appId) return Promise.reject(new Error('Missing backup account'));
+  if (!canAccessBackupAccount(appId, explicitChoice))
+    return Promise.reject(new Error('Backup account is not active or opted in'));
   markBackupMutation(appId);
-  const result = withBackupSession(appId, () => boundedBackupPost(path, body));
+  const result = withBackupSession(appId, () => {
+    // The queued write may execute after an account switch or consent change.
+    if (!canAccessBackupAccount(appId, explicitChoice))
+      throw new Error('Backup account is not active or opted in');
+    return boundedBackupPost(path, body);
+  });
   queuedMutationRevisions.set(appId, backupRevision(appId));
   return result;
 }

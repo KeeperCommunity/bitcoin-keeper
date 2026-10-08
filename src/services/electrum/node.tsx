@@ -7,7 +7,23 @@ import { predefinedMainnetNodes, predefinedTestnetNodes } from './predefinedNode
 import { store } from 'src/store/store';
 
 export default class Node {
-  public static async save(nodeDetail: NodeDetail, nodeList: NodeDetail[]) {
+  public static currentAccountId(): string | undefined {
+    const appId = store.getState().storage.appId;
+    return this.isAccountActive(appId) ? appId : undefined;
+  }
+
+  public static isAccountActive(appId?: string): boolean {
+    try {
+      return !!appId && store.getState().storage.appId === appId &&
+        (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id === appId;
+    } catch {
+      return false;
+    }
+  }
+
+  public static async save(nodeDetail: NodeDetail, nodeList: NodeDetail[], originAppId = this.currentAccountId()) {
+    if (!this.isAccountActive(originAppId))
+      return { saved: false, connectionError: 'Account changed' };
     const { bitcoinNetworkType } = store.getState().settings;
     if (!nodeDetail.host || !nodeDetail.port) {
       return { saved: false, connectionError: 'Missing node host URL or port' };
@@ -19,6 +35,8 @@ export default class Node {
     if (!isConnectable) {
       return { saved: false, connectionError };
     }
+    if (!this.isAccountActive(originAppId))
+      return { saved: false, connectionError: 'Account changed' };
 
     const node = { ...nodeDetail };
 

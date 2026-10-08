@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import { useDispatch } from 'react-redux';
@@ -28,6 +28,8 @@ const ImportExportLabels: React.FC<ImportExportLabelsProps> = ({
 }) => {
   const { colorMode } = useColorMode();
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   const { vault: vaultText } = translations;
   const { syncingUTXOs } = useAppSelector((state) => state.utxos);
   const [isSyncingLabels, setIsSyncingLabels] = useState(false);
@@ -101,7 +103,7 @@ const ImportExportLabels: React.FC<ImportExportLabelsProps> = ({
               origin: standardizeDescriptor(label.origin),
             }));
 
-            dispatch(importLabels({ labels: standardizedLabels }));
+            dispatch(importLabels({ labels: standardizedLabels }, originAppId));
 
             onSuccess(`Imported ${walletLabels.length} labels successfully`);
           } catch (parseError) {

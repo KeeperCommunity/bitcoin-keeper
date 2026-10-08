@@ -96,6 +96,8 @@ const NodeSelection = () => {
   }, [nodes.length]);
 
   const onSaveCallback = async (nodeDetail: NodeDetail) => {
+    const originAppId = Node.currentAccountId();
+    if (!originAppId) return;
     setSaveLoading(true);
 
     // Sanitize host
@@ -110,11 +112,15 @@ const NodeSelection = () => {
     }
 
     const nodeToSave = { ...nodeDetail };
-    const { saved, connectionError: nodeConnectionError } = await Node.save(nodeToSave, nodeList);
+    const { saved, connectionError: nodeConnectionError } = await Node.save(nodeToSave, nodeList, originAppId);
+    if (!Node.isAccountActive(originAppId)) {
+      setSaveLoading(false);
+      return;
+    }
     if (saved) {
       const updatedNodeList = Node.getAllNodes();
       setNodeList(updatedNodeList);
-      dispatch(updateAppImage({ wallets: null, signers: null, updateNodes: true }));
+      dispatch(updateAppImage({ wallets: null, signers: null, updateNodes: true }, originAppId));
       const newNode = updatedNodeList.find(
         (node) => node.host === nodeToSave.host && node.port === nodeToSave.port
       );
@@ -144,6 +150,8 @@ const NodeSelection = () => {
   };
 
   const onConnectToNode = async (selectedNode: NodeDetail) => {
+    const originAppId = Node.currentAccountId();
+    if (!originAppId) return;
     let nodes = Node.getAllNodes();
     if (
       currentlySelectedNode &&
@@ -152,6 +160,7 @@ const NodeSelection = () => {
     ) {
       // disconnect currently selected node(if connected)
       await Node.disconnect(currentlySelectedNode);
+      if (!Node.isAccountActive(originAppId)) return;
       currentlySelectedNode.isConnected = false;
       Node.update(currentlySelectedNode, { isConnected: currentlySelectedNode.isConnected });
 
@@ -168,6 +177,10 @@ const NodeSelection = () => {
 
     const node = { ...selectedNode };
     const { connected, connectedTo, error } = await Node.connectToSelectedNode(node);
+    if (!Node.isAccountActive(originAppId)) {
+      setLoading(false);
+      return;
+    }
 
     if (connected) {
       node.isConnected = connected;

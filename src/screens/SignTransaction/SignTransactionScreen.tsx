@@ -172,6 +172,8 @@ function SignTransactionScreen() {
   const card = useRef(new CKTapCard()).current;
   const satochipCard = useRef(new SatochipCard()).current;
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
 
   const cachedTxn = useAppSelector((state) => state.cachedTxn);
   const cachedTxid = useAppSelector((state) => state.sendAndReceive.sendPhaseTwo.cachedTxid);
@@ -808,7 +810,7 @@ function SignTransactionScreen() {
                   txnPriority: tnxDetails.transactionPriority,
                   note,
                   miniscriptTxElements,
-                })
+                }, originAppId)
               );
             } else {
               showToast(errorText.notEnoughtSignature);

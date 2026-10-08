@@ -43,7 +43,9 @@ function sagaFixture(options = {}) {
     return { updated: true };
   };
   loadFunctions(f.scope, 'src/store/sagas/bhr.ts', ['updateVaultImageWorker']);
-  loadFunctions(f.scope, 'src/store/sagas/utxos.ts', ['markUTXOSpendabilityWorker']);
+  loadFunctions(f.scope, 'src/store/sagas/utxos.ts', [
+    'currentOriginApp', 'persistSpendabilityForOrigin', 'markUTXOSpendabilityWorker',
+  ]);
   return f;
 }
 for (const kind of ['wallets', 'vaults']) test(`${kind}: compare manual choices but ignore chain-derived UTXO fields and confirmation order`, async () => {
@@ -77,7 +79,7 @@ for (const kind of ['Wallet', 'Vault']) test(`${kind}: manual choice persists be
     assert.equal(f.collections[kind][0].specs.confirmedUTXOs[0].spendability, 'doNotSpend');
     return original(payload);
   };
-  await f.run('markUTXOSpendabilityWorker', { payload: { wallet: w, txId: coin().txId, vout: 0, spendability: 'doNotSpend' } });
+  await f.run('markUTXOSpendabilityWorker', { originAppId: f.app.id, payload: { wallet: w, txId: coin().txId, vout: 0, spendability: 'doNotSpend' } });
   const encrypted = kind === 'Vault' ? f.remote.vault : f.remote.wallets[w.id];
   const restored = JSON.parse(encryption.decrypt(encryption.generateEncryptionKey(f.app.primarySeed), encrypted));
   assert.equal(restored.specs.confirmedUTXOs[0].spendability, 'doNotSpend');
@@ -88,10 +90,10 @@ for (const kind of ['Wallet', 'Vault']) for (const options of [
   { bhr: { automaticCloudBackup: false } }, { online: false }, { rejectIncremental: true }, { incrementalError: true },
 ]) test(`${kind}: local manual choice survives backup unavailability ${JSON.stringify(options)}`, async () => {
   const f = sagaFixture(options); const w = withCoins(kind); f.collections[kind].push(w);
-  await f.run('markUTXOSpendabilityWorker', { payload: { wallet: w, txId: coin().txId, vout: 0, spendability: 'doNotSpend' } });
+  await f.run('markUTXOSpendabilityWorker', { originAppId: f.app.id, payload: { wallet: w, txId: coin().txId, vout: 0, spendability: 'doNotSpend' } });
   assert.equal(f.collections[kind][0].specs.confirmedUTXOs[0].spendability, 'doNotSpend');
   if (options.bhr || options.online === false) assert.equal(f.calls.length, 0);
-  if (!options.bhr) assert.equal(f.state.bhr.pendingAllBackup, true);
+  if (!options.bhr) assert.equal(f.state.bhr.pendingAllBackupByAppId[f.app.id], true);
   assert.equal(f.remote.wallets[w.id], undefined);
   assert.equal(f.remote.vault, undefined);
 });
@@ -99,14 +101,14 @@ for (const kind of ['Wallet', 'Vault']) for (const options of [
 test('missing outpoint and repeated identical choice do not upload', async () => {
   const f = sagaFixture(); const w = withCoins(); w.specs.confirmedUTXOs[0] = coin(); f.collections.Wallet.push(w);
   for (const txId of ['missing', coin().txId]) {
-    await f.run('markUTXOSpendabilityWorker', { payload: { wallet: w, txId, vout: 0, spendability: 'doNotSpend' } });
+    await f.run('markUTXOSpendabilityWorker', { originAppId: f.app.id, payload: { wallet: w, txId, vout: 0, spendability: 'doNotSpend' } });
   }
   assert.equal(f.calls.length, 0);
 });
 
 test('rejected local persistence never uploads an unapplied coin choice', async () => {
   const f = sagaFixture({ rejectLocalWrite: true }); const w = withCoins(); f.collections.Wallet.push(w);
-  await f.run('markUTXOSpendabilityWorker', { payload: { wallet: w, txId: coin().txId, vout: 0, spendability: 'doNotSpend' } });
+  await f.run('markUTXOSpendabilityWorker', { originAppId: f.app.id, payload: { wallet: w, txId: coin().txId, vout: 0, spendability: 'doNotSpend' } });
   assert.equal(f.collections.Wallet[0].specs.confirmedUTXOs[0].spendability, 'spendable');
   assert.equal(f.calls.length, 0);
 });

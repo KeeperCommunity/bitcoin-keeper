@@ -142,7 +142,7 @@ export default class Relay {
     err?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}migrateXfps`, { appId, signerChanges });
+      const res = await backupPost(`${RELAY}migrateXfps`, { appId, signerChanges });
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -493,7 +493,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await backupPost(`${RELAY}deleteBackup`, body);
+      const res = await backupPost(`${RELAY}deleteBackup`, body, true);
       const data = res.data || res.json;
       return data;
     } catch (err) {

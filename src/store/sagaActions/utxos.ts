@@ -14,9 +14,10 @@ export const addLabels = (payload: {
   wallet: Wallet | Vault;
   labels: { name: string; isSystem: boolean }[];
   type;
-}) => ({
+}, originAppId?: string) => ({
   type: ADD_LABELS,
   payload,
+  originAppId,
 });
 
 export const bulkUpdateLabels = (payload: {
@@ -28,9 +29,10 @@ export const bulkUpdateLabels = (payload: {
   txId?: string;
   address?: string;
   wallet: Wallet;
-}) => ({
+}, originAppId?: string) => ({
   type: BULK_UPDATE_LABELS,
   payload,
+  originAppId,
 });
 
 export const importLabels = (payload: {
@@ -42,9 +44,10 @@ export const importLabels = (payload: {
       origin: string;
     }
   ];
-}) => ({
+}, originAppId?: string) => ({
   type: IMPORT_LABELS,
   payload,
+  originAppId,
 });
 
 export const markUTXOSpendability = (payload: {
@@ -52,7 +55,8 @@ export const markUTXOSpendability = (payload: {
   txId: string;
   vout: number;
   spendability: UTXOSpendability;
-}) => ({
+}, originAppId?: string) => ({
   type: MARK_UTXO_SPENDABILITY,
   payload,
+  originAppId,
 });

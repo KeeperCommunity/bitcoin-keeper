@@ -54,6 +54,7 @@ export const sendPhaseOne = (payload: {
 
 export interface SendPhaseTwoAction extends Action {
   type: typeof SEND_PHASE_TWO;
+  originAppId?: string;
   payload: {
     wallet: Wallet | Vault;
     currentBlockHeight: number;
@@ -75,13 +76,15 @@ export const sendPhaseTwo = (payload: {
     selectedPhase: number;
     selectedPaths: number[];
   };
-}): SendPhaseTwoAction => ({
+}, originAppId?: string): SendPhaseTwoAction => ({
   type: SEND_PHASE_TWO,
   payload,
+  originAppId,
 });
 
 export interface SendPhaseThreeAction extends Action {
   type: typeof SEND_PHASE_THREE;
+  originAppId?: string;
   payload: {
     wallet: Wallet | Vault;
     txnPriority: TxPriority;
@@ -101,9 +104,10 @@ export const sendPhaseThree = (payload: {
     selectedPhase: number;
     selectedPaths: number[];
   };
-}): SendPhaseThreeAction => ({
+}, originAppId?: string): SendPhaseThreeAction => ({
   type: SEND_PHASE_THREE,
   payload,
+  originAppId,
 });
 
 export interface CalculateSendMaxFeeAction extends Action {
@@ -164,7 +168,8 @@ export const calculateCustomFee = (payload: {
   payload,
 });
 
-export const discardBroadcastedTnx = ({ cachedTxid, vault }) => ({
+export const discardBroadcastedTnx = ({ cachedTxid, vault }, originAppId?: string) => ({
   type: DISCARD_BROADCASTED_TNX,
   payload: { cachedTxid, vault },
+  originAppId,
 });

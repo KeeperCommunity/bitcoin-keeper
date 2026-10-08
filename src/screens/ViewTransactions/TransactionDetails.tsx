@@ -71,6 +71,8 @@ function TransactionDetails({ route }) {
   const close = () => setVisible(false);
   const noteRef = useRef();
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   const [updatingLabel, setUpdatingLabel] = React.useState(false);
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const insets = useSafeAreaInsets();
@@ -88,7 +90,7 @@ function TransactionDetails({ route }) {
         const finalLabels = [{ name: noteRef.current, isSystem: false }];
         if (labels[transaction.txid][0]?.name) {
           const labelChanges = getLabelChanges(labels[transaction.txid], finalLabels);
-          dispatch(bulkUpdateLabels({ labelChanges, txId: transaction.txid, wallet }));
+          dispatch(bulkUpdateLabels({ labelChanges, txId: transaction.txid, wallet }, originAppId));
         } else {
           dispatch(
             addLabels({
@@ -96,13 +98,13 @@ function TransactionDetails({ route }) {
               txId: transaction.txid,
               wallet,
               type: LabelRefType.TXN,
-            })
+            }, originAppId)
           );
         }
       } else {
         if (labels[transaction.txid][0]?.name) {
           const labelChanges = getLabelChanges(labels[transaction.txid], []);
-          dispatch(bulkUpdateLabels({ labelChanges, txId: transaction.txid, wallet }));
+          dispatch(bulkUpdateLabels({ labelChanges, txId: transaction.txid, wallet }, originAppId));
         }
       }
     }

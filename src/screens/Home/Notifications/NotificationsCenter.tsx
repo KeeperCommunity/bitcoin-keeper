@@ -90,7 +90,9 @@ const Card = memo(({ uai }: CardProps) => {
   const [insightModal, setInsightModal] = useState(false);
   const { signerMap } = useSignerMap();
   const snapshots = useAppSelector((state) => state.cachedTxn.snapshots);
-  const { backupAllLoading } = useAppSelector((state) => state.bhr);
+  const backupAllLoading = useAppSelector(
+    (state) => !!state.bhr.backupAllLoadingByAppId?.[state.storage.appId]
+  );
   const { translations } = useContext(LocalizationContext);
   const { common, notification, error: errorTranslation } = translations;
 
