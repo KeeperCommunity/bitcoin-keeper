@@ -47,7 +47,20 @@ function refreshFixture(kind, rejectWrite = false) {
   };
   f.collections[kind].push(original);
   f.scope.getJSONFromRealmObject = (value) => JSON.parse(JSON.stringify(value));
-  f.scope.ELECTRUM_CLIENT = { isClientConnected: true };
+  f.scope.WALLET_SYNC_SCOPE_CHANGED = 'WALLET_SYNC_SCOPE_CHANGED';
+  f.scope.store = { getState: () => f.state };
+  f.scope.ELECTRUM_CLIENT = {
+    isClientConnected: true,
+    activePeer: { networkType: NetworkType.MAINNET },
+  };
+  f.scope.ElectrumClient = {
+    getConnectionGeneration: () => 1,
+    assertConnectionGeneration: (_generation, networkType) => {
+      if (networkType !== f.scope.ELECTRUM_CLIENT.activePeer.networkType) {
+        throw new Error('Electrum network changed');
+      }
+    },
+  };
   f.scope.WalletUtilities.getNetworkByType = () => ({});
   f.scope.WalletOperations = { syncWalletsViaElectrumClient: async () => {
     const synced = f.scope.getJSONFromRealmObject(original);
@@ -123,6 +136,17 @@ test('successful pull refresh completes only after refreshed specs are persisted
   const finished = f.actions.find((action) => action.type === 'finishRefreshRequest')?.payload;
   assert.equal(finished?.requestId, 'saved-pull');
   assert.equal(finished?.succeeded, true);
+});
+
+test('refresh does not read or write another Realm during account handover', async () => {
+  const f = refreshFixture('Wallet');
+  f.app.id = 'new-profile'; // Realm B opened while Redux still names account A.
+  assert.equal(await f.run('refreshWalletsWorker', {
+    payload: { wallets: f.collections.Wallet, options: { hardRefresh: true } },
+  }), false);
+  assert.deepEqual(f.writes, []);
+  assert.equal(f.collections.Wallet[0].specs.receivingAddress, 'before-refresh');
+  assert.deepEqual(f.errors, []);
 });
 
 test('login backup inspection waits for wallet refresh to finish', async () => {
