@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Check USDT pause and retired build inputs
+        run: |
+          node --test tests/services/usdtPause.test.cjs tests/recovery/usdtBackup.test.cjs \
+            scripts/verify-channel-config.test.cjs ios/scripts/verify-retired-env.test.cjs
+
       - name: Run tests
         run: npm run test
 

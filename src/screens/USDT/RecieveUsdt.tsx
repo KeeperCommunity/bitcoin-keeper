@@ -1,6 +1,6 @@
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useContext } from 'react';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import KeeperQRCode from 'src/components/KeeperQRCode';
 import Text from 'src/components/KeeperText';
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -19,8 +19,21 @@ const RecieveUsdt = ({ route }) => {
 
   return (
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
-      <Box flex={1} justifyContent="flex-start">
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <WalletHeader title={usdtWalletText.receive} />
+
+        <Box
+          style={styles.warning}
+          backgroundColor={`${colorMode}.thirdBackground`}
+          borderColor={`${colorMode}.separator`}
+        >
+          <Text medium color={`${colorMode}.primaryText`}>
+            {usdtWalletText.sendingPausedTitle}
+          </Text>
+          <Text color={`${colorMode}.primaryText`} style={styles.warningBody}>
+            {usdtWalletText.receivePausedWarning}
+          </Text>
+        </Box>
 
         <Box
           style={styles.container}
@@ -46,7 +59,7 @@ const RecieveUsdt = ({ route }) => {
           </Text>
           <Text color={`${colorMode}.primaryText`}>{usdtWalletText.sendOnlyUsdt}</Text>
         </Box>
-      </Box>
+      </ScrollView>
     </ScreenWrapper>
   );
 };
@@ -54,6 +67,20 @@ const RecieveUsdt = ({ route }) => {
 export default RecieveUsdt;
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+  },
+  warning: {
+    borderWidth: 1,
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginTop: hp(12),
+    paddingHorizontal: 16,
+    paddingVertical: hp(12),
+  },
+  warningBody: {
+    marginTop: hp(6),
+  },
   container: {
     alignItems: 'center',
     marginTop: hp(20),
