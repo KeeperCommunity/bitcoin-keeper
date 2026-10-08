@@ -264,6 +264,13 @@ export default class ElectrumClient {
     ELECTRUM_CLIENT.currentPeerIndex = activeNode ? 0 : -1;
   }
 
+  /** Extend a successful manual connection with eligible saved peers for later reconnects. */
+  public static setFailoverPeers(nodes: NodeDetail[]) {
+    const activePeer = ELECTRUM_CLIENT.activePeer;
+    ELECTRUM_CLIENT.peers = getFailoverPeers(nodes, activePeer);
+    ELECTRUM_CLIENT.currentPeerIndex = activePeer ? 0 : -1;
+  }
+
   public static splitIntoChunks(arr, chunkSize) {
     const groups = [];
     for (let itr = 0; itr < arr.length; itr += chunkSize) {
