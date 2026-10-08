@@ -32,8 +32,26 @@ export type HelpEscalationCard = {
   ctaLabel: string;
 };
 
+export type HelpIconType =
+  | 'chat'
+  | 'clock'
+  | 'download'
+  | 'link'
+  | 'lightbulb'
+  | 'shield'
+  | 'key'
+  | 'wallet'
+  | 'alert'
+  | 'hardware'
+  | 'inheritance'
+  | 'vault'
+  | 'fee'
+  | 'address'
+  | 'node';
+
 export type HelpChatResponse = {
   reply: string;
+  iconType: HelpIconType;
   intent: 'help' | 'bug' | 'feature';
   draft?: HelpDraft;
   draftReadyForConfirmation: boolean;
