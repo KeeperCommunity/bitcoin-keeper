@@ -27,8 +27,19 @@ export function* connectToNodeWorker() {
   let responseGeneration: number;
   const contextIsCurrent = () => {
     const current = store.getState();
+    let realmAppId: string;
+    try {
+      const keeper = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as {
+        id?: string;
+      };
+      realmAppId = keeper?.id;
+    } catch (_) {
+      return false;
+    }
     return (
       workerId === latestConnectWorker &&
+      !!appId &&
+      realmAppId === appId &&
       current.storage.appId === appId &&
       current.settings.bitcoinNetworkType === bitcoinNetworkType
     );
@@ -45,7 +56,9 @@ export function* connectToNodeWorker() {
     );
 
     if (!areInitialNodesSaved) {
+      if (!contextIsCurrent()) return;
       const currentNodes = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
+      if (!contextIsCurrent()) return;
       const defaultNodes = yield call(dbManager.getCollection, RealmSchema.DefaultNodeConnect);
       if (!contextIsCurrent()) return;
       let addInitialNode = defaultNodes && defaultNodes.length != 0;
@@ -58,6 +71,7 @@ export function* connectToNodeWorker() {
           bitcoinNetworkType === NetworkType.TESTNET
             ? predefinedTestnetNodes
             : predefinedMainnetNodes;
+        if (!contextIsCurrent()) return;
         const created = yield call(
           dbManager.createObjectBulk,
           RealmSchema.NodeConnect,
@@ -78,6 +92,7 @@ export function* connectToNodeWorker() {
       (state: RootState) => state.network.testnetFallbackNodeAddedByAppId?.[appId]
     );
     if (bitcoinNetworkType === NetworkType.TESTNET && appId && !fallbackNodeAdded) {
+      if (!contextIsCurrent()) return;
       const savedNodes = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
       if (!contextIsCurrent()) return;
       const originalNode = predefinedTestnetNodes[0];
@@ -91,6 +106,7 @@ export function* connectToNodeWorker() {
         ) &&
         !savedNodes.some((node) => node.id === fallbackNode.id)
       ) {
+        if (!contextIsCurrent()) return;
         const created = yield call(dbManager.createObject, RealmSchema.NodeConnect, fallbackNode);
         if (!contextIsCurrent()) return;
         if (!created) throw new Error('Unable to save Testnet fallback server');
@@ -99,6 +115,7 @@ export function* connectToNodeWorker() {
       yield put(setTestnetFallbackNodeAdded(appId));
     }
 
+    if (!contextIsCurrent()) return;
     const nodes = (yield call(dbManager.getCollection, RealmSchema.NodeConnect)).filter(
       (node) => node.networkType === bitcoinNetworkType
     );

@@ -62,8 +62,20 @@ const staleConnectionResult = () => ({
 const selectionMatches = (state: ElectrumClientState): boolean => {
   const current = store.getState();
   const selectedNetwork = current.settings?.bitcoinNetworkType;
+  let realmMatches = true;
+  if (state.appId) {
+    try {
+      const keeper = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as {
+        id?: string;
+      };
+      realmMatches = keeper?.id === state.appId;
+    } catch (_) {
+      realmMatches = false;
+    }
+  }
   return (
     state.appId === (current.storage?.appId ?? null) &&
+    realmMatches &&
     (!selectedNetwork || !state.activePeer || state.activePeer.networkType === selectedNetwork)
   );
 };
@@ -267,9 +279,10 @@ export default class ElectrumClient {
     connectedPeer: NodeDetail,
     generation: number
   ) {
-    if (!stateIsCurrent(state, generation)) return;
+    if (!state.appId || !stateIsCurrent(state, generation)) return;
     if (previousPeer.id !== connectedPeer.id) {
       try {
+        if (!stateIsCurrent(state, generation)) return;
         const previousSaved = dbManager.updateObjectById(
           RealmSchema.NodeConnect,
           previousPeer.id.toString(),
@@ -277,6 +290,7 @@ export default class ElectrumClient {
             isConnected: false,
           }
         );
+        if (!stateIsCurrent(state, generation)) return;
         const connectedSaved = dbManager.updateObjectById(
           RealmSchema.NodeConnect,
           connectedPeer.id.toString(),
@@ -291,6 +305,7 @@ export default class ElectrumClient {
         console.warn('Unable to save active Electrum server after failover', error);
       }
     }
+    if (!stateIsCurrent(state, generation)) return;
     store.dispatch(
       electrumClientConnectionExecuted({ successful: true, connectedTo: connectedPeer.host })
     );

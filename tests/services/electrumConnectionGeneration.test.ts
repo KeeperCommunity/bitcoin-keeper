@@ -13,6 +13,7 @@ import { store } from '../../src/store/store';
 
 const mockClients: any[] = [];
 const mockInitReplies: Array<() => Promise<any>> = [];
+let mockRealmAppId = 'account-a';
 const mockState = {
   storage: { appId: 'account-a' },
   settings: {
@@ -43,7 +44,10 @@ jest.mock('src/store/store', () => ({
 }));
 jest.mock('src/storage/realm/dbManager', () => ({
   __esModule: true,
-  default: { updateObjectById: jest.fn(() => true) },
+  default: {
+    getObjectByIndex: jest.fn(() => ({ id: mockRealmAppId })),
+    updateObjectById: jest.fn(() => true),
+  },
 }));
 jest.mock('src/services/rest/RestClient', () => ({
   __esModule: true,
@@ -65,6 +69,7 @@ const mainnetNode = () => ({ ...predefinedMainnetNodes[0], isConnected: false })
 
 describe('Electrum connection generation', () => {
   beforeEach(() => {
+    mockRealmAppId = 'account-a';
     mockState.storage.appId = 'account-a';
     mockState.settings.bitcoinNetworkType = NetworkType.TESTNET;
     mockState.settings.bitcoinNetwork = bitcoinJS.networks.testnet;
@@ -86,6 +91,7 @@ describe('Electrum connection generation', () => {
     const firstClient = mockClients[0];
 
     mockState.storage.appId = 'account-b';
+    mockRealmAppId = 'account-b';
     ElectrumClient.setActivePeer([testnetNode()], testnetNode());
     const currentResult = await ElectrumClient.connect();
     const currentGeneration = ElectrumClient.getConnectionGeneration();
@@ -146,6 +152,7 @@ describe('Electrum connection generation', () => {
     const pendingFetch = ElectrumClient.getTransactionsById(['first', 'second'], true, 1);
 
     mockState.storage.appId = 'account-b';
+    mockRealmAppId = 'account-b';
     ElectrumClient.setActivePeer([testnetNode()], testnetNode());
     pendingBatch.resolve([]);
 
@@ -185,5 +192,28 @@ describe('Electrum connection generation', () => {
         payload: { successful: true, connectedTo: fallback.host },
       })
     );
+  });
+
+  it('stops reconnect when Realm switches accounts before Redux catches up', async () => {
+    jest.useFakeTimers();
+    const selected = testnetNode();
+    ElectrumClient.setActivePeer([selected], selected);
+    await ElectrumClient.connect();
+    const generation = ElectrumClient.getConnectionGeneration();
+    const reconnect = mockClients[0].onError(new Error('socket closed'));
+
+    mockRealmAppId = 'account-b';
+    expect(() => ElectrumClient.assertConnectionGeneration(generation)).toThrow(
+      ELECTRUM_CONNECTION_CHANGED_ERR
+    );
+    await jest.advanceTimersByTimeAsync(500);
+    await expect(reconnect).resolves.toMatchObject({
+      connected: false,
+      error: ELECTRUM_CONNECTION_CHANGED_ERR,
+    });
+
+    expect(mockClients).toHaveLength(1);
+    expect(dbManager.updateObjectById).not.toHaveBeenCalled();
+    expect(store.dispatch).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ import { RealmSchema } from '../../src/storage/realm/enum';
 import { connectToNodeWorker } from '../../src/store/sagas/network';
 
 let mockGeneration = 0;
+let mockRealmAppId = 'account-a';
 const mockNodes = predefinedTestnetNodes;
 const mockState = {
   settings: { bitcoinNetworkType: NetworkType.TESTNET },
@@ -20,7 +21,12 @@ const mockState = {
 jest.mock('src/store/store', () => ({ store: { getState: jest.fn(() => mockState) } }));
 jest.mock('src/storage/realm/dbManager', () => ({
   __esModule: true,
-  default: { getCollection: jest.fn(() => mockNodes), createObject: jest.fn(() => true) },
+  default: {
+    getObjectByIndex: jest.fn(() => ({ id: mockRealmAppId })),
+    getCollection: jest.fn(() => mockNodes),
+    createObject: jest.fn(() => true),
+    updateObjectById: jest.fn(() => true),
+  },
 }));
 jest.mock('src/services/electrum/client', () => ({
   __esModule: true,
@@ -46,6 +52,7 @@ const deferred = () => {
 describe('overlapping Electrum connection workers', () => {
   beforeEach(() => {
     mockGeneration = 0;
+    mockRealmAppId = 'account-a';
     mockState.storage.appId = 'account-a';
     jest.clearAllMocks();
     (ElectrumClient.connect as jest.Mock).mockReset();
@@ -90,6 +97,7 @@ describe('overlapping Electrum connection workers', () => {
 
   it('adds the Testnet fallback for a second account despite the first account marker', async () => {
     mockState.storage.appId = 'account-b';
+    mockRealmAppId = 'account-b';
     (dbManager.getCollection as jest.Mock).mockReturnValue([mockNodes[0]]);
     (ElectrumClient.connect as jest.Mock).mockImplementation(() => {
       mockGeneration += 1;
@@ -113,5 +121,34 @@ describe('overlapping Electrum connection workers', () => {
         payload: 'account-b',
       })
     );
+  });
+
+  it('does not write node flags into the newly opened Realm while Redux still names the old app', async () => {
+    const pendingConnection = deferred();
+    (ElectrumClient.connect as jest.Mock).mockImplementation(() => {
+      mockGeneration += 1;
+      return pendingConnection.promise;
+    });
+    (ElectrumClient.getActivePeer as jest.Mock).mockReturnValue(mockNodes[1]);
+    const actions: any[] = [];
+    const task = runSaga(
+      { dispatch: (action) => actions.push(action), getState: () => mockState },
+      connectToNodeWorker
+    );
+    expect(ElectrumClient.connect).toHaveBeenCalledTimes(1);
+
+    mockRealmAppId = 'account-b';
+    pendingConnection.resolve({
+      connected: true,
+      connectedTo: mockNodes[1].host,
+      generation: mockGeneration,
+    });
+    await task.toPromise();
+
+    expect(mockState.storage.appId).toBe('account-a');
+    expect(dbManager.updateObjectById).not.toHaveBeenCalled();
+    expect(
+      actions.filter((action) => action.type === 'login/electrumClientConnectionExecuted')
+    ).toEqual([]);
   });
 });
