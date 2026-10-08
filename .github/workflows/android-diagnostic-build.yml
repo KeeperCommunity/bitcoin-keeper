@@ -3,7 +3,7 @@ name: Android diagnostic build
 on:
   pull_request:
     branches:
-      - release/2.6.3
+      - 'release/**'
       - sprint
       - dev
       - main
@@ -100,7 +100,15 @@ jobs:
           version=$(node -p 'require("./release/version.json").version')
           version_code=$(node -p 'require("./release/version.json").androidVersionCode')
           grep -Fq "package: name='io.hexawallet.bitcoinkeeper' versionCode='$version_code' versionName='$version'" <<< "$badging"
-          jarsigner -verify "$aab" >/dev/null
+          if ! jarsigner -verify -verbose -certs "$aab" > "$RUNNER_TEMP/aab-signature.log" 2>&1; then
+            tail -80 "$RUNNER_TEMP/aab-signature.log"
+            exit 1
+          fi
+          if ! grep -Fxq 'jar verified.' "$RUNNER_TEMP/aab-signature.log" || grep -Fq '? = unsigned entry' "$RUNNER_TEMP/aab-signature.log"; then
+            tail -80 "$RUNNER_TEMP/aab-signature.log"
+            echo 'AAB is unsigned or contains unsigned entries' >&2
+            exit 1
+          fi
           unzip -tq "$apk" >/dev/null
           unzip -tq "$aab" >/dev/null
           sha256sum "$apk" "$aab"
