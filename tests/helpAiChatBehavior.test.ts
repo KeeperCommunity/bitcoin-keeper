@@ -1,8 +1,10 @@
 import {
+  canSendChatMessage,
   findRetryableChatMessage,
   isNearChatBottom,
   planChatSend,
-} from '../src/screens/HelpAi/helpAiChatBehavior';
+  removeFailedChatMessage,
+} from '../src/utils/helpAiChatBehavior';
 
 test('new content follows only while the reader is near the bottom', () => {
   expect(isNearChatBottom(200, 400, 680)).toBe(true);
@@ -40,4 +42,20 @@ test('retry resends the failed message without adding a second user bubble', () 
     appendUserMessage: false,
   });
   expect(findRetryableChatMessage(threadAfterReturn.messages, 'ai-1')).toBeUndefined();
+});
+
+test('a failed bubble must be retried or discarded before sending a different message', () => {
+  const messages = [
+    { id: 'question-1', type: 'user', text: 'First question' },
+    { id: 'reply-1', type: 'ai', text: 'First answer' },
+    { id: 'failed-1', type: 'user', text: 'Unsent question' },
+  ];
+
+  expect(canSendChatMessage('failed-1')).toBe(false);
+  expect(canSendChatMessage('failed-1', 'failed-1')).toBe(true);
+  expect(canSendChatMessage('failed-1', 'question-1')).toBe(false);
+
+  const afterDiscard = removeFailedChatMessage(messages, 'failed-1');
+  expect(afterDiscard.map((message) => message.id)).toEqual(['question-1', 'reply-1']);
+  expect(canSendChatMessage(null)).toBe(true);
 });

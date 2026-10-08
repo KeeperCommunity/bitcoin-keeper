@@ -38,6 +38,7 @@ import { useAppDispatch, useAppSelector } from 'src/store/hooks';
 import {
   appendHelpAiMessage,
   createHelpAiThread,
+  discardHelpAiFailedMessage,
   incrementHelpAiIssueCount,
   setHelpAiChatMeta,
   setHelpAiDraft,
@@ -67,7 +68,12 @@ import Fonts from 'src/constants/Fonts';
 import ChatIcon from 'src/assets/images/chat.svg';
 import { sanitizeHelpAiReplyLinks, sanitizeHelpAiSources } from 'src/utils/helpAiLinkPolicy';
 import { detectSensitiveInput, detectSensitiveInDraft } from 'src/utils/helpAiSensitiveData';
-import { findRetryableChatMessage, isNearChatBottom, planChatSend } from './helpAiChatBehavior';
+import {
+  canSendChatMessage,
+  findRetryableChatMessage,
+  isNearChatBottom,
+  planChatSend,
+} from 'src/utils/helpAiChatBehavior';
 
 // Enhanced error handler to distinguish between all backend rate limit codes
 const getHelpAiFriendlyError = (error: any, scope: 'chat' | 'issue'): string => {
@@ -147,6 +153,7 @@ const HelpAiChat = ({ navigation, route }) => {
   const userScrolling = useRef(false);
   const forceFollow = useRef(false);
   const sendingRef = useRef(false);
+  const discardedFailedMessageId = useRef<string | null>(null);
   const generatedConversationId = useMemo(() => `conv_${Date.now().toString(36)}`, []);
   const conversationId = route?.params?.conversationId || generatedConversationId;
   const initialPrompt = route?.params?.prefillText || '';
@@ -236,6 +243,11 @@ const HelpAiChat = ({ navigation, route }) => {
 
   const sendToChat = async (text: string, retryMessageId?: string) => {
     if (sendingRef.current) return;
+    if (retryMessageId && retryMessageId === discardedFailedMessageId.current) return;
+    if (!canSendChatMessage(failedMessage?.id, retryMessageId)) {
+      showToast('Retry or discard the unsent message first.');
+      return;
+    }
     const retryMessage = findRetryableChatMessage(messages, retryMessageId);
     if (retryMessageId && !retryMessage) return;
     const { outboundText, appendUserMessage } = planChatSend(text, retryMessage);
@@ -325,6 +337,12 @@ const HelpAiChat = ({ navigation, route }) => {
       setSending(false);
       setTyping(false);
     }
+  };
+
+  const discardFailedMessage = () => {
+    if (!failedMessage || sendingRef.current) return;
+    discardedFailedMessageId.current = failedMessage.id;
+    dispatch(discardHelpAiFailedMessage({ conversationId }));
   };
 
   const submitDraftIssue = async () => {
@@ -607,12 +625,12 @@ const HelpAiChat = ({ navigation, route }) => {
               style={[
                 styles.sendBtn,
                 {
-                opacity: sending ? 0.6 : 1,
-                backgroundColor: Colors.primaryGreen,
-              },
+                  opacity: sending || failedMessage ? 0.6 : 1,
+                  backgroundColor: Colors.primaryGreen,
+                },
               ]}
               onPress={() => sendToChat(input)}
-              disabled={sending}
+              disabled={sending || !!failedMessage}
             >
               {isDarkMode ? (
                 <PaperPlaneDark height={hp(15)} width={hp(15)} />
@@ -624,15 +642,31 @@ const HelpAiChat = ({ navigation, route }) => {
         </View>
 
         {failedMessage ? (
-          <Pressable
-            style={styles.retryBar}
-            onPress={() => sendToChat(failedMessage.text, failedMessage.id)}
-            disabled={sending}
-          >
-            <Text style={[styles.textSmall, styles.textMediumWeight, { color: uiColors.link }]}>
-              Retry last failed message
+          <View style={styles.retryBar}>
+            <Text style={[styles.textSmall, { color: uiColors.secondaryText }]}>
+              Message not sent. Retry or discard it before sending another.
             </Text>
-          </Pressable>
+            <View style={styles.retryActions}>
+              <Pressable
+                testID="btn_retry_failed_message"
+                onPress={() => sendToChat(failedMessage.text, failedMessage.id)}
+                disabled={sending}
+              >
+                <Text style={[styles.textSmall, styles.textMediumWeight, { color: uiColors.link }]}>
+                  Retry
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="btn_discard_failed_message"
+                onPress={discardFailedMessage}
+                disabled={sending}
+              >
+                <Text style={[styles.textSmall, styles.textMediumWeight, { color: uiColors.link }]}>
+                  Discard
+                </Text>
+              </Pressable>
+            </View>
+          </View>
         ) : null}
       </View>
       <KeeperModal
@@ -776,6 +810,12 @@ const styles = StyleSheet.create({
   retryBar: {
     alignSelf: 'center',
     marginTop: hp(8),
+    alignItems: 'center',
+    gap: hp(4),
+  },
+  retryActions: {
+    flexDirection: 'row',
+    gap: wp(20),
   },
   textSmall: {
     fontSize: 12,

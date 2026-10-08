@@ -17,6 +17,16 @@ export const findRetryableChatMessage = (
     : undefined;
 };
 
+export const canSendChatMessage = (
+  failedMessageId?: string | null,
+  retryMessageId?: string
+): boolean => !failedMessageId || failedMessageId === retryMessageId;
+
+export const removeFailedChatMessage = <T extends { id: string }>(
+  messages: T[],
+  failedMessageId: string
+): T[] => messages.filter((message) => message.id !== failedMessageId);
+
 export const planChatSend = (input: string, retryMessage?: { text: string }) => ({
   outboundText: retryMessage ? retryMessage.text : input.trim(),
   appendUserMessage: !retryMessage,

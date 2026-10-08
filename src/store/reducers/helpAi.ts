@@ -7,6 +7,7 @@ import {
   HelpEscalationCard,
 } from 'src/models/interfaces/HelpAi';
 import { reduxStorage } from 'src/storage';
+import { removeFailedChatMessage } from 'src/utils/helpAiChatBehavior';
 
 export type HelpAiDraftStatus =
   | 'pending_review'
@@ -162,6 +163,22 @@ const helpAiSlice = createSlice({
       const thread = findOrCreateThread(state, action.payload.conversationId);
       thread.failedMessageId = action.payload.messageId;
     },
+    discardHelpAiFailedMessage: (state, action: PayloadAction<{ conversationId: string }>) => {
+      const thread = state.threads.find(
+        (item) => item.conversationId === action.payload.conversationId
+      );
+      if (!thread?.failedMessageId) return;
+      thread.messages = removeFailedChatMessage(thread.messages, thread.failedMessageId);
+      thread.failedMessageId = null;
+      const latestMessage = thread.messages[thread.messages.length - 1];
+      thread.lastMessage = latestMessage ? getMessagePreview(latestMessage) : '';
+      const firstUserMessage = thread.messages.find((message) => message.type === 'user');
+      thread.title =
+        firstUserMessage?.type === 'user'
+          ? firstUserMessage.text.trim().slice(0, 60) || 'New chat'
+          : 'New chat';
+      thread.updatedAt = new Date().toISOString();
+    },
   },
 });
 
@@ -176,6 +193,7 @@ export const {
   setHelpAiChatMeta,
   incrementHelpAiIssueCount,
   setHelpAiFailedMessageId,
+  discardHelpAiFailedMessage,
 } = helpAiSlice.actions;
 
 const helpAiPersistConfig = {
