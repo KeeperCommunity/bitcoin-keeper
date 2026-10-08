@@ -18,6 +18,7 @@ export type WalletsState = {
   testCoinsReceived: boolean;
   testCoinsFailed: boolean;
   testCoinsQuotaReached: boolean;
+  testCoinsPending: 'propagation' | 'sync' | 'unknown' | null;
 
   introModal: boolean;
   err: string;
@@ -39,6 +40,7 @@ const initialState: WalletsState = {
   testCoinsReceived: false,
   testCoinsFailed: false,
   testCoinsQuotaReached: false,
+  testCoinsPending: null,
 
   introModal: true,
 
@@ -67,6 +69,12 @@ const walletSlice = createSlice({
     },
     setTestCoinsQuotaReached: (state, action: PayloadAction<boolean>) => {
       state.testCoinsQuotaReached = action.payload;
+    },
+    setTestCoinsPending: (
+      state,
+      action: PayloadAction<'propagation' | 'sync' | 'unknown' | null>
+    ) => {
+      state.testCoinsPending = action.payload;
     },
     setIntroModal: (state, action: PayloadAction<boolean>) => {
       state.introModal = action.payload;
@@ -133,6 +141,7 @@ export const {
   setTestCoinsReceived,
   setTestCoinsFailed,
   setTestCoinsQuotaReached,
+  setTestCoinsPending,
   setIntroModal,
   walletGenerationFailed,
   newWalletCreated,
@@ -152,6 +161,7 @@ const walletPersistConfig = {
     'testCoinsReceived',
     'testCoinsFailed',
     'testCoinsQuotaReached',
+    'testCoinsPending',
     'hasNewWalletsGenerationFailed',
     'hasNewWalletsGenerationSucceeded',
     'isGeneratingNewWallet',

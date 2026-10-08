@@ -7,6 +7,7 @@ import torrific from './torrific';
 import RestClient, { TorStatus } from '../rest/RestClient';
 import ecc from '../wallets/operations/taproot-utils/noble_ecc';
 import { store } from 'src/store/store';
+import { getFailoverPeers } from './peerSelection';
 import {
   classifyElectrumConnectionError,
   ElectrumConnectionErrorType,
@@ -22,14 +23,14 @@ const ELECTRUM_CLIENT_CONFIG: {
   reconnectDelay: 500, // retry after half a second
 };
 
-const ELECTRUM_CLIENT_DEFAULTS = {
+const createElectrumClientState = () => ({
   electrumClient: null,
   isClientConnected: false,
   currentPeerIndex: -1,
   connectionAttempt: 0,
   activePeer: null,
   peers: [],
-};
+});
 
 let lastConnectionError: {
   type: ElectrumConnectionErrorType;
@@ -44,7 +45,7 @@ export let ELECTRUM_CLIENT: {
   connectionAttempt: number;
   activePeer: NodeDetail;
   peers: NodeDetail[];
-} = ELECTRUM_CLIENT_DEFAULTS;
+} = createElectrumClientState();
 
 export const ELECTRUM_NOT_CONNECTED_ERR =
   'Network Error: The current electrum node is not reachable, please try again with a different node';
@@ -73,22 +74,22 @@ export default class ElectrumClient {
         ELECTRUM_CLIENT.activePeer?.host?.endsWith('.onion') &&
         RestClient?.getTorStatus() === TorStatus.CONNECTED;
 
-      ELECTRUM_CLIENT.electrumClient = new ElectrumCli(
+      const client = new ElectrumCli(
         ElectrumClient.connectOverTor ? torrific : global.net,
         global.tls,
         ELECTRUM_CLIENT.activePeer.port,
         ELECTRUM_CLIENT.activePeer.host,
         ELECTRUM_CLIENT.activePeer.useSSL ? 'tls' : 'tcp'
       ); // tcp or tls
+      ELECTRUM_CLIENT.electrumClient = client;
 
-      ELECTRUM_CLIENT.electrumClient.onError = (error) => {
-        if (ELECTRUM_CLIENT.isClientConnected) {
+      client.onError = (error) => {
+        if (ELECTRUM_CLIENT.electrumClient === client && ELECTRUM_CLIENT.isClientConnected) {
           console.log('Electrum mainClient.onError():', error?.message || error);
-
-          if (ELECTRUM_CLIENT.electrumClient?.close) ELECTRUM_CLIENT.electrumClient.close();
 
           ELECTRUM_CLIENT.isClientConnected = false;
           ELECTRUM_CLIENT.activePeer.isConnected = false;
+          if (client?.close) client.close();
           console.log('Error: Close the connection');
 
           // setTimeout(
@@ -105,7 +106,7 @@ export default class ElectrumClient {
         new Promise((resolve) => {
           timeoutId = setTimeout(() => resolve('timeout'), 20000);
         }),
-        ELECTRUM_CLIENT.electrumClient.initElectrum({
+        client.initElectrum({
           client: 'btc-k',
           version: '1.4',
         }), // should resolve within 4 seconds(prior to timeout)
@@ -121,6 +122,7 @@ export default class ElectrumClient {
         lastConnectionError = null;
         ELECTRUM_CLIENT.isClientConnected = true;
         ELECTRUM_CLIENT.activePeer.isConnected = true;
+        ELECTRUM_CLIENT.connectionAttempt = 0;
       }
     } catch (error) {
       ELECTRUM_CLIENT.isClientConnected = false;
@@ -176,7 +178,7 @@ export default class ElectrumClient {
       }
 
       ELECTRUM_CLIENT.activePeer = nextPeer;
-      ELECTRUM_CLIENT.connectionAttempt = 1;
+      ELECTRUM_CLIENT.connectionAttempt = 0;
       console.log(`Attempting a connection with next peer: ${nextPeer?.host}`);
       return ElectrumClient.connect();
     }
@@ -200,9 +202,9 @@ export default class ElectrumClient {
 
   public static forceDisconnect() {
     if (!ELECTRUM_CLIENT.electrumClient) throw new Error('Electrum client not available');
-    if (ELECTRUM_CLIENT.electrumClient?.close) ELECTRUM_CLIENT.electrumClient.close();
     ELECTRUM_CLIENT.isClientConnected = false;
-    ELECTRUM_CLIENT.activePeer.isConnected = false;
+    if (ELECTRUM_CLIENT.activePeer) ELECTRUM_CLIENT.activePeer.isConnected = false;
+    if (ELECTRUM_CLIENT.electrumClient?.close) ELECTRUM_CLIENT.electrumClient.close();
   }
 
   public static async serverFeatures() {
@@ -246,20 +248,20 @@ export default class ElectrumClient {
   // if current peer to use is provided, it will use that peer
   public static setActivePeer(nodes: NodeDetail[], currentPeerToUse?: NodeDetail) {
     // close previous connection
-    if (ELECTRUM_CLIENT.isClientConnected && ELECTRUM_CLIENT.electrumClient?.close) {
+    ELECTRUM_CLIENT.isClientConnected = false;
+    if (ELECTRUM_CLIENT.electrumClient?.close) {
       ELECTRUM_CLIENT.electrumClient.close();
     }
 
     // set defaults
-    ELECTRUM_CLIENT = ELECTRUM_CLIENT_DEFAULTS;
+    ELECTRUM_CLIENT = createElectrumClientState();
+    lastConnectionError = null;
 
     // set active node
-    let activeNode = currentPeerToUse || nodes.find((node) => node.isConnected);
+    const activeNode = currentPeerToUse || nodes.find((node) => node.isConnected);
     ELECTRUM_CLIENT.activePeer = activeNode;
-
-    if (nodes) {
-      ELECTRUM_CLIENT.peers = nodes;
-    }
+    ELECTRUM_CLIENT.peers = getFailoverPeers(nodes, activeNode);
+    ELECTRUM_CLIENT.currentPeerIndex = activeNode ? 0 : -1;
   }
 
   public static splitIntoChunks(arr, chunkSize) {

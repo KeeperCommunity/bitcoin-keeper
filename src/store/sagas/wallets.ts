@@ -6,6 +6,7 @@ import {
   EntityKind,
   MiniscriptTypes,
   MultisigScriptType,
+  NetworkType,
   SignerType,
   VaultType,
   VisibilityType,
@@ -32,6 +33,7 @@ import {
   setTestCoinsFailed,
   setTestCoinsReceived,
   setTestCoinsQuotaReached,
+  setTestCoinsPending,
   setSignerPolicyError,
   finishRefreshRequest,
 } from 'src/store/reducers/wallets';
@@ -90,7 +92,6 @@ import {
   TEST_SATS_RECIEVE,
   UPDATE_SIGNER_POLICY,
   UPDATE_WALLET_DETAILS,
-  refreshWallets,
   UPDATE_SIGNER_DETAILS,
   UPDATE_KEY_DETAILS,
   UPDATE_VAULT_DETAILS,
@@ -143,6 +144,7 @@ import { updateDelayedPolicyUpdate } from '../reducers/storage';
 import { accountNoFromDerivationPath } from 'src/utils/service-utilities/utils';
 import { classifyDustByAddress } from 'src/services/wallets/operations/dustClassification';
 import { setPendingDustToast } from '../reducers/utxos';
+import { isFaucetTxVisible } from './faucetVisibility';
 
 export interface NewVaultDetails {
   name?: string;
@@ -1135,27 +1137,75 @@ export const updateSignerPolicyWatcher = createWatcher(
   UPDATE_SIGNER_POLICY
 );
 
-function* testcoinsWorker({ payload }) {
+export function* testcoinsWorker({ payload }) {
   const { wallet } = payload;
-  const receivingAddress = WalletOperations.getNextFreeAddress(wallet);
-  const network = WalletUtilities.getNetworkByType(wallet.networkType);
-  const appId: string = yield select((state: RootState) => state.storage.appId);
+  yield put(setTestCoinsReceived(false));
+  yield put(setTestCoinsFailed(false));
+  yield put(setTestCoinsPending(null));
 
+  if (wallet.networkType !== NetworkType.TESTNET) {
+    yield put(setTestCoinsFailed(true));
+    return;
+  }
+
+  let receivingAddress: string;
+  let network: ReturnType<typeof WalletUtilities.getNetworkByType>;
+  let txid: string;
   try {
-    const { txid } = yield call(Relay.getTestcoins, receivingAddress, network, appId);
-    if (!txid) {
-      yield put(setTestCoinsFailed(true));
-    } else {
-      yield put(setTestCoinsReceived(true));
-      yield put(refreshWallets([wallet], { hardRefresh: true }));
-    }
+    receivingAddress = WalletOperations.getNextFreeAddress(wallet);
+    network = WalletUtilities.getNetworkByType(wallet.networkType);
+    const appId: string = yield select((state: RootState) => state.storage.appId);
+    const response = yield call(Relay.getTestcoins, receivingAddress, wallet.networkType, appId);
+    txid = response.txid;
   } catch (err) {
     if (err.message === 'FAUCET_DAILY_LIMIT_REACHED') {
       yield put(setTestCoinsQuotaReached(true));
+    } else if (err.message === 'FAUCET_OUTCOME_UNKNOWN') {
+      yield put(setTestCoinsPending('unknown'));
     } else {
       yield put(setTestCoinsFailed(true));
     }
+    return;
   }
+
+  let lastAttemptSynced = false;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    let attemptSynced = false;
+    try {
+      if (
+        !ELECTRUM_CLIENT.isClientConnected ||
+        ELECTRUM_CLIENT.activePeer?.networkType !== wallet.networkType
+      ) {
+        yield call(connectToNodeWorker);
+      }
+      const { txids } = yield call(
+        [ElectrumClient, ElectrumClient.syncHistoryByAddress],
+        [receivingAddress],
+        network
+      );
+      attemptSynced = true;
+      if (txids.some((seenTxid: string) => seenTxid.toLowerCase() === txid.toLowerCase())) {
+        const refreshed = yield call(refreshWalletsWorker, {
+          payload: { wallets: [wallet], options: { hardRefresh: true } },
+        });
+        if (refreshed) {
+          const schema =
+            wallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet;
+          const storedWallet = yield call(dbManager.getObjectById, schema, wallet.id);
+          const storedData = storedWallet?.toJSON?.() || storedWallet;
+          if (isFaucetTxVisible(storedData, txid)) {
+            yield put(setTestCoinsReceived(true));
+            return;
+          }
+        } else attemptSynced = false;
+      }
+    } catch (err) {
+      attemptSynced = false;
+    }
+    lastAttemptSynced = attemptSynced;
+    if (attempt < 7) yield delay(4000);
+  }
+  yield put(setTestCoinsPending(lastAttemptSynced ? 'propagation' : 'sync'));
 }
 
 export const testcoinsWatcher = createWatcher(testcoinsWorker, TEST_SATS_RECIEVE);

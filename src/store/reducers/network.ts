@@ -5,10 +5,12 @@ const initialState: {
   exchangeRates: ExchangeRates;
   averageTxFees: AverageTxFeesByNetwork;
   initialNodesSaved: Boolean;
+  testnetFallbackNodeAdded: boolean;
 } = {
   exchangeRates: null,
   averageTxFees: null,
   initialNodesSaved: false,
+  testnetFallbackNodeAdded: false,
 };
 
 const networkSlice = createSlice({
@@ -26,9 +28,18 @@ const networkSlice = createSlice({
     setInitialNodesSaved: (state, action: PayloadAction<Boolean>) => {
       state.initialNodesSaved = action.payload;
     },
+
+    setTestnetFallbackNodeAdded: (state) => {
+      state.testnetFallbackNodeAdded = true;
+    },
   },
 });
 
-export const { setExchangeRates, setAverageTxFee, setInitialNodesSaved } = networkSlice.actions;
+export const {
+  setExchangeRates,
+  setAverageTxFee,
+  setInitialNodesSaved,
+  setTestnetFallbackNodeAdded,
+} = networkSlice.actions;
 
 export default networkSlice.reducer;
