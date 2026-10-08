@@ -28,7 +28,8 @@ class MainApplication : Application(),  ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               add(KeepScreenAwakePackage())
-              add(CloudBackupPackage())
+              // Preview credentials and Drive scope are deliberately not provisioned yet.
+              if (!BuildConfig.IS_RECOVERABLE_PREVIEW) add(CloudBackupPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

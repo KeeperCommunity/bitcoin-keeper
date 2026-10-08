@@ -9,6 +9,11 @@ require Pod::Executable.execute_command('node', ['-p',
   )', __dir__]).strip
 
 platform :ios, 15.1
+project 'hexa_keeper.xcodeproj',
+  'Debug' => :debug,
+  'Release' => :release,
+  'RecoverablePreviewDebug' => :debug,
+  'RecoverablePreviewRelease' => :release
 prepare_react_native_project!
 
 # Required by RNFirebase when static frameworks are enabled via USE_FRAMEWORKS.

@@ -14,9 +14,17 @@ import { Svg } from 'react-native-svg';
 import App from './App';
 import { name as appName } from './app.json';
 import { enableAndroidFontFix } from './AndroidFontFix';
-import { initSentrySDK } from 'src/services/sentry';
+import NativeConfig from 'react-native-config';
+import DeviceInfo from 'react-native-device-info';
 
-initSentrySDK();
+// No production telemetry is initialized for the isolated preview package.
+const isRecoverablePreview =
+  NativeConfig.KEEPER_PREVIEW === 'true' ||
+  NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY === 'true' ||
+  DeviceInfo.getBundleId().endsWith('.recoverablepreview');
+if (!isRecoverablePreview) {
+  require('src/services/sentry').initSentrySDK();
+}
 enableAndroidFontFix();
 
 Input.defaultProps = Input.defaultProps || {};

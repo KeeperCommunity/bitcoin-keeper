@@ -1,6 +1,24 @@
 # Recoverable Wallet — parallel Keeper preview
 
-Status: **parallel development stream, planning and isolated preview setup**. Not a released feature, not a security-reviewed wallet, and not an OpenSpec implementation package. Public name is undecided ("Recoverable Wallet" is a working term).
+Status (8 October 2026): **first client preview implemented; Android package built; iOS package configured but not built**. This is a simulated walkthrough, not a released or security-reviewed wallet. Public name is undecided ("Recoverable Wallet" is a working term).
+
+## First client checkpoint
+
+- The separate preview app starts at **Add Wallet** and walks through automatic Mobile Key / Server Key ready statuses, hardware selection, a simulated connection/error, optional Inheritance Key, one final whole-policy review, and completion. Cancel and resume work while the app stays open. No key, wallet, address, backup, transaction, hardware session, or server registration is created.
+- TAPSIGNER, Satochip, Jade, and Coldcard appear with their existing Keeper transport choices. The UI says policy verification and full Recoverable Wallet compatibility remain unproven. Every simulated status, error, and completion is labeled.
+- The app entry requires the exact preview package ID and testnet-only preview flags. Normal Keeper continues through its original app component. The preview loads no wallet store, cloud backup, signing, or server client. The native preview identifiers are distinct, the Android CloudBackup module is disabled, and the iOS preview has no iCloud entitlement. See [native-preview.md](native-preview.md).
+- An arm64 Android debug APK with an embedded JavaScript bundle was built and its package identity, signature, and merged manifest were checked. It installed and ran beside an existing Keeper development app on an Android emulator. Side-by-side installation with production Keeper on a physical device remains unverified. The iOS preview scheme, identifier, plist, and entitlements are configured, but an iOS build has not been run: this checkout lacks matching Pods and has insufficient free disk space for a safe fresh install/build.
+
+| Evidence | Current result |
+| --- | --- |
+| Simulated client flow | Automated walkthrough covers four hardware choices, cancel/resume, connection error, inheritance choice, and final review. |
+| Startup boundary and related regressions | 27 focused Jest tests pass across the preview, testnet header, and Recovery Key migration suites. |
+| Native build | Android arm64 debug APK built with embedded JS, installed and launched on an arm64 emulator; iOS scheme configuration inspected, build pending. |
+| Small-screen rendering | Android emulator walkthrough passed at 320dp width and 1.6× system font: statuses, four hardware choices, simulated error, inheritance, review, and completion remained scrollable and actionable. The Jest content check alone does not establish rendered layout. |
+| Physical devices and production side-by-side installation | Pending. The emulator had Keeper development installed, not production Keeper. |
+| Cryptography, cloud read-back, physical hardware, security review | Pending; no such functions are represented as complete in this preview. |
+
+The next owner test is to install the Android APK beside normal Keeper, walk through both inheritance choices and a simulated error, verify text and controls at a small screen width with larger system font, then uninstall Preview and confirm the normal app and backups remain intact. Equivalent iOS testing follows a fresh matching Pods install, simulator/device build, and preview App ID/provisioning setup. Do not use real wallet funds or production recovery material in either preview.
 
 ## Owner decision (8 October 2026)
 
@@ -52,4 +70,4 @@ Each checkpoint may be smaller than the grouping above to keep visible feedback 
 
 ## Immediate next action
 
-Build the separate app-flavor / package identity and local navigable testnet preview **without touching any server repository or production recovery service**. Validate installs alongside production Keeper and separate cloud storage before testing on a real device. Do not represent this README or branch alone as an installable or functional preview.
+Run the native device checks in [native-preview.md](native-preview.md), especially side-by-side installation and small-screen accessibility. Finish the iOS build with matching dependencies and separate provisioning. Keep real signing, cloud recovery, and server protocol work gated by their own tests and review; do not change SigningServer or Relay while awaiting Adam's contribution and an owner decision.

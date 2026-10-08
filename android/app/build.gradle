@@ -1,8 +1,19 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
+// Keep the recoverable-wallet preview on its checked-in, non-production settings.
+project.ext.envConfigFiles = [
+    recoverablepreviewdebug: ".env.recoverable-preview",
+    recoverablepreviewrelease: ".env.recoverable-preview",
+]
 apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
 apply plugin: 'kotlin-android'
+
+def previewAbiOverride = project.hasProperty('keeperPreviewAbis') &&
+    gradle.startParameter.taskNames.any { it.toLowerCase().contains('recoverablepreview') }
+def nativeAbis = previewAbiOverride
+    ? project.property('keeperPreviewAbis').split(',').toList()
+    : ['arm64-v8a', 'x86_64', 'x86', 'armeabi-v7a']
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -96,6 +107,7 @@ android {
     namespace "io.hexawallet.keeper"
     defaultConfig {
         applicationId "io.hexawallet.keeper"
+        buildConfigField "boolean", "IS_RECOVERABLE_PREVIEW", "false"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 621
@@ -104,7 +116,7 @@ android {
         missingDimensionStrategy 'store', 'play'
         multiDexEnabled true
         ndk {
-            abiFilters 'arm64-v8a', 'x86_64', 'x86', 'armeabi-v7a'
+            abiFilters(*nativeAbis)
         }
     }
     lintOptions {
@@ -152,7 +164,37 @@ android {
             targetSdkVersion rootProject.ext.targetSdkVersion
             resValue "string", "build_config_package", "io.hexawallet.keeper"
         }
+        recoverablePreview {
+            minSdkVersion rootProject.ext.minSdkVersion
+            applicationId "io.hexawallet.keeper.recoverablepreview"
+            targetSdkVersion rootProject.ext.targetSdkVersion
+            buildConfigField "boolean", "IS_RECOVERABLE_PREVIEW", "true"
+            resValue "string", "build_config_package", "io.hexawallet.keeper"
+        }
     }
+}
+
+// A preview APK must never be built with a production or developer .env override.
+afterEvaluate {
+    tasks.matching { it.name in ['preRecoverablePreviewDebugBuild', 'preRecoverablePreviewReleaseBuild'] }
+        .configureEach {
+            doFirst {
+                def expected = [
+                    KEEPER_PREVIEW: 'true',
+                    KEEPER_PREVIEW_TESTNET_ONLY: 'true',
+                    ENVIRONMENT: 'DEVELOPMENT',
+                    RELAY: 'http://127.0.0.1:1/',
+                    SIGNING_SERVER_TESTNET: 'http://127.0.0.1:1/',
+                    SIGNING_SERVER_MAINNET: 'http://127.0.0.1:1/',
+                    CHANNEL_URL: 'http://127.0.0.1:1/',
+                ]
+                expected.each { key, value ->
+                    if (project.env.get(key) != value) {
+                        throw new GradleException("Recoverable preview requires .env.recoverable-preview (${key})")
+                    }
+                }
+            }
+        }
 }
 
 

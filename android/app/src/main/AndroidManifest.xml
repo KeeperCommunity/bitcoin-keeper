@@ -48,21 +48,6 @@
         android:exported="true"
         >
 
-        <intent-filter android:label="@string/backup_with_keeper">
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
-             <data android:scheme="@string/backup_with_keeper_scheme" android:host="backup" />
-        </intent-filter>
-
-        <intent-filter android:autoVerify="true">
-          <action android:name="android.intent.action.VIEW" />
-          <category android:name="android.intent.category.DEFAULT" />
-          <category android:name="android.intent.category.BROWSABLE" />
-            <data android:scheme="https" />
-            <data android:host="bitcoinkeeper.app" />
-            <data android:pathPrefix="@string/deep_link_prefix" /> 
-        </intent-filter>
       </activity>
       <meta-data android:name="firebase_analytics_collection_deactivated" android:value="true" />
       <meta-data android:name="google_analytics_adid_collection_enabled" android:value="false" />

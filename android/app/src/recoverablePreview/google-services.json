@@ -1,0 +1,22 @@
+{
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "keeper-recoverable-preview-local"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "android_client_info": {
+          "package_name": "io.hexawallet.keeper.recoverablepreview"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "LOCAL_PREVIEW_NO_REMOTE_SERVICE"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}

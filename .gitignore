@@ -67,6 +67,7 @@ yarn-error.log
 .env*
 env*
 !.env.example
+!.env.recoverable-preview
 
 # testing
 modules/ 
