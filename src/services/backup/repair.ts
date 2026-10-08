@@ -61,6 +61,15 @@ const clone = (value: any) => JSON.parse(JSON.stringify(value));
 
 export async function captureBackupImage(checkpoint = () => {}): Promise<BackupImage> {
   const image: BackupImage = { wallets: {}, signers: {}, vaults: {}, nodes: {}, labels: {} };
+  // A VaultSigner is shared across the vaults that use its xpub. Read the
+  // persisted registration value, including a value whose incremental upload
+  // failed, and carry it into every affected encrypted vault record.
+  const registrations = new Map<string, any>();
+  const vaultSigners = dbManager.getObjectByIndex(RealmSchema.VaultSigner, null, true) as any;
+  for (const value of vaultSigners) {
+    checkpoint();
+    registrations.set(value.xpub, clone(value.registeredVaults));
+  }
   const sources: [keyof BackupImage, RealmSchema][] = [
     ['wallets', RealmSchema.Wallet],
     ['wallets', RealmSchema.USDTWallet],
@@ -77,6 +86,12 @@ export async function captureBackupImage(checkpoint = () => {}): Promise<BackupI
       if (text.length * 3 > MAX_RECORD_BYTES)
         throw new Error('Backup record exceeds supported size');
       const raw = JSON.parse(text);
+      if (kind === 'vaults')
+        raw.signers = raw.signers.map((signer) =>
+          registrations.has(signer.xpub)
+            ? { ...signer, registeredVaults: registrations.get(signer.xpub) }
+            : signer
+        );
       const record =
         kind === 'signers'
           ? sanitizeSeedKeyForBackup(raw)

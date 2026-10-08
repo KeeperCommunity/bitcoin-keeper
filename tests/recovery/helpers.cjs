@@ -17,7 +17,7 @@ const image = loadModule('src/services/backup/image.ts', { 'src/utils/service-ut
 const makeImage = () => ({ wallets: {}, signers: {}, vaults: {}, nodes: {}, labels: {} });
 function harness(options = {}) {
   const app = { id: 'disposable', publicId: 'fixture', primarySeed: 'ab'.repeat(32), subscription: { level: 1 }, version: '2.5.16' };
-  const local = { Wallet: [], USDTWallet: [], Signer: [], Vault: [], NodeConnect: [], Tags: [] };
+  const local = { Wallet: [], USDTWallet: [], Signer: [], Vault: [], VaultSigner: [], NodeConnect: [], Tags: [] };
   const remote = { appId: app.id, wallets: {}, signers: {}, nodes: [], vaults: [], labels: [] };
   let vaults = [], labels = [];
   const revision = () => require('node:crypto').createHash('sha256').update(JSON.stringify({remote,vaults,labels})).digest('hex');
