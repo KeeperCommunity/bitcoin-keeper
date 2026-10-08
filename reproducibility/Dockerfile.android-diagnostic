@@ -1,0 +1,48 @@
+# Diagnostic Linux toolchain for an independent Android build attempt.
+# This amd64 image digest is for eclipse-temurin:17.0.19_10-jdk-jammy.
+# Pinning the base image does not yet pin Ubuntu apt or SDK Maven downloads.
+FROM --platform=linux/amd64 eclipse-temurin:17.0.19_10-jdk-jammy@sha256:b76a309b3dfa907458b4ef428edfcfb37920a5ce0e9c6bc77798a54e039a8330 AS java-node-yarn
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl git python3 unzip xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG NODE_VERSION=22.23.3
+ARG NODE_SHA256=df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de
+ARG YARN_VERSION=1.22.22
+ARG YARN_SHA256=88268464199d1611fcf73ce9c0a6c4d44c7d5363682720d8506f6508addf36a0
+
+RUN curl -LfsS "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && mkdir -p /opt/node \
+    && tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && curl -LfsS "https://github.com/yarnpkg/yarn/releases/download/v${YARN_VERSION}/yarn-v${YARN_VERSION}.tar.gz" -o /tmp/yarn.tar.gz \
+    && echo "${YARN_SHA256}  /tmp/yarn.tar.gz" | sha256sum -c - \
+    && mkdir -p /opt/yarn \
+    && tar -xzf /tmp/yarn.tar.gz -C /opt/yarn --strip-components=1 \
+    && rm /tmp/yarn.tar.gz
+
+FROM java-node-yarn AS android-sdk
+
+ARG COMMANDLINE_TOOLS_BUILD=13114758
+ARG COMMANDLINE_TOOLS_SHA256=7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+
+ENV ANDROID_SDK_ROOT=/opt/android-sdk \
+    ANDROID_HOME=/opt/android-sdk \
+    PATH=/opt/node/bin:/opt/yarn/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:${PATH}
+
+RUN curl -LfsS "https://dl.google.com/android/repository/commandlinetools-linux-${COMMANDLINE_TOOLS_BUILD}_latest.zip" -o /tmp/android-commandline-tools.zip \
+    && echo "${COMMANDLINE_TOOLS_SHA256}  /tmp/android-commandline-tools.zip" | sha256sum -c - \
+    && mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools" \
+    && unzip -q /tmp/android-commandline-tools.zip -d "${ANDROID_SDK_ROOT}/cmdline-tools" \
+    && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
+    && rm /tmp/android-commandline-tools.zip \
+    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses < <(yes) > /dev/null \
+    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" \
+         'platforms;android-36' 'build-tools;35.0.0' \
+         'ndk;27.1.12297006' 'cmake;3.22.1'
+
+WORKDIR /workspace/keeper

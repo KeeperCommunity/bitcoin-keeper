@@ -1,0 +1,38 @@
+name: Android independent diagnostic
+
+on:
+  push:
+    branches:
+      - 'codex/android-repro*'
+  pull_request:
+    branches:
+      - 'release/**'
+      - sprint
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build diagnostic APK and AAB from a digest-pinned JDK base
+        run: |
+          bash reproducibility/android-diagnostic.sh \
+            --source-commit "$GITHUB_SHA" \
+            --output-dir "$RUNNER_TEMP/keeper-android-diagnostic"
+
+      - name: Verify diagnostic output manifest
+        run: |
+          cd "$RUNNER_TEMP/keeper-android-diagnostic"
+          sha256sum --check SHA256SUMS
+          cat SHA256SUMS
+          test -s Bitcoin_Keeper_DIAGNOSTIC.apk
+          test -s Bitcoin_Keeper_DIAGNOSTIC.aab
+          echo 'Diagnostic build only; no distributed binary comparison or reproducibility verdict.'

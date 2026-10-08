@@ -6,6 +6,47 @@ release with a build from its public source. The comparison tool in
 inspection aid. It is **not** a WalletScrutiny build script, and this repository
 does not yet establish a reproducibility verdict for v2.6.3.
 
+## Independent Linux diagnostic build
+
+[`android-diagnostic.sh`](android-diagnostic.sh) builds a production-flavor APK
+and AAB in a disposable Linux container using deliberately invalid service
+endpoints and the checked-in debug signing key. It needs Docker, a clean
+checkout without `node_modules`, and an empty output directory outside the
+checkout. Run it with the exact source commit you intend to inspect:
+
+```sh
+bash reproducibility/android-diagnostic.sh \
+  --source-commit "$(git rev-parse HEAD)" \
+  --output-dir /tmp/keeper-android-diagnostic
+```
+
+The script records the toolchain image ID and writes only the diagnostic APK,
+AAB, and their `SHA256SUMS` to the output directory. It never writes a
+`COMPARISON_RESULTS.yaml` or reports a reproducibility verdict. Its CI workflow
+builds on a clean Ubuntu runner when a `codex/android-repro*` branch is pushed
+or a pull request targets a main development or release branch. No release
+artifact is uploaded by that workflow.
+
+The container uses a digest-pinned **linux/amd64** Temurin JDK 17.0.19 base.
+Node 22.23.3, Yarn 1.22.22, and Android command-line tools downloads have
+checked SHA-256 hashes. The existing input checker then verifies the exact
+Node, Yarn, Java, Android SDK package revisions, Gradle wrapper hash, lockfile
+hash, environment **names**, and local dependency layout before Gradle builds.
+Gradle and Yarn caches and Gradle's Maven-local home are isolated inside each
+container run. The Android SDK packages are selected by version and checked by
+revision, but their archive bytes are not yet pinned. Ubuntu apt packages,
+Maven artifacts, and transitive native downloads also lack recorded hashes.
+Those are remaining build-input gaps. The script is therefore an independent
+**diagnostic build path**, not a final WalletScrutiny recipe.
+
+The placeholder configuration cannot establish whether a distributed APK or
+Play split matches this source. The seven-name environment allowlist in
+`android-inputs.json` remains provisional: this source still references
+GasFree and exchange configuration, including `LETS_EXCHANGE_BASE_URL`, and
+`react-native-config` can embed every supplied key. The actual release input
+set must be reviewed before building for comparison. Do not substitute the
+development defaults or treat this diagnostic APK as a usable release.
+
 ## v2.6.3 reference and measured result
 
 The public source tag is [`v2.6.3`](https://github.com/KeeperCommunity/bitcoin-keeper/releases/tag/v2.6.3),
@@ -161,9 +202,9 @@ python3 -m unittest reproducibility/test_audit_apk_build_values.py
 
 [WalletScrutiny's script rules](https://github.com/WalletScrutiny/WalletScrutinyCom/blob/master/docs/script_verifications.md)
 require Docker, Podman, or Nix; a script ending in `build.sh`; a `--binary`
-argument; and an adjacent `COMPARISON_RESULTS.yaml`. No such script or results
-file is included here because the exact production input and complete
-third-party build path have not yet been established.
+argument; and an adjacent `COMPARISON_RESULTS.yaml`. The diagnostic script
+above intentionally has a different interface and no results file because the
+exact production input and complete third-party comparison are not established.
 
 ## Fail closed on future build inputs
 
@@ -179,11 +220,10 @@ python3 reproducibility/verify-android-inputs.py \
   --android-sdk-root /path/to/android-sdk
 ```
 
-The tracked manifest contains seven source-audited environment names and no
-values. This is a **provisional future-release allowlist**: the GasFree pause
-in draft PR #7037 and integration checks for four candidate omissions must be
-reviewed before using it for a release. Changing the list requires a tracked
-source change. The checker rejects
+The tracked manifest contains seven environment names and no values. This is a
+**provisional future-release allowlist**: GasFree and exchange configuration
+still exist in this source, and candidate omissions need review before using it
+for a release. Changing the list requires a tracked source change. The checker rejects
 missing or extra names, a dirty or wrong source checkout, changed dependency
 hashes, mismatched tool versions, missing SDK packages, a symlinked
 `node_modules` root, and links from dependencies to files outside the checkout.
