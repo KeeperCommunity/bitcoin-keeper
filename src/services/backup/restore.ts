@@ -11,12 +11,16 @@ export async function prepareRecoveryImage(
   labels: any[]
 ) {
   if (!appImage || appImage.appId !== appId) throw new Error('Recovery data unavailable');
+  // Older Relay registrations and deletions stored empty maps as empty arrays.
+  // Keep those recoverable, but let decodeImage reject nonempty malformed arrays.
+  const legacyEmptyMap = (value: any) => (Array.isArray(value) && !value.length ? {} : value);
   return decodeImage(
     encryptionKey,
     {
       appImage: {
         ...appImage,
-        signers: appImage.signers === undefined ? {} : appImage.signers,
+        wallets: legacyEmptyMap(appImage.wallets),
+        signers: legacyEmptyMap(appImage.signers === undefined ? {} : appImage.signers),
         nodes: appImage.nodes === undefined ? [] : appImage.nodes,
       },
       allVaultImages,

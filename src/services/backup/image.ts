@@ -16,6 +16,8 @@ export const pauseBackup = () =>
 export const MAX_RECORD_BYTES = 8 * 1024 * 1024;
 export const MAX_BACKUP_BYTES = 32 * 1024 * 1024;
 
+export class BackupSnapshotValidationError extends Error {}
+
 export function canonical(value: any): string {
   if (value === undefined) return 'null';
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -211,7 +213,7 @@ export async function encryptRecord(key: string, record: any): Promise<string> {
 
 export async function decryptRecord(key: string, value: unknown) {
   if (typeof value !== 'string' || value.length > MAX_RECORD_BYTES * 2)
-    throw new Error('Invalid backup record');
+    throw new BackupSnapshotValidationError('Invalid backup record');
   // Parsing/format decoding still require native performance validation at the
   // supported size ceiling. Yield before and after each record.
   await pauseBackup();
@@ -238,7 +240,7 @@ export async function decryptRecord(key: string, value: unknown) {
   }
   const record = JSON.parse(text);
   if (!record || typeof record !== 'object' || Array.isArray(record))
-    throw new Error('Invalid backup record');
+    throw new BackupSnapshotValidationError('Invalid backup record');
   await pauseBackup();
   return record;
 }
@@ -247,19 +249,24 @@ export async function decodeImage(
   key: string,
   response: any,
   appId: string,
-  checkpoint = () => {}
+  checkpoint = () => {},
+  verifyWalletKeys = false
 ): Promise<BackupImage> {
   const app = response?.appImage;
   if (
     !app ||
     app.appId !== appId ||
     !app.wallets ||
+    typeof app.wallets !== 'object' ||
+    Array.isArray(app.wallets) ||
     !app.signers ||
+    typeof app.signers !== 'object' ||
+    Array.isArray(app.signers) ||
     !Array.isArray(app.nodes) ||
     !Array.isArray(response.allVaultImages) ||
     !Array.isArray(response.labels)
   )
-    throw new Error('Incomplete backup response');
+    throw new BackupSnapshotValidationError('Incomplete backup response');
   const checkReferences = (expected: unknown, actual: unknown[]) => {
     if (expected === undefined) return; // Legacy backups can omit reference lists.
     if (
@@ -269,7 +276,7 @@ export async function decodeImage(
       new Set(actual).size !== actual.length ||
       actual.some((id) => typeof id !== 'string' || !expected.includes(id))
     )
-      throw new Error('Incomplete backup references');
+      throw new BackupSnapshotValidationError('Incomplete backup references');
   };
   checkReferences(
     app.vaults,
@@ -283,17 +290,23 @@ export async function decodeImage(
   let totalBytes = 0;
   const decode = async (value: unknown) => {
     checkpoint();
-    if (typeof value !== 'string') throw new Error('Invalid backup record');
+    if (typeof value !== 'string') throw new BackupSnapshotValidationError('Invalid backup record');
     totalBytes += value.length;
-    if (totalBytes > MAX_BACKUP_BYTES) throw new Error('Backup exceeds supported size');
+    if (totalBytes > MAX_BACKUP_BYTES)
+      throw new BackupSnapshotValidationError('Backup exceeds supported size');
     return decryptRecord(key, value);
   };
   const add = (kind: keyof BackupImage, id: string, record: any) => {
-    if (!id || image[kind][id]) throw new Error('Duplicate or unidentified backup record');
+    if (!id || image[kind][id])
+      throw new BackupSnapshotValidationError('Duplicate or unidentified backup record');
     image[kind][id] = record;
   };
-  for (const value of Object.values(app.wallets)) {
+  for (const [storedId, value] of Object.entries(app.wallets)) {
     const record = await decode(value);
+    if (typeof record.id !== 'string' || !record.id)
+      throw new BackupSnapshotValidationError('Invalid wallet backup identity');
+    if (verifyWalletKeys && storedId !== record.id)
+      throw new BackupSnapshotValidationError('Wallet backup identity mismatch');
     add('wallets', record.id, record);
   }
   for (const [id, value] of Object.entries(app.signers)) {
@@ -303,7 +316,7 @@ export async function decodeImage(
   for (const value of response.allVaultImages) {
     const record = await decode(value?.vault);
     if (value.vaultId !== undefined && value.vaultId !== record.id)
-      throw new Error('Vault backup identity mismatch');
+      throw new BackupSnapshotValidationError('Vault backup identity mismatch');
     add('vaults', record.id, record);
   }
   for (const value of app.nodes) {
@@ -316,8 +329,8 @@ export async function decodeImage(
   }
   // A partial relay response must never look like an empty backup.
   if (Array.isArray(app.vaults) && app.vaults.length !== Object.keys(image.vaults).length)
-    throw new Error('Incomplete vault backup');
+    throw new BackupSnapshotValidationError('Incomplete vault backup');
   if (Array.isArray(app.labels) && app.labels.length !== Object.keys(image.labels).length)
-    throw new Error('Incomplete label backup');
+    throw new BackupSnapshotValidationError('Incomplete label backup');
   return image;
 }
