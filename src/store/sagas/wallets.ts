@@ -650,7 +650,12 @@ function* refreshWalletsWorker({
     }));
     const assertAccountRealmScope = () => {
       const currentState = store.getState();
-      const keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
+      let keeperApp: KeeperApp;
+      try {
+        keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
+      } catch {
+        throw new Error(WALLET_SYNC_SCOPE_CHANGED);
+      }
       if (
         currentState.storage.appId !== refreshScope.appId ||
         currentState.settings.bitcoinNetworkType !== refreshScope.networkType ||
@@ -1208,13 +1213,17 @@ export function* testcoinsWorker({ payload }) {
   }));
   const isCurrentFaucetScope = () => {
     const state = store.getState();
-    const keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
-    return (
-      state.storage.appId === faucetScope.appId &&
-      state.settings.bitcoinNetworkType === faucetScope.networkType &&
-      faucetScope.networkType === wallet.networkType &&
-      keeperApp?.id === faucetScope.appId
-    );
+    try {
+      const keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
+      return (
+        state.storage.appId === faucetScope.appId &&
+        state.settings.bitcoinNetworkType === faucetScope.networkType &&
+        faucetScope.networkType === wallet.networkType &&
+        keeperApp?.id === faucetScope.appId
+      );
+    } catch {
+      return false;
+    }
   };
 
   if (!isCurrentFaucetScope()) return;
