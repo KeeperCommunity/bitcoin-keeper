@@ -102,6 +102,12 @@ function vaultSchemeIdentity(scheme: any) {
   };
 }
 
+function vaultSignerIdentity(signer: any) {
+  if (!signer || typeof signer !== 'object') return signer;
+  const { registeredVaults, ...key } = signer;
+  return key;
+}
+
 function identity(kind: keyof BackupImage, record: any) {
   if (kind === 'wallets')
     return {
@@ -119,7 +125,11 @@ function identity(kind: keyof BackupImage, record: any) {
     return {
       networkType: record.networkType,
       scheme: vaultSchemeIdentity(record.scheme),
-      signers: record.signers,
+      // Registration receipts and device HMACs can change without changing the
+      // vault's keys or spending policy. They remain in encrypted recovery data.
+      signers: Array.isArray(record.signers)
+        ? record.signers.map(vaultSignerIdentity)
+        : record.signers,
       scriptType: record.scriptType,
     };
   if (kind === 'signers')
