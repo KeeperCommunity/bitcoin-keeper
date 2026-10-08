@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef, useState } from 'react';
+import React, { ReactElement, useRef, useState } from 'react';
 import QRScanner from 'src/components/QRScanner';
 
 // Keep the scanner available until the request has actually been prepared and sent.
@@ -7,7 +7,7 @@ export default function ChannelRequestScanner({
   children,
 }: {
   onScanCompleted: (data: string) => boolean | Promise<boolean>;
-  children: ReactNode;
+  children: ReactElement;
 }) {
   const [requestSent, setRequestSent] = useState(false);
   const [scanAttempt, setScanAttempt] = useState(0);
@@ -28,5 +28,5 @@ export default function ChannelRequestScanner({
       preparing.current = false;
     }
   };
-  return requestSent ? <>{children}</> : <QRScanner key={scanAttempt} onScanCompleted={onScan} />;
+  return requestSent ? children : <QRScanner key={scanAttempt} onScanCompleted={onScan} />;
 }
