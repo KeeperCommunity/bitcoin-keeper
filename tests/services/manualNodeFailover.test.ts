@@ -29,12 +29,13 @@ describe('manual Electrum selection', () => {
     (ElectrumClient.connect as jest.Mock).mockResolvedValue({
       connected: true,
       connectedTo: selected.host,
+      generation: 2,
     });
 
     await Node.connectToSelectedNode(selected);
 
     expect(ElectrumClient.setActivePeer).toHaveBeenCalledWith([], selected);
-    expect(ElectrumClient.setFailoverPeers).toHaveBeenCalledWith(predefinedTestnetNodes);
+    expect(ElectrumClient.setFailoverPeers).toHaveBeenCalledWith(predefinedTestnetNodes, 2);
   });
 
   it('does not equip fallback peers when the tapped node never connects', async () => {

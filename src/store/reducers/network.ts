@@ -5,12 +5,12 @@ const initialState: {
   exchangeRates: ExchangeRates;
   averageTxFees: AverageTxFeesByNetwork;
   initialNodesSaved: Boolean;
-  testnetFallbackNodeAdded: boolean;
+  testnetFallbackNodeAddedByAppId: { [appId: string]: boolean };
 } = {
   exchangeRates: null,
   averageTxFees: null,
   initialNodesSaved: false,
-  testnetFallbackNodeAdded: false,
+  testnetFallbackNodeAddedByAppId: {},
 };
 
 const networkSlice = createSlice({
@@ -29,8 +29,10 @@ const networkSlice = createSlice({
       state.initialNodesSaved = action.payload;
     },
 
-    setTestnetFallbackNodeAdded: (state) => {
-      state.testnetFallbackNodeAdded = true;
+    setTestnetFallbackNodeAdded: (state, action: PayloadAction<string>) => {
+      // Older persisted network state may not have the per-account map yet.
+      if (!state.testnetFallbackNodeAddedByAppId) state.testnetFallbackNodeAddedByAppId = {};
+      state.testnetFallbackNodeAddedByAppId[action.payload] = true;
     },
   },
 });
