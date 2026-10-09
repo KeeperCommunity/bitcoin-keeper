@@ -55,10 +55,22 @@ Refer to platform-specific documentation for detailed setup requirements.
    cd bitcoin-keeper
    ```
 3. Install the project dependencies using Yarn:
-   The prepare scripts will automatically install pods and nodify crypto-related packages for react-native
+   The prepare script configures the crypto-related React Native packages.
+   CocoaPods is an explicit iOS setup step; follow [CONTRIBUTING.md](CONTRIBUTING.md)
+   after dependency installation.
    ```shell
    yarn install
    ```
+
+## Contributing and local backends
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and
+[the local development guide](dev/local-backend/README.md) for a reproducible
+backend setup using public [Relay](https://github.com/KeeperCommunity/Relay)
+and [SigningServer](https://github.com/KeeperCommunity/SigningServer) sources.
+The local stack uses disposable testnet fixtures and needs no production
+credentials. Keep native app builds on your host; the backend runs in Docker.
+Report suspected vulnerabilities through [private reporting](SECURITY.md).
 
 ## Build and Run
 

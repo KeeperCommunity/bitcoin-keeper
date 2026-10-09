@@ -51,6 +51,7 @@ import {
   setAutomaticCloudBackup,
   setDeleteBackupSuccess,
   setDeleteBackupFailure,
+  isAutomaticCloudBackupEnabled,
 } from 'src/store/reducers/bhr';
 import useToastMessage from './useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
@@ -92,12 +93,17 @@ export const useSettingKeeper = () => {
   });
   const { id }: KeeperApp = useQuery(RealmSchema.KeeperApp).map(getJSONFromRealmObject)[0];
   const {
-    backupAllFailure,
-    backupAllSuccess,
-    automaticCloudBackup,
-    deleteBackupSuccess,
-    deleteBackupFailure,
+    backupAllFailureByAppId,
+    backupAllSuccessByAppId,
+    automaticCloudBackupByAppId,
+    deleteBackupSuccessByAppId,
+    deleteBackupFailureByAppId,
   } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = isAutomaticCloudBackupEnabled({ automaticCloudBackupByAppId }, id);
+  const backupAllFailure = !!backupAllFailureByAppId?.[id];
+  const backupAllSuccess = !!backupAllSuccessByAppId?.[id];
+  const deleteBackupSuccess = !!deleteBackupSuccessByAppId?.[id];
+  const deleteBackupFailure = !!deleteBackupFailureByAppId?.[id];
 
   useEffect(() => {
     if (isOnL4) {
@@ -142,8 +148,8 @@ export const useSettingKeeper = () => {
 
   useEffect(() => {
     if (backupAllSuccess && isFocused) {
-      dispatch(setBackupAllSuccess(false));
-      dispatch(setAutomaticCloudBackup(true));
+      dispatch(setBackupAllSuccess({ appId: id, status: false }));
+      dispatch(setAutomaticCloudBackup({ appId: id, enabled: true }));
       setTimeout(() => {
         dispatch(setShowTipModal({ status: true, address: config.ADDRESS.assistServer }));
       }, 1000);
@@ -152,28 +158,28 @@ export const useSettingKeeper = () => {
 
   useEffect(() => {
     if (deleteBackupSuccess && isFocused) {
-      dispatch(setDeleteBackupSuccess(false));
-      dispatch(setAutomaticCloudBackup(false));
+      dispatch(setDeleteBackupSuccess({ appId: id, status: false }));
+      dispatch(setAutomaticCloudBackup({ appId: id, enabled: false }));
     }
   }, [deleteBackupSuccess]);
 
   useEffect(() => {
     if (deleteBackupFailure && isFocused) {
-      dispatch(setDeleteBackupFailure(false));
+      dispatch(setDeleteBackupFailure({ appId: id, status: false }));
       showToast(errorText.unableToDeleteAssistedServer, <ToastErrorIcon />);
     }
   }, [deleteBackupFailure]);
 
   useEffect(() => {
     if (backupAllFailure && isFocused) {
-      dispatch(setBackupAllFailure(false));
+      dispatch(setBackupAllFailure({ appId: id, status: false }));
     }
   }, [backupAllFailure]);
 
   const toggleAutomaticBackupMode = useCallback(() => {
-    if (!automaticCloudBackup) dispatch(backupAllSignersAndVaults());
+    if (!automaticCloudBackup) dispatch(backupAllSignersAndVaults(id));
     else setShowDeleteBackup(true);
-  }, [automaticCloudBackup, dispatch]);
+  }, [automaticCloudBackup, dispatch, id]);
 
   const debouncedAutomaticBackupToggle = useCallback(() => {
     if (backupToggleTimeoutRef.current) {
@@ -262,7 +268,7 @@ export const useSettingKeeper = () => {
       title: settings.assistedServerBackup,
       description: settings.assistedServerBackupSubtitle,
       icon: <CloudBackupIcon width={14} height={14} />,
-      onPress: debouncedAutomaticBackupToggle,
+      onPress: () => navigation.dispatch(CommonActions.navigate('AssistedBackupStatus')),
       rightIcon: isOnL2Above ? (
         <Switch onValueChange={debouncedAutomaticBackupToggle} value={automaticCloudBackup} />
       ) : (
@@ -471,11 +477,11 @@ export const useSettingKeeper = () => {
           primaryText={settings.assistedServerDeleteBackupModalCTA}
           primaryCallback={() => {
             setShowDeleteBackup(false);
-            dispatch(deleteBackup());
+            dispatch(deleteBackup(id));
           }}
           secondaryCallback={() => {
             setShowDeleteBackup(false);
-            dispatch(setAutomaticCloudBackup(false));
+            dispatch(setAutomaticCloudBackup({ appId: id, enabled: false }));
           }}
           secondaryText={settings.assistedServerDeleteBackupModalSecondaryCTA}
         />

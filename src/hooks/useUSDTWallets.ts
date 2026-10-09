@@ -19,15 +19,25 @@ import USDT, {
   DEFAULT_DEADLINE_SECONDS,
   USDTTransferOptions,
 } from '../services/wallets/operations/dollars/USDT';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
 import { useAppSelector } from 'src/store/hooks';
 import { updateAppImage } from 'src/store/sagaActions/bhr';
 import Relay from 'src/services/backend/Relay';
+import { canonical, recoveryContent } from 'src/services/backup/image';
+import { markBackupMutation } from 'src/services/backup/transport';
+import {
+  invalidateBackupRepair,
+  isAutomaticCloudBackupEnabled,
+  setPendingAllBackup,
+} from 'src/store/reducers/bhr';
 
 export interface UseUSDTWalletsOptions {
   getAll?: boolean;
   includeHidden?: boolean;
 }
+
+// Existing USDT wallets remain readable, but new wallet creation and import are paused.
+export const USDT_WALLET_CREATION_PAUSED = true;
 
 export interface UseUSDTWalletsReturn {
   usdtWallets: USDTWallet[];
@@ -61,7 +71,14 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
   const allWallets = useQuery(RealmSchema.USDTWallet);
   const [error, setError] = useState<string | null>(null);
   const dispatch = useDispatch();
+  const reduxStore = useStore();
   const { id: appId }: any = dbManager.getObjectByIndex(RealmSchema.KeeperApp);
+  const isOriginCurrent = useCallback(
+    () =>
+      (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id === appId &&
+      reduxStore.getState().storage.appId === appId,
+    [appId, reduxStore]
+  );
 
   const filterByNetwork = (wallets: USDTWallet[]) => {
     if (bitcoinNetworkType)
@@ -98,7 +115,13 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
       primaryMnemonic?: string;
       importDetails?: USDTWalletImportDetails;
     }): Promise<{ newWallet?: USDTWallet; error?: string }> => {
+      let beganLocalWrite = false;
+      if (USDT_WALLET_CREATION_PAUSED) {
+        return { error: 'USDT wallet setup is paused' };
+      }
+
       try {
+        if (!isOriginCurrent()) throw new Error('Account changed');
         setError(null);
         const walletNetworkType = USDTWalletSupportedNetwork;
         const allUSDTWallets: USDTWallet[] = (await dbManager.getObjectByIndex(
@@ -107,6 +130,7 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
           null,
           true // get all wallets
         )) as any;
+        if (!isOriginCurrent()) throw new Error('Account changed');
 
         let lastInstanceNum = -1;
         allUSDTWallets.forEach((wallet) => {
@@ -125,6 +149,7 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
           instanceNum: params.type === USDTWalletType.DEFAULT ? lastInstanceNum + 1 : null,
           importDetails: params.importDetails,
         });
+        if (!isOriginCurrent()) throw new Error('Account changed');
 
         // check if a USDT wallet already exists with the same mnemonic(especially for imported wallets)
         const existingWallet = allUSDTWallets.find((wallet) => wallet.id === newWallet.id);
@@ -132,57 +157,112 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
           throw new Error('USDT wallet already exists with the same ID');
         }
 
-        await dbManager.createObject(RealmSchema.USDTWallet, newWallet);
+        beganLocalWrite = true;
+        if ((await dbManager.createObject(RealmSchema.USDTWallet, newWallet)) !== true)
+          throw new Error('Failed to create wallet');
+        if (!isOriginCurrent()) throw new Error('Account changed');
 
         //  Create usdt wallet backup
-        dispatch(updateAppImage({ wallets: [newWallet], signers: null, updateNodes: false }));
+        dispatch(updateAppImage({ wallets: [newWallet], signers: null, updateNodes: false }, appId));
 
         return { newWallet };
       } catch (err) {
+        if (beganLocalWrite && isAutomaticCloudBackupEnabled(reduxStore.getState().bhr, appId)) {
+          markBackupMutation(appId);
+          dispatch(invalidateBackupRepair(appId));
+          dispatch(setPendingAllBackup({ appId, pending: true }));
+        }
         setError(err.message || 'Failed to create wallet');
         captureError(err);
         return { error: err.message || 'Failed to create wallet' };
       }
     },
-    []
+    [appId, dispatch, isOriginCurrent, reduxStore]
   );
 
   /**
    * Delete a wallet
    */
   const deleteWallet = useCallback(async (walletId: string): Promise<boolean> => {
+    let remoteDeleted = false;
+    const markIncompleteDeletion = () => {
+      if (!remoteDeleted) return;
+      markBackupMutation(appId);
+      dispatch(invalidateBackupRepair(appId));
+      dispatch(setPendingAllBackup({ appId, pending: true }));
+    };
     try {
-      const response = await Relay.deleteAppImageEntity({
-        appId,
-        signers: null,
-        walletIds: [walletId],
-      });
-      if (!response.updated) throw new Error('Failed to delete wallet');
-
-      await dbManager.deleteObjectById(RealmSchema.USDTWallet, walletId);
-      return true;
+      if (!isOriginCurrent()) return false;
+      // An account without Assisted Server Backup consent still owns its local
+      // wallet. Only the opted-in account needs a corresponding relay delete.
+      if (isAutomaticCloudBackupEnabled(reduxStore.getState().bhr, appId)) {
+        const response = await Relay.deleteAppImageEntity({
+          appId,
+          signers: null,
+          walletIds: [walletId],
+        });
+        if (!response.updated) throw new Error('Failed to delete wallet');
+        remoteDeleted = true;
+      }
+      if (!isOriginCurrent()) {
+        markIncompleteDeletion();
+        return false;
+      }
+      const deleted = dbManager.deleteObjectById(RealmSchema.USDTWallet, walletId) === true;
+      if (!deleted) markIncompleteDeletion();
+      return deleted;
     } catch (err) {
+      markIncompleteDeletion();
       setError(err.message || 'Failed to delete wallet');
       captureError(err);
       return false;
     }
-  }, []);
+  }, [appId, dispatch, isOriginCurrent, reduxStore]);
 
   /**
    * Update a wallet in the database
    */
-  const updateWallet = useCallback(async (wallet: USDTWallet): Promise<boolean> => {
-    try {
-      const { id, ...walletUpdateData } = wallet;
-      await dbManager.updateObjectById(RealmSchema.USDTWallet, wallet.id, walletUpdateData); // Remove the primary key 'id' from the update object to avoid Realm primary key change error
+  const updateWallet = useCallback(
+    async (wallet: USDTWallet): Promise<boolean> => {
+      let recoveryChanged = false;
+      try {
+        if (!isOriginCurrent()) return false;
+        const previous = dbManager.getObjectById(RealmSchema.USDTWallet, wallet.id);
+        if (!previous) throw new Error('Wallet not found');
+        const previousWallet = previous.toJSON ? previous.toJSON() : previous;
+        recoveryChanged =
+          canonical(recoveryContent('wallets', previousWallet)) !==
+          canonical(recoveryContent('wallets', wallet));
+        const { id, ...walletUpdateData } = wallet;
+        const updated = await dbManager.updateObjectById(
+          RealmSchema.USDTWallet,
+          id,
+          walletUpdateData
+        ); // Realm updates must omit the primary key.
+        if (!updated) throw new Error('Failed to update wallet');
+        if (!isOriginCurrent()) throw new Error('Account changed');
 
-      return true;
-    } catch (err) {
-      setError(err.message || 'Failed to update wallet');
-      captureError(err);
-      return false;
-    }
-  }, []);
+        // Metadata and visibility must survive recovery. Balance/account refreshes
+        // are rebuildable caches and must not cause an upload on every sync.
+        if (recoveryChanged)
+          dispatch(updateAppImage({ wallets: [wallet], signers: null, updateNodes: false }, appId));
+
+        return true;
+      } catch (err) {
+        // The database helper can fail after partially writing fields. Do not
+        // upload the requested state or leave a previous verification trusted.
+        if (recoveryChanged) {
+          markBackupMutation(appId);
+          dispatch(invalidateBackupRepair(appId));
+          dispatch(setPendingAllBackup({ appId, pending: true }));
+        }
+        setError(err.message || 'Failed to update wallet');
+        captureError(err);
+        return false;
+      }
+    },
+    [appId, dispatch, isOriginCurrent]
+  );
 
   /**
    * Syncs a single wallet account status with latest data

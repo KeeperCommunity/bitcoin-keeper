@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -13,18 +13,11 @@ import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import Buttons from 'src/components/Buttons';
 import ModalWrapper from 'src/components/Modal/ModalWrapper';
 import ConfirmSeedWord from 'src/components/SeedWordBackup/ConfirmSeedWord';
-import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
-import { backupAllSignersAndVaults, seedBackedUp } from 'src/store/sagaActions/bhr';
+import { seedBackedUp } from 'src/store/sagaActions/bhr';
 import { useDispatch } from 'react-redux';
 import { setRecoveryKeyStatus } from 'src/store/reducers/account';
-import { useAppSelector } from 'src/store/hooks';
 import useToastMessage from 'src/hooks/useToastMessage';
 import TickIcon from 'src/assets/images/icon_tick.svg';
-import {
-  setAutomaticCloudBackup,
-  setBackupAllFailure,
-  setBackupAllSuccess,
-} from 'src/store/reducers/bhr';
 
 type KeeperApp = {
   id: string;
@@ -41,21 +34,8 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
   const [showWordIndex, setShowWordIndex] = useState<string | number>('');
   const seedTextColor = ThemedColor({ name: 'seedTextColor' });
   const [confirmSeedModal, setConfirmSeedModal] = useState(false);
-  const [loader, setLoader] = useState(false);
   const dispatch = useDispatch();
-  const { backupAllFailure, backupAllSuccess } = useAppSelector((state) => state.bhr);
   const { showToast } = useToastMessage();
-
-  useEffect(() => {
-    if (backupAllSuccess || backupAllFailure) {
-      dispatch(setBackupAllSuccess(false));
-      dispatch(setBackupAllFailure(false));
-      dispatch(setAutomaticCloudBackup(true));
-      setLoader(false);
-      showToast(backupTxt.recoveryKeyBackedUpSuccessfully, <TickIcon />);
-      navigation.goBack();
-    }
-  }, [backupAllSuccess, backupAllFailure]);
 
   const SeedCard = ({ item, index }: { item; index }) => {
     return (
@@ -139,14 +119,13 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
             words={words}
             confirmBtnPress={() => {
               setConfirmSeedModal(false);
-              setLoader(true);
               dispatch(seedBackedUp());
               dispatch(setRecoveryKeyStatus({ appId, status: 'confirmed' }));
-              dispatch(backupAllSignersAndVaults());
+              showToast(backupTxt.recoveryKeyBackedUpSuccessfully, <TickIcon />);
+              navigation.goBack();
             }}
           />
         </ModalWrapper>
-        <ActivityIndicatorView visible={loader} />
       </Box>
     </ScreenWrapper>
   );

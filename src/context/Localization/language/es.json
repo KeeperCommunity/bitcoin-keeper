@@ -223,8 +223,8 @@
     "failedToConnectTor": "Failed to connect to tor",
     "networkCallsAndTor": "Network calls and some functions may work slower when the Tor is enabled",
     "checkConnection": "Please check your internet connection and try again. If you continue offline, some features may not be available.",
-    "incorrectPassword": "Incorrect Password",
-    "youEnteredIncorrectPasscode": "The passcode you entered is incorrect. Please try again. If you’ve forgotten your passcode, you can recover your wallet using the Forgot Passcode flow with your recovery key.",
+    "incorrectPassword": "Código incorrecto",
+    "youEnteredIncorrectPasscode": "El código introducido es incorrecto. Inténtalo de nuevo.",
     "checkinternetConnection": "Please check your internet connection and try again.",
     "forgotPasscode": "Forgot passcode?",
     "resetPasscodeTitle": "Reset Passcode",
@@ -437,6 +437,10 @@
     "faucetDailyLimitTitle": "Daily Limit Reached",
     "faucetDailyLimitBody": "You can request test sats up to 5 times per day. Try again after midnight UTC.",
     "faucetDailyLimitError": "Daily limit reached. Try again after midnight UTC.",
+    "faucetPendingTitle": "Los sats de prueba siguen pendientes",
+    "faucetPropagationPending": "El grifo envió sats de prueba, pero la cartera aún no ve la transacción. El saldo puede tardar en actualizarse.",
+    "faucetSyncPending": "El grifo envió sats de prueba, pero la cartera no pudo sincronizarse. Comprueba la conexión al servidor antes de volver a solicitarlos.",
+    "faucetOutcomeUnknown": "La solicitud al grifo agotó el tiempo de espera. Puede que ya se hayan enviado sats de prueba. Comprueba el saldo antes de volver a solicitarlos.",
     "Singlekey": "Single-key",
     "multikey2of3": "2 of 3 multi-key",
     "multikey3of5": "3 of 5 multi-key",
@@ -791,6 +795,7 @@
     "keeperVerified": "Keeper Verified Successfully",
     "SeedErrorToast": "Please fill in all seed word fields",
     "appRecoveredSuccessfulTitle": "App Recovered Successfully!",
+    "recoveryIncomplete": "No se pudo completar la recuperación. Es posible que la copia de seguridad no esté disponible o que algunos datos no se hayan podido restaurar. Inténtalo de nuevo.",
     "appRecoveredSuccessfulSubTitle": "All your wallets and data about your vault has been recovered",
     "appRecoveredSuccessfulDesc": "The vault keys always stay within the signing devices and therefore do not have to be recovered",
     "mobileKey": "Mobile Key",
@@ -2133,6 +2138,15 @@
     "psbtMissingSignature": "This PSBT does not include a signature for the selected signer"
   },
   "usdtWalletText": {
+    "pausedTitle": "La actividad de USDT está limitada",
+    "pausedBody": "La creación de carteras de USDT, el envío, la compra, la venta y el intercambio están pausados. Esta cartera, su saldo e historial siguen disponibles.",
+    "sendingPausedTitle": "El envío de USDT está pausado",
+    "sendingPausedBody": "Keeper no puede enviar USDT desde esta cartera ahora mismo. Los detalles, el saldo y el historial de transacciones de la cartera siguen disponibles.",
+    "receivePausedWarning": "Esta es la dirección de recepción guardada de tu cartera. Keeper no puede enviar USDT desde esta cartera mientras el envío esté pausado. Los fondos recibidos aquí no se pueden enviar mediante Keeper durante la pausa. No deposites nuevos USDT a menos que comprendas esta limitación.",
+    "statusUnavailable": "Estado no disponible",
+    "legacyRequestTitle": "Solicitud anterior de USDT",
+    "legacyRequestNotice": "Keeper ya no puede verificar esta solicitud de USDT anterior. Si se completó, también puede aparecer como una transacción separada en la cadena.",
+    "requestedAmount": "Importe solicitado",
     "pickWalletType": "Pick Your Wallet Type",
     "selectCurrency": "Select the currency you would like to use",
     "bitcoinWallet": "Bitcoin Wallet",
@@ -2198,5 +2212,49 @@
     "disclaimerPoint3": "Your messages are processed securely to help Ask Keeper respond.",
     "disclaimerLearnMore": "Learn more about Ask Keeper",
     "disclaimerCta": "Got it"
+  },
+  "recoveryBackup": {
+  "title": "Copia de seguridad asistida",
+  "backUp": "Guardar ahora",
+  "check": "Volver a comprobar",
+  "back": "Atrás",
+  "slow": "Está tardando más de lo habitual. Una conexión lenta o una copia grande puede necesitar más tiempo.",
+  "leave": "Puedes salir de esta pantalla y volver para consultar el resultado. Si la aplicación se cierra, comprueba de nuevo al abrirla.",
+  "disabled": {
+    "title": "Copia desactivada",
+    "body": "Activa la copia de seguridad asistida en Copia de seguridad y recuperación para usar esta comprobación."
+  },
+  "checking": {
+    "title": "Comprobando la copia",
+    "body": "Comparando tu copia cifrada con los datos de recuperación de este dispositivo."
+  },
+  "different": {
+    "title": "Actualiza tu copia",
+    "body": "Guardar ahora reemplaza la copia del servidor con los datos de recuperación actuales de este dispositivo, incluidos los elementos ocultos y archivados. Los elementos que no estén en este dispositivo se eliminarán de la copia. Revisa primero tus otros dispositivos Keeper. Después, Keeper volverá a leer y verificar la copia."
+  },
+  "preparing": {
+    "title": "Preparando la copia",
+    "body": "Preparando y cifrando los datos de recuperación de este dispositivo."
+  },
+  "uploading": {
+    "title": "Actualizando la copia",
+    "body": "Enviando tu copia cifrada a los servidores de Keeper."
+  },
+  "verifying": {
+    "title": "Verificando la copia",
+    "body": "Leyendo la copia del servidor y comprobando que los datos de recuperación coinciden."
+  },
+  "verified": {
+    "title": "Copia verificada",
+    "body": "Tu copia de seguridad asistida coincide con los datos de recuperación comprobados en este dispositivo. Guarda tu clave de recuperación; sigue siendo necesaria para recuperar."
+  },
+  "conflict": {
+    "title": "Revisa la copia",
+    "body": "El servidor contiene datos de recuperación que faltan o son diferentes en este dispositivo. Keeper no los ha reemplazado. Revisa tus otros dispositivos Keeper antes de hacer cambios y vuelve a comprobar."
+  },
+  "unverified": {
+    "title": "Copia sin verificar",
+    "body": "Keeper no pudo confirmar que tu copia coincida. La conexión puede haberse interrumpido, la copia puede ser demasiado grande o los datos pueden haber cambiado. Comprueba de nuevo antes de dar la copia por completa."
   }
+}
 }

@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 import DeviceInfo from 'react-native-device-info';
 import { Platform } from 'react-native';
@@ -61,20 +61,33 @@ class RestClient {
     return RestClient.torStatus;
   }
 
-  async post(path: string, body: object, headers?: object): Promise<AxiosResponse> {
+  async post(
+    path: string,
+    body: object,
+    headers?: object,
+    options: AxiosRequestConfig = {}
+  ): Promise<AxiosResponse> {
     return axios.post(path, body, {
+      ...options,
       headers: {
         ...RestClient.headers,
         ...headers,
+        ...options.headers,
       },
     });
   }
 
-  async get(path: string, headers?: object): Promise<AxiosResponse> {
+  async get(
+    path: string,
+    headers?: object,
+    options: AxiosRequestConfig = {}
+  ): Promise<AxiosResponse> {
     return axios.get(path, {
+      ...options,
       headers: {
         ...RestClient.headers,
         ...headers,
+        ...options.headers,
       },
     });
   }

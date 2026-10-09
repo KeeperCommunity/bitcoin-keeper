@@ -1,4 +1,4 @@
-import { call, delay, put, race, select } from 'redux-saga/effects';
+import { call, put, select } from 'redux-saga/effects';
 import {
   decrypt,
   encrypt,
@@ -51,14 +51,17 @@ import { createWatcher } from '../utilities';
 import { fetchExchangeRates } from '../sagaActions/send_and_receive';
 import { setLoginMethod } from '../reducers/settings';
 import { setSubscription } from 'src/store/sagaActions/settings';
-import { backupAllSignersAndVaults } from '../sagaActions/bhr';
 import { uaiChecks } from '../sagaActions/uai';
 import { applyUpgradeSequence } from './upgrade';
 import { resetSyncing } from '../reducers/wallets';
+import { autoSyncWallets } from '../sagaActions/wallets';
 import { connectToNode } from '../sagaActions/network';
 import { fetchDelayedPolicyUpdate, fetchSignedDelayedTransaction } from '../sagaActions/storage';
-import { setAutomaticCloudBackup, setBackupType } from '../reducers/bhr';
-import { autoWalletsSyncWorker } from './wallets';
+import {
+  setAutomaticCloudBackup,
+  setBackupType,
+  migrateLegacyAutomaticCloudBackup,
+} from '../reducers/bhr';
 import {
   addAccount,
   saveDefaultWalletState,
@@ -186,11 +189,21 @@ function* credentialsAuthWorker({ payload }) {
       }
 
       const previousVersion = yield select((state) => state.storage.appVersion);
-      const { plebDueToOffline, wasAutoUpdateEnabledBeforeDowngrade, defaultWalletCreated } =
-        yield select((state) => state.storage);
+      const { defaultWalletCreated } = yield select((state) => state.storage);
 
       // setting correct app id from realm at login
       const keeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+      if (keeperApp?.id) {
+        const onlyKnownAccount =
+          allAccounts.length <= 1 &&
+          (!allAccounts.length || allAccounts[0].appId === keeperApp.id);
+        yield put(
+          migrateLegacyAutomaticCloudBackup({
+            appId: keeperApp.id,
+            canAttributeConsent: onlyKnownAccount && appId === keeperApp.id,
+          })
+        );
+      }
       if (keeperApp?.id) yield put(setAppId(keeperApp.id));
 
       // Store temporary account details
@@ -214,7 +227,7 @@ function* credentialsAuthWorker({ payload }) {
       }
       if (appId) {
         try {
-          const { id, publicId, subscription }: KeeperApp = yield call(
+          const { id }: KeeperApp = yield call(
             dbManager.getObjectByIndex,
             RealmSchema.KeeperApp
           );
@@ -225,16 +238,10 @@ function* credentialsAuthWorker({ payload }) {
           yield put(fetchExchangeRates());
           yield put(fetchSignedDelayedTransaction());
           yield put(fetchDelayedPolicyUpdate());
-          yield race({
-            sync: call(autoWalletsSyncWorker, {
-              payload: {
-                syncAll: false,
-                hardRefresh: false,
-                addNotifications: true,
-              },
-            }),
-            timeout: delay(15000),
-          });
+          // Wallet/node refresh runs through its watcher after local unlock.
+          // Waiting for network work here can hold the success modal for 15s.
+          yield put(resetSyncing());
+          yield put(autoSyncWallets(false, false, true, id));
 
           yield put(
             uaiChecks([
@@ -247,12 +254,6 @@ function* credentialsAuthWorker({ payload }) {
             ])
           );
 
-          yield put(resetSyncing());
-
-          const { pendingAllBackup, automaticCloudBackup } = yield select(
-            (state: RootState) => state.bhr
-          );
-          if (pendingAllBackup && automaticCloudBackup) yield put(backupAllSignersAndVaults());
           if (!allAccounts.length) {
             // upgraded app
             yield put(addAccount(appId));
@@ -305,14 +306,16 @@ async function downgradeToPleb() {
     subscription: updatedSubscription,
   });
   store.dispatch(setSubscription(updatedSubscription.name));
-  store.dispatch(setAutomaticCloudBackup(false));
+  store.dispatch(setAutomaticCloudBackup({ appId: app.id, enabled: false }));
   await Relay.updateSubscription(app.id, app.publicId, {
     productId: SubscriptionTier.L1.toLowerCase(),
   });
 }
 
-async function updateSubscriptionFromRelayData(data, wasAutoUpdateEnabledBeforeDowngrade) {
+async function updateSubscriptionFromRelayData(data) {
   const app: KeeperApp = await dbManager.getObjectByIndex(RealmSchema.KeeperApp);
+  const wasAutoUpdateEnabledBeforeDowngrade =
+    store.getState().storage.wasAutoUpdateEnabledBeforeDowngradeByAppId?.[app.id] === true;
   const isBtcPayment = data?.paymentType == 'btc_payment';
   let updatedSubscription: SubScription;
   if (isBtcPayment) {
@@ -335,9 +338,11 @@ async function updateSubscriptionFromRelayData(data, wasAutoUpdateEnabledBeforeD
     subscription: updatedSubscription,
   });
   store.dispatch(setSubscription(updatedSubscription.name));
-  store.dispatch(setAutomaticCloudBackup(wasAutoUpdateEnabledBeforeDowngrade));
+  store.dispatch(
+    setAutomaticCloudBackup({ appId: app.id, enabled: wasAutoUpdateEnabledBeforeDowngrade })
+  );
   store.dispatch(setPlebDueToOffline(false));
-  store.dispatch(setAutoUpdateEnabledBeforeDowngrade(false));
+  store.dispatch(setAutoUpdateEnabledBeforeDowngrade({ appId: app.id, enabled: false }));
 }
 
 export const credentialsAuthWatcher = createWatcher(credentialsAuthWorker, CREDS_AUTH);

@@ -221,6 +221,7 @@ export async function getTrc20Transactions(
     const params = new URLSearchParams({
       limit: limit.toString(),
       contract_address: tokenContract,
+      only_confirmed: 'true',
     });
 
     if (fingerprint) {
@@ -262,7 +263,9 @@ export async function getTrc20Transactions(
         value: rawValue,
         formattedValue,
         contractAddress: tx.token_info?.address || tokenContract,
-        confirmed: tx.confirmed || false,
+        // The TRC20 response row need not carry a confirmation flag. The
+        // request filter establishes it unless a row explicitly contradicts it.
+        confirmed: tx.confirmed !== false,
         tokenInfo: tx.token_info
           ? {
               symbol: tx.token_info.symbol,

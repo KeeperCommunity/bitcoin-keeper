@@ -15,8 +15,9 @@ export const SET_AUTOMATIC_CLOUD_BACKUP = 'SET_AUTOMATIC_CLOUD_BACKUP';
 export const DELETE_BACKUP = 'DELETE_BACKUP';
 export const VALIDATE_SERVER_BACKUP = 'VALIDATE_SERVER_BACKUP';
 
-export const updateAppImage = ({ wallets, signers, updateNodes }) => ({
+export const updateAppImage = ({ wallets, signers, updateNodes }, originAppId?: string) => ({
   type: UPDATE_APP_IMAGE,
+  ...(originAppId ? { originAppId } : {}),
   payload: {
     wallets,
     signers,
@@ -90,8 +91,9 @@ export const bsmsCloudHealthCheck = () => ({
   type: BSMS_CLOUD_HEALTH_CHECK,
 });
 
-export const backupAllSignersAndVaults = () => ({
+export const backupAllSignersAndVaults = (appId: string) => ({
   type: BACKUP_ALL_SIGNERS_AND_VAULTS,
+  appId,
 });
 
 export const setAutomaticCloudBackup = (payload) => ({
@@ -99,11 +101,18 @@ export const setAutomaticCloudBackup = (payload) => ({
   payload,
 });
 
-export const deleteBackup = () => ({
+export const deleteBackup = (appId: string) => ({
   type: DELETE_BACKUP,
+  appId,
 });
 
-export const validateServerBackup = (callback) => ({
+export const validateServerBackup = (callback, originAppId: string) => ({
   type: VALIDATE_SERVER_BACKUP,
   callback,
+  originAppId,
 });
+
+export const CHECK_BACKUP_FRESHNESS = 'CHECK_BACKUP_FRESHNESS';
+export const REPAIR_BACKUP = 'REPAIR_BACKUP';
+export const checkBackupFreshness = (appId: string) => ({ type: CHECK_BACKUP_FRESHNESS, appId });
+export const repairBackup = (appId: string) => ({ type: REPAIR_BACKUP, appId });

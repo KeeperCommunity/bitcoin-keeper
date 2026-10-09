@@ -58,6 +58,7 @@ import ThemeMode from 'src/models/enums/ThemeMode';
 import { getString, setItem } from 'src/storage';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 import { setAccountManagerDetails } from 'src/store/reducers/concierge';
+import { getRemoteKeyFromDeepLink } from 'src/navigation/remoteKeyDeepLink';
 export const KEEPER_PRIVATE_LINK = 'KEEPER_PRIVATE_LINK';
 
 function InititalAppController({ navigation, electrumErrorVisible, setElectrumErrorVisible }) {
@@ -85,8 +86,9 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
   function handleDeepLinkEvent(event) {
     const { url } = event;
     if (url) {
-      if (url.includes('remote/')) {
-        handleRemoteKeyDeepLink(url);
+      const encryptionKey = getRemoteKeyFromDeepLink(url, config.ENVIRONMENT);
+      if (encryptionKey) {
+        handleRemoteKeyDeepLink(encryptionKey);
       } else if (url.includes('kp/')) {
         handleKeeperPrivate(url);
       }
@@ -100,9 +102,8 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
 
   const { inProgress, start } = useAsync();
 
-  const handleRemoteKeyDeepLink = async (initialUrl: string) => {
+  const handleRemoteKeyDeepLink = async (encryptionKey: string) => {
     dispatch(setAppWideLoading(true));
-    const encryptionKey = initialUrl.split('remote/')[1];
     const hash = getHashFromKey(encryptionKey);
     if (encryptionKey && hash) {
       try {
@@ -338,21 +339,17 @@ function InititalAppController({ navigation, electrumErrorVisible, setElectrumEr
   async function handleDeepLinking() {
     try {
       const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) {
-        if (initialUrl.includes('remote/')) {
-          handleRemoteKeyDeepLink(initialUrl);
-        }
-      }
+      if (initialUrl) handleDeepLinkEvent({ url: initialUrl });
     } catch (error) {
       //
     }
   }
 
   useEffect(() => {
-    Linking.addEventListener('url', handleDeepLinkEvent);
-    handleDeepLinking();
+    const subscription = Linking.addEventListener('url', handleDeepLinkEvent);
+    if (!hasDeepLink) handleDeepLinking();
     return () => {
-      Linking.removeAllListeners('url');
+      subscription.remove();
     };
   }, []);
 

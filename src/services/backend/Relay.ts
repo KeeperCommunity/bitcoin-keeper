@@ -1,3 +1,4 @@
+import { backupPost } from '../backup/transport';
 import { NetworkType } from 'src/services/wallets/enums';
 import { SubScriptionPlan } from 'src/models/interfaces/Subscription';
 import {
@@ -106,16 +107,25 @@ export default class Relay {
     return res.data || res.json;
   };
 
-  public static updateAppImage = async (
-    appImage
-  ): Promise<{
+  public static updateAppImage = async (appImage: {
+    appId: string;
+    publicId?: string;
+    walletsObject?: Record<string, string>;
+    signersObject?: Record<string, string>;
+    networkType?: string;
+    subscription?: string;
+    version?: string;
+    nodes?: string[];
+    // Required to clear nodes: older clients send [] for unrelated updates.
+    replaceNodes?: boolean;
+  }): Promise<{
     status: string;
     updated: boolean;
     err?: string;
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}updateAppImage`, appImage);
+      const res = await backupPost(`${RELAY}updateAppImage`, appImage);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -132,7 +142,7 @@ export default class Relay {
     err?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}migrateXfps`, { appId, signerChanges });
+      const res = await backupPost(`${RELAY}migrateXfps`, { appId, signerChanges });
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -150,7 +160,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteAppImageEntity`, entityList);
+      const res = await backupPost(`${RELAY}deleteAppImageEntity`, entityList);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -168,7 +178,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteVaults`, entityList);
+      const res = await backupPost(`${RELAY}deleteVaults`, entityList);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -188,7 +198,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}updateVaultImage`, vaultData);
+      const res = await backupPost(`${RELAY}updateVaultImage`, vaultData);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -213,32 +223,47 @@ export default class Relay {
 
   public static getTestcoins = async (
     recipientAddress: string,
-    network: any,
+    network: NetworkType,
     appId: string
   ): Promise<{
-    txid: any;
-    funded: any;
+    txid: string;
+    funded: boolean;
   }> => {
-    if (network === NetworkType.MAINNET) {
+    if (network !== NetworkType.TESTNET) {
       throw new Error('Invalid network: failed to fund via testnet');
     }
 
     try {
-      const res = await RestClient.post(`${config.RELAY}testnetFaucet`, {
-        recipientAddress,
-        appId,
-      });
-      const { txid, funded } = res.data;
+      const res = await RestClient.post(
+        `${config.RELAY}testnetFaucet`,
+        { recipientAddress, appId },
+        undefined,
+        { timeout: 20000 }
+      );
+      const { txid, funded } = res.data || {};
+      if (!funded || typeof txid !== 'string' || !/^[0-9a-f]{64}$/i.test(txid)) {
+        throw new Error('FAUCET_OUTCOME_UNKNOWN');
+      }
       return {
         txid,
         funded,
       };
     } catch (err) {
+      if (err?.message === 'FAUCET_OUTCOME_UNKNOWN') throw err;
       if (err.response?.status === 429) {
         throw new Error('FAUCET_DAILY_LIMIT_REACHED');
       }
-      if (err.response) throw new Error(err.response.data.err);
-      if (err.code) throw new Error(err.code);
+      if (
+        err?.code === 'ECONNABORTED' ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ERR_NETWORK' ||
+        err?.response?.status >= 500
+      ) {
+        // The relay may have broadcast before the response was lost. Never retry automatically.
+        throw new Error('FAUCET_OUTCOME_UNKNOWN');
+      }
+      if (err?.response) throw new Error(err.response.data?.err || 'FAUCET_REQUEST_FAILED');
+      throw new Error('FAUCET_REQUEST_FAILED');
     }
   };
 
@@ -275,7 +300,7 @@ export default class Relay {
     updated: boolean;
   }> => {
     try {
-      const res = (await RestClient.post(`${RELAY}modifyLabels`, {
+      const res = (await backupPost(`${RELAY}modifyLabels`, {
         appId,
         addLabels,
         deleteLabels,
@@ -292,7 +317,7 @@ export default class Relay {
 
   public static checkTorStatus = async () => {
     try {
-      const response = await RestClient.get(TOR_ENDPOINT, { timeout: 20000 });
+      const response = await RestClient.get(TOR_ENDPOINT, undefined, { timeout: 20000 });
       const data = (response as AxiosResponse).data || (response as any).json;
       return data.IsTor;
     } catch (error) {
@@ -429,6 +454,7 @@ export default class Relay {
   public static backupAllSignersAndVaults = async (
     allData
   ): Promise<{
+    updated?: boolean;
     status?: number;
     data?: {
       updated: boolean;
@@ -437,7 +463,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}backupAllSignersAndVaults`, allData);
+      const res = await backupPost(`${RELAY}backupAllSignersAndVaults`, allData);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -482,7 +508,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteBackup`, body);
+      const res = await backupPost(`${RELAY}deleteBackup`, body, true);
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -804,4 +830,3 @@ export default class Relay {
     }
   };
 }
-

@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unstable-nested-components */
 import Text from 'src/components/KeeperText';
 import { Box, StatusBar, useColorMode } from '@gluestack-ui/themed-native-base';
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { widthPercentageToDP } from 'react-native-responsive-screen';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
@@ -49,7 +49,11 @@ import BounceLoader from 'src/components/BounceLoader';
 import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
-import { setAutomaticCloudBackup, setBackupType } from 'src/store/reducers/bhr';
+import {
+  setAutomaticCloudBackup,
+  setBackupType,
+  isAutomaticCloudBackupEnabled,
+} from 'src/store/reducers/bhr';
 import Relay from 'src/services/backend/Relay';
 import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 import Fonts from 'src/constants/Fonts';
@@ -84,7 +88,9 @@ function LoginScreen({ navigation, route }) {
   //   useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L4;
   const isOnPleb = false;
   const isKeeperPrivate = false;
-  const { automaticCloudBackup } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = useAppSelector((state) =>
+    isAutomaticCloudBackupEnabled(state.bhr, appId)
+  );
 
   const login_button_backGround = ThemedColor({ name: 'login_button_backGround' });
   const slider_background = ThemedColor({ name: 'slider_background' });
@@ -104,6 +110,7 @@ function LoginScreen({ navigation, route }) {
   const { common } = translations;
   const { allAccounts, biometricEnabledAppId } = useAppSelector((state) => state.account);
   const [forgotModal, setForgotModal] = useState(false);
+  const completedLogin = useRef(false);
 
   const onChangeTorStatus = (status: TorStatus) => {
     settorStatus(status);
@@ -209,21 +216,16 @@ function LoginScreen({ navigation, route }) {
   };
 
   const onPressNumber = (text) => {
-    let tmpPasscode = passcode;
-    if (passcode.length < 4) {
-      if (text !== 'x') {
-        tmpPasscode += text;
-        setPasscode(tmpPasscode);
-      }
-    }
-    if (passcode && text === 'x') {
-      setPasscode(passcode.slice(0, -1));
+    if (text === 'x') {
+      setPasscode((current) => current.slice(0, -1));
       setLoginError(false);
+    } else {
+      setPasscode((current) => (current.length < 4 ? current + text : current));
     }
   };
 
-  const onDeletePressed = (text) => {
-    setPasscode(passcode.slice(0, passcode.length - 1));
+  const onDeletePressed = () => {
+    setPasscode((current) => current.slice(0, -1));
   };
 
   useEffect(() => {
@@ -267,8 +269,14 @@ function LoginScreen({ navigation, route }) {
     }
   }, [isAuthenticated, internalCheck]);
 
+  useEffect(() => {
+    if (isAuthenticated && !internalCheck) void loginModalAction();
+  }, [isAuthenticated, internalCheck]);
+
   const loginModalAction = async () => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !completedLogin.current) {
+      completedLogin.current = true;
+      setLogging(false);
       setLoginModal(false);
       if (relogin) {
         navigation.navigate({
@@ -283,9 +291,12 @@ function LoginScreen({ navigation, route }) {
         navigation.reset({ index: 0, routes: [{ name: 'NewKeeperApp' }] });
       }
       dispatch(credsAuthenticated(false));
-      const res = await Relay.getAccountManagerDetails(appId);
-      if (res) dispatch(setAccountManagerDetails(res));
-      else dispatch(setAccountManagerDetails(null));
+      try {
+        const res = await Relay.getAccountManagerDetails(appId);
+        dispatch(setAccountManagerDetails(res || null));
+      } catch {
+        dispatch(setAccountManagerDetails(null));
+      }
     }
   };
 
@@ -408,9 +419,9 @@ function LoginScreen({ navigation, route }) {
     dispatch(setSubscription(updatedSubscription.name));
     dispatch(setOfflineStatus(true));
     // disable assisted server backup for pleb
-    dispatch(setAutomaticCloudBackup(false));
+    dispatch(setAutomaticCloudBackup({ appId: app.id, enabled: false }));
     dispatch(setPlebDueToOffline(true));
-    dispatch(setAutoUpdateEnabledBeforeDowngrade(automaticCloudBackup));
+    dispatch(setAutoUpdateEnabledBeforeDowngrade({ appId: app.id, enabled: automaticCloudBackup }));
     navigation.replace('App');
   }
 

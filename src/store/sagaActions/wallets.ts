@@ -29,13 +29,20 @@ export const getTestcoins = (testWallet: Wallet) => ({
 export const autoSyncWallets = (
   syncAll?: boolean,
   hardRefresh?: boolean,
-  addNotifications?: boolean
+  addNotifications?: boolean,
+  originAppId?: string,
+  archivedOnly?: boolean,
+  requestId?: string
 ) => ({
   type: AUTO_SYNC_WALLETS,
+  ...(originAppId ? { originAppId } : {}),
   payload: {
     syncAll,
     hardRefresh,
     addNotifications,
+    backupCheckAppId: originAppId,
+    archivedOnly,
+    requestId,
   },
 });
 
@@ -46,9 +53,11 @@ export const updateSignerPolicy = (
     restrictions: SignerRestriction;
     signingDelay: number;
   },
-  verificationToken
+  verificationToken,
+  originAppId?: string
 ) => ({
   type: UPDATE_SIGNER_POLICY,
+  originAppId,
   payload: {
     signer,
     signingKey,
@@ -59,12 +68,14 @@ export const updateSignerPolicy = (
 
 export const refreshWallets = (
   wallets: (Wallet | Vault)[],
-  options: { hardRefresh?: boolean, dustScan?: boolean }
+  options: { hardRefresh?: boolean; dustScan?: boolean },
+  requestId?: string
 ) => ({
   type: REFRESH_WALLETS,
   payload: {
     wallets,
     options,
+    requestId,
   },
 });
 
@@ -137,8 +148,9 @@ export const updateKeyDetails = (signer: VaultSigner, key: string, value: any) =
   },
 });
 
-export const generateNewAddress = (wallet: Wallet | Vault) => ({
+export const generateNewAddress = (wallet: Wallet | Vault, originAppId?: string) => ({
   type: GENERATE_NEW_ADDRESS,
+  originAppId,
   payload: { wallet },
 });
 

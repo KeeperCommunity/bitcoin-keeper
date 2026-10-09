@@ -1,3 +1,4 @@
+import { RepairPhase } from 'src/services/backup/repair';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { BackupType, homeToastMessageType } from 'src/models/enums/BHR';
 import _ from 'lodash';
@@ -41,13 +42,24 @@ const initialState: {
   backupAllLoading: boolean;
   backupAllSuccess: boolean;
   backupAllFailure: boolean;
+  backupAllLoadingByAppId: Record<string, boolean>;
+  backupAllSuccessByAppId: Record<string, boolean>;
+  backupAllFailureByAppId: Record<string, boolean>;
 
   pendingAllBackup: boolean;
+  pendingAllBackupByAppId: Record<string, boolean>;
+  backupRepairCompletedByAppId: Record<string, boolean>;
+  backupRepairStateByAppId: Record<string, RepairPhase>;
+  backupRepairRunningByAppId: Record<string, boolean>;
 
+  // The legacy flag is retained only until the first authenticated migration.
   automaticCloudBackup: boolean;
+  automaticCloudBackupByAppId: Record<string, boolean>;
 
   deleteBackupSuccess: boolean;
   deleteBackupFailure: boolean;
+  deleteBackupSuccessByAppId: Record<string, boolean>;
+  deleteBackupFailureByAppId: Record<string, boolean>;
   homeToastMessage: homeToastMessageType;
 } = {
   backupMethod: null,
@@ -82,16 +94,31 @@ const initialState: {
   backupAllLoading: false,
   backupAllFailure: false,
   backupAllSuccess: false,
+  backupAllLoadingByAppId: {},
+  backupAllSuccessByAppId: {},
+  backupAllFailureByAppId: {},
 
   pendingAllBackup: false,
+  pendingAllBackupByAppId: {},
+  backupRepairCompletedByAppId: {},
+  backupRepairStateByAppId: {},
+  backupRepairRunningByAppId: {},
 
   automaticCloudBackup: false,
+  automaticCloudBackupByAppId: {},
 
   deleteBackupSuccess: false,
   deleteBackupFailure: false,
+  deleteBackupSuccessByAppId: {},
+  deleteBackupFailureByAppId: {},
 
   homeToastMessage: { message: null, isError: false },
 };
+
+export const isAutomaticCloudBackupEnabled = (
+  backup: { automaticCloudBackupByAppId?: Record<string, boolean> },
+  appId?: string
+): boolean => !!appId && backup.automaticCloudBackupByAppId?.[appId] === true;
 
 const bhrSlice = createSlice({
   name: 'bhr',
@@ -211,29 +238,94 @@ const bhrSlice = createSlice({
     resetSeedWords: (state) => {
       state.seedWords = [];
     },
-    setBackupAllLoading: (state, action: PayloadAction<boolean>) => {
-      state.backupAllLoading = action.payload;
+    setBackupAllLoading: (
+      state,
+      action: PayloadAction<{ appId: string; status: boolean }>
+    ) => {
+      const { appId, status } = action.payload;
+      if (!appId) return;
+      (state.backupAllLoadingByAppId ??= {})[appId] = status;
     },
-    setBackupAllSuccess: (state, action: PayloadAction<boolean>) => {
-      state.backupAllSuccess = action.payload;
-      state.backupAllLoading = false;
+    setBackupAllSuccess: (
+      state,
+      action: PayloadAction<{ appId: string; status: boolean }>
+    ) => {
+      const { appId, status } = action.payload;
+      if (!appId) return;
+      (state.backupAllSuccessByAppId ??= {})[appId] = status;
+      (state.backupAllLoadingByAppId ??= {})[appId] = false;
     },
-    setBackupAllFailure: (state, action: PayloadAction<boolean>) => {
-      state.backupAllFailure = action.payload;
-      state.backupAllLoading = false;
+    setBackupAllFailure: (
+      state,
+      action: PayloadAction<{ appId: string; status: boolean }>
+    ) => {
+      const { appId, status } = action.payload;
+      if (!appId) return;
+      (state.backupAllFailureByAppId ??= {})[appId] = status;
+      (state.backupAllLoadingByAppId ??= {})[appId] = false;
     },
-    setPendingAllBackup: (state, action: PayloadAction<boolean>) => {
-      state.pendingAllBackup = action.payload;
+    setPendingAllBackup: (
+      state,
+      action: PayloadAction<{ appId: string; pending: boolean }>
+    ) => {
+      const { appId, pending } = action.payload;
+      if (!appId) return;
+      (state.pendingAllBackupByAppId ??= {})[appId] = pending;
+      state.pendingAllBackup = false;
     },
 
-    setAutomaticCloudBackup: (state, action: PayloadAction<boolean>) => {
-      state.automaticCloudBackup = action.payload;
+    setBackupRepairState: (state, action: PayloadAction<{ appId: string; phase: RepairPhase }>) => {
+      const { appId, phase } = action.payload;
+      (state.backupRepairStateByAppId ??= {})[appId] = phase;
+      (state.backupRepairCompletedByAppId ??= {})[appId] = phase === 'verified';
     },
-    setDeleteBackupSuccess: (state, action: PayloadAction<boolean>) => {
-      state.deleteBackupSuccess = action.payload;
+    setBackupRepairRunning: (state, action: PayloadAction<{ appId: string; running: boolean }>) => {
+      (state.backupRepairRunningByAppId ??= {})[action.payload.appId] = action.payload.running;
     },
-    setDeleteBackupFailure: (state, action: PayloadAction<boolean>) => {
-      state.deleteBackupFailure = action.payload;
+    invalidateBackupRepair: (state, action: PayloadAction<string>) => {
+      (state.backupRepairCompletedByAppId ??= {})[action.payload] = false;
+      if (state.backupRepairStateByAppId?.[action.payload] === 'verified')
+        state.backupRepairStateByAppId[action.payload] = 'unverified';
+    },
+    setAutomaticCloudBackup: (
+      state,
+      action: PayloadAction<{ appId: string; enabled: boolean }>
+    ) => {
+      const { appId, enabled } = action.payload;
+      if (!appId) return;
+      (state.automaticCloudBackupByAppId ??= {})[appId] = enabled;
+      if (!enabled) (state.backupAllSuccessByAppId ??= {})[appId] = false;
+      state.automaticCloudBackup = false;
+    },
+    migrateLegacyAutomaticCloudBackup: (
+      state,
+      action: PayloadAction<{ appId: string; canAttributeConsent: boolean }>
+    ) => {
+      const { appId, canAttributeConsent } = action.payload;
+      if (state.automaticCloudBackup && appId && canAttributeConsent) {
+        const byAppId = (state.automaticCloudBackupByAppId ??= {});
+        if (byAppId[appId] === undefined) byAppId[appId] = true;
+        (state.pendingAllBackupByAppId ??= {})[appId] = true;
+      }
+      // An unbound legacy flag must never authorize uploads for another account.
+      state.automaticCloudBackup = false;
+      state.pendingAllBackup = false;
+    },
+    setDeleteBackupSuccess: (
+      state,
+      action: PayloadAction<{ appId: string; status: boolean }>
+    ) => {
+      const { appId, status } = action.payload;
+      if (!appId) return;
+      (state.deleteBackupSuccessByAppId ??= {})[appId] = status;
+    },
+    setDeleteBackupFailure: (
+      state,
+      action: PayloadAction<{ appId: string; status: boolean }>
+    ) => {
+      const { appId, status } = action.payload;
+      if (!appId) return;
+      (state.deleteBackupFailureByAppId ??= {})[appId] = status;
     },
     setHomeToastMessage: (state, action: PayloadAction<homeToastMessageType>) => {
       state.homeToastMessage = action.payload;
@@ -281,8 +373,12 @@ export const {
   setBackupAllFailure,
 
   setPendingAllBackup,
+  setBackupRepairState,
+  setBackupRepairRunning,
+  invalidateBackupRepair,
 
   setAutomaticCloudBackup,
+  migrateLegacyAutomaticCloudBackup,
 
   setDeleteBackupSuccess,
   setDeleteBackupFailure,
@@ -294,6 +390,7 @@ const bhrPersistConfig = {
   key: 'bhr',
   storage: reduxStorage,
   blacklist: [
+    'backupRepairRunningByAppId',
     'isBackupError',
     'backupError',
     'seedConfirmed',
@@ -322,9 +419,14 @@ const bhrPersistConfig = {
     'backupAllLoading',
     'backupAllFailure',
     'backupAllSuccess',
+    'backupAllLoadingByAppId',
+    'backupAllFailureByAppId',
+    'backupAllSuccessByAppId',
 
     'deleteBackupSuccess',
     'deleteBackupFailure',
+    'deleteBackupSuccessByAppId',
+    'deleteBackupFailureByAppId',
 
     'homeToastMessage',
   ],
