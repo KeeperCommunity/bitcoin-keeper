@@ -55,5 +55,13 @@ jobs:
       - name: Run tests
         run: npm run test
 
+  android-reproducibility-tools:
+    name: Android reproducibility tools
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
       - name: Test Android reproducibility tools
-        run: python3 -B -m unittest scripts/test_compare_android_apks.py reproducibility/test_verify_android_inputs.py
+        run: python3 -B -m unittest scripts/test_compare_android_apks.py reproducibility/test_verify_android_inputs.py reproducibility/test_audit_apk_build_values.py
