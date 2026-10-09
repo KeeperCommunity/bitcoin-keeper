@@ -72,9 +72,28 @@ test -s "$apk"
 test -s "$aab"
 "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify "$apk"
 badging=$("$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2" dump badging "$apk")
-version=$(node -p 'require("./release/version.json").version')
-version_code=$(node -p 'require("./release/version.json").androidVersionCode')
-grep -Fq "package: name='io.hexawallet.bitcoinkeeper' versionCode='$version_code' versionName='$version'" <<< "$badging"
+version_fields=$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+metadata = json.loads(Path('android/app/build/outputs/apk/production/release/output-metadata.json').read_text())
+elements = metadata['elements']
+if metadata['applicationId'] != 'io.hexawallet.bitcoinkeeper' or len(elements) != 1:
+    raise SystemExit('Unexpected Android APK output metadata')
+element = elements[0]
+if not isinstance(element['versionCode'], int) or not isinstance(element['versionName'], str) or not element['versionName']:
+    raise SystemExit('Android APK output metadata has no valid version')
+print(element['versionCode'])
+print(element['versionName'])
+PY
+)
+version_code=${version_fields%%$'\n'*}
+version_name=${version_fields#*$'\n'}
+[[ $version_code =~ ^[0-9]+$ && -n $version_name && $version_name != "$version_fields" ]] || {
+  echo 'Android APK output metadata has no valid version.' >&2
+  exit 1
+}
+grep -Fq "package: name='io.hexawallet.bitcoinkeeper' versionCode='$version_code' versionName='$version_name'" <<< "$badging"
 jarsigner -verify -verbose -certs "$aab" > /tmp/keeper-aab-signature.log 2>&1
 grep -Fxq 'jar verified.' /tmp/keeper-aab-signature.log
 if grep -Fq '? = unsigned entry' /tmp/keeper-aab-signature.log; then
