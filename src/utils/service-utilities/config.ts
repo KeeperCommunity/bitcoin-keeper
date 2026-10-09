@@ -84,14 +84,9 @@ class Configuration {
     ? config.CHANNEL_URL.trim()
     : DEFAULT_CONFIG.CHANNEL_URL.trim();
 
-  public GASFREE_API_KEY: string = config.GASFREE_API_KEY?.trim();
-  public GASFREE_API_SECRET: string = config.GASFREE_API_SECRET?.trim();
-
   public RENEWAL_WINDOW: number;
 
   public LETS_EXCHANGE_BASE_URL: string = config.LETS_EXCHANGE_BASE_URL?.trim();
-
-  public LETS_EXCHANGE_API_KEY: string = config.LETS_EXCHANGE_API_KEY?.trim();
 
   public LETS_EXCHANGE_AFFILIATE_ID: string = DEFAULT_CONFIG.LETS_EXCHANGE_AFFILIATE_ID;
 

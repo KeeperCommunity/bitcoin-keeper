@@ -32,6 +32,9 @@ export interface UseUSDTWalletsOptions {
   includeHidden?: boolean;
 }
 
+// Existing USDT wallets remain readable, but new wallet creation and import are paused.
+export const USDT_WALLET_CREATION_PAUSED = true;
+
 export interface UseUSDTWalletsReturn {
   usdtWallets: USDTWallet[];
   error: string | null;
@@ -101,6 +104,10 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
       primaryMnemonic?: string;
       importDetails?: USDTWalletImportDetails;
     }): Promise<{ newWallet?: USDTWallet; error?: string }> => {
+      if (USDT_WALLET_CREATION_PAUSED) {
+        return { error: 'USDT wallet setup is paused' };
+      }
+
       try {
         setError(null);
         const walletNetworkType = USDTWalletSupportedNetwork;
