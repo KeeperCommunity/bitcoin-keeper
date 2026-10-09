@@ -48,8 +48,18 @@ const tron = {
           from: 'TStoredGasFreeAddress',
           to: 'TRecipient',
           formattedValue: 2,
+          confirmed: true,
           blockNumber: 1,
           blockTimestamp: 100,
+        },
+        {
+          transactionId: 'chain-pending',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          formattedValue: 1,
+          confirmed: false,
+          blockNumber: 75,
+          blockTimestamp: 75,
         },
       ],
       meta: { fingerprint: '', hasMore: false },
@@ -129,15 +139,19 @@ test('stored address, chain reads and ambiguous historical request survive the p
 
   const transactions = await factory.syncUSDTWalletTransactions(wallet);
   assert.equal(historyCalls[0][0], wallet.accountStatus.gasFreeAddress);
-  assert.equal(transactions.length, 2);
+  assert.equal(transactions.length, 3);
   assert.equal(transactions[0].txId, 'chain-1');
-  assert.equal(transactions[1].traceId, 'historical-trace');
-  assert.equal(transactions[0].to, transactions[1].to);
-  assert.equal(transactions[0].amount, transactions[1].amount);
-  assert.equal(transactions[1].txId, undefined);
+  assert.equal(transactions[0].status, historical.GasFreeTransferStatus.SUCCEED);
+  assert.equal(transactions[1].txId, 'chain-pending');
+  assert.equal(transactions[1].status, historical.GasFreeTransferStatus.CONFIRMING);
+  assert.equal(transactions[1].blockNumber, 0);
+  assert.equal(transactions[2].traceId, 'historical-trace');
+  assert.equal(transactions[0].to, transactions[2].to);
+  assert.equal(transactions[0].amount, transactions[2].amount);
+  assert.equal(transactions[2].txId, undefined);
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[0]), false);
-  assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[1]), true);
-  assert.equal(transactions[1].status, historical.GasFreeTransferStatus.WAITING);
+  assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[2]), true);
+  assert.equal(transactions[2].status, historical.GasFreeTransferStatus.WAITING);
   assert.equal(
     usdtModule.isHistoricalUnverifiedUSDTRequest({
       traceId: 'old-request',
@@ -145,6 +159,38 @@ test('stored address, chain reads and ambiguous historical request survive the p
     }),
     true,
     'a stored provider status is not independent proof of an on-chain transfer'
+  );
+});
+
+test('refresh corrects a cached false success without dropping its trace', async () => {
+  const cached = {
+    ...wallet,
+    specs: {
+      ...wallet.specs,
+      transactions: [
+        ...wallet.specs.transactions,
+        {
+          txId: 'chain-pending',
+          traceId: 'saved-provider-trace',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          amount: '1',
+          status: historical.GasFreeTransferStatus.SUCCEED,
+          timestamp: 75,
+          blockNumber: 75,
+          isGasFree: true,
+        },
+      ],
+    },
+  };
+  const transactions = await factory.syncUSDTWalletTransactions(cached);
+  const pending = transactions.find((tx) => tx.txId === 'chain-pending');
+  assert.equal(pending.status, historical.GasFreeTransferStatus.CONFIRMING);
+  assert.equal(pending.blockNumber, 0);
+  assert.equal(pending.traceId, 'saved-provider-trace');
+  assert.equal(
+    transactions.find((tx) => tx.traceId === 'historical-trace').status,
+    historical.GasFreeTransferStatus.WAITING
   );
 });
 

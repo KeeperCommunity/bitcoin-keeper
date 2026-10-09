@@ -7,7 +7,6 @@ import {
 import USDT, { USDTAccountStatus, USDTTransaction } from '../operations/dollars/USDT';
 import BIP85 from '../operations/BIP85';
 import { BIP85Config } from '../interfaces';
-import { GasFreeTransferStatus } from '../operations/dollars/GasFree';
 import config from 'src/utils/service-utilities/config';
 
 export const USDTWalletSupportedNetwork = config.isDevMode()
@@ -263,9 +262,10 @@ export const syncUSDTWalletTransactions = async (wallet: USDTWallet) => {
       if (existingTx.amount === newTx.amount) {
         // there are two transactions for every gas-free transfer, one for the actual transfer and one for paying the fee(both of them have the same txid, skipping the fee transfer)
 
+        // Reconcile both upgrades and corrections to a cached status. Older
+        // versions could mark a timestamped, unconfirmed transfer as complete.
         const shouldUpdate =
-          // Update if new transaction has blockNumber but existing doesn't (confirmed)
-          newTx.blockNumber && !existingTx.blockNumber;
+          existingTx.status !== newTx.status || existingTx.blockNumber !== newTx.blockNumber;
 
         if (shouldUpdate) {
           mergedTransactions[existingIndex] = {
@@ -275,9 +275,7 @@ export const syncUSDTWalletTransactions = async (wallet: USDTWallet) => {
             to: newTx.to,
             timestamp: newTx.timestamp,
             blockNumber: newTx.blockNumber,
-            status: newTx.blockNumber
-              ? GasFreeTransferStatus.SUCCEED
-              : GasFreeTransferStatus.CONFIRMING,
+            status: newTx.status,
           };
         }
       }

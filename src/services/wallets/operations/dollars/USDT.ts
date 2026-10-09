@@ -177,9 +177,11 @@ export default class USDT {
       from: txn.from,
       to: txn.to,
       amount: txn.formattedValue.toString(),
-      status: txn.blockNumber ? GasFreeTransferStatus.SUCCEED : GasFreeTransferStatus.CONFIRMING,
+      status: txn.confirmed ? GasFreeTransferStatus.SUCCEED : GasFreeTransferStatus.CONFIRMING,
       timestamp: txn.blockTimestamp,
-      blockNumber: txn.blockNumber,
+      // TronGrid can return a timestamp for an unconfirmed transfer. Keep
+      // the stored confirmation marker clear until the API confirms it.
+      blockNumber: txn.confirmed ? txn.blockNumber : 0,
       isGasFree: txn.to !== address,
     }));
     return { transactions, meta: result.meta };

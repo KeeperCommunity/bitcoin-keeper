@@ -56,7 +56,7 @@ function TransactionElement({
       (transaction as USDTTransaction).txId || (transaction as USDTTransaction).traceId;
     date = (transaction as USDTTransaction).timestamp;
     amount = parseFloat((transaction as USDTTransaction).amount);
-    confirmations = (transaction as USDTTransaction).blockNumber ? 6 : 0; // Assuming 6 confirmations for USDT transactions(no. of conf on Tron doesn't really make any finality sense)
+    confirmations = (transaction as USDTTransaction).blockNumber ? 1 : 0; // Only used for the pending indicator.
     if (
       (transaction as USDTTransaction).to === (wallet as USDTWallet).accountStatus.gasFreeAddress
     ) {
