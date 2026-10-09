@@ -10,17 +10,23 @@ import { LocalizationContext } from 'src/context/Localization/LocContext';
 const StatusContent = ({ status, unavailable = false }) => {
   const { colorMode } = useColorMode();
   const { translations } = useContext(LocalizationContext);
-  const containerbackgroundColor = unavailable
+  // A legacy SUCCEED value is not proof of a confirmed chain transaction.
+  const statusUnavailable =
+    unavailable ||
+    status === GasFreeTransferStatus.SUCCEED ||
+    status === GasFreeTransferStatus.UNVERIFIED;
+  const chainConfirmed = status === GasFreeTransferStatus.CHAIN_CONFIRMED;
+  const containerbackgroundColor = statusUnavailable
     ? Colors.lightindigoblue
-    : status === GasFreeTransferStatus.SUCCEED
+    : chainConfirmed
     ? Colors.PaleTropicalTeal
     : status === GasFreeTransferStatus.CONFIRMING
     ? Colors.lightOrange
     : Colors.lightindigoblue;
 
-  const textColor = unavailable
+  const textColor = statusUnavailable
     ? Colors.indigoblue
-    : status === GasFreeTransferStatus.SUCCEED
+    : chainConfirmed
     ? Colors.TropicalTeal
     : status === GasFreeTransferStatus.CONFIRMING
     ? Colors.darkOrange
@@ -32,9 +38,9 @@ const StatusContent = ({ status, unavailable = false }) => {
       style={styles.container}
     >
       <Text fontSize={12} color={textColor}>
-        {unavailable
+        {statusUnavailable
           ? translations.usdtWalletText.statusUnavailable
-          : status === GasFreeTransferStatus.SUCCEED
+          : chainConfirmed
           ? 'SUCCESS'
           : status}
       </Text>

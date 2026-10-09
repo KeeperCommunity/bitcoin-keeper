@@ -101,7 +101,12 @@ test('TRC20 history requests confirmed rows and keeps the pagination filter', as
     (name) => {
       if (name === './Tron') return module.exports;
       if (name === './GasFree')
-        return { GasFreeTransferStatus: { SUCCEED: 'SUCCEED', CONFIRMING: 'CONFIRMING' } };
+        return {
+          GasFreeTransferStatus: {
+            CHAIN_CONFIRMED: 'CONFIRMED',
+            CONFIRMING: 'CONFIRMING',
+          },
+        };
       if (name === 'src/services/wallets/enums') return imports['../../enums'];
       throw new Error(`Unexpected import: ${name}`);
     },
@@ -114,7 +119,7 @@ test('TRC20 history requests confirmed rows and keeps the pagination filter', as
     2,
     'prior-page'
   );
-  assert.equal(mapped.transactions[0].status, 'SUCCEED');
+  assert.equal(mapped.transactions[0].status, 'CONFIRMED');
   assert.equal(mapped.transactions[0].blockNumber, 100);
   assert.equal(mapped.meta.fingerprint, 'next-page');
   assert.equal(new URL(requested[1]).searchParams.get('only_confirmed'), 'true');
