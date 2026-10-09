@@ -23,8 +23,10 @@ import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { Vault } from 'src/services/wallets/interfaces/vault';
 import {
   isHistoricalUnverifiedUSDTRequest,
+  isUSDTStatusUnavailable,
   USDTTransaction,
 } from 'src/services/wallets/operations/dollars/USDT';
+import { GasFreeTransferStatus } from 'src/services/wallets/operations/dollars/GasFree';
 import { EntityKind } from 'src/services/wallets/enums';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 import ThemedColor from './ThemedColor/ThemedColor';
@@ -51,12 +53,16 @@ function TransactionElement({
   const legacyUSDTRequest =
     wallet.entityKind === EntityKind.USDT_WALLET &&
     isHistoricalUnverifiedUSDTRequest(transaction as USDTTransaction);
+  const unavailableUSDTStatus =
+    wallet.entityKind === EntityKind.USDT_WALLET &&
+    isUSDTStatusUnavailable(transaction as USDTTransaction);
   if (wallet.entityKind === EntityKind.USDT_WALLET) {
     transactionId =
       (transaction as USDTTransaction).txId || (transaction as USDTTransaction).traceId;
     date = (transaction as USDTTransaction).timestamp;
     amount = parseFloat((transaction as USDTTransaction).amount);
-    confirmations = (transaction as USDTTransaction).blockNumber ? 1 : 0; // Only used for the pending indicator.
+    confirmations =
+      (transaction as USDTTransaction).status === GasFreeTransferStatus.CHAIN_CONFIRMED ? 1 : 0;
     if (
       (transaction as USDTTransaction).to === (wallet as USDTWallet).accountStatus.gasFreeAddress
     ) {
@@ -81,7 +87,7 @@ function TransactionElement({
       <Box
         style={[
           styles.container,
-          legacyUSDTRequest ? styles.legacyContainer : styles.standardContainer,
+          unavailableUSDTStatus ? styles.legacyContainer : styles.standardContainer,
           isCached && [
             styles.cachedContainer,
             { backgroundColor: colorMode === 'light' ? Colors.brightCream : Colors.TertiaryBlack },
@@ -91,7 +97,7 @@ function TransactionElement({
       >
         <Box style={styles.rowCenter}>
           <Box style={styles.circle}>
-            {confirmations === 0 && !isCached && !legacyUSDTRequest && (
+            {confirmations === 0 && !isCached && !unavailableUSDTStatus && (
               <Box style={styles.transaction}>
                 <TransactionPendingIcon />
               </Box>
@@ -124,7 +130,7 @@ function TransactionElement({
             <Text color={viewAll_color} style={styles.transactionDate} numberOfLines={1}>
               {formattedDate}
             </Text>
-            {legacyUSDTRequest && (
+            {unavailableUSDTStatus && (
               <Text color={viewAll_color} style={styles.legacyStatus}>
                 {translations.usdtWalletText.statusUnavailable}
               </Text>

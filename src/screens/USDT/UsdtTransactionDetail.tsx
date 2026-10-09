@@ -20,6 +20,7 @@ import { current } from '@reduxjs/toolkit';
 import StatusContent from './components/StatusContent';
 import {
   isHistoricalUnverifiedUSDTRequest,
+  isUSDTStatusUnavailable,
   USDTTransaction,
 } from 'src/services/wallets/operations/dollars/USDT';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
@@ -56,6 +57,7 @@ const UsdtTransactionDetail = ({ route }) => {
   // A trace without a chain transaction ID is a historical provider request.
   // Its final result cannot be established after the provider was retired.
   const legacyRequest = isHistoricalUnverifiedUSDTRequest(transaction);
+  const unavailableStatus = isUSDTStatusUnavailable(transaction);
   const status = transaction.status;
   let transactionType: string;
   if (transaction.to === wallet.accountStatus.gasFreeAddress) {
@@ -219,7 +221,7 @@ const UsdtTransactionDetail = ({ route }) => {
                 title={usdtWalletText.status}
                 showIcon={false}
                 letterSpacing={2.4}
-                Content={() => <StatusContent status={status} unavailable={legacyRequest} />}
+                Content={() => <StatusContent status={status} unavailable={unavailableStatus} />}
               />
               {legacyRequest && (
                 <InfoCard

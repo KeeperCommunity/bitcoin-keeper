@@ -141,7 +141,7 @@ test('stored address, chain reads and ambiguous historical request survive the p
   assert.equal(historyCalls[0][0], wallet.accountStatus.gasFreeAddress);
   assert.equal(transactions.length, 3);
   assert.equal(transactions[0].txId, 'chain-1');
-  assert.equal(transactions[0].status, historical.GasFreeTransferStatus.SUCCEED);
+  assert.equal(transactions[0].status, historical.GasFreeTransferStatus.CHAIN_CONFIRMED);
   assert.equal(transactions[1].traceId, 'historical-trace');
   assert.equal(transactions[0].to, transactions[1].to);
   assert.equal(transactions[0].amount, transactions[1].amount);
@@ -152,6 +152,8 @@ test('stored address, chain reads and ambiguous historical request survive the p
   assert.equal(transactions[2].txId, 'chain-no-time');
   assert.equal(transactions[2].status, historical.GasFreeTransferStatus.CONFIRMING);
   assert.equal(transactions[2].blockNumber, 0);
+  assert.equal(usdtModule.isUSDTStatusUnavailable(transactions[0]), false);
+  assert.equal(usdtModule.isUSDTStatusUnavailable(transactions[1]), true);
   assert.equal(
     usdtModule.isHistoricalUnverifiedUSDTRequest({
       traceId: 'old-request',
@@ -185,13 +187,74 @@ test('refresh upgrades a cached pending entry when its confirmed chain record ap
   };
   const transactions = await factory.syncUSDTWalletTransactions(cached);
   const confirmed = transactions.find((tx) => tx.txId === 'chain-1');
-  assert.equal(confirmed.status, historical.GasFreeTransferStatus.SUCCEED);
+  assert.equal(confirmed.status, historical.GasFreeTransferStatus.CHAIN_CONFIRMED);
   assert.equal(confirmed.blockNumber, 1);
   assert.equal(confirmed.traceId, 'saved-provider-trace');
   assert.equal(
     transactions.find((tx) => tx.traceId === 'historical-trace').status,
     historical.GasFreeTransferStatus.WAITING
   );
+});
+
+test('an unmatched legacy success stays in history but loses its success claim', async () => {
+  const legacySuccess = {
+    txId: 'older-than-first-page',
+    traceId: 'saved-provider-trace',
+    from: 'TStoredGasFreeAddress',
+    to: 'TRecipient',
+    amount: '3',
+    status: historical.GasFreeTransferStatus.SUCCEED,
+    timestamp: 20,
+    blockNumber: 20,
+    isGasFree: true,
+  };
+  const cached = {
+    ...wallet,
+    specs: { ...wallet.specs, transactions: [...wallet.specs.transactions, legacySuccess] },
+  };
+
+  // The UI must be truthful before refresh too, including when offline.
+  assert.equal(usdtModule.isUSDTStatusUnavailable(legacySuccess), true);
+  const transactions = await factory.syncUSDTWalletTransactions(cached);
+  const retained = transactions.find((tx) => tx.txId === legacySuccess.txId);
+  assert.equal(transactions.length, 4);
+  assert.equal(retained.status, historical.GasFreeTransferStatus.UNVERIFIED);
+  assert.equal(retained.traceId, legacySuccess.traceId);
+  assert.equal(retained.timestamp, legacySuccess.timestamp);
+  assert.equal(retained.blockNumber, legacySuccess.blockNumber);
+  assert.equal(usdtModule.isUSDTStatusUnavailable(retained), true);
+  assert.equal(legacySuccess.status, historical.GasFreeTransferStatus.SUCCEED);
+});
+
+test('matching confirmed history corrects a cached legacy success without losing its trace', async () => {
+  const cached = {
+    ...wallet,
+    specs: {
+      ...wallet.specs,
+      transactions: [
+        ...wallet.specs.transactions,
+        {
+          txId: 'chain-1',
+          traceId: 'saved-provider-trace',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          amount: '2',
+          status: historical.GasFreeTransferStatus.SUCCEED,
+          timestamp: 80,
+          blockNumber: 1,
+          isGasFree: true,
+        },
+      ],
+    },
+  };
+
+  const transactions = await factory.syncUSDTWalletTransactions(cached);
+  const confirmed = transactions.filter((tx) => tx.txId === 'chain-1');
+  assert.equal(confirmed.length, 1);
+  assert.equal(confirmed[0].status, historical.GasFreeTransferStatus.CHAIN_CONFIRMED);
+  assert.equal(confirmed[0].traceId, 'saved-provider-trace');
+  assert.equal(confirmed[0].blockNumber, 1);
+  assert.equal(usdtModule.isUSDTStatusUnavailable(confirmed[0]), false);
 });
 
 test('missing saved address is never replaced by the owner address', async () => {

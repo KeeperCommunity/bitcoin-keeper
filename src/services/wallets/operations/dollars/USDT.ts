@@ -65,6 +65,13 @@ export const isHistoricalUnverifiedUSDTRequest = (
   transaction: Pick<USDTTransaction, 'traceId' | 'txId'>
 ): boolean => Boolean(transaction.traceId && !transaction.txId);
 
+export const isUSDTStatusUnavailable = (
+  transaction: Pick<USDTTransaction, 'traceId' | 'txId' | 'status'>
+): boolean =>
+  isHistoricalUnverifiedUSDTRequest(transaction) ||
+  transaction.status === GasFreeTransferStatus.SUCCEED ||
+  transaction.status === GasFreeTransferStatus.UNVERIFIED;
+
 export default class USDT {
   private static getUSDTAddress(networkType?: NetworkType): string {
     return USDT_ADDRESSES[networkType || NetworkType.MAINNET];
@@ -181,7 +188,9 @@ export default class USDT {
         from: txn.from,
         to: txn.to,
         amount: txn.formattedValue.toString(),
-        status: confirmed ? GasFreeTransferStatus.SUCCEED : GasFreeTransferStatus.CONFIRMING,
+        status: confirmed
+          ? GasFreeTransferStatus.CHAIN_CONFIRMED
+          : GasFreeTransferStatus.CONFIRMING,
         timestamp: txn.blockTimestamp,
         blockNumber: confirmed ? txn.blockNumber : 0,
         isGasFree: txn.to !== address,

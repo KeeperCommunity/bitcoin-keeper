@@ -5,6 +5,7 @@ import {
   DEFAULT_TRON_DERIVATION_PATH,
 } from '../operations/dollars/Tron';
 import USDT, { USDTAccountStatus, USDTTransaction } from '../operations/dollars/USDT';
+import { GasFreeTransferStatus } from '../operations/dollars/GasFree';
 import BIP85 from '../operations/BIP85';
 import { BIP85Config } from '../interfaces';
 import config from 'src/utils/service-utilities/config';
@@ -229,8 +230,13 @@ export const syncUSDTWalletTransactions = async (wallet: USDTWallet) => {
     throw new Error('Stored USDT address is unavailable');
   }
 
-  // Preserve trace-only entries without assigning a false failure status.
-  const updatedExistingTransactions = existingTransactions;
+  // Older builds could mark a provider-reported transfer successful before it
+  // appeared in confirmed chain history. Keep the record but withdraw that claim.
+  const updatedExistingTransactions = existingTransactions.map((transaction) =>
+    transaction.status === GasFreeTransferStatus.SUCCEED
+      ? { ...transaction, status: GasFreeTransferStatus.UNVERIFIED }
+      : transaction
+  );
 
   // Fetch new transactions directly from TRON.
   const { transactions: newTransactions } = await USDT.getUSDTTransactions(
