@@ -2,24 +2,20 @@ import * as bip39 from 'bip39';
 import {
   generateSeedWordsKey,
   generateMiniscriptScheme,
+  generateVault,
 } from 'src/services/wallets/factories/VaultFactory';
-import { MiniscriptTypes, NetworkType } from 'src/services/wallets/enums';
+import { MiniscriptTypes, MultisigScriptType, NetworkType, VaultType } from 'src/services/wallets/enums';
 import {
   ENHANCED_VAULT_TIMELOCKS_TIMESTAMP_MAINNET,
   generateEnhancedVaultElements,
 } from 'src/services/wallets/operations/miniscript/default/EnhancedVault';
 import WalletUtilities from 'src/services/wallets/operations/utils';
+import WalletOperations from 'src/services/wallets/operations';
+import { generateOutputDescriptors } from 'src/utils/service-utilities/utils';
 
 jest.mock('src/store/store', () => ({
   store: { getState: () => ({ settings: { bitcoinNetworkType: 'MAINNET' } }) },
 }));
-jest.mock('src/utils/utilities', () => ({
-  getKeyUID: (signer) => signer.masterFingerprint,
-}));
-jest.mock('src/utils/service-utilities/utils', () => ({
-  getDerivationPath: (path) => path.replace('m/', ''),
-}));
-
 const mnemonic = bip39.entropyToMnemonic('00000000000000000000000000000000');
 const networkType = NetworkType.MAINNET;
 const network = WalletUtilities.getNetworkByType(networkType);
@@ -81,5 +77,46 @@ describe('Disposable passphrase and absolute-lock policy fixture', () => {
       ])
     );
     expect(Object.values(scheme.keyInfoMap).every((key) => key.endsWith('/*'))).toBe(true);
+  });
+
+  it('derives two receive addresses from a Vault descriptor with the same absolute unlock', async () => {
+    const primary = externalSigner('TREZOR');
+    const inheritance = externalSigner('');
+    const absoluteUnlock = 1800000000 + ENHANCED_VAULT_TIMELOCKS_TIMESTAMP_MAINNET.MONTHS_6;
+    const miniscriptScheme = generateMiniscriptScheme(
+      generateEnhancedVaultElements(
+        [primary],
+        [{ signer: inheritance, timelock: absoluteUnlock }],
+        [],
+        { m: 1, n: 1 },
+        0
+      ),
+      [MiniscriptTypes.INHERITANCE]
+    );
+    const vault = await generateVault({
+      type: VaultType.MINISCRIPT,
+      vaultName: 'Disposable policy fixture',
+      vaultDescription: '',
+      scheme: {
+        m: 1,
+        n: 1,
+        multisigScriptType: MultisigScriptType.MINISCRIPT_MULTISIG,
+        miniscriptScheme,
+      },
+      signers: [primary, inheritance],
+      networkType,
+    });
+    const descriptor = generateOutputDescriptors(vault);
+    const first = WalletOperations.getExternalInternalAddressAtIdx(vault, 0);
+    const second = WalletOperations.getExternalInternalAddressAtIdx(vault, 1);
+
+    expect(descriptor).toContain(`after(${absoluteUnlock})`);
+    expect(descriptor).toContain(`[${primary.masterFingerprint}/48h/0h/0h/2h]`);
+    expect(descriptor).toContain(`[${inheritance.masterFingerprint}/48h/0h/0h/2h]`);
+    expect(descriptor).toContain(`${primary.xpub}/<`);
+    expect(descriptor).toContain(`${inheritance.xpub}/<`);
+    expect(descriptor).toContain('/*');
+    expect(descriptor).toContain('#');
+    expect(first).not.toBe(second);
   });
 });
