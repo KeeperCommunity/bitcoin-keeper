@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<common:repository xmlns:common="http://schemas.android.com/repository/android/common/02"
+            xmlns:sdk="http://schemas.android.com/sdk/android/repo/repository2/03"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <localPackage path="platforms;android-33" obsolete="false">
+    <type-details xsi:type="sdk:platformDetailsType">
+      <api-level>33</api-level>
+      <extension-level>3</extension-level>
+      <base-extension>true</base-extension>
+      <layoutlib api="15"/>
+    </type-details>
+    <revision><major>3</major></revision>
+    <display-name>Android SDK Platform 33</display-name>
+  </localPackage>
+</common:repository>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<common:repository xmlns:common="http://schemas.android.com/repository/android/common/02"
+            xmlns:generic="http://schemas.android.com/repository/android/generic/02"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <localPackage path="cmake;3.22.1" obsolete="false">
+    <type-details xsi:type="generic:genericDetailsType"/>
+    <revision><major>3</major><minor>22</minor><micro>1</micro></revision>
+    <display-name>CMake 3.22.1</display-name>
+  </localPackage>
+</common:repository>
