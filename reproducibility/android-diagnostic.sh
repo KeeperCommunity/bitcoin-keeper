@@ -5,16 +5,19 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: reproducibility/android-diagnostic.sh --source-commit SHA --output-dir DIR
+Usage: reproducibility/android-diagnostic.sh --source-commit SHA --output-dir DIR [--gradle-verification-metadata]
 
 Builds a diagnostic Android APK and AAB with dummy service values and the
 checked-in debug signing key. DIR must be outside the source checkout and empty.
 Requires Docker and a clean, disposable source checkout with no node_modules.
+With --gradle-verification-metadata, writes a candidate Gradle SHA-256
+verification XML instead of APK/AAB outputs. Review it before committing.
 EOF
 }
 
 source_commit=''
 output_dir=''
+gradle_verification_metadata=0
 while (($#)); do
   case "$1" in
     --source-commit)
@@ -26,6 +29,10 @@ while (($#)); do
       (($# >= 2)) || { usage >&2; exit 2; }
       output_dir=$2
       shift 2
+      ;;
+    --gradle-verification-metadata)
+      gradle_verification_metadata=1
+      shift
       ;;
     --help|-h)
       usage
@@ -87,6 +94,7 @@ docker run --rm --platform linux/amd64 \
   --mount "type=bind,source=$output_dir,target=/output" \
   "${git_mount[@]}" \
   --env "KEEPER_SOURCE_COMMIT=$source_commit" \
+  --env "KEEPER_GRADLE_VERIFICATION_METADATA=$gradle_verification_metadata" \
   --env 'HOME=/tmp/keeper-home' \
   --env 'NPM_CONFIG_CACHE=/tmp/keeper-npm' \
   --env 'XDG_CACHE_HOME=/tmp/keeper-xdg-cache' \

@@ -52,6 +52,25 @@ hashes are not recorded in this repository; Maven artifacts and transitive
 native downloads also remain unpinned. The script is therefore an independent
 **diagnostic build path**, not a final WalletScrutiny recipe.
 
+### Bootstrap Gradle dependency verification metadata
+
+The separate [Gradle verification bootstrap workflow](../.github/workflows/android-gradle-verification-bootstrap.yml)
+runs on its bootstrap branch or by manual dispatch after the workflow is on the
+default branch. It uses the same clean, exact-commit container path and runs the
+production-flavor APK/AAB tasks with placeholder environment values and debug
+signing. Gradle's `--write-verification-metadata sha256` writes a **candidate**
+`gradle-verification-metadata.xml`; the workflow uploads it with a SHA-256
+manifest, source commit, and completion status as a short-lived CI artifact.
+If Gradle fails, any generated XML is marked incomplete in `STATUS.txt`.
+
+The workflow does not commit the XML or enable dependency verification. Review
+each generated checksum and the resolved dependency set before placing approved
+metadata at `android/gradle/verification-metadata.xml`. The candidate covers
+artifacts resolved by those two tasks, not every possible Gradle variant or
+future dependency. It contains no production environment file or release
+signing material. Gradle's generation mechanism is documented in its
+[dependency verification guide](https://docs.gradle.org/current/userguide/dependency_verification.html).
+
 The placeholder configuration cannot establish whether a distributed APK or
 Play split matches this source. The seven-name environment allowlist in
 `android-inputs.json` remains provisional: this source still references

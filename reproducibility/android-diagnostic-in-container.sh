@@ -20,9 +20,22 @@ cd "$repo"
 assert_tracked_source_clean() {
   if ! git diff --quiet -- . || ! git diff --cached --quiet -- .; then
     echo 'Build tooling changed tracked source files.' >&2
-    exit 1
+    return 1
   fi
 }
+
+metadata_mode=${KEEPER_GRADLE_VERIFICATION_METADATA:-0}
+[[ $metadata_mode == 0 || $metadata_mode == 1 ]] || {
+  echo 'Invalid Gradle metadata mode.' >&2
+  exit 2
+}
+metadata_path=android/gradle/verification-metadata.xml
+if [[ $metadata_mode == 1 ]]; then
+  [[ ! -e $metadata_path && ! -L $metadata_path ]] || {
+    echo 'Gradle verification metadata already exists; bootstrap requires a source without it.' >&2
+    exit 1
+  }
+fi
 
 export GRADLE_USER_HOME=/tmp/keeper-gradle
 export YARN_CACHE_FOLDER=/tmp/keeper-yarn
@@ -32,7 +45,13 @@ mkdir -p "$GRADLE_USER_HOME" "$YARN_CACHE_FOLDER" "$ANDROID_USER_HOME" \
   /tmp/keeper-user "$HOME" "$NPM_CONFIG_CACHE" "$XDG_CACHE_HOME"
 
 diagnostic_env=$(mktemp /tmp/keeper-diagnostic.XXXXXX)
-trap 'rm -f "$diagnostic_env"' EXIT
+cleanup() {
+  rm -f "$diagnostic_env"
+  if [[ $metadata_mode == 1 ]]; then
+    rm -f "$metadata_path"
+  fi
+}
+trap cleanup EXIT
 cat > "$diagnostic_env" <<'EOF'
 CHANNEL_URL=https://example.invalid/
 ENVIRONMENT=PRODUCTION
@@ -55,6 +74,56 @@ assert_tracked_source_clean
 printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
 
 export ENVFILE="$diagnostic_env"
+if [[ $metadata_mode == 1 ]]; then
+  gradle_status=0
+  printf '%s\n' "$KEEPER_SOURCE_COMMIT" > /output/SOURCE_COMMIT.txt
+  (
+    cd android
+    ./gradlew --write-verification-metadata sha256 \
+      :app:assembleProductionRelease :app:bundleProductionRelease \
+      -PMYAPP_RELEASE_STORE_FILE="$repo/android/app/debug.keystore" \
+      -PMYAPP_RELEASE_STORE_PASSWORD=android \
+      -PMYAPP_RELEASE_KEY_ALIAS=androiddebugkey \
+      -PMYAPP_RELEASE_KEY_PASSWORD=android \
+      --no-daemon --console=plain
+  ) || gradle_status=$?
+  if [[ -s $metadata_path ]]; then
+    if ! python3 - "$metadata_path" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+namespace = 'https://schema.gradle.org/dependency-verification'
+if root.tag != f'{{{namespace}}}verification-metadata':
+    raise SystemExit('Unexpected Gradle verification metadata root element')
+if not root.findall(f'.//{{{namespace}}}sha256'):
+    raise SystemExit('Gradle verification metadata contains no SHA-256 checksums')
+PY
+    then
+      printf 'INCOMPLETE: Gradle metadata was invalid. Do not use this candidate.\n' > /output/STATUS.txt
+      exit 1
+    fi
+    cp "$metadata_path" /output/gradle-verification-metadata.xml
+    (
+      cd /output
+      sha256sum gradle-verification-metadata.xml > SHA256SUMS
+    )
+  fi
+  if ((gradle_status != 0)); then
+    printf 'INCOMPLETE: Gradle exited %d. Do not use this candidate as complete verification metadata.\n' "$gradle_status" > /output/STATUS.txt
+    exit "$gradle_status"
+  fi
+  if [[ ! -s /output/gradle-verification-metadata.xml ]]; then
+    printf 'INCOMPLETE: Gradle produced no verification metadata.\n' > /output/STATUS.txt
+    exit 1
+  fi
+  if ! assert_tracked_source_clean; then
+    printf 'INCOMPLETE: Build tooling changed tracked source files.\n' > /output/STATUS.txt
+    exit 1
+  fi
+  printf 'CANDIDATE: Build succeeded with placeholder values and debug signing. Review every checksum before enabling verification.\n' > /output/STATUS.txt
+  exit 0
+fi
 (
   cd android
   ./gradlew :app:assembleProductionRelease :app:bundleProductionRelease \

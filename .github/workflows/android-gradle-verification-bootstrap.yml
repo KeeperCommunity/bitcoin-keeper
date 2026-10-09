@@ -1,0 +1,54 @@
+name: Android Gradle verification bootstrap
+
+on:
+  push:
+    branches:
+      - 'codex/android-repro-verification-bootstrap-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-gradle-verification-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate candidate Gradle verification metadata
+        id: generate
+        continue-on-error: true
+        run: |
+          bash reproducibility/android-diagnostic.sh \
+            --source-commit "$GITHUB_SHA" \
+            --output-dir "$RUNNER_TEMP/keeper-gradle-verification" \
+            --gradle-verification-metadata
+
+      - name: Check generated metadata digest
+        if: steps.generate.outcome == 'success'
+        run: |
+          cd "$RUNNER_TEMP/keeper-gradle-verification"
+          sha256sum --check SHA256SUMS
+          test -s gradle-verification-metadata.xml
+          test "$(cat SOURCE_COMMIT.txt)" = "$GITHUB_SHA"
+
+      - name: Upload candidate metadata for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-gradle-verification-${{ github.sha }}
+          path: ${{ runner.temp }}/keeper-gradle-verification/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail if generation was incomplete
+        if: steps.generate.outcome != 'success'
+        run: exit 1
