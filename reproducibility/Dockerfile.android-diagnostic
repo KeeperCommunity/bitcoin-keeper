@@ -1,0 +1,121 @@
+# Diagnostic Linux toolchain for an independent Android build attempt.
+# This amd64 image digest is for eclipse-temurin:17.0.19_10-jdk-jammy.
+# Gradle artifacts are checked by the project's verification metadata;
+# transitive native downloads outside Gradle remain unpinned.
+FROM --platform=linux/amd64 eclipse-temurin:17.0.19_10-jdk-jammy@sha256:b76a309b3dfa907458b4ef428edfcfb37920a5ce0e9c6bc77798a54e039a8330 AS java-node-yarn
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Use a fixed Ubuntu archive state for both the requested packages and their
+# transitive dependencies. The six requested versions below are from this
+# snapshot's jammy-updates/main amd64 package index.
+RUN set -euo pipefail \
+    && test "$(dpkg --print-architecture)" = amd64 \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 2.4.11 \
+    && test -f /usr/share/keyrings/ubuntu-archive-keyring.gpg \
+    && rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources \
+    && printf '%s\n' \
+         'deb [arch=amd64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg snapshot=20261008T000000Z] http://archive.ubuntu.com/ubuntu jammy main' \
+         'deb [arch=amd64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg snapshot=20261008T000000Z] http://archive.ubuntu.com/ubuntu jammy-updates main' \
+         'deb [arch=amd64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg snapshot=20261008T000000Z] http://security.ubuntu.com/ubuntu jammy-security main' \
+         > /etc/apt/sources.list \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get update \
+    && apt-cache policy curl | grep -F 'snapshot.ubuntu.com/ubuntu/20261008T000000Z' > /dev/null \
+    && packages=( \
+         'ca-certificates=20260601~22.04.1' \
+         'curl=7.81.0-1ubuntu1.29' \
+         'git=1:2.34.1-1ubuntu1.17' \
+         'python3=3.10.6-1~22.04.1' \
+         'unzip=6.0-26ubuntu3.2' \
+         'xz-utils=5.2.5-2ubuntu1.1' \
+       ) \
+    && apt-get -o APT::Get::Always-Include-Phased-Updates=true install -y --no-install-recommends "${packages[@]}" \
+    && for spec in "${packages[@]}"; do \
+         package="${spec%%=*}"; expected="${spec#*=}"; \
+         test "$(dpkg-query -W -f='${Version}' "$package")" = "$expected"; \
+       done \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG NODE_VERSION=22.23.3
+ARG NODE_SHA256=df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de
+ARG YARN_VERSION=1.22.22
+ARG YARN_SHA256=88268464199d1611fcf73ce9c0a6c4d44c7d5363682720d8506f6508addf36a0
+
+RUN curl -LfsS "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && mkdir -p /opt/node \
+    && tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && curl -LfsS "https://github.com/yarnpkg/yarn/releases/download/v${YARN_VERSION}/yarn-v${YARN_VERSION}.tar.gz" -o /tmp/yarn.tar.gz \
+    && echo "${YARN_SHA256}  /tmp/yarn.tar.gz" | sha256sum -c - \
+    && mkdir -p /opt/yarn \
+    && tar -xzf /tmp/yarn.tar.gz -C /opt/yarn --strip-components=1 \
+    && rm /tmp/yarn.tar.gz
+
+FROM java-node-yarn AS android-sdk
+
+ARG COMMANDLINE_TOOLS_BUILD=13114758
+ARG COMMANDLINE_TOOLS_SHA256=7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+
+ENV ANDROID_SDK_ROOT=/opt/android-sdk \
+    ANDROID_HOME=/opt/android-sdk \
+    PATH=/opt/node/bin:/opt/yarn/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:${PATH}
+
+RUN curl -LfsS "https://dl.google.com/android/repository/commandlinetools-linux-${COMMANDLINE_TOOLS_BUILD}_latest.zip" -o /tmp/android-commandline-tools.zip \
+    && echo "${COMMANDLINE_TOOLS_SHA256}  /tmp/android-commandline-tools.zip" | sha256sum -c - \
+    && mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools" \
+    && unzip -q /tmp/android-commandline-tools.zip -d "${ANDROID_SDK_ROOT}/cmdline-tools" \
+    && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
+    && rm /tmp/android-commandline-tools.zip \
+    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses < <(yes) > /dev/null
+
+# These exact Linux archives and their sizes/SHA-1 appear in Google's
+# repository2-1.xml. SHA-256 was computed from downloads matching that index.
+# Platform package paths have extension variants; select the required rev 2
+# (API 36) and rev 3 (API 33) archives rather than resolving moving paths.
+# Some ZIP entries have owner-only read permissions. Make the SDK readable by
+# the non-root user that builds the app without changing any file bytes.
+RUN set -euo pipefail \
+    && download_checked_sdk_archive() { \
+         local archive="$1" expected_sha256="$2" destination="$3"; \
+         curl -LfsS "https://dl.google.com/android/repository/${archive}" -o /tmp/android-sdk-package.zip; \
+         printf '%s  %s\n' "$expected_sha256" /tmp/android-sdk-package.zip | sha256sum -c -; \
+         mkdir -p "$destination"; \
+         unzip -q /tmp/android-sdk-package.zip -d "$destination"; \
+         rm /tmp/android-sdk-package.zip; \
+       } \
+    && download_checked_sdk_archive platform-36_r02.zip 37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e "${ANDROID_SDK_ROOT}/platforms" \
+    && download_checked_sdk_archive platform-33-ext3_r03.zip b32b10f787867987f03ae8e101d217e053a9065b7136379fb353b388379aed1d "${ANDROID_SDK_ROOT}/platforms" \
+    && mv "${ANDROID_SDK_ROOT}/platforms/android-13" "${ANDROID_SDK_ROOT}/platforms/android-33" \
+    && download_checked_sdk_archive platform-tools_r37.0.1-linux.zip d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1 "${ANDROID_SDK_ROOT}" \
+    && download_checked_sdk_archive build-tools_r35_linux.zip bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88 "${ANDROID_SDK_ROOT}/build-tools" \
+    && mv "${ANDROID_SDK_ROOT}/build-tools/android-15" "${ANDROID_SDK_ROOT}/build-tools/35.0.0" \
+    && download_checked_sdk_archive android-ndk-r27-linux.zip 2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc "${ANDROID_SDK_ROOT}/ndk" \
+    && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27" "${ANDROID_SDK_ROOT}/ndk/27.0.12077973" \
+    && download_checked_sdk_archive android-ndk-r27b-linux.zip 33e16af1a6bbabe12cad54b2117085c07eab7e4fa67cdd831805f0e94fd826c1 "${ANDROID_SDK_ROOT}/ndk" \
+    && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27b" "${ANDROID_SDK_ROOT}/ndk/27.1.12297006" \
+    && download_checked_sdk_archive cmake-3.22.1-linux.zip 9196644852a978012caf7a4067ba1898debf6cc204c3341562771e31080d6869 "${ANDROID_SDK_ROOT}/cmake/3.22.1" \
+    && chmod -R a+rX "${ANDROID_SDK_ROOT}"
+
+# The archives have source.properties but no package.xml. SDK tooling needs
+# local package metadata for side-by-side NDK and CMake detection in particular.
+COPY sdk-package-metadata/platform-36.xml /opt/android-sdk/platforms/android-36/package.xml
+COPY sdk-package-metadata/platform-33.xml /opt/android-sdk/platforms/android-33/package.xml
+COPY sdk-package-metadata/platform-tools-37.0.1.xml /opt/android-sdk/platform-tools/package.xml
+COPY sdk-package-metadata/build-tools-35.0.0.xml /opt/android-sdk/build-tools/35.0.0/package.xml
+COPY sdk-package-metadata/ndk-27.0.12077973.xml /opt/android-sdk/ndk/27.0.12077973/package.xml
+COPY sdk-package-metadata/ndk-27.1.12297006.xml /opt/android-sdk/ndk/27.1.12297006/package.xml
+COPY sdk-package-metadata/cmake-3.22.1.xml /opt/android-sdk/cmake/3.22.1/package.xml
+
+# Verify SDK Manager itself recognizes every manually unpacked package. This
+# catches schema errors that source.properties-only revision checks would miss.
+RUN sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --list_installed > /tmp/keeper-installed-sdk-packages.txt \
+    && for package in 'platforms;android-36' 'platforms;android-33' \
+         'platform-tools' 'build-tools;35.0.0' \
+         'ndk;27.0.12077973' 'ndk;27.1.12297006' 'cmake;3.22.1'; do \
+         grep -Fq "$package" /tmp/keeper-installed-sdk-packages.txt || { echo "SDK Manager did not recognize $package" >&2; exit 1; }; \
+       done \
+    && rm /tmp/keeper-installed-sdk-packages.txt
+
+WORKDIR /workspace/keeper
