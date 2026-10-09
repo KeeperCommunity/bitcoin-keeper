@@ -65,22 +65,29 @@ class RestClient {
     path: string,
     body: object,
     headers?: object,
-    options?: AxiosRequestConfig
+    options: AxiosRequestConfig = {}
   ): Promise<AxiosResponse> {
     return axios.post(path, body, {
       ...options,
       headers: {
         ...RestClient.headers,
         ...headers,
+        ...options.headers,
       },
     });
   }
 
-  async get(path: string, headers?: object): Promise<AxiosResponse> {
+  async get(
+    path: string,
+    headers?: object,
+    options: AxiosRequestConfig = {}
+  ): Promise<AxiosResponse> {
     return axios.get(path, {
+      ...options,
       headers: {
         ...RestClient.headers,
         ...headers,
+        ...options.headers,
       },
     });
   }

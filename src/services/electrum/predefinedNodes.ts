@@ -11,6 +11,15 @@ export const predefinedTestnetNodes: NodeDetail[] = [
     useSSL: true,
     networkType: NetworkType.TESTNET,
   },
+  {
+    id: 337,
+    host: 'bitcoin.stagemole.eu',
+    port: '5010',
+    isConnected: false,
+    useKeeperNode: false,
+    useSSL: true,
+    networkType: NetworkType.TESTNET,
+  },
 ];
 
 export const predefinedMainnetNodes: NodeDetail[] = [

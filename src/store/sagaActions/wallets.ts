@@ -30,7 +30,9 @@ export const autoSyncWallets = (
   syncAll?: boolean,
   hardRefresh?: boolean,
   addNotifications?: boolean,
-  backupCheckAppId?: string
+  backupCheckAppId?: string,
+  archivedOnly?: boolean,
+  requestId?: string
 ) => ({
   type: AUTO_SYNC_WALLETS,
   payload: {
@@ -38,6 +40,8 @@ export const autoSyncWallets = (
     hardRefresh,
     addNotifications,
     backupCheckAppId,
+    archivedOnly,
+    requestId,
   },
 });
 
@@ -61,12 +65,14 @@ export const updateSignerPolicy = (
 
 export const refreshWallets = (
   wallets: (Wallet | Vault)[],
-  options: { hardRefresh?: boolean, dustScan?: boolean }
+  options: { hardRefresh?: boolean; dustScan?: boolean },
+  requestId?: string
 ) => ({
   type: REFRESH_WALLETS,
   payload: {
     wallets,
     options,
+    requestId,
   },
 });
 

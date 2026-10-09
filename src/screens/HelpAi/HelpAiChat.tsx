@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import Buttons from 'src/components/Buttons';
 import KeeperModal from 'src/components/KeeperModal';
@@ -37,11 +38,13 @@ import { useAppDispatch, useAppSelector } from 'src/store/hooks';
 import {
   appendHelpAiMessage,
   createHelpAiThread,
+  discardHelpAiFailedMessage,
   incrementHelpAiIssueCount,
   setHelpAiChatMeta,
   setHelpAiDraft,
   setHelpAiDraftStatus,
   setHelpAiEscalationStage,
+  setHelpAiFailedMessageId,
   setHelpAiRawMessages,
   type HelpAiDraftStatus,
   type HelpAiRenderMessage,
@@ -65,6 +68,12 @@ import Fonts from 'src/constants/Fonts';
 import ChatIcon from 'src/assets/images/chat.svg';
 import { sanitizeHelpAiReplyLinks, sanitizeHelpAiSources } from 'src/utils/helpAiLinkPolicy';
 import { detectSensitiveInput, detectSensitiveInDraft } from 'src/utils/helpAiSensitiveData';
+import {
+  canSendChatMessage,
+  findRetryableChatMessage,
+  isNearChatBottom,
+  planChatSend,
+} from 'src/utils/helpAiChatBehavior';
 
 // Enhanced error handler to distinguish between all backend rate limit codes
 const getHelpAiFriendlyError = (error: any, scope: 'chat' | 'issue'): string => {
@@ -139,6 +148,12 @@ const HelpAiChat = ({ navigation, route }) => {
   const disclaimerPoints = [askAi.disclaimerPoint1, askAi.disclaimerPoint2, askAi.disclaimerPoint3];
   const { showToast } = useToastMessage();
   const listRef = useRef<FlatList<HelpAiRenderMessage>>(null);
+  const initialScrollPending = useRef(true);
+  const readingEarlier = useRef(false);
+  const userScrolling = useRef(false);
+  const forceFollow = useRef(false);
+  const sendingRef = useRef(false);
+  const discardedFailedMessageId = useRef<string | null>(null);
   const generatedConversationId = useMemo(() => `conv_${Date.now().toString(36)}`, []);
   const conversationId = route?.params?.conversationId || generatedConversationId;
   const initialPrompt = route?.params?.prefillText || '';
@@ -153,6 +168,7 @@ const HelpAiChat = ({ navigation, route }) => {
     text: greetings.current,
   };
   const messages = persistedThread?.messages?.length ? persistedThread.messages : [defaultIntro];
+  const failedMessage = findRetryableChatMessage(messages, persistedThread?.failedMessageId);
   const rawChatMessages = persistedThread?.rawMessages || [];
   const draft = persistedThread?.draft || null;
   const draftStatus: HelpAiDraftStatus = persistedThread?.draftStatus || 'pending_review';
@@ -163,7 +179,6 @@ const HelpAiChat = ({ navigation, route }) => {
   const [input, setInput] = useState(initialPrompt);
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState(false);
-  const [lastFailedText, setLastFailedText] = useState<string | null>(null);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
 
   useEffect(() => {
@@ -181,16 +196,28 @@ const HelpAiChat = ({ navigation, route }) => {
     setShowDisclaimerModal(false);
   };
 
-  const scrollToBottom = () => {
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+  const scrollToBottom = (animated: boolean) => {
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
   };
 
-  useEffect(() => {
-    if (!messages.length) return undefined;
-    // Small delay to let FlatList measure new content before scrolling
-    const t = setTimeout(scrollToBottom, 150);
-    return () => clearTimeout(t);
-  }, [messages.length]);
+  const updateReadingPosition = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!userScrolling.current) return;
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    readingEarlier.current = !isNearChatBottom(
+      contentOffset.y,
+      layoutMeasurement.height,
+      contentSize.height
+    );
+  };
+
+  const handleContentSizeChange = (_width: number, height: number) => {
+    if (height <= 0) return;
+    if (initialScrollPending.current || forceFollow.current || !readingEarlier.current) {
+      scrollToBottom(!initialScrollPending.current);
+    }
+    initialScrollPending.current = false;
+    forceFollow.current = false;
+  };
 
   const appendMessage = (message: HelpAiRenderMessage) => {
     dispatch(appendHelpAiMessage({ conversationId, message }));
@@ -214,23 +241,38 @@ const HelpAiChat = ({ navigation, route }) => {
     }
   };
 
-  const sendToChat = async (text: string) => {
-    if (!text.trim()) return;
+  const sendToChat = async (text: string, retryMessageId?: string) => {
+    if (sendingRef.current) return;
+    if (retryMessageId && retryMessageId === discardedFailedMessageId.current) return;
+    if (!canSendChatMessage(failedMessage?.id, retryMessageId)) {
+      showToast('Retry or discard the unsent message first.');
+      return;
+    }
+    const retryMessage = findRetryableChatMessage(messages, retryMessageId);
+    if (retryMessageId && !retryMessage) return;
+    const { outboundText, appendUserMessage } = planChatSend(text, retryMessage);
+    if (!outboundText) return;
     if (!appId) {
       showToast('Missing app id. Please restart the app and try again.');
       return;
     }
-    const sensitiveResult = detectSensitiveInput(text.trim());
+    const sensitiveResult = detectSensitiveInput(outboundText);
     if (sensitiveResult) {
       showToast(sensitiveResult.message);
       return;
     }
 
-    const outboundText = text.trim();
-    setInput('');
+    const messageId = retryMessageId || nowId();
+    sendingRef.current = true;
+    forceFollow.current = true;
+    readingEarlier.current = false;
+    if (appendUserMessage) {
+      setInput('');
+      dispatch(setHelpAiFailedMessageId({ conversationId, messageId: null }));
+      appendMessage({ id: messageId, type: 'user', text: outboundText });
+    }
     setSending(true);
     setTyping(true);
-    appendMessage({ id: nowId(), type: 'user', text: outboundText });
 
     try {
       const metadata = chatMeta || (await buildMetadata());
@@ -286,14 +328,21 @@ const HelpAiChat = ({ navigation, route }) => {
           dispatch(appendHelpAiMessage({ conversationId, message: escalationRenderMsg }));
         }
       });
-      setLastFailedText(null);
+      dispatch(setHelpAiFailedMessageId({ conversationId, messageId: null }));
     } catch (error) {
       showToast(getHelpAiFriendlyError(error, 'chat'));
-      setLastFailedText(outboundText);
+      dispatch(setHelpAiFailedMessageId({ conversationId, messageId }));
     } finally {
+      sendingRef.current = false;
       setSending(false);
       setTyping(false);
     }
+  };
+
+  const discardFailedMessage = () => {
+    if (!failedMessage || sendingRef.current) return;
+    discardedFailedMessageId.current = failedMessage.id;
+    dispatch(discardHelpAiFailedMessage({ conversationId }));
   };
 
   const submitDraftIssue = async () => {
@@ -496,6 +545,24 @@ const HelpAiChat = ({ navigation, route }) => {
             )}
             contentContainerStyle={styles.messagesContainer}
             keyboardShouldPersistTaps="handled"
+            onContentSizeChange={handleContentSizeChange}
+            onScrollBeginDrag={() => {
+              userScrolling.current = true;
+              forceFollow.current = false;
+            }}
+            onScroll={updateReadingPosition}
+            onScrollEndDrag={(event) => {
+              updateReadingPosition(event);
+              userScrolling.current = false;
+            }}
+            onMomentumScrollBegin={() => {
+              userScrolling.current = true;
+            }}
+            onMomentumScrollEnd={(event) => {
+              updateReadingPosition(event);
+              userScrolling.current = false;
+            }}
+            scrollEventThrottle={16}
             ListFooterComponent={
               <>
                 {typing && (
@@ -558,12 +625,12 @@ const HelpAiChat = ({ navigation, route }) => {
               style={[
                 styles.sendBtn,
                 {
-                opacity: sending ? 0.6 : 1,
-                backgroundColor: Colors.primaryGreen,
-              },
+                  opacity: sending || failedMessage ? 0.6 : 1,
+                  backgroundColor: Colors.primaryGreen,
+                },
               ]}
               onPress={() => sendToChat(input)}
-              disabled={sending}
+              disabled={sending || !!failedMessage}
             >
               {isDarkMode ? (
                 <PaperPlaneDark height={hp(15)} width={hp(15)} />
@@ -574,12 +641,32 @@ const HelpAiChat = ({ navigation, route }) => {
           </View>
         </View>
 
-        {lastFailedText ? (
-          <Pressable style={styles.retryBar} onPress={() => sendToChat(lastFailedText)}>
-            <Text style={[styles.textSmall, styles.textMediumWeight, { color: uiColors.link }]}>
-              Retry last failed message
+        {failedMessage ? (
+          <View style={styles.retryBar}>
+            <Text style={[styles.textSmall, { color: uiColors.secondaryText }]}>
+              Message not sent. Retry or discard it before sending another.
             </Text>
-          </Pressable>
+            <View style={styles.retryActions}>
+              <Pressable
+                testID="btn_retry_failed_message"
+                onPress={() => sendToChat(failedMessage.text, failedMessage.id)}
+                disabled={sending}
+              >
+                <Text style={[styles.textSmall, styles.textMediumWeight, { color: uiColors.link }]}>
+                  Retry
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="btn_discard_failed_message"
+                onPress={discardFailedMessage}
+                disabled={sending}
+              >
+                <Text style={[styles.textSmall, styles.textMediumWeight, { color: uiColors.link }]}>
+                  Discard
+                </Text>
+              </Pressable>
+            </View>
+          </View>
         ) : null}
       </View>
       <KeeperModal
@@ -723,6 +810,12 @@ const styles = StyleSheet.create({
   retryBar: {
     alignSelf: 'center',
     marginTop: hp(8),
+    alignItems: 'center',
+    gap: hp(4),
+  },
+  retryActions: {
+    flexDirection: 'row',
+    gap: wp(20),
   },
   textSmall: {
     fontSize: 12,

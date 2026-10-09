@@ -91,9 +91,16 @@ export default class Node {
   }
 
   public static async connectToSelectedNode(selectedNode: NodeDetail) {
-    // connects to the selected node
+    // The tapped node must connect on its own; only then enable eligible saved
+    // public peers for a later connection loss.
     ElectrumClient.setActivePeer([], selectedNode);
-    const { connected, connectedTo, error } = await ElectrumClient.connect();
+    const { connected, connectedTo, error, generation } = await ElectrumClient.connect();
+    if (connected) {
+      ElectrumClient.setFailoverPeers(
+        this.getAllNodes().filter((node) => node.networkType === selectedNode.networkType),
+        generation
+      );
+    }
     return { connected, connectedTo, error };
   }
 

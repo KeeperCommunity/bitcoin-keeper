@@ -2,7 +2,7 @@ import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
 import { call, delay, fork, put, takeLatest } from 'redux-saga/effects';
 import { BIP329Label, UTXO, UTXOSpendability } from 'src/services/wallets/interfaces';
-import { EntityKind, LabelRefType } from 'src/services/wallets/enums';
+import { EntityKind, LabelRefType, NetworkType } from 'src/services/wallets/enums';
 import Relay from 'src/services/backend/Relay';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { generateAbbreviatedOutputDescriptors } from 'src/utils/service-utilities/utils';
@@ -25,6 +25,28 @@ import {
   updateVaultImageWorker,
 } from './bhr';
 import { encrypt, generateEncryptionKey, hash256 } from 'src/utils/service-utilities/encryption';
+import { store } from '../store';
+
+type LabelSyncScope = { appId: string; networkType: NetworkType };
+
+const isCurrentLabelScope = (scope?: LabelSyncScope) =>
+  !scope ||
+  (store.getState().storage.appId === scope.appId &&
+    store.getState().settings.bitcoinNetworkType === scope.networkType);
+
+// Realm identity and tag writes must happen without a saga yield between them.
+const persistScopedLabels = (
+  addedTags: BIP329Label[],
+  deletedTagIds: string[],
+  scope?: LabelSyncScope
+): KeeperApp | null => {
+  if (!isCurrentLabelScope(scope)) return null;
+  const keeperApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
+  if (!keeperApp || (scope && keeperApp.id !== scope.appId)) return null;
+  dbManager.createObjectBulk(RealmSchema.Tags, addedTags);
+  for (const element of deletedTagIds) dbManager.deleteObjectById(RealmSchema.Tags, element);
+  return keeperApp;
+};
 
 export function* addLabelsWorker({
   payload,
@@ -93,11 +115,13 @@ export function* bulkUpdateLabelsWorker({
     txId?: string;
     address?: string;
     wallet: Wallet;
+    scope?: LabelSyncScope;
   };
 }) {
   try {
     yield put(setSyncingUTXOs(true));
-    const { labelChanges, wallet, UTXO, txId, address } = payload;
+    const { labelChanges, wallet, UTXO, txId, address, scope } = payload;
+    if (scope && (!isCurrentLabelScope(scope) || wallet.networkType !== scope.networkType)) return;
     const origin = generateAbbreviatedOutputDescriptors(wallet);
     let addedTags: BIP329Label[] = [];
     let deletedTagIds: string[] = [];
@@ -117,17 +141,18 @@ export function* bulkUpdateLabelsWorker({
     if (labelChanges.deleted) {
       deletedTagIds = labelChanges.deleted.map((label) => `${ref}${label.name}`);
     }
-    const { primarySeed, id }: KeeperApp = yield call(
-      dbManager.getObjectByIndex,
-      RealmSchema.KeeperApp
+    const keeperApp: KeeperApp | null = yield call(
+      persistScopedLabels,
+      addedTags,
+      deletedTagIds,
+      scope
     );
-    yield call(dbManager.createObjectBulk, RealmSchema.Tags, addedTags);
-    for (const element of deletedTagIds) {
-      yield call(dbManager.deleteObjectById, RealmSchema.Tags, element);
-    }
+    if (!keeperApp) return;
+    const { primarySeed, id } = keeperApp;
     try {
-      const backupResponse = yield call(checkBackupCondition);
-      if (!backupResponse) {
+      if (!isCurrentLabelScope(scope)) return;
+      const backupResponse = yield call(checkBackupCondition, scope?.appId);
+      if (!backupResponse && isCurrentLabelScope(scope)) {
         const encryptionKey = generateEncryptionKey(primarySeed);
         const tagsToBackup = addedTags.map((tag) => ({
           id: hash256(hash256(encryptionKey + tag.id)),
