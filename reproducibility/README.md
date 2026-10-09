@@ -33,9 +33,13 @@ checked SHA-256 hashes. The existing input checker then verifies the exact
 Node, Yarn, Java, Android SDK package revisions, Gradle wrapper hash, lockfile
 hash, environment **names**, and local dependency layout before Gradle builds.
 Gradle and Yarn caches and Gradle's Maven-local home are isolated inside each
-container run. The Android SDK packages are selected by version and checked by
-revision, but their archive bytes are not yet pinned. Ubuntu apt packages,
-Maven artifacts, and transitive native downloads also lack recorded hashes.
+container run. The Android platform, Build-Tools, NDK, and CMake archives are
+selected by fixed Google URLs and checked by SHA-256 before unpacking. The
+archive names, sizes, and Google-published SHA-1 values were checked against
+[Google's SDK repository index](https://dl.google.com/android/repository/repository2-1.xml)
+before recording the SHA-256 values. The input checker also verifies their
+installed revisions. Ubuntu apt packages,
+Maven artifacts, and transitive native downloads still lack recorded hashes.
 Those are remaining build-input gaps. The script is therefore an independent
 **diagnostic build path**, not a final WalletScrutiny recipe.
 

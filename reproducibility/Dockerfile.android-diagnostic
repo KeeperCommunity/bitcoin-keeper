@@ -1,6 +1,6 @@
 # Diagnostic Linux toolchain for an independent Android build attempt.
 # This amd64 image digest is for eclipse-temurin:17.0.19_10-jdk-jammy.
-# Pinning the base image does not yet pin Ubuntu apt or SDK Maven downloads.
+# Ubuntu apt, Maven artifacts, and transitive native downloads remain unpinned.
 FROM --platform=linux/amd64 eclipse-temurin:17.0.19_10-jdk-jammy@sha256:b76a309b3dfa907458b4ef428edfcfb37920a5ce0e9c6bc77798a54e039a8330 AS java-node-yarn
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -40,9 +40,26 @@ RUN curl -LfsS "https://dl.google.com/android/repository/commandlinetools-linux-
     && unzip -q /tmp/android-commandline-tools.zip -d "${ANDROID_SDK_ROOT}/cmdline-tools" \
     && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
     && rm /tmp/android-commandline-tools.zip \
-    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses < <(yes) > /dev/null \
-    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" \
-         'platforms;android-36' 'build-tools;35.0.0' \
-         'ndk;27.1.12297006' 'cmake;3.22.1'
+    && sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses < <(yes) > /dev/null
+
+# These exact Linux archives and their sizes/SHA-1 appear in Google's
+# repository2-1.xml. SHA-256 was computed from downloads matching that index.
+# The platform package path also has extension variants; use the base rev 2
+# archive explicitly instead of resolving the moving platforms;android-36 path.
+RUN set -euo pipefail \
+    && download_checked_sdk_archive() { \
+         local archive="$1" expected_sha256="$2" destination="$3"; \
+         curl -LfsS "https://dl.google.com/android/repository/${archive}" -o /tmp/android-sdk-package.zip; \
+         printf '%s  %s\n' "$expected_sha256" /tmp/android-sdk-package.zip | sha256sum -c -; \
+         mkdir -p "$destination"; \
+         unzip -q /tmp/android-sdk-package.zip -d "$destination"; \
+         rm /tmp/android-sdk-package.zip; \
+       } \
+    && download_checked_sdk_archive platform-36_r02.zip 37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e "${ANDROID_SDK_ROOT}/platforms" \
+    && download_checked_sdk_archive build-tools_r35_linux.zip bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88 "${ANDROID_SDK_ROOT}/build-tools" \
+    && mv "${ANDROID_SDK_ROOT}/build-tools/android-15" "${ANDROID_SDK_ROOT}/build-tools/35.0.0" \
+    && download_checked_sdk_archive android-ndk-r27b-linux.zip 33e16af1a6bbabe12cad54b2117085c07eab7e4fa67cdd831805f0e94fd826c1 "${ANDROID_SDK_ROOT}/ndk" \
+    && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27b" "${ANDROID_SDK_ROOT}/ndk/27.1.12297006" \
+    && download_checked_sdk_archive cmake-3.22.1-linux.zip 9196644852a978012caf7a4067ba1898debf6cc204c3341562771e31080d6869 "${ANDROID_SDK_ROOT}/cmake/3.22.1"
 
 WORKDIR /workspace/keeper
