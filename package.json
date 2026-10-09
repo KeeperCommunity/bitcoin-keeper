@@ -19,7 +19,7 @@
     "androidDevelopmentDebug": "ENVFILE=.env react-native run-android --mode=developmentDebug --appIdSuffix=development",
     "androidDevelopmentRelease": "ENVFILE=.env react-native run-android --mode=developmentRelease --appIdSuffix=development",
     "androidProductionDebug": "ENVFILE=.env react-native run-android --mode=productionDebug",
-    "androidProductionRelease": "ENVFILE=.env react-native run-android --mode=productionRelease",
+    "androidProductionRelease": "node scripts/verify-channel-config.cjs .env.production && ENVFILE=.env.production react-native run-android --mode=productionRelease",
     "uninstall ios": "xcrun simctl uninstall booted io.hexawallet.keeper",
     "uninstall ios:dev": "xcrun simctl uninstall booted io.hexawallet.hexakeeper.dev",
     "uninstall android": "adb uninstall io.hexawallet.bitcoinkeeper",

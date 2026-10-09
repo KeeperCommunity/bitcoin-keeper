@@ -26,6 +26,35 @@ test('release env accepts reviewed channel without retired credentials', () =>
     assert.equal(result.status, 0, result.stderr);
   }));
 
+test('direct Android production release requires and selects the reviewed file', () =>
+  withTempDirectory((directory) => {
+    fs.mkdirSync(path.join(directory, 'scripts'));
+    fs.copyFileSync(verifier, path.join(directory, 'scripts', 'verify-channel-config.cjs'));
+    const bin = path.join(directory, 'bin');
+    fs.mkdirSync(bin);
+    const launcher = path.join(bin, 'react-native');
+    fs.writeFileSync(launcher, '#!/bin/sh\nprintf "%s|%s" "$ENVFILE" "$*" > selected-env\n');
+    fs.chmodSync(launcher, 0o755);
+    fs.writeFileSync(path.join(directory, '.env'), channel);
+    const command = require('../package.json').scripts.androidProductionRelease;
+    const options = {
+      cwd: directory,
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      encoding: 'utf8',
+    };
+    const missing = spawnSync('sh', ['-c', command], options);
+    assert.notEqual(missing.status, 0);
+    assert.equal(fs.existsSync(path.join(directory, 'selected-env')), false);
+
+    fs.writeFileSync(path.join(directory, '.env.production'), channel);
+    const valid = spawnSync('sh', ['-c', command], options);
+    assert.equal(valid.status, 0, valid.stderr);
+    assert.equal(
+      fs.readFileSync(path.join(directory, 'selected-env'), 'utf8'),
+      '.env.production|run-android --mode=productionRelease'
+    );
+  }));
+
 for (const [caseName, stage] of [
   ['missing', ''],
   ['development', 'ENVIRONMENT=DEVELOPMENT\n'],
@@ -41,8 +70,13 @@ for (const [caseName, stage] of [
     }));
 }
 
-for (const name of ['GASFREE_API_KEY', 'GASFREE_API_SECRET', 'RN_GASFREE_API_KEY',
-  'LETS_EXCHANGE_API_KEY', 'RN_LETS_EXCHANGE_API_KEY']) {
+for (const name of [
+  'GASFREE_API_KEY',
+  'GASFREE_API_SECRET',
+  'RN_GASFREE_API_KEY',
+  'LETS_EXCHANGE_API_KEY',
+  'RN_LETS_EXCHANGE_API_KEY',
+]) {
   test(`release env rejects ${name} without logging its value`, () =>
     withTempDirectory((directory) => {
       const envFile = path.join(directory, '.env.production');
