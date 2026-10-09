@@ -262,8 +262,7 @@ export const syncUSDTWalletTransactions = async (wallet: USDTWallet) => {
       if (existingTx.amount === newTx.amount) {
         // there are two transactions for every gas-free transfer, one for the actual transfer and one for paying the fee(both of them have the same txid, skipping the fee transfer)
 
-        // Reconcile both upgrades and corrections to a cached status. Older
-        // versions could mark a timestamped, unconfirmed transfer as complete.
+        // Reconcile cached status with the matching confirmed chain entry.
         const shouldUpdate =
           existingTx.status !== newTx.status || existingTx.blockNumber !== newTx.blockNumber;
 
