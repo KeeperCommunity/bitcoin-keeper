@@ -105,8 +105,11 @@ unzip -tq "$aab" >/dev/null
 
 cp "$apk" /output/Bitcoin_Keeper_DIAGNOSTIC.apk
 cp "$aab" /output/Bitcoin_Keeper_DIAGNOSTIC.aab
+python3 reproducibility/write-zip-entry-hashes.py \
+  --apk "$apk" --aab "$aab" --output /output/ZIP_ENTRY_SHA256.json
 (
   cd /output
-  sha256sum Bitcoin_Keeper_DIAGNOSTIC.apk Bitcoin_Keeper_DIAGNOSTIC.aab > SHA256SUMS
+  sha256sum Bitcoin_Keeper_DIAGNOSTIC.apk Bitcoin_Keeper_DIAGNOSTIC.aab \
+    ZIP_ENTRY_SHA256.json > SHA256SUMS
 )
 echo 'Diagnostic APK/AAB built with placeholder values and debug signing; no reproducibility verdict.'

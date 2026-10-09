@@ -20,12 +20,17 @@ bash reproducibility/android-diagnostic.sh \
   --output-dir /tmp/keeper-android-diagnostic
 ```
 
-The script records the toolchain image ID and writes only the diagnostic APK,
-AAB, and their `SHA256SUMS` to the output directory. It never writes a
+The script records the toolchain image ID and writes the diagnostic APK, AAB,
+their `SHA256SUMS`, and a stable per-entry ZIP content hash manifest to the output
+directory. The CI workflow retains only the hash manifest for seven days so
+that two builds of the same commit can be compared without publishing the
+diagnostic binaries. The manifest includes every non-directory ZIP entry,
+including signing files, and compares their uncompressed contents; it does not
+compare ZIP metadata or the APK signing block. It never writes a
 `COMPARISON_RESULTS.yaml` or reports a reproducibility verdict. Its CI workflow
 builds on a clean Ubuntu runner when a `codex/android-repro*` branch is pushed
-or a pull request targets a main development or release branch. No release
-artifact is uploaded by that workflow.
+or a pull request targets a main development or release branch. No APK or AAB
+is uploaded by that workflow.
 
 The container uses a digest-pinned **linux/amd64** Temurin JDK 17.0.19 base.
 Node 22.23.3, Yarn 1.22.22, and Android command-line tools downloads have

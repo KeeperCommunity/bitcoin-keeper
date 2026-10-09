@@ -39,4 +39,12 @@ jobs:
           cat SHA256SUMS
           test -s Bitcoin_Keeper_DIAGNOSTIC.apk
           test -s Bitcoin_Keeper_DIAGNOSTIC.aab
+          test -s ZIP_ENTRY_SHA256.json
           echo 'Diagnostic build only; no distributed binary comparison or reproducibility verdict.'
+
+      - name: Retain diagnostic ZIP entry hashes for repeat-build checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-diagnostic-entry-hashes-${{ github.sha }}
+          path: ${{ runner.temp }}/keeper-android-diagnostic/ZIP_ENTRY_SHA256.json
+          retention-days: 7
