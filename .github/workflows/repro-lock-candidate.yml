@@ -23,6 +23,9 @@ jobs:
           yarn install --ignore-scripts --non-interactive --no-progress
           sha256sum yarn.lock
           git diff --stat -- yarn.lock
+          printf 'PATCH_DATA:'
+          git diff -- yarn.lock | base64 -w0
+          printf '\n'
       - uses: actions/upload-artifact@v4
         with:
           name: sprint-yarn-lock-candidate
