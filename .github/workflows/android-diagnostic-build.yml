@@ -42,7 +42,7 @@ jobs:
           packages: ''
 
       - name: Install Android build packages
-        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.0.12077973' 'ndk;27.1.12297006' 'cmake;3.22.1'
 
       - name: Install JavaScript dependencies without the iOS setup hook
         run: |
