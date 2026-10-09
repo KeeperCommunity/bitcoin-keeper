@@ -56,6 +56,9 @@ describe('Recoverable Wallet preview on a small screen', () => {
     expect(screen.getByTestId('preview-automatic')).toHaveTextContent(
       'No key material has been generated'
     );
+    expect(screen.getByTestId('preview-automatic')).toHaveTextContent(
+      'Your signing device may have its own backup steps.'
+    );
     const serverWarning = screen.getByText(/Keeper cannot spend your bitcoin with this key alone/);
     expect(serverWarning.props.allowFontScaling).toBe(true);
     expect(StyleSheet.flatten(serverWarning.props.style).lineHeight).toBeGreaterThan(23);

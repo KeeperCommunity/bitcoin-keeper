@@ -431,6 +431,10 @@ function PreviewContent() {
               The proposed wallet needs 2 of 3 keys to spend. These statuses demonstrate the
               intended automatic setup. No key material has been generated.
             </PreviewText>
+            <PreviewText color={palette.muted}>
+              In the proposed setup, you would not write down seed words for this wallet. Your
+              signing device may have its own backup steps.
+            </PreviewText>
             <Panel palette={palette}>
               <PreviewText color={palette.text} style={styles.cardTitle}>
                 Mobile Key
