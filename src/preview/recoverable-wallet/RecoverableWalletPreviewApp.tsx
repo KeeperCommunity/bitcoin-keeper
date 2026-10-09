@@ -32,6 +32,11 @@ import {
   PreviewDraft,
   reducePreviewDraft,
 } from './previewFlow';
+import {
+  initialSimulatedSetupState,
+  reduceSimulatedSetup,
+  SimulatedSetupState,
+} from './simulatedSetup';
 
 type Palette = {
   background: string;
@@ -199,7 +204,9 @@ function PreviewContent() {
   const [surface, setSurface] = useState<PreviewSurface>('wallets');
   const [choiceOrigin, setChoiceOrigin] = useState<'wallets' | 'chooser'>('wallets');
   const [draft, setDraft] = useState<PreviewDraft>(initialPreviewDraft);
-  const [automaticStep, setAutomaticStep] = useState<0 | 1 | 2>(0);
+  const [automaticSetup, setAutomaticSetup] = useState<SimulatedSetupState>(
+    initialSimulatedSetupState
+  );
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [contactEnrollment, setContactEnrollment] =
     useState<ContactEnrollmentState>(initialContactEnrollment);
@@ -214,7 +221,7 @@ function PreviewContent() {
   const act = (action: PreviewAction) => setDraft((current) => reducePreviewDraft(current, action));
   const resetWalkthrough = () => {
     act({ type: 'RESET' });
-    setAutomaticStep(0);
+    setAutomaticSetup(initialSimulatedSetupState);
     setShowHowItWorks(false);
   };
   const exitFlow = () => setSurface(choiceOrigin);
@@ -282,20 +289,25 @@ function PreviewContent() {
   }, [surface, draft.stage]);
 
   useEffect(() => {
-    if (surface !== 'seedless' || draft.stage !== 'automatic' || automaticStep === 2)
+    if (
+      surface !== 'seedless' ||
+      draft.stage !== 'automatic' ||
+      (automaticSetup !== 'adding-mobile' && automaticSetup !== 'adding-server')
+    )
       return undefined;
     // Demonstration only: these timers change labels, not key or server state.
     const timer = setTimeout(
-      () => setAutomaticStep((current) => (current === 0 ? 1 : 2)),
+      () => setAutomaticSetup((current) => reduceSimulatedSetup(current, 'COMPLETE_STEP')),
       SIMULATED_KEY_STEP_MS
     );
     return () => clearTimeout(timer);
-  }, [surface, draft.stage, automaticStep]);
+  }, [surface, draft.stage, automaticSetup]);
 
+  const setupFailed = automaticSetup === 'mobile-failed' || automaticSetup === 'server-failed';
   const selectedDevice = HARDWARE_CHOICES.find(({ id }) => id === draft.hardware);
   const canProposeInheritance = canPreviewInheritanceForHardware(draft.hardware);
   const hasDraft =
-    automaticStep > 0 ||
+    automaticSetup !== initialSimulatedSetupState ||
     draft.stage !== 'automatic' ||
     draft.hardware !== null ||
     draft.inheritanceEnabled;
@@ -356,7 +368,9 @@ function PreviewContent() {
         {surface !== 'chooser' && (
           <Banner palette={palette} testID="preview-simulation-banner">
             {surface === 'wallets'
-              ? 'TESTNET PREVIEW · Simulated choices. No wallet or key is created.'
+              ? 'TESTNET DEMO · No wallet or key.'
+              : surface === 'seedless'
+              ? 'TESTNET DEMO · No wallet or key.'
               : 'TESTNET PREVIEW · Simulated walkthrough. No wallet, key, address, cloud backup, or server registration is created.'}
           </Banner>
         )}
@@ -460,44 +474,64 @@ function PreviewContent() {
               Setting up your keys
             </PreviewText>
             <PreviewText color={palette.muted}>
-              The first two steps run automatically. Then choose your hardware.
+              Mobile and Server first. Choose hardware next.
             </PreviewText>
             <View accessibilityLiveRegion="polite" style={styles.section}>
               <Panel palette={palette} testID="preview-mobile-key-status">
                 <View style={styles.progressRow}>
-                  {automaticStep === 0 ? (
+                  {automaticSetup === 'adding-mobile' ? (
                     <ActivityIndicator
                       color={palette.accent}
                       accessibilityLabel="Adding Mobile Key"
                     />
                   ) : (
-                    <PreviewText color={palette.accent} style={styles.stepIcon}>
-                      ✓
+                    <PreviewText
+                      color={automaticSetup === 'mobile-failed' ? Colors.redAlert : palette.accent}
+                      style={styles.stepIcon}
+                    >
+                      {automaticSetup === 'mobile-failed' ? '!' : '✓'}
                     </PreviewText>
                   )}
                   <View style={styles.progressCopy}>
                     <PreviewText color={palette.text} style={styles.cardTitle}>
                       Mobile Key
                     </PreviewText>
-                    <PreviewText color={palette.accent} style={styles.status}>
-                      {automaticStep === 0 ? 'Adding… · SIMULATED' : 'Added · SIMULATED'}
+                    <PreviewText
+                      color={automaticSetup === 'mobile-failed' ? Colors.redAlert : palette.accent}
+                      style={styles.status}
+                    >
+                      {automaticSetup === 'adding-mobile'
+                        ? 'Adding… · SIMULATED'
+                        : automaticSetup === 'mobile-failed'
+                        ? 'Failed · SIMULATED'
+                        : 'Added · SIMULATED'}
                     </PreviewText>
                   </View>
                 </View>
               </Panel>
               <Panel palette={palette} testID="preview-server-key-status">
                 <View style={styles.progressRow}>
-                  {automaticStep === 1 ? (
+                  {automaticSetup === 'adding-server' ? (
                     <ActivityIndicator
                       color={palette.accent}
                       accessibilityLabel="Adding Server Key"
                     />
                   ) : (
                     <PreviewText
-                      color={automaticStep === 2 ? palette.accent : palette.muted}
+                      color={
+                        automaticSetup === 'server-failed'
+                          ? Colors.redAlert
+                          : automaticSetup === 'ready'
+                          ? palette.accent
+                          : palette.muted
+                      }
                       style={styles.stepIcon}
                     >
-                      {automaticStep === 2 ? '✓' : '○'}
+                      {automaticSetup === 'server-failed'
+                        ? '!'
+                        : automaticSetup === 'ready'
+                        ? '✓'
+                        : '○'}
                     </PreviewText>
                   )}
                   <View style={styles.progressCopy}>
@@ -505,14 +539,22 @@ function PreviewContent() {
                       Server Key
                     </PreviewText>
                     <PreviewText
-                      color={automaticStep === 2 ? palette.accent : palette.muted}
+                      color={
+                        automaticSetup === 'server-failed'
+                          ? Colors.redAlert
+                          : automaticSetup === 'ready'
+                          ? palette.accent
+                          : palette.muted
+                      }
                       style={styles.status}
                     >
-                      {automaticStep === 0
-                        ? 'Waiting · SIMULATED'
-                        : automaticStep === 1
+                      {automaticSetup === 'adding-server'
                         ? 'Adding… · SIMULATED'
-                        : 'Added · SIMULATED'}
+                        : automaticSetup === 'server-failed'
+                        ? 'Failed · SIMULATED'
+                        : automaticSetup === 'ready'
+                        ? 'Added · SIMULATED'
+                        : 'Waiting · SIMULATED'}
                     </PreviewText>
                   </View>
                 </View>
@@ -527,18 +569,49 @@ function PreviewContent() {
                       Hardware Key
                     </PreviewText>
                     <PreviewText color={palette.muted} style={styles.status}>
-                      {automaticStep === 2 ? 'Choose your device' : 'Waiting for you'}
+                      {automaticSetup === 'ready' ? 'Choose your device' : 'Waiting for you'}
                     </PreviewText>
                   </View>
                 </View>
               </Panel>
             </View>
+            {setupFailed && (
+              <Banner palette={palette} testID="preview-automatic-error">
+                SIMULATED FAILURE ·{' '}
+                {automaticSetup === 'mobile-failed' ? 'Mobile Key' : 'Server Key'} setup stopped in
+                this walkthrough. No key or server registration was attempted.
+              </Banner>
+            )}
             <PrimaryAction
               label="Choose Hardware"
-              disabled={automaticStep !== 2}
-              onPress={() => act({ type: 'NEXT' })}
+              disabled={automaticSetup !== 'ready'}
+              onPress={() => automaticSetup === 'ready' && act({ type: 'NEXT' })}
               palette={palette}
             />
+            {setupFailed ? (
+              <LinkAction
+                label="Try Again"
+                onPress={() =>
+                  setAutomaticSetup((current) => reduceSimulatedSetup(current, 'RETRY'))
+                }
+                palette={palette}
+                testID="preview-automatic-retry"
+              />
+            ) : (
+              <LinkAction
+                label={automaticSetup === 'ready' ? 'Show Setup Error' : 'Simulate Failure'}
+                onPress={() =>
+                  setAutomaticSetup((current) =>
+                    reduceSimulatedSetup(
+                      current,
+                      current === 'ready' ? 'SHOW_SERVER_FAILURE' : 'SIMULATE_FAILURE'
+                    )
+                  )
+                }
+                palette={palette}
+                testID="preview-automatic-simulate-failure"
+              />
+            )}
             <LinkAction
               label={showHowItWorks ? 'Hide details' : 'How it works'}
               onPress={() => setShowHowItWorks((visible) => !visible)}
@@ -576,8 +649,7 @@ function PreviewContent() {
               Choose Hardware
             </PreviewText>
             <PreviewText color={palette.muted}>
-              Choose the last base key. Selecting a device here does not connect it or prove that it
-              can sign the final policy.
+              Choose a device for the last key. Connection and policy support are not verified here.
             </PreviewText>
             {HARDWARE_CHOICES.map((choice) => (
               <Pressable

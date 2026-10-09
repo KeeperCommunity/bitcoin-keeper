@@ -7,6 +7,30 @@ import {
   initialPreviewDraft,
   reducePreviewDraft,
 } from '../../src/preview/recoverable-wallet/previewFlow';
+import {
+  initialSimulatedSetupState,
+  reduceSimulatedSetup,
+} from '../../src/preview/recoverable-wallet/simulatedSetup';
+
+describe('Simulated automatic setup', () => {
+  test('a failed step cannot complete until retried, and retry keeps the same key', () => {
+    let state = reduceSimulatedSetup(initialSimulatedSetupState, 'SIMULATE_FAILURE');
+    expect(state).toBe('mobile-failed');
+    expect(reduceSimulatedSetup(state, 'COMPLETE_STEP')).toBe('mobile-failed');
+    state = reduceSimulatedSetup(state, 'RETRY');
+    expect(state).toBe('adding-mobile');
+    state = reduceSimulatedSetup(state, 'COMPLETE_STEP');
+    expect(state).toBe('adding-server');
+    state = reduceSimulatedSetup(state, 'SIMULATE_FAILURE');
+    expect(state).toBe('server-failed');
+    expect(reduceSimulatedSetup(state, 'COMPLETE_STEP')).toBe('server-failed');
+    state = reduceSimulatedSetup(state, 'RETRY');
+    expect(state).toBe('adding-server');
+    expect(reduceSimulatedSetup(state, 'COMPLETE_STEP')).toBe('ready');
+    expect(reduceSimulatedSetup('ready', 'SHOW_SERVER_FAILURE')).toBe('server-failed');
+    expect(reduceSimulatedSetup('ready', 'RETRY')).toBe('ready');
+  });
+});
 
 describe('Recoverable Wallet preview isolation', () => {
   test.each(PREVIEW_BUNDLE_IDS)(

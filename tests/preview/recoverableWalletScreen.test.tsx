@@ -62,9 +62,7 @@ describe('Recoverable Wallet preview on a small screen', () => {
     expect(screen.getByTestId('preview-wallets-empty')).toHaveTextContent('No wallets yet');
     expect(screen.queryByTestId('primary-Add Wallet')).toBeNull();
     fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
-    expect(screen.getByTestId('preview-simulation-banner')).toHaveTextContent(
-      'Simulated walkthrough'
-    );
+    expect(screen.getByTestId('preview-simulation-banner')).toHaveTextContent('TESTNET DEMO');
     expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent(
       'Adding… · SIMULATED'
     );
@@ -109,6 +107,84 @@ describe('Recoverable Wallet preview on a small screen', () => {
     expect(primaryLabel.props.numberOfLines).toBeUndefined();
     expect(screen.getByTestId('preview-how-it-works-details')).toHaveTextContent(
       'No key material has been generated'
+    );
+  });
+
+  test('simulated Mobile and Server failures pause progress and retry only the failed step', () => {
+    const screen = render(<RecoverableWalletPreviewApp />);
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    fireEvent.press(screen.getByTestId('preview-automatic-simulate-failure'));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent('Failed · SIMULATED');
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent(
+      'Waiting · SIMULATED'
+    );
+    expect(screen.getByTestId('preview-automatic-error')).toHaveTextContent(
+      'SIMULATED FAILURE · Mobile Key setup stopped'
+    );
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      true
+    );
+    act(() => jest.advanceTimersByTime(2400));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent('Failed · SIMULATED');
+    fireEvent.press(screen.getByTestId('preview-cancel'));
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent('Failed · SIMULATED');
+    fireEvent.press(screen.getByTestId('preview-automatic-retry'));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
+    act(() => jest.advanceTimersByTime(800));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent('Added · SIMULATED');
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
+    fireEvent.press(screen.getByTestId('preview-automatic-simulate-failure'));
+    act(() => jest.advanceTimersByTime(1600));
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent('Failed · SIMULATED');
+    expect(screen.getByTestId('preview-automatic-error')).toHaveTextContent(
+      'SIMULATED FAILURE · Server Key setup stopped'
+    );
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      true
+    );
+    fireEvent.press(screen.getByTestId('preview-cancel'));
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent('Failed · SIMULATED');
+    fireEvent.press(screen.getByTestId('preview-automatic-retry'));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent('Added · SIMULATED');
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
+    act(() => jest.advanceTimersByTime(800));
+    expect(screen.queryByTestId('preview-automatic-error')).toBeNull();
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      false
+    );
+    expect(screen.getByTestId('preview-automatic-simulate-failure')).toHaveTextContent(
+      'Show Setup Error'
+    );
+    fireEvent.press(screen.getByTestId('preview-automatic-simulate-failure'));
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent('Failed · SIMULATED');
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      true
+    );
+    fireEvent.press(screen.getByTestId('preview-automatic-retry'));
+    act(() => jest.advanceTimersByTime(800));
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      false
+    );
+    fireEvent.press(screen.getByTestId('primary-Choose Hardware'));
+    fireEvent.press(screen.getByTestId('preview-hardware-Coldcard'));
+    fireEvent.press(screen.getByTestId('primary-Continue'));
+    fireEvent.press(screen.getByTestId('preview-continue-simulation'));
+    fireEvent.press(screen.getByTestId('primary-Review Policy'));
+    fireEvent.press(screen.getByTestId('primary-Finish Preview'));
+    fireEvent.press(screen.getByTestId('preview-start-again'));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      true
     );
   });
 
