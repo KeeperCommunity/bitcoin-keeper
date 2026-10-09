@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, PixelRatio, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  BackHandler,
+  PixelRatio,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { NativeBaseProvider, useColorMode } from '@gluestack-ui/themed-native-base';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -57,6 +65,7 @@ const SAMPLE_REQUEST = {
   replacementDeviceKeyId: 'sample-no-device-key',
   expiresAt: SAMPLE_NOW + 600,
 };
+const SIMULATED_KEY_STEP_MS = 800;
 
 function PreviewText({ children, style, color, ...props }: any) {
   const fontScale = Math.min(PixelRatio.getFontScale(), 2);
@@ -189,6 +198,8 @@ function PreviewContent() {
   const [surface, setSurface] = useState<PreviewSurface>('wallets');
   const [choiceOrigin, setChoiceOrigin] = useState<'wallets' | 'chooser'>('wallets');
   const [draft, setDraft] = useState<PreviewDraft>(initialPreviewDraft);
+  const [automaticStep, setAutomaticStep] = useState<0 | 1 | 2>(0);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [contactEnrollment, setContactEnrollment] =
     useState<ContactEnrollmentState>(initialContactEnrollment);
   const [contactSample, setContactSample] = useState<'overview' | 'invitation' | 'request'>(
@@ -200,6 +211,11 @@ function PreviewContent() {
   const [requestDecision, setRequestDecision] = useState<ContactDecisionState | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const act = (action: PreviewAction) => setDraft((current) => reducePreviewDraft(current, action));
+  const resetWalkthrough = () => {
+    act({ type: 'RESET' });
+    setAutomaticStep(0);
+    setShowHowItWorks(false);
+  };
   const exitFlow = () => setSurface(choiceOrigin);
   const openChoice = (choice: PreviewSurface) => {
     setChoiceOrigin(surface === 'chooser' ? 'chooser' : 'wallets');
@@ -245,7 +261,7 @@ function PreviewContent() {
     else if (surface === 'hot' || surface === 'cold') setSurface('simple');
     else if (surface === 'advanced' || surface === 'import') setSurface(choiceOrigin);
     else if (surface === 'seedless' && draft.stage === 'complete') {
-      act({ type: 'RESET' });
+      resetWalkthrough();
       exitFlow();
     } else if (surface === 'seedless' && draft.stage === 'automatic') exitFlow();
     else if (surface === 'seedless') act({ type: 'BACK' });
@@ -264,9 +280,23 @@ function PreviewContent() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [surface, draft.stage]);
 
+  useEffect(() => {
+    if (surface !== 'seedless' || draft.stage !== 'automatic' || automaticStep === 2)
+      return undefined;
+    // Demonstration only: these timers change labels, not key or server state.
+    const timer = setTimeout(
+      () => setAutomaticStep((current) => (current === 0 ? 1 : 2)),
+      SIMULATED_KEY_STEP_MS
+    );
+    return () => clearTimeout(timer);
+  }, [surface, draft.stage, automaticStep]);
+
   const selectedDevice = HARDWARE_CHOICES.find(({ id }) => id === draft.hardware);
   const hasDraft =
-    draft.stage !== 'automatic' || draft.hardware !== null || draft.inheritanceEnabled;
+    automaticStep > 0 ||
+    draft.stage !== 'automatic' ||
+    draft.hardware !== null ||
+    draft.inheritanceEnabled;
   const walletChooser = (fromWallets: boolean) => (
     <WalletCreationChooser
       onSimpleWallet={() => openChoice('simple')}
@@ -309,7 +339,7 @@ function PreviewContent() {
             ? 'Cloud Backup'
             : surface === 'contact'
             ? 'Recovery Contact'
-            : 'Wallet Preview'
+            : 'Seedless Wallet'
         }
         onBack={surface === 'wallets' ? undefined : back}
         palette={palette}
@@ -425,45 +455,110 @@ function PreviewContent() {
         {surface === 'seedless' && draft.stage === 'automatic' && (
           <View testID="preview-automatic" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
-              Automatic Keys
+              Setting up your keys
             </PreviewText>
             <PreviewText color={palette.muted}>
-              The proposed wallet needs 2 of 3 keys to spend. These statuses demonstrate the
-              intended automatic setup. No key material has been generated.
+              The first two steps run automatically. Then choose your hardware.
             </PreviewText>
-            <PreviewText color={palette.muted}>
-              In the proposed setup, you would not write down seed words for this wallet. Your
-              signing device may have its own backup steps.
-            </PreviewText>
-            <Panel palette={palette}>
-              <PreviewText color={palette.text} style={styles.cardTitle}>
-                Mobile Key
-              </PreviewText>
-              <PreviewText color={palette.accent} style={styles.status}>
-                Ready status · SIMULATED
-              </PreviewText>
-              <PreviewText color={palette.muted}>
-                The app would prepare this key automatically. There is no Mobile Key or cloud backup
-                in this preview.
-              </PreviewText>
-            </Panel>
-            <Panel palette={palette}>
-              <PreviewText color={palette.text} style={styles.cardTitle}>
-                Server Key
-              </PreviewText>
-              <PreviewText color={palette.accent} style={styles.status}>
-                Ready status · SIMULATED
-              </PreviewText>
-              <PreviewText color={palette.muted}>
-                No Server Key has been requested or registered. Server Key is one key in your
-                wallet. Keeper cannot spend your bitcoin with this key alone.
-              </PreviewText>
-            </Panel>
+            <View accessibilityLiveRegion="polite" style={styles.section}>
+              <Panel palette={palette} testID="preview-mobile-key-status">
+                <View style={styles.progressRow}>
+                  {automaticStep === 0 ? (
+                    <ActivityIndicator
+                      color={palette.accent}
+                      accessibilityLabel="Adding Mobile Key"
+                    />
+                  ) : (
+                    <PreviewText color={palette.accent} style={styles.stepIcon}>
+                      ✓
+                    </PreviewText>
+                  )}
+                  <View style={styles.progressCopy}>
+                    <PreviewText color={palette.text} style={styles.cardTitle}>
+                      Mobile Key
+                    </PreviewText>
+                    <PreviewText color={palette.accent} style={styles.status}>
+                      {automaticStep === 0 ? 'Adding… · SIMULATED' : 'Added · SIMULATED'}
+                    </PreviewText>
+                  </View>
+                </View>
+              </Panel>
+              <Panel palette={palette} testID="preview-server-key-status">
+                <View style={styles.progressRow}>
+                  {automaticStep === 1 ? (
+                    <ActivityIndicator
+                      color={palette.accent}
+                      accessibilityLabel="Adding Server Key"
+                    />
+                  ) : (
+                    <PreviewText
+                      color={automaticStep === 2 ? palette.accent : palette.muted}
+                      style={styles.stepIcon}
+                    >
+                      {automaticStep === 2 ? '✓' : '○'}
+                    </PreviewText>
+                  )}
+                  <View style={styles.progressCopy}>
+                    <PreviewText color={palette.text} style={styles.cardTitle}>
+                      Server Key
+                    </PreviewText>
+                    <PreviewText
+                      color={automaticStep === 2 ? palette.accent : palette.muted}
+                      style={styles.status}
+                    >
+                      {automaticStep === 0
+                        ? 'Waiting · SIMULATED'
+                        : automaticStep === 1
+                        ? 'Adding… · SIMULATED'
+                        : 'Added · SIMULATED'}
+                    </PreviewText>
+                  </View>
+                </View>
+              </Panel>
+              <Panel palette={palette} testID="preview-hardware-key-status">
+                <View style={styles.progressRow}>
+                  <PreviewText color={palette.muted} style={styles.stepIcon}>
+                    ○
+                  </PreviewText>
+                  <View style={styles.progressCopy}>
+                    <PreviewText color={palette.text} style={styles.cardTitle}>
+                      Hardware Key
+                    </PreviewText>
+                    <PreviewText color={palette.muted} style={styles.status}>
+                      {automaticStep === 2 ? 'Choose your device' : 'Waiting for you'}
+                    </PreviewText>
+                  </View>
+                </View>
+              </Panel>
+            </View>
             <PrimaryAction
-              label="Continue"
+              label="Choose Hardware"
+              disabled={automaticStep !== 2}
               onPress={() => act({ type: 'NEXT' })}
               palette={palette}
             />
+            <LinkAction
+              label={showHowItWorks ? 'Hide details' : 'How it works'}
+              onPress={() => setShowHowItWorks((visible) => !visible)}
+              palette={palette}
+              testID="preview-how-it-works"
+            />
+            {showHowItWorks && (
+              <Panel palette={palette} testID="preview-how-it-works-details">
+                <PreviewText color={palette.text} style={styles.cardTitle}>
+                  How it works
+                </PreviewText>
+                <PreviewText color={palette.muted}>
+                  The proposed wallet needs any 2 of 3 keys to spend: Mobile Key, Server Key, and
+                  Hardware Key. Keeper cannot spend with Server Key alone. Your signing device may
+                  have its own backup steps.
+                </PreviewText>
+                <PreviewText color={palette.muted}>
+                  This preview only changes status labels. No key material has been generated, and
+                  no Server Key has been requested or registered.
+                </PreviewText>
+              </Panel>
+            )}
             <LinkAction
               label="Cancel"
               onPress={exitFlow}
@@ -633,6 +728,9 @@ function PreviewContent() {
                 Any 2 of these 3 keys would be needed to spend. Keeper cannot spend with Server Key
                 alone.
               </PreviewText>
+              <PreviewText color={palette.muted}>
+                Your signing device may have its own backup steps.
+              </PreviewText>
             </Panel>
             <Panel palette={palette}>
               <PreviewText color={palette.text} style={styles.cardTitle}>
@@ -682,7 +780,7 @@ function PreviewContent() {
             />
             <LinkAction
               label="Start Again"
-              onPress={() => act({ type: 'RESET' })}
+              onPress={resetWalkthrough}
               palette={palette}
               testID="preview-start-again"
             />
@@ -974,6 +1072,9 @@ const styles = StyleSheet.create({
   banner: { borderRadius: 10, padding: 14, marginTop: 8 },
   bannerText: { fontSize: 14, lineHeight: 21, fontWeight: '500' },
   status: { fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  progressCopy: { flex: 1, gap: 3 },
+  stepIcon: { width: 22, fontSize: 20, lineHeight: 26, textAlign: 'center' },
   linkButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, padding: 8 },
   linkText: { fontSize: 15, fontWeight: '600' },
   primaryButton: {

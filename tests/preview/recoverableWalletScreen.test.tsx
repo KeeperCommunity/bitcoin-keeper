@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dimensions, PixelRatio, StyleSheet } from 'react-native';
 import { NativeBaseProvider } from '@gluestack-ui/themed-native-base';
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import WalletCreationChooser from '../../src/components/WalletCreationChooser';
 import { customTheme } from '../../src/navigation/themes';
 import RecoverableWalletPreviewApp from '../../src/preview/recoverable-wallet/RecoverableWalletPreviewApp';
@@ -26,9 +26,15 @@ jest.mock('src/components/KeeperText', () => {
   return ({ children, ...props }) => <Text {...props}>{children}</Text>;
 });
 
+function finishSimulatedAutomaticSetup() {
+  act(() => jest.advanceTimersByTime(800));
+  act(() => jest.advanceTimersByTime(800));
+}
+
 function enterRecoveryOptions(screen) {
   fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
-  fireEvent.press(screen.getByTestId('primary-Continue'));
+  finishSimulatedAutomaticSetup();
+  fireEvent.press(screen.getByTestId('primary-Choose Hardware'));
   fireEvent.press(screen.getByTestId('preview-hardware-Coldcard'));
   fireEvent.press(screen.getByTestId('primary-Continue'));
   fireEvent.press(screen.getByTestId('preview-continue-simulation'));
@@ -39,13 +45,19 @@ function enterRecoveryOptions(screen) {
 
 describe('Recoverable Wallet preview on a small screen', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     jest
       .spyOn(Dimensions, 'get')
       .mockReturnValue({ width: 320, height: 640, scale: 2, fontScale: 1.6 });
     jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1.6);
   });
 
-  test('keeps security copy available, reaches one final review, and resumes after cancel', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  test('starts automatic status progress on selection, pauses on cancel, and waits for hardware', () => {
     const screen = render(<RecoverableWalletPreviewApp />);
     expect(screen.getByTestId('preview-wallets-empty')).toHaveTextContent('No wallets yet');
     expect(screen.queryByTestId('primary-Add Wallet')).toBeNull();
@@ -53,19 +65,58 @@ describe('Recoverable Wallet preview on a small screen', () => {
     expect(screen.getByTestId('preview-simulation-banner')).toHaveTextContent(
       'Simulated walkthrough'
     );
-    expect(screen.getByTestId('preview-automatic')).toHaveTextContent(
-      'No key material has been generated'
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
     );
-    expect(screen.getByTestId('preview-automatic')).toHaveTextContent(
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent(
+      'Waiting · SIMULATED'
+    );
+    expect(screen.getByTestId('preview-hardware-key-status')).toHaveTextContent('Waiting for you');
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      true
+    );
+    fireEvent.press(screen.getByTestId('primary-Choose Hardware'));
+    expect(screen.queryByTestId('preview-hardware')).toBeNull();
+    act(() => jest.advanceTimersByTime(800));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent('Added · SIMULATED');
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
+    fireEvent.press(screen.getByTestId('preview-cancel'));
+    act(() => jest.advanceTimersByTime(1600));
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
+    act(() => jest.advanceTimersByTime(800));
+    expect(screen.getByTestId('preview-server-key-status')).toHaveTextContent('Added · SIMULATED');
+    expect(screen.getByTestId('preview-hardware-key-status')).toHaveTextContent(
+      'Choose your device'
+    );
+    expect(screen.getByTestId('primary-Choose Hardware').props.accessibilityState.disabled).toBe(
+      false
+    );
+    expect(screen.queryByTestId('preview-hardware')).toBeNull();
+    fireEvent.press(screen.getByTestId('preview-how-it-works'));
+    expect(screen.getByTestId('preview-how-it-works-details')).toHaveTextContent(
       'Your signing device may have its own backup steps.'
     );
-    const serverWarning = screen.getByText(/Keeper cannot spend your bitcoin with this key alone/);
+    const serverWarning = screen.getByText(/Keeper cannot spend with Server Key alone/);
     expect(serverWarning.props.allowFontScaling).toBe(true);
     expect(StyleSheet.flatten(serverWarning.props.style).lineHeight).toBeGreaterThan(23);
-    const primaryLabel = screen.getByText('Continue');
+    const primaryLabel = screen.getByText('Choose Hardware');
     expect(primaryLabel.props.allowFontScaling).toBe(true);
     expect(primaryLabel.props.numberOfLines).toBeUndefined();
-    fireEvent.press(screen.getByTestId('primary-Continue'));
+    expect(screen.getByTestId('preview-how-it-works-details')).toHaveTextContent(
+      'No key material has been generated'
+    );
+  });
+
+  test('reaches one final review, and resumes hardware after cancel', () => {
+    const screen = render(<RecoverableWalletPreviewApp />);
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    finishSimulatedAutomaticSetup();
+    fireEvent.press(screen.getByTestId('primary-Choose Hardware'));
     expect(screen.getByTestId('primary-Continue').props.accessibilityState.disabled).toBe(true);
     fireEvent.press(screen.getByTestId('preview-hardware-Coldcard'));
     fireEvent.press(screen.getByTestId('primary-Continue'));
@@ -84,6 +135,9 @@ describe('Recoverable Wallet preview on a small screen', () => {
     fireEvent.press(screen.getByTestId('primary-Review Policy'));
     expect(screen.getByTestId('preview-review')).toHaveTextContent('Spending now · 2 of 3');
     expect(screen.getByTestId('preview-review')).toHaveTextContent(
+      'Your signing device may have its own backup steps.'
+    );
+    expect(screen.getByTestId('preview-review')).toHaveTextContent(
       'designated second signer available without Server Key'
     );
     expect(screen.getByTestId('preview-review')).toHaveTextContent('fixed on-chain unlock date');
@@ -91,6 +145,10 @@ describe('Recoverable Wallet preview on a small screen', () => {
     expect(screen.getByTestId('preview-complete')).toHaveTextContent('No wallet was created');
     fireEvent.press(screen.getByTestId('preview-done'));
     expect(screen.getByTestId('preview-wallets-empty')).toHaveTextContent('Seedless Wallet');
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent(
+      'Adding… · SIMULATED'
+    );
   });
 
   test('navigates the three-choice entry and keeps other paths simulated', () => {
