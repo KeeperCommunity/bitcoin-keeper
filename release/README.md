@@ -1,8 +1,8 @@
 # Release version verification
 
-**Current source intent:** 2.6.3 is the pairing-channel hotfix baseline. R3 is a separate internal work bucket; this manifest does not declare an R3 mobile delivery. Keep private advisory details, credentials and fixtures out of public release material.
+**Current source intent:** this R4 candidate stages 2.6.4 on the 2.6.3 pairing-channel hotfix baseline. The candidate is still under review. Keep private advisory details, credentials and fixtures out of public release material.
 
-`version.json` selects 2.6.3, Android 626 and iOS 619. Its recorded authenticated store baselines on 6 October 2026 are Android 625 and iOS 618, both at 2.6.2. Refresh these baselines before upload. Development builds and local relay validation are separate from reviewed production builds, deployment and store submission.
+`version.json` provisionally selects 2.6.4, Android 627 and iOS 620. Its recorded authenticated store baselines on 6 October 2026 are Android 625 and iOS 618, both at 2.6.2. Refresh these baselines and confirm the counters before signing or upload. Development builds and local relay validation are separate from reviewed production builds, deployment and store submission.
 
 The owner will perform real-phone and other manual live checks after release. Do not require Developer Mode or physical-device connections to finish preparation. Record simulator, automated and disposable testnet evidence accurately; they do not establish physical or hardware-signer acceptance.
 
@@ -31,7 +31,7 @@ Android production signing reads `STORE_PASSWORD`, `KEY_PASSWORD`, and `KEY_ALIA
 
 ## Manual release checks
 
-- Post-release for R02 by owner decision: upgrade an existing installation with a designated test wallet on a physical iPhone and Android device; do not uninstall first. Confirm unlock, wallet visibility and settings survive.
+- Post-release by owner decision: upgrade an existing installation with a designated test wallet on a physical iPhone and Android device; do not uninstall first. Confirm unlock, wallet visibility and settings survive.
 - Check the displayed marketing version and native build counter against the release manifest on both platforms.
 - Open Ask Keeper on both platforms and send a non-sensitive sample question to the intended backend. Confirm the response and error/retry behavior; local isolated-backend entry checks do not test AI responses.
 - Open Wallet Settings > Dust Report. Check an empty test wallet, then a designated testnet fixture with Do Not Spend coins. Confirm the report, ordinary-spend exclusion, and Donate Dust confirmation/amount/fee behavior. Record separately whether a testnet signing transaction completed; an empty-wallet result cannot verify donation.

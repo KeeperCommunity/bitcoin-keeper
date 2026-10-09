@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -34,7 +37,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '17.0.19'
 
       - name: Set up Android SDK tools
         uses: android-actions/setup-android@v4
@@ -64,6 +67,15 @@ jobs:
           EOF
           node scripts/verify-channel-config.cjs "$RUNNER_TEMP/keeper-diagnostic.env"
           printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
+
+      - name: Verify pinned Android inputs
+        env:
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 -B reproducibility/verify-android-inputs.py \
+            --source-commit "$SOURCE_COMMIT" \
+            --env-file "$RUNNER_TEMP/keeper-diagnostic.env" \
+            --android-sdk-root "$ANDROID_SDK_ROOT"
 
       - name: Confirm Gradle rejects a retired mobile credential
         run: |
