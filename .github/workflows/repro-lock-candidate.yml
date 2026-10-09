@@ -1,0 +1,30 @@
+name: Repro lock candidate
+
+on:
+  push:
+    branches:
+      - codex/android-repro-independent-20261008
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.3
+      - name: Resolve the sprint manifest with pinned Yarn
+        run: |
+          npm install --global yarn@1.22.22
+          yarn install --ignore-scripts --non-interactive --no-progress
+          sha256sum yarn.lock
+          git diff --stat -- yarn.lock
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sprint-yarn-lock-candidate
+          path: yarn.lock
+          retention-days: 1
