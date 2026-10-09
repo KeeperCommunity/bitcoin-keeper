@@ -187,6 +187,7 @@ function PreviewContent() {
     warning: dark ? Colors.DeepCharcoalGreen : Colors.dullGreen,
   };
   const [surface, setSurface] = useState<PreviewSurface>('wallets');
+  const [choiceOrigin, setChoiceOrigin] = useState<'wallets' | 'chooser'>('wallets');
   const [draft, setDraft] = useState<PreviewDraft>(initialPreviewDraft);
   const [contactEnrollment, setContactEnrollment] =
     useState<ContactEnrollmentState>(initialContactEnrollment);
@@ -199,7 +200,11 @@ function PreviewContent() {
   const [requestDecision, setRequestDecision] = useState<ContactDecisionState | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const act = (action: PreviewAction) => setDraft((current) => reducePreviewDraft(current, action));
-  const exitFlow = () => setSurface('chooser');
+  const exitFlow = () => setSurface(choiceOrigin);
+  const openChoice = (choice: PreviewSurface) => {
+    setChoiceOrigin(surface === 'chooser' ? 'chooser' : 'wallets');
+    setSurface(choice);
+  };
   const openRecoveryOptions = () => {
     setContactEnrollment(
       reduceContactEnrollment(initialContactEnrollment, {
@@ -236,9 +241,9 @@ function PreviewContent() {
     if (surface === 'cloud' || surface === 'contact') setSurface('recovery');
     else if (surface === 'recovery') setSurface('seedless');
     else if (surface === 'chooser') setSurface('wallets');
-    else if (surface === 'simple') setSurface('chooser');
+    else if (surface === 'simple') setSurface(choiceOrigin);
     else if (surface === 'hot' || surface === 'cold') setSurface('simple');
-    else if (surface === 'advanced' || surface === 'import') setSurface('chooser');
+    else if (surface === 'advanced' || surface === 'import') setSurface(choiceOrigin);
     else if (surface === 'seedless' && draft.stage === 'complete') {
       act({ type: 'RESET' });
       exitFlow();
@@ -253,7 +258,7 @@ function PreviewContent() {
       return true;
     });
     return () => subscription.remove();
-  }, [surface, draft.stage]);
+  }, [surface, draft.stage, choiceOrigin]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -262,6 +267,24 @@ function PreviewContent() {
   const selectedDevice = HARDWARE_CHOICES.find(({ id }) => id === draft.hardware);
   const hasDraft =
     draft.stage !== 'automatic' || draft.hardware !== null || draft.inheritanceEnabled;
+  const walletChooser = (fromWallets: boolean) => (
+    <WalletCreationChooser
+      onSimpleWallet={() => openChoice('simple')}
+      onSeedlessWallet={() => openChoice('seedless')}
+      onAdvancedWallet={() => openChoice('advanced')}
+      onImportWallet={() => openChoice('import')}
+      showSeedless
+      seedlessBadge={fromWallets ? 'FEATURED' : 'TESTNET PREVIEW'}
+      previewNotice={
+        fromWallets
+          ? undefined
+          : 'Simulated choices only. No wallet, key, address, or backup is created in this testnet preview.'
+      }
+      seedlessResumeHint={
+        hasDraft ? 'Your Seedless Wallet walkthrough will resume where you left off.' : undefined
+      }
+    />
+  );
 
   return (
     <ScreenWrapper backgroundcolor={palette.background}>
@@ -301,46 +324,22 @@ function PreviewContent() {
       >
         {surface !== 'chooser' && (
           <Banner palette={palette} testID="preview-simulation-banner">
-            TESTNET PREVIEW · Simulated walkthrough. No wallet, key, address, cloud backup, or
-            server registration is created.
+            {surface === 'wallets'
+              ? 'TESTNET PREVIEW · Simulated choices. No wallet or key is created.'
+              : 'TESTNET PREVIEW · Simulated walkthrough. No wallet, key, address, cloud backup, or server registration is created.'}
           </Banner>
         )}
 
         {surface === 'wallets' && (
-          <View testID="preview-add-wallet" style={styles.section}>
+          <View testID="preview-wallets-empty" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
               No wallets yet
             </PreviewText>
-            <PreviewText color={palette.muted}>
-              Choose the wallet setup that suits you. Nothing has been created in this preview.
-            </PreviewText>
-            <PrimaryAction
-              label="Add Wallet"
-              onPress={() => setSurface('chooser')}
-              palette={palette}
-            />
-            <PreviewText color={palette.muted} style={styles.note}>
-              This preview starts without a Hot Wallet. It cannot receive or send bitcoin.
-            </PreviewText>
+            {walletChooser(true)}
           </View>
         )}
 
-        {surface === 'chooser' && (
-          <WalletCreationChooser
-            onSimpleWallet={() => setSurface('simple')}
-            onSeedlessWallet={() => setSurface('seedless')}
-            onAdvancedWallet={() => setSurface('advanced')}
-            onImportWallet={() => setSurface('import')}
-            showSeedless
-            seedlessBadge="TESTNET PREVIEW"
-            previewNotice="Simulated choices only. No wallet, key, address, or backup is created in this testnet preview."
-            seedlessResumeHint={
-              hasDraft
-                ? 'Your Seedless Wallet walkthrough will resume where you left off.'
-                : undefined
-            }
-          />
-        )}
+        {surface === 'chooser' && walletChooser(false)}
 
         {surface === 'simple' && (
           <View testID="preview-simple-wallet" style={styles.section}>
@@ -388,7 +387,7 @@ function PreviewContent() {
               label="Choose Another"
               testID="preview-choose-another-wallet"
               palette={palette}
-              onPress={() => setSurface('chooser')}
+              onPress={exitFlow}
             />
           </View>
         )}
@@ -695,8 +694,7 @@ function PreviewContent() {
             </PreviewText>
             <PreviewText color={palette.muted}>
               Explore proposed ways to restore this wallet's Mobile Key on another phone. These
-              paths are separate from Keeper Recovery Key restoration and do not change the wallet
-              policy.
+              options do not change the wallet policy.
             </PreviewText>
             <Banner palette={palette}>
               SIMULATED · No Mobile Key, encrypted cloud blob, contact credential, or server

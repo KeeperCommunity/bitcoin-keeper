@@ -31,11 +31,9 @@ function input(): RecoverablePolicyDraftInput {
     signerType: SignerType.MOBILE_KEY,
     ...publicKeyFor(1),
     origin: {
-      kind: 'keeper-recovery-key-bip85',
+      kind: 'device-generated',
       version: 1,
-      ordinal: 0,
-      bip85Index: 1_000_000,
-      bip85Path: "m/83696968'/39'/0'/12'/1000000'",
+      sourceId: 'preview-device-mobile-key-1',
     },
   };
   const hardware: RecoverableHardwareSigner = {
@@ -56,6 +54,18 @@ function input(): RecoverablePolicyDraftInput {
     origin: { kind: 'keeper-server-key', sourceId: 'test-public-server-1' },
   };
   return { version: 1, network: NetworkType.TESTNET, mobile, hardware, server };
+}
+
+function inputWithRecoveryKeyOrigin(): RecoverablePolicyDraftInput {
+  const draft = input();
+  draft.mobile.origin = {
+    kind: 'keeper-recovery-key-bip85',
+    version: 1,
+    ordinal: 0,
+    bip85Index: 1_000_000,
+    bip85Path: "m/83696968'/39'/0'/12'/1000000'",
+  };
+  return draft;
 }
 
 function inheritance(): RecoverableInheritanceChoice {
@@ -107,7 +117,24 @@ describe('public Recoverable Wallet policy draft', () => {
       multisigScriptType: MultisigScriptType.DEFAULT_MULTISIG,
     });
     expect(review.candidateMiniscript).toBeNull();
+    expect(review.base.signers[0].origin).toEqual({
+      kind: 'device-generated',
+      version: 1,
+      sourceId: 'preview-device-mobile-key-1',
+    });
     expect(JSON.stringify(review)).not.toMatch(/xpriv|mnemonic|recoveryKey/i);
+  });
+
+  test('accepts explicit optional Recovery Key derivation metadata without requiring it', () => {
+    const review = buildRecoverablePolicyReview(inputWithRecoveryKeyOrigin());
+    expect(review.base.signers[0].origin).toEqual({
+      kind: 'keeper-recovery-key-bip85',
+      version: 1,
+      ordinal: 0,
+      bip85Index: 1_000_000,
+      bip85Path: "m/83696968'/39'/0'/12'/1000000'",
+    });
+    expect(review.fundable).toBe(false);
   });
 
   test('compiles an optional delayed 2-of-4 candidate before final policy review', () => {
@@ -157,7 +184,7 @@ describe('public Recoverable Wallet policy draft', () => {
     expectCode(() => buildRecoverablePolicyReview(wrongChild), 'INVALID_XPUB_ORIGIN');
   });
 
-  test('rejects private material and stale or incorrect Mobile Key metadata', () => {
+  test('rejects private material and malformed Mobile Key origin metadata', () => {
     const withPrivate = input();
     (withPrivate.mobile as any).xpriv = 'must-never-enter-a-policy-draft';
     expectCode(() => buildRecoverablePolicyReview(withPrivate), 'PRIVATE_MATERIAL');
@@ -166,9 +193,25 @@ describe('public Recoverable Wallet policy draft', () => {
     (nestedPrivate.mobile.origin as any).mnemonic = 'must-never-enter-a-policy-draft';
     expectCode(() => buildRecoverablePolicyReview(nestedPrivate), 'PRIVATE_MATERIAL');
 
-    const wrongMobilePath = input();
-    wrongMobilePath.mobile.origin.bip85Index = 10;
+    const missingGeneratedSource = input();
+    missingGeneratedSource.mobile.origin = {
+      kind: 'device-generated',
+      version: 1,
+      sourceId: ' ',
+    };
+    expectCode(() => buildRecoverablePolicyReview(missingGeneratedSource), 'INVALID_ORIGIN');
+
+    const inventedRecoveryClaim = input();
+    (inventedRecoveryClaim.mobile.origin as any).bip85Index = 1_000_000;
+    expectCode(() => buildRecoverablePolicyReview(inventedRecoveryClaim), 'UNEXPECTED_FIELD');
+
+    const wrongMobilePath = inputWithRecoveryKeyOrigin();
+    (wrongMobilePath.mobile.origin as any).bip85Index = 10;
     expectCode(() => buildRecoverablePolicyReview(wrongMobilePath), 'INVALID_MOBILE_ORIGIN');
+
+    const unsupportedOrigin = input();
+    (unsupportedOrigin.mobile.origin as any).kind = 'unknown';
+    expectCode(() => buildRecoverablePolicyReview(unsupportedOrigin), 'INVALID_MOBILE_ORIGIN');
 
     const wrongSignerPath = input();
     wrongSignerPath.mobile.derivationPath = "m/48'/0'/0'/2'";

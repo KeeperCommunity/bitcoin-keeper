@@ -1,7 +1,7 @@
 /**
  * BIP85 indexes 0–99 belong to Keeper hot wallets/MY_KEEPER signers, and
- * 100–199 belong to USDT wallets. Keep this range exclusive to testnet
- * Recoverable Wallet Mobile Keys, even when earlier wallets are deleted.
+ * 100–199 belong to USDT wallets. Keep this range exclusive to the optional
+ * Recovery Key-derived testnet Mobile Key path, even after wallet deletion.
  * A future mainnet scheme must receive its own namespace and version.
  */
 export const RECOVERABLE_MOBILE_KEY_INDEX_START = 1_000_000;

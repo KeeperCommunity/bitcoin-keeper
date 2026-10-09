@@ -2,8 +2,13 @@ import { StyleSheet, TouchableOpacity } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import useWallets from 'src/hooks/useWallets';
+import useVault from 'src/hooks/useVault';
+import { useUSDTWallets } from 'src/hooks/useUSDTWallets';
 import { useAppSelector } from 'src/store/hooks';
-import { NetworkType } from 'src/services/wallets/enums';
+import { NetworkType, VisibilityType } from 'src/services/wallets/enums';
+import NativeConfig from 'react-native-config';
+import DeviceInfo from 'react-native-device-info';
+import { shouldDeferRecoveryKeyEducation } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
 import useToastMessage from 'src/hooks/useToastMessage';
 import { useDispatch } from 'react-redux';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
@@ -38,6 +43,12 @@ function NewHomeScreen({ route }) {
   const navigation = useNavigation();
   const { addedSigner, selectedOption: selectedOptionFromRoute } = route.params || {};
   const { wallets } = useWallets({ getAll: true });
+  const { allVaults } = useVault({
+    includeArchived: false,
+    getFirst: true,
+    getHiddenWallets: false,
+  });
+  const { usdtWallets } = useUSDTWallets();
   const [electrumErrorVisible, setElectrumErrorVisible] = useState(false);
   const home_header_circle_background = ThemedColor({ name: 'home_header_circle_background' });
 
@@ -63,6 +74,20 @@ function NewHomeScreen({ route }) {
 
   const recoveryKeyStatus = recoveryKeyStatusByAppId?.[id];
   const isConfirmed = recoveryKeyStatus === 'confirmed';
+  const hasVisibleWallets =
+    wallets.some((wallet) => wallet.presentationData.visibility !== VisibilityType.HIDDEN) ||
+    allVaults.length > 0 ||
+    usdtWallets.length > 0;
+  const deferRecoveryKeyEducation = shouldDeferRecoveryKeyEducation(
+    {
+      emptyWalletFlag: NativeConfig.KEEPER_EMPTY_WALLET_ONBOARDING,
+      previewFlag: NativeConfig.KEEPER_PREVIEW,
+      testnetOnlyFlag: NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY,
+      bundleId: DeviceInfo.getBundleId(),
+    },
+    bitcoinNetworkType,
+    hasVisibleWallets
+  );
 
   const openEducationSheet = () => {
     setRecoveryKeyFlowState('education');
@@ -77,14 +102,15 @@ function NewHomeScreen({ route }) {
 
   // Show education sheet once per session when Recovery Key is not confirmed
   useEffect(() => {
-    if (!isConfirmed && !hasShownEducationSheetRef.current) {
+    if (!deferRecoveryKeyEducation && !isConfirmed && !hasShownEducationSheetRef.current) {
       openEducationSheet();
     }
-  }, [isConfirmed]);
+  }, [isConfirmed, deferRecoveryKeyEducation]);
 
   useFocusEffect(
     React.useCallback(() => {
       if (
+        !deferRecoveryKeyEducation &&
         !isConfirmed &&
         !hasShownEducationSheetRef.current &&
         selectedOption !== walletText.more
@@ -94,7 +120,7 @@ function NewHomeScreen({ route }) {
         }, 100);
         return () => clearTimeout(timer);
       }
-    }, [isConfirmed, selectedOption, walletText.more])
+    }, [deferRecoveryKeyEducation, isConfirmed, selectedOption, walletText.more])
   );
 
   const getContent = () => {

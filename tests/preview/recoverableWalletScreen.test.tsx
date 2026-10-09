@@ -27,7 +27,6 @@ jest.mock('src/components/KeeperText', () => {
 });
 
 function enterRecoveryOptions(screen) {
-  fireEvent.press(screen.getByTestId('primary-Add Wallet'));
   fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
   fireEvent.press(screen.getByTestId('primary-Continue'));
   fireEvent.press(screen.getByTestId('preview-hardware-Coldcard'));
@@ -48,8 +47,8 @@ describe('Recoverable Wallet preview on a small screen', () => {
 
   test('keeps security copy available, reaches one final review, and resumes after cancel', () => {
     const screen = render(<RecoverableWalletPreviewApp />);
-    expect(screen.getByTestId('preview-add-wallet')).toHaveTextContent('No wallets yet');
-    fireEvent.press(screen.getByTestId('primary-Add Wallet'));
+    expect(screen.getByTestId('preview-wallets-empty')).toHaveTextContent('No wallets yet');
+    expect(screen.queryByTestId('primary-Add Wallet')).toBeNull();
     fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
     expect(screen.getByTestId('preview-simulation-banner')).toHaveTextContent(
       'Simulated walkthrough'
@@ -88,17 +87,20 @@ describe('Recoverable Wallet preview on a small screen', () => {
     fireEvent.press(screen.getByTestId('primary-Finish Preview'));
     expect(screen.getByTestId('preview-complete')).toHaveTextContent('No wallet was created');
     fireEvent.press(screen.getByTestId('preview-done'));
-    expect(screen.getByTestId('wallet-creation-chooser')).toBeTruthy();
+    expect(screen.getByTestId('preview-wallets-empty')).toHaveTextContent('Seedless Wallet');
   });
 
   test('navigates the three-choice entry and keeps other paths simulated', () => {
     const screen = render(<RecoverableWalletPreviewApp />);
-    fireEvent.press(screen.getByTestId('primary-Add Wallet'));
     const chooser = screen.getByTestId('wallet-creation-chooser');
     expect(chooser).toHaveTextContent('Simple Wallet');
     expect(chooser).toHaveTextContent('Seedless Wallet');
     expect(chooser).toHaveTextContent('Advanced Wallet');
-    expect(chooser).toHaveTextContent('Your Keeper Recovery Key still matters');
+    expect(chooser).toHaveTextContent('On this phone or a signing device');
+    expect(chooser).toHaveTextContent('Any 2 to spend. No new seed words.');
+    expect(chooser).not.toHaveTextContent('Recovery Key');
+    expect(chooser).not.toHaveTextContent('How would you like to hold your bitcoin?');
+    expect(chooser).toHaveTextContent('FEATURED');
     const seedlessTitle = screen.getByText('Seedless Wallet');
     expect(seedlessTitle.props.allowFontScaling).toBe(true);
     expect(seedlessTitle.props.numberOfLines).toBeUndefined();
@@ -124,8 +126,7 @@ describe('Recoverable Wallet preview on a small screen', () => {
       'No existing wallet or key was accessed'
     );
     fireEvent.press(screen.getByTestId('preview-back'));
-    fireEvent.press(screen.getByTestId('preview-back'));
-    expect(screen.getByTestId('preview-add-wallet')).toHaveTextContent('No wallets yet');
+    expect(screen.getByTestId('preview-wallets-empty')).toHaveTextContent('No wallets yet');
   });
 
   test('the shared chooser hides Seedless Wallet unless the caller explicitly enables it', () => {

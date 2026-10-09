@@ -39,16 +39,25 @@ export interface RecoverablePublicSignerBase {
   derivationPath: string;
 }
 
+export type RecoverableMobileOrigin =
+  | {
+      kind: 'device-generated';
+      version: 1;
+      /** Public correlation only. This does not prove that native key generation or backup ran. */
+      sourceId: string;
+    }
+  | {
+      kind: 'keeper-recovery-key-bip85';
+      version: 1;
+      ordinal: number;
+      bip85Index: number;
+      bip85Path: string;
+    };
+
 export interface RecoverableMobileSigner extends RecoverablePublicSignerBase {
   role: 'mobile';
   signerType: SignerType.MOBILE_KEY;
-  origin: {
-    kind: 'keeper-recovery-key-bip85';
-    version: 1;
-    ordinal: number;
-    bip85Index: number;
-    bip85Path: string;
-  };
+  origin: RecoverableMobileOrigin;
 }
 
 export interface RecoverableHardwareSigner extends RecoverablePublicSignerBase {
@@ -208,30 +217,43 @@ function normalizePublicSigner<T extends RecoverablePublicSignerBase>(
 
 function validateMobile(signer: RecoverableMobileSigner): RecoverableMobileSigner {
   const normalized = normalizePublicSigner(signer, 'mobile');
-  if (normalized.origin && typeof normalized.origin === 'object') {
+  if (
+    normalized.signerType !== SignerType.MOBILE_KEY ||
+    normalized.derivationPath !== MOBILE_KEY_SIGNER_PATH ||
+    !normalized.origin ||
+    typeof normalized.origin !== 'object' ||
+    normalized.origin.version !== 1
+  ) {
+    fail('INVALID_MOBILE_ORIGIN', 'Mobile Key requires a supported version 1 public origin');
+  }
+
+  let origin: RecoverableMobileOrigin;
+  if (normalized.origin.kind === 'device-generated') {
+    assertOnlyKeys(normalized.origin, ['kind', 'version', 'sourceId'], 'Mobile origin');
+    origin = {
+      kind: 'device-generated',
+      version: 1,
+      sourceId: nonEmptyPublicId(normalized.origin.sourceId, 'Mobile source'),
+    };
+  } else if (normalized.origin.kind === 'keeper-recovery-key-bip85') {
     assertOnlyKeys(
       normalized.origin,
       ['kind', 'version', 'ordinal', 'bip85Index', 'bip85Path'],
       'Mobile origin'
     );
-  }
-  if (
-    normalized.signerType !== SignerType.MOBILE_KEY ||
-    normalized.derivationPath !== MOBILE_KEY_SIGNER_PATH ||
-    normalized.origin?.kind !== 'keeper-recovery-key-bip85' ||
-    normalized.origin.version !== 1
-  ) {
-    fail('INVALID_MOBILE_ORIGIN', 'Mobile Key must use the version 1 Recovery Key derivation');
-  }
-  const { ordinal, bip85Index, bip85Path } = normalized.origin;
-  if (
-    !Number.isSafeInteger(ordinal) ||
-    ordinal < 0 ||
-    ordinal > MOBILE_KEY_MAX_ORDINAL ||
-    bip85Index !== MOBILE_KEY_BIP85_START + ordinal ||
-    bip85Path !== `m/83696968'/39'/0'/12'/${bip85Index}'`
-  ) {
-    fail('INVALID_MOBILE_ORIGIN', 'Mobile Key BIP85 metadata does not match its ordinal');
+    const { ordinal, bip85Index, bip85Path } = normalized.origin;
+    if (
+      !Number.isSafeInteger(ordinal) ||
+      ordinal < 0 ||
+      ordinal > MOBILE_KEY_MAX_ORDINAL ||
+      bip85Index !== MOBILE_KEY_BIP85_START + ordinal ||
+      bip85Path !== `m/83696968'/39'/0'/12'/${bip85Index}'`
+    ) {
+      fail('INVALID_MOBILE_ORIGIN', 'Mobile Key BIP85 metadata does not match its ordinal');
+    }
+    origin = { kind: 'keeper-recovery-key-bip85', version: 1, ordinal, bip85Index, bip85Path };
+  } else {
+    fail('INVALID_MOBILE_ORIGIN', 'Unsupported Mobile Key public origin');
   }
   return {
     role: 'mobile',
@@ -239,7 +261,7 @@ function validateMobile(signer: RecoverableMobileSigner): RecoverableMobileSigne
     masterFingerprint: normalized.masterFingerprint,
     xpub: normalized.xpub,
     derivationPath: normalized.derivationPath,
-    origin: { kind: 'keeper-recovery-key-bip85', version: 1, ordinal, bip85Index, bip85Path },
+    origin,
   };
 }
 

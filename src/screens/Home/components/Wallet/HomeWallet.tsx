@@ -3,8 +3,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import NativeConfig from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
-import DashedCta from 'src/components/DashedCta';
-import Buttons from 'src/components/Buttons';
+import WalletCreationChooser from 'src/components/WalletCreationChooser';
 import WalletCard from './WalletCard';
 import Colors from 'src/theme/Colors';
 import useWallets from 'src/hooks/useWallets';
@@ -13,9 +12,9 @@ import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { Vault } from 'src/services/wallets/interfaces/vault';
 
 import useWalletAsset from 'src/hooks/useWalletAsset';
-import { EntityKind, NetworkType, VisibilityType, WalletType } from 'src/services/wallets/enums';
+import { EntityKind, NetworkType, VisibilityType } from 'src/services/wallets/enums';
 import { isEmptyWalletOnboardingEnabled } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
-import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import KeeperModal from 'src/components/KeeperModal';
 import Text from 'src/components/KeeperText';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
@@ -27,13 +26,11 @@ import CollaborativeWalletIcon from 'src/assets/images/collaborative_vault_white
 import { useAppSelector } from 'src/store/hooks';
 import { resetCollaborativeSession } from 'src/store/reducers/vaults';
 import { useDispatch } from 'react-redux';
-import { autoSyncWallets, refreshWallets } from 'src/store/sagaActions/wallets';
+import { autoSyncWallets } from 'src/store/sagaActions/wallets';
 import { RefreshControl } from 'react-native';
 import { ELECTRUM_CLIENT } from 'src/services/electrum/client';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 import CircleIconWrapper from 'src/components/CircleIconWrapper';
-import ThemedColor from 'src/components/ThemedColor/ThemedColor';
-import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import BitCoinWalletLogo from 'src/assets/images/bitcoin-wallet-logo.svg';
 import UsdtWalletLogo from 'src/assets/images/usdt-wallet-logo.svg';
@@ -49,7 +46,6 @@ import TickIcon from 'src/assets/images/icon_tick.svg';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import Fab from 'src/components/Fab';
 import AddIcon from 'src/assets/images/add_white.svg';
-import AddWalletIllustration from 'src/assets/images/addWallet_illustration.svg';
 import { useUTXOSpendability } from 'src/hooks/useUTXOSpendability';
 import { clearDustToast } from 'src/store/reducers/utxos';
 
@@ -110,7 +106,6 @@ function WalletCardItem({
 
 const HomeWallet = () => {
   const { colorMode } = useColorMode();
-  const isDarkMode = colorMode === 'dark';
   const navigation = useNavigation();
   const { wallets } = useWallets({ getAll: true });
   const { translations } = useContext(LocalizationContext);
@@ -153,15 +148,9 @@ const HomeWallet = () => {
       bundleId: DeviceInfo.getBundleId(),
     });
   const showWalletEmptyState = usePreviewWalletChooser && allWallets.length === 0;
-  const openWalletChoice = () =>
-    navigation.dispatch(CommonActions.navigate({ name: 'WalletChoice' }));
+  const openWalletChoice = (initialStage?: 'simple' | 'seedless') =>
+    navigation.dispatch(CommonActions.navigate({ name: 'WalletChoice', params: { initialStage } }));
   const [isShowAmount, setIsShowAmount] = useState(false);
-  const DashedCta_hexagonBackgroundColor = ThemedColor({
-    name: 'DashedCta_hexagonBackgroundColor',
-  });
-  const dashed_CTA_background = ThemedColor({
-    name: 'dashed_CTA_background',
-  });
   const { showToast } = useToastMessage();
 
   const pendingDustToast = useAppSelector((state: any) => state.utxos.pendingDustToast);
@@ -308,14 +297,23 @@ const HomeWallet = () => {
         ListEmptyComponent={
           showWalletEmptyState ? (
             <Box style={styles.emptyWalletContainer} testID="wallets-empty-state">
-              <AddWalletIllustration width={wp(130)} height={hp(130)} />
               <Text color={`${colorMode}.primaryText`} style={styles.emptyWalletTitle} semiBold>
                 No wallets yet
               </Text>
-              <Text color={`${colorMode}.secondaryText`} style={styles.emptyWalletBody}>
-                Choose how you want to hold your bitcoin. A Hot Wallet has not been created.
-              </Text>
-              <Buttons primaryText="Add Wallet" primaryCallback={openWalletChoice} fullWidth />
+              <WalletCreationChooser
+                onSimpleWallet={() => openWalletChoice('simple')}
+                onSeedlessWallet={() => openWalletChoice('seedless')}
+                onAdvancedWallet={() =>
+                  navigation.dispatch(CommonActions.navigate({ name: 'AddNewWallet' }))
+                }
+                onImportWallet={() =>
+                  navigation.dispatch(
+                    CommonActions.navigate({ name: 'VaultConfigurationCreation' })
+                  )
+                }
+                showSeedless
+                seedlessBadge="TESTNET PREVIEW"
+              />
             </Box>
           ) : null
         }
@@ -474,13 +472,12 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   emptyWalletContainer: {
-    alignItems: 'center',
-    paddingTop: hp(30),
+    paddingTop: hp(10),
     paddingHorizontal: wp(18),
-    gap: hp(14),
+    paddingBottom: hp(28),
+    gap: hp(8),
   },
-  emptyWalletTitle: { fontSize: 20, textAlign: 'center' },
-  emptyWalletBody: { fontSize: 15, lineHeight: 23, textAlign: 'center' },
+  emptyWalletTitle: { fontSize: 22 },
   addWalletOptionsList: {
     gap: wp(15),
     marginBottom: hp(10),

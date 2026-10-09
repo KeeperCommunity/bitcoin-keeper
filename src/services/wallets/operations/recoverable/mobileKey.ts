@@ -30,7 +30,11 @@ export interface RecoverableMobileKeyPublic {
   xpub: string;
 }
 
-/** Derive public signer details without returning or persisting the child words/private key. */
+/**
+ * Optional Recovery Key-derived signer path. Seedless setup can instead use an
+ * independent device-generated Mobile Key and does not need this helper.
+ * Return only public signer details; never return or persist child words.
+ */
 export const deriveRecoverableMobileKeyPublic = async (
   recoveryKey: string,
   ordinal: number

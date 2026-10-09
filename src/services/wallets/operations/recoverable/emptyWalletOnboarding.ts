@@ -1,4 +1,5 @@
 import { getPreviewRuntime } from 'src/preview/recoverable-wallet/previewRuntime';
+import { NetworkType } from 'src/services/wallets/enums';
 
 export interface EmptyWalletOnboardingGate {
   emptyWalletFlag?: string;
@@ -29,3 +30,13 @@ export const shouldRestoreFallbackMobileWallet = (
   hasWalletImages: boolean,
   hasVaultImages: boolean
 ): boolean => shouldAutomaticallyCreateMobileWallet(gate) && !hasWalletImages && !hasVaultImages;
+
+/** Keep the three-choice first-run landing visible until a wallet exists. */
+export const shouldDeferRecoveryKeyEducation = (
+  gate: EmptyWalletOnboardingGate,
+  activeNetwork: NetworkType,
+  hasVisibleWallets: boolean
+): boolean =>
+  !hasVisibleWallets &&
+  activeNetwork === NetworkType.TESTNET &&
+  isEmptyWalletOnboardingEnabled(gate);

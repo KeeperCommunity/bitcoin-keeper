@@ -13,8 +13,9 @@ import { NetworkType } from 'src/services/wallets/enums';
 import { isEmptyWalletOnboardingEnabled } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
 
 type ChoiceStage = 'chooser' | 'simple' | 'hot' | 'cold' | 'seedless';
+type WalletChoiceRoute = { params?: { initialStage?: 'simple' | 'seedless' } };
 
-export default function WalletChoiceScreen() {
+export default function WalletChoiceScreen({ route }: { route?: WalletChoiceRoute }) {
   const navigation = useNavigation<any>();
   const { colorMode } = useColorMode();
   const network = useAppSelector((state) => state.settings.bitcoinNetworkType);
@@ -26,18 +27,28 @@ export default function WalletChoiceScreen() {
       testnetOnlyFlag: NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY,
       bundleId: DeviceInfo.getBundleId(),
     });
-  const [stage, setStage] = useState<ChoiceStage>('chooser');
+  const initialStage =
+    route?.params?.initialStage === 'simple' || route?.params?.initialStage === 'seedless'
+      ? route.params.initialStage
+      : undefined;
+  const [stage, setStage] = useState<ChoiceStage>(enabled ? initialStage || 'chooser' : 'chooser');
 
   useEffect(() => {
     if (!enabled) navigation.goBack();
   }, [enabled, navigation]);
 
+  useEffect(() => {
+    if (enabled) setStage(initialStage || 'chooser');
+  }, [enabled, initialStage]);
+
   if (!enabled) return null;
 
   const back = () => {
     if (stage === 'hot' || stage === 'cold') setStage('simple');
-    else if (stage === 'simple' || stage === 'seedless') setStage('chooser');
-    else navigation.goBack();
+    else if (stage === 'simple' || stage === 'seedless') {
+      if (initialStage) navigation.goBack();
+      else setStage('chooser');
+    } else navigation.goBack();
   };
 
   const title =

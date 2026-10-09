@@ -16,7 +16,7 @@ export interface MobileKeyOrdinalReservation {
 /** Must include every historical reservation, including deleted wallets. */
 export interface MobileKeyOrdinalLedger {
   complete: boolean;
-  /** Persisted high-water mark; -1 means no Mobile Key has ever been reserved. */
+  /** Persisted BIP85 high-water mark; -1 means no derived key has been reserved. */
   highWaterOrdinal: number;
   records: readonly MobileKeyOrdinalReservation[];
   /** Optional durable reservations whose wallet record is not available. */
@@ -40,7 +40,9 @@ const isValidOrdinal = (ordinal: number): boolean =>
   Number.isSafeInteger(ordinal) && ordinal >= 0 && ordinal <= RECOVERABLE_MOBILE_KEY_MAX_ORDINAL;
 
 /**
- * Propose a fresh ordinal from a complete, persisted reservation ledger.
+ * Propose a fresh ordinal for the optional Recovery Key-derived path from a
+ * complete, persisted reservation ledger. Device-generated keys use no BIP85
+ * ordinal. This allocator is not wired to wallet creation yet.
  * The caller must atomically persist reservationToPersist before deriving a
  * new Mobile Key; this pure function does not reserve storage by itself.
  */

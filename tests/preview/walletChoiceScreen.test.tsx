@@ -79,9 +79,28 @@ describe('guarded Wallets chooser route', () => {
 
   test('fails closed if the active network is not testnet', () => {
     (useAppSelector as jest.Mock).mockReturnValue(NetworkType.MAINNET);
-    const screen = render(<WalletChoiceScreen />);
+    const screen = render(<WalletChoiceScreen route={{ params: { initialStage: 'seedless' } }} />);
     expect(screen.queryByTestId('wallet-creation-chooser')).toBeNull();
+    expect(screen.queryByTestId('wallet-choice-seedless-unavailable')).toBeNull();
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  test('opens a direct empty-state choice and returns to Wallets on Back', () => {
+    const simple = render(<WalletChoiceScreen route={{ params: { initialStage: 'simple' } }} />);
+    expect(simple.getByTestId('wallet-choice-simple-options')).toHaveTextContent('Hot Wallet');
+    expect(simple.queryByTestId('wallet-creation-chooser')).toBeNull();
+    fireEvent.press(simple.getByTestId('wallet-choice-back'));
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    simple.unmount();
+
+    const seedless = render(
+      <WalletChoiceScreen route={{ params: { initialStage: 'seedless' } }} />
+    );
+    expect(seedless.getByTestId('wallet-choice-seedless-unavailable')).toHaveTextContent(
+      'separate Keeper Preview app'
+    );
+    fireEvent.press(seedless.getByTestId('wallet-choice-back'));
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(2);
   });
 
   test('offers guarded choices without opening an unverified Seedless or Simple flow', () => {

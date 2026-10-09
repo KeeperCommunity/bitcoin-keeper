@@ -9,7 +9,6 @@ type WalletChoiceCardProps = {
   icon: string;
   description: string;
   eyebrow?: string;
-  note?: string;
   highlighted?: boolean;
   testID: string;
   onPress: () => void;
@@ -47,7 +46,6 @@ export function WalletChoiceCard({
   icon,
   description,
   eyebrow,
-  note,
   highlighted = false,
   testID,
   onPress,
@@ -118,11 +116,6 @@ export function WalletChoiceCard({
           </View>
         )}
         <ScaledText color={text}>{description}</ScaledText>
-        {note && (
-          <ScaledText color={accent} style={styles.note}>
-            {note}
-          </ScaledText>
-        )}
       </View>
     </Pressable>
   );
@@ -145,14 +138,11 @@ export default function WalletCreationChooser({
 
   return (
     <View testID="wallet-creation-chooser" style={styles.chooserSection}>
-      <ScaledText color={muted} style={styles.chooserIntro}>
-        How would you like to hold your bitcoin?
-      </ScaledText>
       <WalletChoiceCard
         title="Simple Wallet"
         icon="◉"
         eyebrow="SINGLE KEY"
-        description="One key to spend. Choose a Hot Wallet or Cold Wallet next."
+        description="On this phone or a signing device."
         testID="wallet-choice-simple"
         onPress={onSimpleWallet}
       />
@@ -162,8 +152,7 @@ export default function WalletCreationChooser({
             title="Seedless Wallet"
             icon="✦"
             eyebrow={seedlessBadge}
-            description="Mobile + Hardware + Server Key. 2 of 3 keys to spend. No additional wallet seed words to keep."
-            note="Your Keeper Recovery Key still matters."
+            description="Phone, hardware, Server Key. Any 2 to spend. No new seed words."
             highlighted
             testID="wallet-choice-seedless"
             onPress={onSeedlessWallet}
@@ -179,7 +168,7 @@ export default function WalletCreationChooser({
         title="Advanced Wallet"
         icon="✣"
         eyebrow="CUSTOM MULTISIG"
-        description="Custom keys, Miniscript and full control over your wallet policy."
+        description="Choose your keys and Miniscript rules."
         testID="wallet-choice-advanced"
         onPress={onAdvancedWallet}
       />
@@ -211,7 +200,6 @@ export default function WalletCreationChooser({
 const styles = StyleSheet.create({
   bodyText: { fontSize: 15, lineHeight: 23 },
   chooserSection: { gap: 14, paddingTop: 10 },
-  chooserIntro: { marginBottom: 4 },
   choiceCard: { borderRadius: 16, padding: 16, gap: 9 },
   choiceHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   choiceIcon: {
@@ -241,6 +229,5 @@ const styles = StyleSheet.create({
   importAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 6 },
   importText: { fontWeight: '600' },
   resumeNote: { fontSize: 13, lineHeight: 20, marginTop: -3 },
-  note: { fontSize: 13, lineHeight: 20 },
   previewNotice: { fontSize: 13, lineHeight: 20, textAlign: 'center' },
 });

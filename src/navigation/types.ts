@@ -127,7 +127,7 @@ export type AppStackParams = {
   AssignSignerType: undefined;
   AddWallet: undefined;
   AddNewWallet: undefined;
-  WalletChoice: undefined;
+  WalletChoice: { initialStage?: 'simple' | 'seedless' } | undefined;
   CanaryWallets: undefined;
   AssistedKeys: undefined;
   SafeKeepingTips: undefined;
