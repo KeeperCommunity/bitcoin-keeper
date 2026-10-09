@@ -41,7 +41,7 @@ From this app checkout's root:
 ./dev/local-backend/dev doctor
 ./dev/local-backend/dev up
 ./dev/local-backend/dev env
-yarn install --non-interactive
+yarn install --frozen-lockfile --non-interactive
 ```
 
 `up` fetches the exact backend Git revisions, applies the local development adapters, builds containers, waits for readiness and runs real disposable API checks. `env` creates `.env.local` with restrictive permissions; it refuses to overwrite an existing different configuration. Existing `.env` and production files are not used or modified.

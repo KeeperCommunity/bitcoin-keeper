@@ -263,7 +263,7 @@ Apple Silicon Mac, macOS 26.6.2, Xcode 26.4/iOS 26.4 simulator, Node 25.9.0, Yar
 | Mainnet and hosted Mongo configuration rejection | PASS for relay and signing |
 | Actual container network/port inspection | PASS, backend network internal, no database port published, gateway bound only to loopback |
 | Rerun setup, existing env preservation, adapter tampering, unknown checkout preservation, duplicate ports | PASS, four regression tests plus real repeated bootstrap |
-| Fresh mobile Yarn install on the historical v2.5.15 acceptance tag | PASS with frozen mode at that source state; current `sprint` has unmatched lint-plugin lock selectors, so the README uses CI's non-frozen install command |
+| Fresh mobile Yarn install on the historical v2.5.15 acceptance tag | PASS with frozen mode at that source state. The source PR's `sprint` lock had unmatched lint-plugin selectors; the R4 combined candidate includes a corrected lock and uses frozen install, which passed in hosted diagnostic CI. |
 | Fresh CocoaPods installation | PASS, 142 pods; see path-dependent checksum note below |
 | Fresh Android `assembleDevelopmentDebug` | PASS, 976 tasks executed, 5m17s |
 | Android installed local configuration | PASS, development environment and alternate local backend ports verified in generated BuildConfig |
