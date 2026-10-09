@@ -198,6 +198,8 @@ export function inspectBackup(
         throw new Error('Backup changed during check');
       }
     };
+    // The snapshot reader updates this stage inside an async closure.
+    const stageAtFailure = (): InspectionStage => stage;
     try {
       notify('checking');
       const app = clone(dbManager.getObjectByIndex(RealmSchema.KeeperApp));
@@ -323,6 +325,7 @@ export function inspectBackup(
       notify('verified');
       return 'verified';
     } catch (error) {
+      const failedStage = stageAtFailure();
       // A routine incremental write can be queued while a read-only check is
       // running. A transient snapshot request can also fail while the backup is
       // healthy. Retry either case once behind queued writes, within the same
@@ -335,7 +338,7 @@ export function inspectBackup(
       }
       const queuedWriteChanged = changedRevision && backupQueuedRevision(appId) >= changedRevision;
       const transientSnapshotFailure =
-        stage === 'snapshot-request' &&
+        failedStage === 'snapshot-request' &&
         error instanceof BackupRequestError &&
         ['http-5xx', 'network', 'timeout'].includes(error.category);
       if (
@@ -350,9 +353,9 @@ export function inspectBackup(
       // backup data, account identifiers, headers, or request bodies.
       const category = error instanceof BackupRequestError ? error.category : 'non-transport';
       const diagnosticStage =
-        stage === 'snapshot-decryption' && error instanceof BackupSnapshotValidationError
+        failedStage === 'snapshot-decryption' && error instanceof BackupSnapshotValidationError
           ? 'snapshot-validation'
-          : stage;
+          : failedStage;
       globalThis.console.warn(
         'Assisted Server Backup check failed at stage:',
         diagnosticStage,

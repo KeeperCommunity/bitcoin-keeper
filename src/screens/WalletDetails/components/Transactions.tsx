@@ -46,11 +46,11 @@ function TransactionItem({ item, wallet, navigation, index }) {
 
 function Transactions({
   transactions,
-  setPullRefresh,
+  setPullRefresh = undefined,
   pullRefresh,
   currentWallet,
-  setInitialLoading,
-  onBitcoinRefresh,
+  setInitialLoading = undefined,
+  onBitcoinRefresh = undefined,
 }) {
   const navigation = useNavigation();
   const { translations } = useContext(LocalizationContext);

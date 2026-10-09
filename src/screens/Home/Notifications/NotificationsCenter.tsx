@@ -299,7 +299,7 @@ const Card = memo(({ uai }: CardProps) => {
               text: common.View,
               cta: () => {
                 dispatch(uaiActioned({ uaiId: uai.id, action: false }));
-                navigtaion.navigate('AssistedBackupStatus');
+                navigtaion.dispatch(CommonActions.navigate('AssistedBackupStatus'));
               },
             },
           },

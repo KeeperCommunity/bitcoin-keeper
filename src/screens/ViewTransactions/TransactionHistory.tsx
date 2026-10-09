@@ -34,7 +34,7 @@ function TransactionHistory({ route }) {
     collection.filtered('id == $0', routeWallet.id)
   )[0];
   const record = routeWallet.entityKind === EntityKind.VAULT ? vaultRecord : walletRecord;
-  const wallet = record ? (getJSONFromRealmObject(record) as Wallet | Vault) : routeWallet;
+  const wallet = record ? (getJSONFromRealmObject(record) as unknown as Wallet | Vault) : routeWallet;
   const { refreshing: pullRefresh, refresh } = useWalletRefresh();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();

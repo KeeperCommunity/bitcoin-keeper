@@ -163,7 +163,7 @@ const HomeScreenHeader: React.FC<HomeScreenHeaderProps> = ({
     },
     [uaiType.SERVER_BACKUP_FAILURE]: () => {
       dispatch(uaiActioned({ uaiId: localLatestUnseenUai.id, action: false }));
-      navigation.navigate('AssistedBackupStatus');
+      navigation.dispatch(CommonActions.navigate('AssistedBackupStatus'));
     },
   };
 

@@ -50,7 +50,7 @@ function setActiveAccount(appId: string, enabled = true) {
 
 function writeHistory(action) {
   const appId = action.originAppId;
-  const worker = updateVersionHistoryWorker(action);
+  const worker = updateVersionHistoryWorker(action) as Generator<any, any, any>;
   expect(worker.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
   const choice = worker.next({ id: appId } as any).value as any;
   expect(choice.type).toBe('SELECT');
@@ -67,7 +67,7 @@ function writeHistory(action) {
 
 function recoverWithoutDuplicateHistory(action) {
   const appId = action.originAppId;
-  const worker = updateVersionHistoryWorker(action);
+  const worker = updateVersionHistoryWorker(action) as Generator<any, any, any>;
   expect(worker.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
   expect((worker.next({ id: appId } as any).value as any).type).toBe('SELECT');
   expect(worker.next(true).value).toEqual(
@@ -104,7 +104,11 @@ describe('Version History retains recovery provenance through required upgrades'
   test('recovery does not skip any of the legacy migrations', () => {
     const trace = (isRecovery: boolean) => {
       const yielded: any[] = [];
-      const upgrade = applyUpgradeSequence({ previousVersion: '1.0.4', newVersion, isRecovery });
+      const upgrade = applyUpgradeSequence({
+        previousVersion: '1.0.4',
+        newVersion,
+        isRecovery,
+      }) as Generator<any, any, any>;
       let step = upgrade.next();
       while (!step.done) {
         yielded.push(step.value);
