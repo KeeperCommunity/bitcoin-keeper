@@ -46,6 +46,8 @@ RUN curl -LfsS "https://dl.google.com/android/repository/commandlinetools-linux-
 # repository2-1.xml. SHA-256 was computed from downloads matching that index.
 # The platform package path also has extension variants; use the base rev 2
 # archive explicitly instead of resolving the moving platforms;android-36 path.
+# Some ZIP entries have owner-only read permissions. Make the SDK readable by
+# the non-root user that builds the app without changing any file bytes.
 RUN set -euo pipefail \
     && download_checked_sdk_archive() { \
          local archive="$1" expected_sha256="$2" destination="$3"; \
@@ -62,7 +64,8 @@ RUN set -euo pipefail \
     && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27" "${ANDROID_SDK_ROOT}/ndk/27.0.12077973" \
     && download_checked_sdk_archive android-ndk-r27b-linux.zip 33e16af1a6bbabe12cad54b2117085c07eab7e4fa67cdd831805f0e94fd826c1 "${ANDROID_SDK_ROOT}/ndk" \
     && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27b" "${ANDROID_SDK_ROOT}/ndk/27.1.12297006" \
-    && download_checked_sdk_archive cmake-3.22.1-linux.zip 9196644852a978012caf7a4067ba1898debf6cc204c3341562771e31080d6869 "${ANDROID_SDK_ROOT}/cmake/3.22.1"
+    && download_checked_sdk_archive cmake-3.22.1-linux.zip 9196644852a978012caf7a4067ba1898debf6cc204c3341562771e31080d6869 "${ANDROID_SDK_ROOT}/cmake/3.22.1" \
+    && chmod -R a+rX "${ANDROID_SDK_ROOT}"
 
 # The archives have source.properties but no package.xml. SDK tooling needs
 # local package metadata for side-by-side NDK and CMake detection in particular.
