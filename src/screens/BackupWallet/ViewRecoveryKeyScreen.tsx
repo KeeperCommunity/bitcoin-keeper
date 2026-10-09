@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -13,18 +13,11 @@ import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import Buttons from 'src/components/Buttons';
 import ModalWrapper from 'src/components/Modal/ModalWrapper';
 import ConfirmSeedWord from 'src/components/SeedWordBackup/ConfirmSeedWord';
-import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
-import { backupAllSignersAndVaults, seedBackedUp } from 'src/store/sagaActions/bhr';
+import { seedBackedUp } from 'src/store/sagaActions/bhr';
 import { useDispatch } from 'react-redux';
 import { setRecoveryKeyStatus } from 'src/store/reducers/account';
-import { useAppSelector } from 'src/store/hooks';
 import useToastMessage from 'src/hooks/useToastMessage';
 import TickIcon from 'src/assets/images/icon_tick.svg';
-import {
-  setAutomaticCloudBackup,
-  setBackupAllFailure,
-  setBackupAllSuccess,
-} from 'src/store/reducers/bhr';
 
 type KeeperApp = {
   id: string;
@@ -33,7 +26,7 @@ type KeeperApp = {
 
 export const ViewRecoveryKeyScreen = ({ navigation }) => {
   const { colorMode } = useColorMode();
-  const { home: homeTxt, common, BackupWallet: backupTxt, recoveryBackup } = useContext(LocalizationContext).translations;
+  const { home: homeTxt, common, BackupWallet: backupTxt } = useContext(LocalizationContext).translations;
   const { primaryMnemonic, id: appId } = useQuery(RealmSchema.KeeperApp).map(
     getJSONFromRealmObject
   )[0] as KeeperApp;
@@ -41,26 +34,8 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
   const [showWordIndex, setShowWordIndex] = useState<string | number>('');
   const seedTextColor = ThemedColor({ name: 'seedTextColor' });
   const [confirmSeedModal, setConfirmSeedModal] = useState(false);
-  const [loader, setLoader] = useState(false);
   const dispatch = useDispatch();
-  const { backupAllFailure, backupAllSuccess } = useAppSelector((state) => state.bhr);
   const { showToast } = useToastMessage();
-
-  useEffect(() => {
-    if (backupAllSuccess) {
-      dispatch(setBackupAllSuccess(false));
-      dispatch(setBackupAllFailure(false));
-      dispatch(setAutomaticCloudBackup(true));
-      setLoader(false);
-      showToast(backupTxt.recoveryKeyBackedUpSuccessfully, <TickIcon />);
-      navigation.goBack();
-    }
-    if (backupAllFailure) {
-      dispatch(setBackupAllFailure(false));
-      setLoader(false);
-      showToast(recoveryBackup.unverified.title);
-    }
-  }, [backupAllSuccess, backupAllFailure]);
 
   const SeedCard = ({ item, index }: { item; index }) => {
     return (
@@ -144,14 +119,13 @@ export const ViewRecoveryKeyScreen = ({ navigation }) => {
             words={words}
             confirmBtnPress={() => {
               setConfirmSeedModal(false);
-              setLoader(true);
               dispatch(seedBackedUp());
               dispatch(setRecoveryKeyStatus({ appId, status: 'confirmed' }));
-              dispatch(backupAllSignersAndVaults());
+              showToast(backupTxt.recoveryKeyBackedUpSuccessfully, <TickIcon />);
+              navigation.goBack();
             }}
           />
         </ModalWrapper>
-        <ActivityIndicatorView visible={loader} />
       </Box>
     </ScreenWrapper>
   );

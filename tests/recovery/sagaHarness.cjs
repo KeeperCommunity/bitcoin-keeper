@@ -79,12 +79,18 @@ function fixture(options = {}) {
   const state = {
     storage: { appId },
     bhr: {
-      automaticCloudBackup: true,
+      automaticCloudBackup: false,
+      automaticCloudBackupByAppId: {
+        [appId]: options.bhr?.automaticCloudBackup !== false,
+        ...options.bhr?.automaticCloudBackupByAppId,
+      },
       pendingAllBackup: false,
+      pendingAllBackupByAppId: {},
       backupRepairCompletedByAppId: { [appId]: true },
       ...options.bhr,
     },
-    settings: { bitcoinNetworkType: NetworkType.MAINNET },
+    settings: { bitcoinNetworkType: NetworkType.MAINNET, bitcoinNetwork: NetworkType.MAINNET },
+    notifications: { fcmToken: 'disposable-token' },
     account: account.default(
       undefined,
       account.setTempDetails({ hash: 'fixture', realmId: 'fixture', accountIdentifier: '' })
@@ -115,6 +121,8 @@ function fixture(options = {}) {
   const scope = {
     ...effects,
     markBackupMutation: () => {},
+    store: { getState: () => state },
+    isAutomaticCloudBackupEnabled: (backup, id) => !!backup.automaticCloudBackupByAppId?.[id],
     ...encryption,
     ...enums,
     ...account,
@@ -156,6 +164,10 @@ function fixture(options = {}) {
       },
       deleteObjectById: (schema, id) => {
         collections[schema] = collections[schema].filter((row) => String(row.id) !== String(id));
+        return true;
+      },
+      deleteObjectByPrimaryKey: (schema, key, value) => {
+        collections[schema] = collections[schema].filter((row) => String(row[key]) !== String(value));
         return true;
       },
       updateObjectById: (schema, id, patch) => {
@@ -207,6 +219,8 @@ function fixture(options = {}) {
     config: { BIP85_IMAGE_ENCRYPTIONKEY_DERIVATION_PATH: 'fixture', isDevMode: () => false },
     WalletUtilities: { getFingerprintFromSeed: () => 'AAAAAAAA' },
     SubscriptionTier: { L1: 'L1', L3: 'L3' },
+    SigningServer: { updatePolicy: async () => ({ updated: true }) },
+    Alert: { alert: () => {} },
     AppSubscriptionLevel: { L1: 1, L3: 3 },
     BackupType: { SEED: 'SEED' },
     BackupAction: { SEED_BACKUP_CONFIRMED: 'confirmed' },
@@ -227,7 +241,10 @@ function fixture(options = {}) {
     'setBackupAllSuccess',
     'setBackupAllFailure',
     'setBackupAllLoading',
+    'setDeleteBackupSuccess',
+    'setDeleteBackupFailure',
     'setPendingAllBackup',
+    'setAutomaticCloudBackup',
     'setHomeToastMessage',
     'setRelayWalletUpdateLoading',
     'relayWalletUpdateSuccess',
@@ -235,6 +252,14 @@ function fixture(options = {}) {
     'setRelaySignersUpdateLoading',
     'relaySignersUpdateSuccess',
     'relaySignersUpdateFail',
+    'hideDeletingKeyModal',
+    'showDeletingKeyModal',
+    'showKeyDeletedSuccessModal',
+    'setSignerPolicyError',
+    'updateDelayedPolicyUpdate',
+    'setRelayVaultUpdateLoading',
+    'relayVaultUpdateSuccess',
+    'relayVaultUpdateFail',
     'setAppImageError',
     'setSeedConfirmed',
     'setBackupType',
@@ -259,7 +284,11 @@ function fixture(options = {}) {
       'sanitizeSeedKeyForBackup', 'sanitizeVaultSignersForSeedKeyBackup',
     ]) + '\n' +
     functions('src/store/sagas/bhr.ts', [
+      'currentBackupAppId',
       'deleteAppImageEntityWorker',
+      'deleteVaultImageWorker',
+      'deleteBackupWorker',
+      'backupAllSignersAndVaultsWorker',
       'checkBackupCondition',
       'setServerBackupFailed',
       'updateAppImageWorker',
@@ -270,7 +299,10 @@ function fixture(options = {}) {
     ]) +
     '\n' +
     functions('src/store/sagas/wallets.ts', [
+      'currentWalletAccountId', 'assertWalletAccount',
       'addNewWalletsWorker', 'addSigningDeviceWorker', 'mergeSimilarKeysWorker',
+      'deleteSigningDeviceWorker', 'deleteVaultWorker',
+      'generateNewExternalAddressWorker', 'updateSignerPolicyWorker',
       'updateVaultSignerXprivWorker', 'updateSignerDetailsWorker',
       'updateKeyDetailsWorker', 'autoWalletsSyncWorker',
     ]);
@@ -286,7 +318,11 @@ function fixture(options = {}) {
           actions.push(action);
           if (action.type === 'setBackupRepairCompleted')
             state.bhr.backupRepairCompletedByAppId[action.payload] = true;
-          if (action.type === 'setPendingAllBackup') state.bhr.pendingAllBackup = action.payload;
+          if (action.type === 'setPendingAllBackup') {
+            const { appId: pendingAppId, pending } = action.payload;
+            state.bhr.pendingAllBackupByAppId[pendingAppId] = pending;
+            state.bhr.pendingAllBackup = pending;
+          }
           state.account = account.default(state.account, action);
         },
       },

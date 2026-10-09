@@ -70,7 +70,7 @@ import {
   sanitizeSeedKeyForBackup,
 } from 'src/utils/utilities';
 import { COLLABORATIVE_SCHEME } from 'src/screens/SigningDevices/SetupCollaborativeWallet';
-import { RootState } from '../store';
+import { RootState, store } from '../store';
 import { checkBackupFreshness } from '../sagaActions/bhr';
 
 import {
@@ -131,6 +131,7 @@ import {
   showDeletingKeyModal,
   hideDeletingKeyModal,
   showKeyDeletedSuccessModal,
+  isAutomaticCloudBackupEnabled,
 } from '../reducers/bhr';
 import { setElectrumNotConnectedErr } from '../reducers/login';
 import { connectToNodeWorker } from './network';
@@ -140,6 +141,21 @@ import { updateDelayedPolicyUpdate } from '../reducers/storage';
 import { accountNoFromDerivationPath } from 'src/utils/service-utilities/utils';
 import { classifyDustByAddress } from 'src/services/wallets/operations/dustClassification';
 import { setPendingDustToast } from '../reducers/utxos';
+
+const currentWalletAccountId = (): string | undefined => {
+  try {
+    return (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp)?.id;
+  } catch {
+    return undefined;
+  }
+};
+const assertWalletAccount = (appId: string) => {
+  if (
+    !appId ||
+    currentWalletAccountId() !== appId ||
+    store.getState().storage.appId !== appId
+  ) throw new Error('Account changed');
+};
 
 export interface NewVaultDetails {
   name?: string;
@@ -210,10 +226,18 @@ function* addNewWallet(
   }
 }
 
-export function* addNewWalletsWorker({ payload: newWalletInfo }: { payload: NewWalletInfo[] }) {
+export function* addNewWalletsWorker({
+  payload: newWalletInfo,
+  originAppId,
+}: {
+  payload: NewWalletInfo[];
+  originAppId?: string;
+}) {
   try {
     const wallets: Wallet[] = [];
     const app: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+    const sourceAppId = originAppId || app?.id;
+    assertWalletAccount(sourceAppId);
 
     for (const { walletType, walletDetails, importDetails } of newWalletInfo) {
       const wallet: Wallet = yield call(
@@ -228,8 +252,12 @@ export function* addNewWalletsWorker({ payload: newWalletInfo }: { payload: NewW
 
     if (wallets.length > 0) {
       yield put(setRelayWalletUpdateLoading(true));
-      const response = yield call(updateAppImageWorker, { payload: { wallets } });
+      const response = yield call(updateAppImageWorker, {
+        payload: { wallets },
+        originAppId: sourceAppId,
+      });
       if (response.updated) {
+        assertWalletAccount(sourceAppId);
         yield call(dbManager.createObjectBulk, RealmSchema.Wallet, wallets);
         yield put(relayWalletUpdateSuccess());
         return true;
@@ -260,7 +288,9 @@ export interface NewVaultInfo {
 
 export function* addNewVaultWorker({
   payload,
+  originAppId,
 }: {
+  originAppId?: string;
   payload: {
     newVaultInfo?: NewVaultInfo;
     isMigrated?: boolean;
@@ -268,6 +298,8 @@ export function* addNewVaultWorker({
   };
 }) {
   try {
+    const sourceAppId = originAppId || currentWalletAccountId();
+    assertWalletAccount(sourceAppId);
     const { newVaultInfo, isMigrated, oldVaultId } = payload;
     const { bitcoinNetworkType: networkType } = yield select((state: RootState) => state.settings);
 
@@ -297,8 +329,12 @@ export function* addNewVaultWorker({
     }
 
     yield put(setRelayVaultUpdateLoading(true));
-    const newVaultResponse = yield call(updateVaultImageWorker, { payload: { vault } });
+    const newVaultResponse = yield call(updateVaultImageWorker, {
+      payload: { vault },
+      originAppId: sourceAppId,
+    });
     if (newVaultResponse.updated) {
+      assertWalletAccount(sourceAppId);
       yield call(dbManager.createObject, RealmSchema.Vault, vault);
       yield put(uaiChecks([uaiType.SECURE_VAULT]));
 
@@ -312,6 +348,7 @@ export function* addNewVaultWorker({
           archivedId: oldVault.archivedId ? oldVault.archivedId : oldVault.id,
         };
         const archivedVaultresponse = yield call(updateVaultImageWorker, {
+          originAppId: sourceAppId,
           payload: {
             vault: {
               ...oldVault,
@@ -320,6 +357,7 @@ export function* addNewVaultWorker({
           },
         });
         if (archivedVaultresponse.updated) {
+          assertWalletAccount(sourceAppId);
           yield call(dbManager.updateObjectById, RealmSchema.Vault, oldVaultId, updatedParams);
           yield put(initiateVaultMigration({ intrimVault: vault }));
         }
@@ -355,14 +393,18 @@ export const addNewVaultWatcher = createWatcher(addNewVaultWorker, ADD_NEW_VAULT
 export function* addSigningDeviceWorker({
   payload: { signers },
   callback,
+  originAppId,
 }: {
   payload: { signers: Signer[] };
   callback?: () => void;
+  originAppId?: string;
 }) {
   if (!signers.length) return;
+  const sourceAppId = originAppId || currentWalletAccountId();
+  assertWalletAccount(sourceAppId);
   for (let i = 0; i < signers.length; i++) {
     const signer = signers[i];
-    yield call(mergeSimilarKeysWorker, { payload: { signer } });
+    yield call(mergeSimilarKeysWorker, { payload: { signer }, originAppId: sourceAppId });
   }
   try {
     const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
@@ -484,8 +526,12 @@ export function* addSigningDeviceWorker({
         id: getKeyUID(signer),
       }));
       yield put(setRelaySignersUpdateLoading(true));
-      const response = yield call(updateAppImageWorker, { payload: { signers: signersToUpdate } });
+      const response = yield call(updateAppImageWorker, {
+        payload: { signers: signersToUpdate },
+        originAppId: sourceAppId,
+      });
       if (response.updated) {
+        assertWalletAccount(sourceAppId);
         yield call(
           dbManager.createObjectBulk,
           RealmSchema.Signer,
@@ -499,7 +545,7 @@ export function* addSigningDeviceWorker({
               (signersToUpdate[0]?.extraData?.instanceNumber !== 1 && !signersToUpdate[0]?.hidden)
           )
         );
-        yield call(updateVaultSignerXprivWorker, { signers });
+        yield call(updateVaultSignerXprivWorker, { signers, originAppId: sourceAppId });
       } else {
         const errorMsg = response.error?.message
           ? response.error.message.toString()
@@ -518,29 +564,46 @@ export function* addSigningDeviceWorker({
 
 export const addSigningDeviceWatcher = createWatcher(addSigningDeviceWorker, ADD_SIGINING_DEVICE);
 
-function* deleteSigningDeviceWorker({ payload: { signers } }: { payload: { signers: Signer[] } }) {
+function* deleteSigningDeviceWorker({
+  payload: { signers },
+  originAppId,
+}: {
+  payload: { signers: Signer[] };
+  originAppId?: string;
+}) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   try {
+    assertWalletAccount(sourceAppId);
     if (signers.length) {
       yield put(showDeletingKeyModal());
       const signersToDeleteIds = [];
       for (const signer of signers) {
         signersToDeleteIds.push(getKeyUID(signer));
       }
-      for (let i = 0; i < signers.length; i++) {
-        yield call(deleteAppImageEntityWorker, {
-          payload: {
-            signerIds: signersToDeleteIds,
-          },
-        });
+      const response = yield call(deleteAppImageEntityWorker, {
+        originAppId: sourceAppId,
+        payload: { signerIds: signersToDeleteIds },
+      });
+      if (!response?.updated) {
+        assertWalletAccount(sourceAppId);
+        yield put(hideDeletingKeyModal());
+        yield put(relaySignersUpdateFail('An error occurred while deleting signers.'));
+        return false;
       }
+      assertWalletAccount(sourceAppId);
       yield put(uaiChecks([uaiType.SIGNING_DEVICES_HEALTH_CHECK]));
       yield put(hideDeletingKeyModal());
       yield put(showKeyDeletedSuccessModal());
+      return true;
     }
+    return false;
   } catch (error) {
     captureError(error);
-    yield put(hideDeletingKeyModal());
-    yield put(relaySignersUpdateFail('An error occurred while deleting signers.'));
+    if (currentWalletAccountId() === sourceAppId && store.getState().storage.appId === sourceAppId) {
+      yield put(hideDeletingKeyModal());
+      yield put(relaySignersUpdateFail('An error occurred while deleting signers.'));
+    }
+    return false;
   }
 }
 
@@ -549,8 +612,16 @@ export const deleteSigningDeviceWatcher = createWatcher(
   DELETE_SIGINING_DEVICE
 );
 
-function* archiveSigningDeviceWorker({ payload: { signers } }: { payload: { signers: Signer[] } }) {
+function* archiveSigningDeviceWorker({
+  payload: { signers },
+  originAppId,
+}: {
+  payload: { signers: Signer[] };
+  originAppId?: string;
+}) {
   try {
+    const sourceAppId = originAppId || currentWalletAccountId();
+    assertWalletAccount(sourceAppId);
     const signersToArchiveIds = [];
     for (const signer of signers) {
       signersToArchiveIds.push(getKeyUID(signer));
@@ -558,6 +629,7 @@ function* archiveSigningDeviceWorker({ payload: { signers } }: { payload: { sign
     if (signers.length) {
       for (let i = 0; i < signers.length; i++) {
         yield call(updateSignerDetailsWorker, {
+          originAppId: sourceAppId,
           payload: {
             signer: signers[i],
             key: 'archived',
@@ -580,12 +652,17 @@ export const archiveSigningDeviceWatcher = createWatcher(
 
 function* migrateVaultWorker({
   payload,
+  originAppId,
 }: {
   payload: { newVaultInfo: NewVaultInfo; oldVaultId: string };
+  originAppId?: string;
 }) {
   try {
+    const sourceAppId = originAppId || currentWalletAccountId();
+    assertWalletAccount(sourceAppId);
     const { newVaultInfo, oldVaultId } = payload;
     const migrated = yield call(addNewVaultWorker, {
+      originAppId: sourceAppId,
       payload: { newVaultInfo, isMigrated: true, oldVaultId },
     });
     const migratedVault = yield select((state: RootState) => state.vault.intrimVault);
@@ -613,12 +690,15 @@ export const migrateVaultWatcher = createWatcher(migrateVaultWorker, MIGRATE_VAU
 
 function* refreshWalletsWorker({
   payload,
+  originAppId,
 }: {
+  originAppId?: string;
   payload: {
     wallets: (Wallet | Vault)[];
     options: { hardRefresh?: boolean; addNotifications?: boolean; dustScan?: boolean };
   };
 }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   let { wallets, options } = payload;
 
   // Filter out pre-mix, post-mix, and bad bank wallets as they are no longer displayed or used.
@@ -634,6 +714,7 @@ function* refreshWalletsWorker({
   });
 
   try {
+    assertWalletAccount(sourceAppId);
     if (!wallets || wallets.length === 0) return true;
 
     if (!ELECTRUM_CLIENT.isClientConnected) {
@@ -708,6 +789,7 @@ function* refreshWalletsWorker({
         }
 
         yield fork(bulkUpdateLabelsWorker, {
+          originAppId: sourceAppId,
           payload: { labelChanges, UTXO: utxo, wallet: synchedWallet as any },
         });
 
@@ -869,6 +951,7 @@ function* refreshWalletsWorker({
       }
 
       // Write updated specs (with spendability) back to Realm
+      assertWalletAccount(sourceAppId);
       if (synchedWallet.entityKind === EntityKind.VAULT) {
         yield call(dbManager.updateObjectById, RealmSchema.Vault, synchedWallet.id, {
           specs: synchedWallet.specs,
@@ -909,7 +992,9 @@ export const refreshWalletsWatcher = createWatcher(refreshWalletsWorker, REFRESH
 
 export function* autoWalletsSyncWorker({
   payload,
+  originAppId,
 }: {
+  originAppId?: string;
   payload: {
     syncAll?: boolean;
     hardRefresh?: boolean;
@@ -917,6 +1002,8 @@ export function* autoWalletsSyncWorker({
     backupCheckAppId?: string;
   };
 }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
+  assertWalletAccount(sourceAppId);
   const { syncAll, hardRefresh, addNotifications, backupCheckAppId } = payload;
   const wallets: Wallet[] = yield call(dbManager.getObjectByIndex, RealmSchema.Wallet, null, true);
   const vaults: Vault[] = yield call(dbManager.getObjectByIndex, RealmSchema.Vault, null, true);
@@ -934,6 +1021,7 @@ export function* autoWalletsSyncWorker({
   let refreshSucceeded = true;
   if (walletsToSync.length) {
     refreshSucceeded = yield call(refreshWalletsWorker, {
+      originAppId: sourceAppId,
       payload: {
         wallets: walletsToSync,
         options: {
@@ -945,16 +1033,25 @@ export function* autoWalletsSyncWorker({
   }
   // Check backup freshness only after the refreshed wallet specs are persisted.
   // A failed refresh or account switch must not verify a stale snapshot.
-  if (backupCheckAppId && refreshSucceeded) {
+  if (
+    backupCheckAppId === sourceAppId &&
+    refreshSucceeded &&
+    currentWalletAccountId() === sourceAppId &&
+    store.getState().storage.appId === sourceAppId
+  ) {
     const { appId } = yield select((state: RootState) => state.storage);
-    const { automaticCloudBackup, pendingAllBackup, backupRepairCompletedByAppId = {} } =
+    const {
+      automaticCloudBackupByAppId,
+      pendingAllBackupByAppId,
+      backupRepairCompletedByAppId = {},
+    } =
       yield select((state: RootState) => state.bhr);
     if (
       appId === backupCheckAppId &&
-      automaticCloudBackup &&
-      (pendingAllBackup || !backupRepairCompletedByAppId[appId])
+      isAutomaticCloudBackupEnabled({ automaticCloudBackupByAppId }, appId) &&
+      (pendingAllBackupByAppId?.[appId] || !backupRepairCompletedByAppId[appId])
     ) {
-      yield put(checkBackupFreshness());
+      yield put(checkBackupFreshness(appId));
     }
   }
 }
@@ -963,6 +1060,7 @@ export const autoWalletsSyncWatcher = createWatcher(autoWalletsSyncWorker, AUTO_
 
 export function* updateSignerPolicyWorker({
   payload,
+  originAppId,
 }: {
   payload: {
     signer: Signer;
@@ -973,12 +1071,14 @@ export function* updateSignerPolicyWorker({
     };
     verificationToken: number;
   };
+  originAppId?: string;
 }) {
-  const fcmToken = yield select((state: RootState) => state.notifications.fcmToken);
-  const { bitcoinNetwork } = yield select((state: RootState) => state.settings);
-
+  const sourceAppId = originAppId || currentWalletAccountId();
   const { signer, signingKey, updates, verificationToken } = payload;
   try {
+    assertWalletAccount(sourceAppId);
+    const fcmToken = yield select((state: RootState) => state.notifications.fcmToken);
+    const { bitcoinNetwork } = yield select((state: RootState) => state.settings);
     const signerId =
       signingKey?.xfp ||
       WalletUtilities.getFingerprintFromExtendedKey(
@@ -996,6 +1096,7 @@ export function* updateSignerPolicyWorker({
       updates,
       fcmToken
     );
+    assertWalletAccount(sourceAppId);
 
     if (delayedPolicyUpdate) {
       yield put(updateDelayedPolicyUpdate(delayedPolicyUpdate));
@@ -1018,9 +1119,11 @@ export function* updateSignerPolicyWorker({
         }
       );
     }
+    assertWalletAccount(sourceAppId);
     yield put(setSignerPolicyError('success'));
   } catch (err) {
-    yield put(setSignerPolicyError('failure'));
+    if (currentWalletAccountId() === sourceAppId && store.getState().storage.appId === sourceAppId)
+      yield put(setSignerPolicyError('failure'));
   }
 }
 
@@ -1054,7 +1157,8 @@ function* testcoinsWorker({ payload }) {
 
 export const testcoinsWatcher = createWatcher(testcoinsWorker, TEST_SATS_RECIEVE);
 
-function* updateWalletDetailsWorker({ payload }) {
+function* updateWalletDetailsWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   const {
     wallet,
     details,
@@ -1066,6 +1170,7 @@ function* updateWalletDetailsWorker({ payload }) {
     };
   } = payload;
   try {
+    assertWalletAccount(sourceAppId);
     const presentationData: WalletPresentationData = {
       name: details.name,
       description: details.description,
@@ -1074,8 +1179,12 @@ function* updateWalletDetailsWorker({ payload }) {
     wallet.presentationData = presentationData;
 
     yield put(setRelayWalletUpdateLoading(true));
-    const response = yield call(updateAppImageWorker, { payload: { wallets: [wallet] } });
+    const response = yield call(updateAppImageWorker, {
+      payload: { wallets: [wallet] },
+      originAppId: sourceAppId,
+    });
     if (response.updated) {
+      assertWalletAccount(sourceAppId);
       yield call(dbManager.updateObjectById, RealmSchema.Wallet, wallet.id, {
         presentationData,
       });
@@ -1096,7 +1205,8 @@ export const updateWalletDetailWatcher = createWatcher(
   UPDATE_WALLET_DETAILS
 );
 
-function* updateVaultDetailsWorker({ payload }) {
+function* updateVaultDetailsWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   const {
     vault,
     details,
@@ -1108,6 +1218,7 @@ function* updateVaultDetailsWorker({ payload }) {
     };
   } = payload;
   try {
+    assertWalletAccount(sourceAppId);
     const presentationData: VaultPresentationData = {
       name: details.name,
       description: details.description,
@@ -1119,8 +1230,10 @@ function* updateVaultDetailsWorker({ payload }) {
 
     const response = yield call(updateVaultImageWorker, {
       payload: { vault },
+      originAppId: sourceAppId,
     });
     if (response.updated) {
+      assertWalletAccount(sourceAppId);
       yield call(dbManager.updateObjectById, RealmSchema.Vault, vault.id, {
         presentationData,
       });
@@ -1142,7 +1255,8 @@ export const updateVaultDetailsWatcher = createWatcher(
   UPDATE_VAULT_DETAILS
 );
 
-export function* updateSignerDetailsWorker({ payload }) {
+export function* updateSignerDetailsWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   const {
     signer,
     key,
@@ -1154,9 +1268,14 @@ export function* updateSignerDetailsWorker({ payload }) {
   } = payload;
   yield put(setRelaySignersUpdateLoading(true));
   try {
+    assertWalletAccount(sourceAppId);
     signer[key] = value;
-    const response = yield call(updateAppImageWorker, { payload: { signers: [signer] } });
+    const response = yield call(updateAppImageWorker, {
+      payload: { signers: [signer] },
+      originAppId: sourceAppId,
+    });
     if (response.updated) {
+      assertWalletAccount(sourceAppId);
       const signerKeyUID = getKeyUID(signer);
       yield call(
         dbManager.updateObjectByQuery,
@@ -1181,7 +1300,9 @@ export function* updateSignerDetailsWorker({ payload }) {
 
 export const updateSignerDetails = createWatcher(updateSignerDetailsWorker, UPDATE_SIGNER_DETAILS);
 
-function* updateKeyDetailsWorker({ payload }) {
+function* updateKeyDetailsWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
+  assertWalletAccount(sourceAppId);
   const {
     signer,
     key,
@@ -1207,13 +1328,15 @@ function* updateKeyDetailsWorker({ payload }) {
     if (!updatedFlag) {
       updatedRegsteredVaults.push(value);
     }
-    const saved = yield call(
-      dbManager.updateObjectByPrimaryId,
-      RealmSchema.VaultSigner,
-      'xpub',
-      signer.xpub,
-      { registeredVaults: updatedRegsteredVaults }
-    );
+    const saved = yield call(() => {
+      assertWalletAccount(sourceAppId);
+      return dbManager.updateObjectByPrimaryId(
+        RealmSchema.VaultSigner,
+        'xpub',
+        signer.xpub,
+        { registeredVaults: updatedRegsteredVaults }
+      );
+    });
     if (saved !== true) {
       yield put(relaySignersUpdateFail('Key registration could not be saved'));
       return false;
@@ -1226,37 +1349,49 @@ function* updateKeyDetailsWorker({ payload }) {
         if (vault.signers.some((key) => key.xpub === signer.xpub)) {
           const response = yield call(updateVaultImageWorker, {
             payload: { vault, isUpdate: true },
+            originAppId: sourceAppId,
           });
-          if (!response?.updated) yield call(setServerBackupFailed);
+          if (!response?.updated) yield call(setServerBackupFailed, sourceAppId);
         }
       }
     } catch (error) {
-      yield call(setServerBackupFailed);
+      yield call(setServerBackupFailed, sourceAppId);
     }
     return true;
   }
 
-  const updated = yield call(
-    dbManager.updateObjectByPrimaryId,
-    RealmSchema.VaultSigner,
-    'xpub',
-    signer.xpub,
-    {
+  const updated = yield call(() => {
+    assertWalletAccount(sourceAppId);
+    return dbManager.updateObjectByPrimaryId(RealmSchema.VaultSigner, 'xpub', signer.xpub, {
       [key]: value,
-    }
-  );
+    });
+  });
   return updated === true;
 }
 
 export const updateKeyDetails = createWatcher(updateKeyDetailsWorker, UPDATE_KEY_DETAILS);
 
-function* deleteVaultWorker({ payload }) {
+function* deleteVaultWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   const { vaultId } = payload;
   try {
+    assertWalletAccount(sourceAppId);
     yield put(setRelayVaultUpdateLoading(true));
-    const response = yield call(deleteVaultImageWorker, { payload: { vaultIds: [vaultId] } });
+    const backupEnabled = yield select((state: RootState) =>
+      isAutomaticCloudBackupEnabled(state.bhr, sourceAppId)
+    );
+    const response = yield call(deleteVaultImageWorker, {
+      payload: { vaultIds: [vaultId] },
+      originAppId: sourceAppId,
+    });
     if (response.updated) {
-      yield call(dbManager.deleteObjectById, RealmSchema.Vault, vaultId);
+      assertWalletAccount(sourceAppId);
+      const deleted = yield call(dbManager.deleteObjectById, RealmSchema.Vault, vaultId);
+      if (deleted !== true) {
+        if (backupEnabled) yield call(setServerBackupFailed, sourceAppId);
+        throw new Error('Local vault deletion failed');
+      }
+      assertWalletAccount(sourceAppId);
       yield put(relayVaultUpdateSuccess());
     } else {
       const errorMsg = response.error?.message
@@ -1265,15 +1400,18 @@ function* deleteVaultWorker({ payload }) {
       yield put(relayVaultUpdateFail(errorMsg));
     }
   } catch (err) {
-    yield put(relayVaultUpdateFail('Something went wrong while deleting the vault!'));
+    if (currentWalletAccountId() === sourceAppId && store.getState().storage.appId === sourceAppId)
+      yield put(relayVaultUpdateFail('Something went wrong while deleting the vault!'));
   }
 }
 
 export const deleteVaultyWatcher = createWatcher(deleteVaultWorker, DELETE_VAULT);
 
-function* reinstateVaultWorker({ payload }) {
+function* reinstateVaultWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   const { vaultId } = payload;
   try {
+    assertWalletAccount(sourceAppId);
     yield put(setRelayVaultUpdateLoading(true));
     const vault: Vault = dbManager.getObjectById(RealmSchema.Vault, vaultId).toJSON();
     const updatedParams = {
@@ -1286,6 +1424,7 @@ function* reinstateVaultWorker({ payload }) {
       },
     };
     const response = yield call(updateVaultImageWorker, {
+      originAppId: sourceAppId,
       payload: {
         vault: {
           ...vault,
@@ -1299,9 +1438,11 @@ function* reinstateVaultWorker({ payload }) {
     signingDevices.forEach((signer) => (signerMap[getKeyUID(signer)] = signer));
 
     if (response.updated) {
+      assertWalletAccount(sourceAppId);
       yield call(dbManager.updateObjectById, RealmSchema.Vault, vaultId, updatedParams);
       for (let i = 0; i < vault.signers.length; i++) {
         yield call(updateSignerDetailsWorker, {
+          originAppId: sourceAppId,
           payload: {
             signer: signerMap[getKeyUID(vault.signers[i])],
             key: 'archived',
@@ -1323,9 +1464,11 @@ function* reinstateVaultWorker({ payload }) {
 
 export const reinstateVaultWatcher = createWatcher(reinstateVaultWorker, REINSTATE_VAULT);
 
-function* refillMobileKeyWorker({ payload }) {
+function* refillMobileKeyWorker({ payload, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
   const { vaultKey } = payload;
   try {
+    assertWalletAccount(sourceAppId);
     const { xpriv } = vaultKey;
     if (!xpriv) {
       const signer: Signer = dbManager
@@ -1343,6 +1486,7 @@ function* refillMobileKeyWorker({ payload }) {
       if (xpub === signerXpub) {
         const { xpriv } = details.xpubDetails[XpubTypes.P2WSH];
         yield call(updateKeyDetailsWorker, {
+          originAppId: sourceAppId,
           payload: { signer: signer.signerXpubs[XpubTypes.P2WSH][0], key: 'xpriv', value: xpriv },
         });
       }
@@ -1354,12 +1498,15 @@ function* refillMobileKeyWorker({ payload }) {
 
 export const refillMobileKeyWatcher = createWatcher(refillMobileKeyWorker, REFILL_MOBILEKEY);
 
-function* refreshCanaryWalletsWorker() {
+function* refreshCanaryWalletsWorker({ originAppId }: { originAppId?: string } = {}) {
   try {
+    const sourceAppId = originAppId || currentWalletAccountId();
+    assertWalletAccount(sourceAppId);
     const vaults: Vault[] = yield call(dbManager.getCollection, RealmSchema.Vault);
     const canaryWallets = vaults.filter((vault) => vault.type === VaultType.CANARY);
     if (canaryWallets.length) {
       yield call(refreshWalletsWorker, {
+        originAppId: sourceAppId,
         payload: {
           wallets: canaryWallets,
           options: {
@@ -1378,8 +1525,16 @@ export const refreshCanaryWalletsWatcher = createWatcher(
   REFRESH_CANARY_VAULT
 );
 
-function* mergeSimilarKeysWorker({ payload }: { payload: { signer: Signer } }) {
+function* mergeSimilarKeysWorker({
+  payload,
+  originAppId,
+}: {
+  payload: { signer: Signer };
+  originAppId?: string;
+}) {
   try {
+    const sourceAppId = originAppId || currentWalletAccountId();
+    assertWalletAccount(sourceAppId);
     const { signer } = payload;
     const signers: Signer[] = yield call(dbManager.getCollection, RealmSchema.Signer);
     for (let i = 0; i < signers.length; i++) {
@@ -1394,14 +1549,14 @@ function* mergeSimilarKeysWorker({ payload }: { payload: { signer: Signer } }) {
         s.masterFingerprint !== signer.masterFingerprint
       ) {
         const signerKeyUID = getKeyUID(s);
-        yield call(
-          dbManager.updateObjectByQuery,
-          RealmSchema.Signer,
-          (realmSigner) => getKeyUID(realmSigner) === signerKeyUID,
-          {
-            masterFingerprint: signer.masterFingerprint,
-          }
-        );
+        yield call(() => {
+          assertWalletAccount(sourceAppId);
+          return dbManager.updateObjectByQuery(
+            RealmSchema.Signer,
+            (realmSigner) => getKeyUID(realmSigner) === signerKeyUID,
+            { masterFingerprint: signer.masterFingerprint }
+          );
+        });
         // get all keys that have the same masterFingerprint
         const keys = yield call(
           dbManager.getObjectByQuery,
@@ -1410,6 +1565,7 @@ function* mergeSimilarKeysWorker({ payload }: { payload: { signer: Signer } }) {
           true // get all matching objects
         );
         for (let i = 0; i < keys.length; i++) {
+          assertWalletAccount(sourceAppId);
           yield call(
             dbManager.updateObjectByPrimaryId,
             RealmSchema.VaultSigner,
@@ -1424,6 +1580,8 @@ function* mergeSimilarKeysWorker({ payload }: { payload: { signer: Signer } }) {
           dbManager.getObjectByIndex,
           RealmSchema.KeeperApp
         );
+        assertWalletAccount(sourceAppId);
+        if (id !== sourceAppId) throw new Error('Account changed');
         const encryptionKey = generateEncryptionKey(primarySeed);
         const encrytedSigner = encrypt(
           encryptionKey,
@@ -1454,23 +1612,30 @@ export const mergeSimilarKeysWatcher = createWatcher(mergeSimilarKeysWorker, MER
 
 function* generateNewExternalAddressWorker({
   payload,
+  originAppId,
 }: {
   payload: {
     wallet: Wallet | Vault;
   };
+  originAppId?: string;
 }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
+  if (
+    !sourceAppId ||
+    currentWalletAccountId() !== sourceAppId ||
+    store.getState().storage.appId !== sourceAppId
+  ) return false;
   const { wallet } = payload;
-  wallet.specs.totalExternalAddresses += 1;
+  const specs = { ...wallet.specs, totalExternalAddresses: wallet.specs.totalExternalAddresses + 1 };
 
-  if (wallet.entityKind === EntityKind.VAULT) {
-    yield call(dbManager.updateObjectById, RealmSchema.Vault, wallet.id, {
-      specs: wallet.specs,
-    });
-  } else {
-    yield call(dbManager.updateObjectById, RealmSchema.Wallet, wallet.id, {
-      specs: wallet.specs,
-    });
-  }
+  return yield call(() => {
+    assertWalletAccount(sourceAppId);
+    return dbManager.updateObjectById(
+      wallet.entityKind === EntityKind.VAULT ? RealmSchema.Vault : RealmSchema.Wallet,
+      wallet.id,
+      { specs }
+    );
+  });
 }
 
 export const generateNewExternalAddressWatcher = createWatcher(
@@ -1550,7 +1715,9 @@ export const fetchCollaborativeChannelWatcher = createWatcher(
   FETCH_COLLABORATIVE_CHANNEL
 );
 
-function* updateVaultSignerXprivWorker({ signers }) {
+function* updateVaultSignerXprivWorker({ signers, originAppId }) {
+  const sourceAppId = originAppId || currentWalletAccountId();
+  assertWalletAccount(sourceAppId);
   const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
   for (let i = 0; i < signers.length; i++) {
     const signer = signers[i];
@@ -1583,12 +1750,14 @@ function* updateVaultSignerXprivWorker({ signers }) {
                   ? tXpriv
                   : null;
               yield call(
-                dbManager.updateObjectByPrimaryId,
-                RealmSchema.VaultSigner,
-                'xpub',
-                vaultSigner.xpub,
-                {
-                  xpriv: uptXpriv,
+                () => {
+                  assertWalletAccount(sourceAppId);
+                  return dbManager.updateObjectByPrimaryId(
+                    RealmSchema.VaultSigner,
+                    'xpub',
+                    vaultSigner.xpub,
+                    { xpriv: uptXpriv }
+                  );
                 }
               );
             }

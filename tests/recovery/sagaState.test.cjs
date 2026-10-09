@@ -19,11 +19,12 @@ function runInspection(f, repair) {
   const scope = { ...saga, ...effects, ...bhr, inspectBackup:f.repair.inspectBackup,
     RealmSchema:{KeeperApp:'KeeperApp',UAI:'UAI'},
     dbManager:{ getObjectByIndex:()=>f.app, getObjectByField:()=>[] },
+    currentBackupAppId:()=>f.app.id,
     uaiType:{SERVER_BACKUP_FAILURE:'failure'}, uaiActionedWorker:()=>{}, addToUaiStackWorker:()=>{},
   };
   vm.runInNewContext(ts.transpileModule(code,{ compilerOptions:{ target:ts.ScriptTarget.ES2020 }}).outputText,scope);
   let state = bhr.default(undefined,{type:'init'}); const actions = [];
-  const task = saga.runSaga({getState:()=>({bhr:state}),dispatch:action=>{ actions.push(action); state=bhr.default(state,action); }},scope.runBackupInspection,repair).toPromise();
+  const task = saga.runSaga({getState:()=>({bhr:state,storage:{appId:f.app.id}}),dispatch:action=>{ actions.push(action); state=bhr.default(state,action); }},scope.runBackupInspection,repair).toPromise();
   return {task,get state(){ return state; }, actions};
 }
 
@@ -33,14 +34,14 @@ test('only verified readback sets durable per-account completion and clears pend
   assert.equal(run.state.backupRepairCompletedByAppId.disposable,true);
   assert.equal(run.state.backupRepairStateByAppId.disposable,'verified');
   assert.equal(run.state.backupRepairRunningByAppId.disposable,false);
-  assert.equal(run.state.pendingAllBackup,false);
+  assert.equal(run.state.pendingAllBackupByAppId.disposable,false);
   const phases=run.actions.filter(a=>a.type==='bhr/setBackupRepairState').map(a=>a.payload.phase);
   assert.deepEqual(phases,['checking','preparing','uploading','verifying','verified']);
 });
 
 test('offline/unverified remains pending and retryable, never spins indefinitely', async () => {
   const f=harness({readError:true}); f.local.Wallet.push(wallet()); const run=runInspection(f,true);
-  assert.equal(await run.task,false); assert.equal(run.state.pendingAllBackup,true);
+  assert.equal(await run.task,false); assert.equal(run.state.pendingAllBackupByAppId.disposable,true);
   assert.equal(run.state.backupRepairCompletedByAppId.disposable,false);
   assert.equal(run.state.backupRepairRunningByAppId.disposable,false);
 });

@@ -43,6 +43,7 @@ function harness(options = {}) {
   } };
   const clock = options.now ? { Date: { now: options.now } } : {};
   const transport = loadModule('src/services/backup/transport.ts', { '../rest/RestClient': rest }, clock);
+  transport.setBackupUploadGuard(id => app.id === id);
   const repair = loadModule('src/services/backup/repair.ts', {
     'src/storage/realm/dbManager': db,
     'src/storage/realm/enum': { RealmSchema: new Proxy({}, { get: (_, name) => name }) },

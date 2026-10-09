@@ -129,7 +129,7 @@ function* sendPhaseOneWorker({ payload }: SendPhaseOneAction) {
 
 export const sendPhaseOneWatcher = createWatcher(sendPhaseOneWorker, SEND_PHASE_ONE);
 
-function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
+function* sendPhaseTwoWorker({ payload, originAppId }: SendPhaseTwoAction & { originAppId?: string }) {
   if (!ELECTRUM_CLIENT.isClientConnected) {
     ElectrumClient.resetCurrentPeerIndex();
     yield call(connectToNodeWorker);
@@ -170,6 +170,7 @@ function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
         if (!txid) throw new Error('Send failed: unable to generate txid');
         if (note) {
           yield call(addLabelsWorker, {
+            originAppId,
             payload: {
               txId: txid,
               wallet,
@@ -205,7 +206,7 @@ function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
     }
 
     if (finalOutputs) {
-      yield call(handleChangeOutputLabels, finalOutputs, inputs, wallet, txid);
+      yield call(handleChangeOutputLabels, finalOutputs, inputs, wallet, txid, originAppId);
     }
   } catch (err) {
     if ([ELECTRUM_NOT_CONNECTED_ERR, ELECTRUM_NOT_CONNECTED_ERR_TOR].includes(err?.message)) {
@@ -223,7 +224,7 @@ function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
 
 export const sendPhaseTwoWatcher = createWatcher(sendPhaseTwoWorker, SEND_PHASE_TWO);
 
-function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
+function* sendPhaseThreeWorker({ payload, originAppId }: SendPhaseThreeAction & { originAppId?: string }) {
   if (!ELECTRUM_CLIENT.isClientConnected) {
     ElectrumClient.resetCurrentPeerIndex();
     yield call(connectToNodeWorker);
@@ -276,6 +277,7 @@ function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
 
     if (note) {
       yield call(addLabelsWorker, {
+        originAppId,
         payload: {
           txId: txid,
           wallet,
@@ -286,7 +288,7 @@ function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
     }
 
     if (finalOutputs) {
-      yield call(handleChangeOutputLabels, finalOutputs, inputs, wallet, txid);
+      yield call(handleChangeOutputLabels, finalOutputs, inputs, wallet, txid, originAppId);
     }
   } catch (err) {
     if ([ELECTRUM_NOT_CONNECTED_ERR, ELECTRUM_NOT_CONNECTED_ERR_TOR].includes(err?.message)) {
@@ -304,7 +306,7 @@ function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
 
 export const sendPhaseThreeWatcher = createWatcher(sendPhaseThreeWorker, SEND_PHASE_THREE);
 
-function* handleChangeOutputLabels(finalOutputs, inputs, wallet, txid) {
+function* handleChangeOutputLabels(finalOutputs, inputs, wallet, txid, originAppId?: string) {
   const changeOutputIndex = finalOutputs.findIndex((output) =>
     Object.values(wallet.specs.addresses.internal).includes(output.address)
   );
@@ -340,6 +342,7 @@ function* handleChangeOutputLabels(finalOutputs, inputs, wallet, txid) {
     }
 
     yield fork(bulkUpdateLabelsWorker, {
+      originAppId,
       payload: {
         labelChanges,
         UTXO: { txId: txid, vout: changeOutputIndex },
@@ -463,7 +466,7 @@ function* calculateCustomFee({ payload }: CalculateCustomFeeAction) {
 
 export const calculateCustomFeeWatcher = createWatcher(calculateCustomFee, CALCULATE_CUSTOM_FEE);
 
-function* discardBroadcastedTnxWorker({ payload }) {
+function* discardBroadcastedTnxWorker({ payload, originAppId }) {
   const { cachedTxid, vault } = payload;
   const snapshots = yield select((state) => state.cachedTxn.snapshots);
   if (snapshots[cachedTxid]) {
@@ -476,9 +479,10 @@ function* discardBroadcastedTnxWorker({ payload }) {
     });
     const potentialTxId = snapshots[cachedTxid].potentialTxId;
     const note = snapshots[cachedTxid].routeParams.note;
-    yield call(handleChangeOutputLabels, finalOutputs, inputs, vault, potentialTxId);
+    yield call(handleChangeOutputLabels, finalOutputs, inputs, vault, potentialTxId, originAppId);
     if (note.length) {
       yield call(addLabelsWorker, {
+        originAppId,
         payload: {
           txId: potentialTxId,
           wallet: vault,

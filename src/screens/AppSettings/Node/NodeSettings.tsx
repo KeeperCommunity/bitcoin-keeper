@@ -64,24 +64,31 @@ function NodeSettings() {
   }, [nodes.length]);
 
   const onDelete = async (selectedItem: NodeDetail) => {
+    const originAppId = Node.currentAccountId();
+    if (!originAppId) return;
     const isConnected = Node.nodeConnectionStatus(selectedItem);
     if (isConnected) await Node.disconnect(selectedItem);
+
+    if (!Node.isAccountActive(originAppId)) return;
 
     const status = Node.delete(selectedItem);
     if (status) {
       const updatedNodes = Node.getAllNodes();
       setNodeList(updatedNodes);
-      dispatch(updateAppImage({ wallets: null, signers: null, updateNodes: true }));
+      dispatch(updateAppImage({ wallets: null, signers: null, updateNodes: true }, originAppId));
     }
   };
 
   const onConnectToNode = async (selectedNode: NodeDetail) => {
+    const originAppId = Node.currentAccountId();
+    if (!originAppId) return;
     let updatedNodes = Node.getAllNodes();
 
     // Disconnect the currently connected node if it's not the selected one
     const currentlySelectedNode = updatedNodes.find((node) => node.isConnected);
     if (currentlySelectedNode && currentlySelectedNode.id !== selectedNode.id) {
       await Node.disconnect(currentlySelectedNode);
+      if (!Node.isAccountActive(originAppId)) return;
       currentlySelectedNode.isConnected = false;
       Node.update(currentlySelectedNode, { isConnected: currentlySelectedNode.isConnected });
       updatedNodes = updatedNodes.map((node) =>
@@ -93,6 +100,10 @@ function NodeSettings() {
     setLoading(true);
 
     const { connected, connectedTo, error } = await Node.connectToSelectedNode(selectedNode);
+    if (!Node.isAccountActive(originAppId)) {
+      setLoading(false);
+      return;
+    }
 
     if (connected) {
       selectedNode.isConnected = connected;
