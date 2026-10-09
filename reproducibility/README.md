@@ -44,11 +44,32 @@ and content hash. The whole AAB is also identical (SHA-256
 The whole APK differs between the runs (`d95ea56f9a8ede9e271bb39bd768685bb723693d3c6aa7214ab6559867b14a7c`
 versus `dcb43bdf361306b29cf1b48efade55b253c0dd7e82d3c6a0372fe0e48979437a`),
 so its differing bytes are outside the uncompressed entry contents, such as
-ZIP packaging metadata or the APK signing block. The workflow did not retain
-the APKs, so the exact byte locations remain unmeasured. The two generated
-toolchain image IDs also differ, despite the same pinned base image and runner
-image version. This is repeat-build evidence for the placeholder diagnostic,
-not a comparison with a distributed release.
+ZIP packaging metadata or the APK signing block. Those two APKs were not
+retained, so their exact differing bytes cannot be localized. The two
+generated toolchain image IDs also differ, despite the same pinned base image
+and runner image version.
+
+A separate, temporary two-build experiment at the same source commit
+`ae55ef108cee65ea2843ab51eae281dbd3ff2393` retained the placeholder,
+debug-signed APKs for byte inspection in
+[run 37931298363](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37931298363)
+and [run 37931306963](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37931306963).
+Their whole-file SHA-256 values differed (`4c0d312215775d58c73b83992ebef519d4a720dd11ff1e4611c2c51a7f7c1681`
+versus `0df5a7ef40c16106d125cab2474a7ccf9404ad575b88978310ac9b26ea7f2cc6`),
+but every compressed ZIP entry, local and central header, ZIP end record, and
+APK v2 signature pair matched byte for byte. Only 15,481 bytes in the
+15,555-byte signing-block pair `0x504b4453` differed. Android Gradle Plugin
+8.8.0 [names this pair](https://dl.google.com/dl/android/maven2/com/android/tools/build/apkzlib/8.8.0/apkzlib-8.8.0-sources.jar)
+as SDK dependency information and [encrypts its data](https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/8.8.0/gradle-8.8.0-sources.jar)
+before packaging; the public v2.6.3 APK also contains it. The temporary APK
+artifacts expire after one day; the hashes and changed region are recorded
+here. [Android's documentation](https://developer.android.com/build/dependencies#dependency-information-for-play-console)
+says Play Console uses this metadata for SDK and dependency warnings and
+recommends keeping it. A future released-binary comparison should inspect
+this precise expected difference while still requiring app contents and all
+other relevant package data to match. These measurements establish only
+repeat-build behavior under placeholder settings, not a match to a
+distributed release.
 
 The container uses a digest-pinned **linux/amd64** Temurin JDK 17.0.19 base.
 Node 22.23.3, Yarn 1.22.22, and Android command-line tools downloads have
