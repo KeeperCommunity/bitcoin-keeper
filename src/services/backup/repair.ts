@@ -14,6 +14,7 @@ import {
   backupQueuedRevision,
   backupRevision,
   boundedBackupPost,
+  canAccessBackupAccount,
   withBackupSession,
 } from './transport';
 import {
@@ -160,12 +161,13 @@ async function encodeImage(app: any, image: BackupImage, checkpoint = () => {}) 
 export function inspectBackup(
   appId: string,
   repair: boolean,
-  onPhase: (phase: RepairPhase) => void
+  onPhase: (phase: RepairPhase) => void,
+  explicitChoice = false
 ): Promise<RepairPhase> {
   const running = inFlight.get(appId);
   if (running) {
     if (repair && !running.repair)
-      return running.promise.then(() => inspectBackup(appId, true, onPhase));
+      return running.promise.then(() => inspectBackup(appId, true, onPhase, explicitChoice));
     running.listeners.add(onPhase);
     if (running.phase) onPhase(running.phase);
     return running.promise;
@@ -186,7 +188,8 @@ export function inspectBackup(
     const assertCurrent = () => {
       if (
         Date.now() >= deadline ||
-        (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id !== appId
+        (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id !== appId ||
+        !canAccessBackupAccount(appId, explicitChoice)
       )
         throw new Error('Backup changed during check');
       const currentRevision = backupRevision(appId);

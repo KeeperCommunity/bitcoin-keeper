@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RealmSchema } from 'src/storage/realm/enum';
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
 import { checkBackupFreshness, repairBackup } from 'src/store/sagaActions/bhr';
+import { isAutomaticCloudBackupEnabled } from 'src/store/reducers/bhr';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import WalletHeader from 'src/components/WalletHeader';
@@ -21,15 +22,16 @@ export default function AssistedBackupStatus() {
   const app = useQuery(RealmSchema.KeeperApp)[0] as any;
   const id = app?.id as string;
   const {
-    automaticCloudBackup,
+    automaticCloudBackupByAppId,
     backupRepairStateByAppId = {},
     backupRepairRunningByAppId = {},
   } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = isAutomaticCloudBackupEnabled({ automaticCloudBackupByAppId }, id);
   const phase = backupRepairStateByAppId[id];
   const running = !!backupRepairRunningByAppId[id];
   const [slow, setSlow] = useState(false);
   useEffect(() => {
-    if (automaticCloudBackup) dispatch(checkBackupFreshness());
+    if (automaticCloudBackup) dispatch(checkBackupFreshness(id));
   }, [id]);
   useEffect(() => {
     setSlow(false);
@@ -70,7 +72,7 @@ export default function AssistedBackupStatus() {
             fullWidth
             primaryText={state === 'different' ? copy.backUp : copy.check}
             primaryCallback={() =>
-              dispatch(state === 'different' ? repairBackup() : checkBackupFreshness())
+              dispatch(state === 'different' ? repairBackup(id) : checkBackupFreshness(id))
             }
           />
         )}

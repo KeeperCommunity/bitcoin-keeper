@@ -7,6 +7,8 @@ const { NetworkType, WalletType } = enums;
 
 function refreshFixture(kind, rejectWrite = false) {
   const f = fixture({ bhr: { pendingAllBackup: true } });
+  f.state.bhr.automaticCloudBackupByAppId[f.app.id] = true;
+  f.state.bhr.pendingAllBackupByAppId[f.app.id] = true;
   const original = {
     ...wallet('refresh-persistence', NetworkType.MAINNET),
     entityKind: kind === 'Vault' ? enums.EntityKind.VAULT : enums.EntityKind.WALLET,
@@ -81,11 +83,54 @@ for (const kind of ['Wallet', 'Vault']) {
     assert.equal(f.errors.length, 0);
   });
 }
+test('login freshness runs after successful sync only for the opted-in source account', async () => {
+  const scenarios = [
+    { enabled: true, pending: true, success: true, switched: false, expected: true },
+    { enabled: false, pending: true, success: true, switched: false, expected: false },
+    { enabled: true, pending: false, verified: true, success: true, switched: false, expected: false },
+    { enabled: true, pending: true, success: false, switched: false, expected: false },
+    { enabled: true, pending: true, success: true, switched: true, expected: false },
+  ];
+  for (const scenario of scenarios) {
+    const f = fixture();
+    const sourceAppId = f.app.id;
+    f.collections.Wallet.push(wallet('after-sync', NetworkType.MAINNET));
+    f.state.bhr.automaticCloudBackupByAppId[sourceAppId] = scenario.enabled;
+    f.state.bhr.pendingAllBackupByAppId[sourceAppId] = scenario.pending;
+    f.state.bhr.backupRepairCompletedByAppId[sourceAppId] = !!scenario.verified;
+    let synced = false;
+    f.scope.refreshWalletsWorker = function* () {
+      synced = true;
+      if (scenario.switched) {
+        f.app.id = 'B';
+        f.state.storage.appId = 'B';
+        f.state.bhr.automaticCloudBackupByAppId.B = true;
+      }
+      return scenario.success;
+    };
+    f.scope.checkBackupFreshness = (id) => {
+      assert.equal(synced, true, 'freshness cannot start before sync completes');
+      return { type: 'checkBackupFreshness', appId: id };
+    };
+    vm.runInNewContext(ts.transpileModule(
+      functions('src/store/sagas/wallets.ts', ['autoWalletsSyncWorker']),
+      { compilerOptions: { target: ts.ScriptTarget.ES2020 } }
+    ).outputText, f.scope);
+    await f.run('autoWalletsSyncWorker', {
+      originAppId: sourceAppId,
+      payload: { syncAll: true, backupCheckAppId: sourceAppId },
+    });
+    const freshness = f.actions.filter((action) => action.type === 'checkBackupFreshness');
+    assert.equal(freshness.length, scenario.expected ? 1 : 0, JSON.stringify(scenario));
+    if (scenario.expected) assert.equal(freshness[0].appId, sourceAppId);
+  }
+});
 
 test('login backup inspection waits for wallet refresh to finish', async () => {
   let finishSync;
   const syncGate = new Promise((resolve) => { finishSync = resolve; });
   const f = fixture({ bhr: { pendingAllBackup: true }, syncGate });
+  f.state.bhr.pendingAllBackupByAppId[f.app.id] = true;
   f.collections.Wallet.push(wallet('pending', NetworkType.MAINNET));
   const running = f.run('autoWalletsSyncWorker', {
     payload: { syncAll: false, hardRefresh: false, addNotifications: true, backupCheckAppId: f.app.id },
@@ -101,6 +146,7 @@ test('login backup inspection waits for wallet refresh to finish', async () => {
 test('failed refresh and account switch do not verify backup freshness', async () => {
   for (const option of ['syncFails', 'switchAppDuringSync']) {
     const f = fixture({ bhr: { pendingAllBackup: true }, [option]: true });
+    f.state.bhr.pendingAllBackupByAppId[f.app.id] = true;
     f.collections.Wallet.push(wallet('pending', NetworkType.MAINNET));
     await f.run('autoWalletsSyncWorker', {
       payload: { backupCheckAppId: f.app.id },
@@ -210,6 +256,23 @@ for (const networks of [
     assert.equal(f.state.account.recoveryKeyStatusByAppId[id], 'confirmed');
   });
 }
+
+test('recovery upgrade does not bypass per-account backup consent', async () => {
+  const f = fixture({ bhr: { automaticCloudBackup: false } });
+  const seed = f.scope.bip39.mnemonicToSeedSync().toString('hex');
+  const key = encryption.generateEncryptionKey(seed);
+  f.remote.version = '2.5.15';
+  f.remote.wallets.disposable = encryption.encrypt(
+    key,
+    JSON.stringify(wallet('disposable', NetworkType.MAINNET))
+  );
+
+  await f.run('getAppImageWorker', { payload: { primaryMnemonic: 'mock fixture only' } });
+
+  assert.deepEqual(f.actions.filter((action) => action.type === 'setAppImageError' && action.payload), []);
+  assert.equal(f.calls.filter(([type, payload]) => type === 'incremental' && payload.version).length, 0);
+  assert.equal(f.collections.VersionHistory.filter((record) => record.title === 'Recovered Wallet').length, 1);
+});
 
 test('relay rejection retains the existing wallet-creation failure contract', async () => {
   const f = fixture({ rejectIncremental: true });

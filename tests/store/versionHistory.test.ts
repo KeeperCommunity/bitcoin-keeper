@@ -10,12 +10,18 @@ import { RealmSchema } from 'src/storage/realm/enum';
 import dbManager from 'src/storage/realm/dbManager';
 import Relay from 'src/services/backend/Relay';
 import { setAppVersion } from 'src/store/reducers/storage';
+import { store } from 'src/store/store';
 
 jest.mock('src/storage/realm/dbManager', () => ({
   getObjectByIndex: jest.fn(),
   createObject: jest.fn(),
 }));
 jest.mock('src/services/backend/Relay', () => ({ updateAppImage: jest.fn() }));
+jest.mock('src/store/store', () => ({ store: { getState: jest.fn() } }));
+jest.mock('src/store/reducers/bhr', () => ({
+  isAutomaticCloudBackupEnabled: (backup, appId) => backup.automaticCloudBackupByAppId?.[appId] === true,
+  setPendingAllBackup: (payload) => ({ type: 'setPendingAllBackup', payload }),
+}));
 jest.mock('src/services/backend/SigningServer', () => ({}));
 jest.mock('src/utils/service-utilities/utils', () => ({}));
 jest.mock('src/services/wallets/factories/WalletFactory', () => ({}));
@@ -34,11 +40,23 @@ jest.mock('react-native-device-info', () => ({ getBuildNumber: () => '624' }));
 const previousVersion = '2.5.15';
 const newVersion = '2.5.16';
 
+function setActiveAccount(appId: string, enabled = true) {
+  (dbManager.getObjectByIndex as jest.Mock).mockReturnValue({ id: appId });
+  (store.getState as jest.Mock).mockReturnValue({
+    storage: { appId },
+    bhr: { automaticCloudBackupByAppId: { [appId]: enabled } },
+  });
+}
+
 function writeHistory(action) {
+  const appId = action.originAppId;
   const worker = updateVersionHistoryWorker(action);
   expect(worker.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
-  expect(worker.next({ id: 'test-app' } as any).value).toEqual(
-    call(Relay.updateAppImage, { appId: 'test-app', version: newVersion })
+  const choice = worker.next({ id: appId } as any).value as any;
+  expect(choice.type).toBe('SELECT');
+  expect(choice.payload.selector(store.getState())).toBe(true);
+  expect(worker.next(true).value).toEqual(
+    call(Relay.updateAppImage, { appId, version: newVersion })
   );
   const write = worker.next({} as any).value as any;
   expect(write.payload.fn).toBe(dbManager.createObject);
@@ -48,20 +66,25 @@ function writeHistory(action) {
 }
 
 function recoverWithoutDuplicateHistory(action) {
+  const appId = action.originAppId;
   const worker = updateVersionHistoryWorker(action);
   expect(worker.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
-  expect(worker.next({ id: 'test-app' } as any).value).toEqual(
-    call(Relay.updateAppImage, { appId: 'test-app', version: newVersion })
+  expect((worker.next({ id: appId } as any).value as any).type).toBe('SELECT');
+  expect(worker.next(true).value).toEqual(
+    call(Relay.updateAppImage, { appId, version: newVersion })
   );
   expect(worker.next({} as any).done).toBe(true);
 }
 
 describe('Version History retains recovery provenance through required upgrades', () => {
+  beforeEach(() => setActiveAccount('test-app'));
+
   test.each([true, false])('upgrade handles recovery=%s without duplicate history', (isRecovery) => {
     const upgrade = applyUpgradeSequence({ previousVersion, newVersion, isRecovery });
-    expect(upgrade.next().value).toEqual(put(setAppVersion(newVersion)));
+    expect(upgrade.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
+    expect(upgrade.next({ id: 'test-app' } as any).value).toEqual(put(setAppVersion(newVersion)));
     const history = upgrade.next().value as any;
-    expect(history).toEqual(put(updateVersionHistory(previousVersion, newVersion, isRecovery)));
+    expect(history).toEqual(put(updateVersionHistory(previousVersion, newVersion, isRecovery, 'test-app')));
     if (isRecovery) {
       recoverWithoutDuplicateHistory(history.payload.action);
     } else {
@@ -72,17 +95,26 @@ describe('Version History retains recovery provenance through required upgrades'
     expect(upgrade.next().done).toBe(true);
   });
 
-  test('older callers still record ordinary upgrades by default', () => {
-    expect(writeHistory({ payload: { previousVersion, newVersion } }).title).toBe(
-      'Upgraded from 2.5.15 to 2.5.16'
-    );
+  test('unbound history events cannot write another account', () => {
+    const worker = updateVersionHistoryWorker({ payload: { previousVersion, newVersion } });
+    expect(worker.next().value).toEqual(call(dbManager.getObjectByIndex, RealmSchema.KeeperApp));
+    expect(worker.next({ id: 'test-app' } as any).done).toBe(true);
   });
 
   test('recovery does not skip any of the legacy migrations', () => {
-    const ordinary = [...applyUpgradeSequence({ previousVersion: '1.0.4', newVersion })];
-    const recovered = [
-      ...applyUpgradeSequence({ previousVersion: '1.0.4', newVersion, isRecovery: true }),
-    ];
+    const trace = (isRecovery: boolean) => {
+      const yielded: any[] = [];
+      const upgrade = applyUpgradeSequence({ previousVersion: '1.0.4', newVersion, isRecovery });
+      let step = upgrade.next();
+      while (!step.done) {
+        yielded.push(step.value);
+        step = upgrade.next(step.value?.type === 'CALL' &&
+          step.value.payload.fn === dbManager.getObjectByIndex ? { id: 'test-app' } : undefined);
+      }
+      return yielded;
+    };
+    const ordinary = trace(false);
+    const recovered = trace(true);
     expect(recovered.slice(0, -1)).toEqual(ordinary.slice(0, -1));
     expect(recovered.length).toBeGreaterThan(3);
   });

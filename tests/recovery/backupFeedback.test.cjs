@@ -39,7 +39,12 @@ for (const file of ['src/components/Backup/BackupHealthCheckList.tsx', 'src/scre
       if (!callback && ts.isCallExpression(node) && node.expression.getText(source)==='useEffect' && node.arguments[0]?.getText(source).includes('backupAllSuccess')) callback=node.arguments[0].getText(source);
       ts.forEachChild(node,visit);
     }
-    visit(source); assert.ok(callback);
+    visit(source);
+    if (!callback) {
+      assert.ok(!source.getFullText().includes('backupAllSignersAndVaults('),
+        'Recovery Key confirmation must not start Assisted Server Backup');
+      return;
+    }
     const actions=[], ui=[];
     const context={ backupAllSuccess:false,backupAllFailure:true,automaticCloudBackup:false,
       dispatch:a=>actions.push(a),setBackupAllSuccess:v=>({type:'success',value:v}),setBackupAllFailure:v=>({type:'failure',value:v}),setAutomaticCloudBackup:v=>({type:'enabled',value:v}),

@@ -1,7 +1,7 @@
 import Text from 'src/components/KeeperText';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { StyleSheet, TouchableOpacity } from 'react-native';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   DelayedPolicyUpdate,
   SignerPolicy,
@@ -46,6 +46,8 @@ import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 
 function ChoosePolicyNew({ navigation, route }) {
+  const selectedAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(selectedAppId).current;
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
   const { showToast } = useToastMessage();
@@ -193,7 +195,7 @@ function ChoosePolicyNew({ navigation, route }) {
       restrictions: newPolicy.restrictions,
       signingDelay: newPolicy.signingDelay,
     };
-    dispatch(updateSignerPolicy(signer, route.params.vaultKey, policyUpdates, verificationToken));
+    dispatch(updateSignerPolicy(signer, route.params.vaultKey, policyUpdates, verificationToken, originAppId));
   };
 
   useEffect(() => {

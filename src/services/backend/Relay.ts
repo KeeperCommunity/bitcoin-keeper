@@ -493,7 +493,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await backupPost(`${RELAY}deleteBackup`, body);
+      const res = await backupPost(`${RELAY}deleteBackup`, body, true);
       const data = res.data || res.json;
       return data;
     } catch (err) {

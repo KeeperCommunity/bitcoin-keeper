@@ -47,6 +47,7 @@ function hookFixture(options = {}) {
     canonical: image.canonical,
     recoveryContent: image.recoveryContent,
     appId: f.app.id,
+    isOriginCurrent: () => f.app.id === f.state.storage.appId,
     markBackupMutation: (id) => mutations.push(id),
     invalidateBackupRepair: (payload) => ({ type: 'invalidateBackupRepair', payload }),
     setPendingAllBackup: (payload) => ({ type: 'setPendingAllBackup', payload }),
@@ -59,7 +60,10 @@ function hookFixture(options = {}) {
         pending.push(f.run('updateAppImageWorker', action));
       } else {
         f.actions.push(action);
-        if (action.type === 'setPendingAllBackup') f.state.bhr.pendingAllBackup = action.payload;
+        if (action.type === 'setPendingAllBackup') {
+          f.state.bhr.pendingAllBackupByAppId[action.payload.appId] = action.payload.pending;
+          f.state.bhr.pendingAllBackup = action.payload.pending;
+        }
       }
     },
     setError: (message) => errors.push(message),

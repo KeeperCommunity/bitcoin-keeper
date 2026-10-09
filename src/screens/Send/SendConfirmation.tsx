@@ -2,7 +2,7 @@ import { StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { CommonActions, useIsFocused, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { sendPhaseTwo } from 'src/store/sagaActions/send_and_receive';
 import { hp, wp } from 'src/constants/responsive';
 import Share from 'react-native-share';
@@ -100,6 +100,8 @@ function SendConfirmation({ route }) {
   const { colorMode } = useColorMode();
   const { showToast } = useToastMessage();
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   const isFocused = useIsFocused();
   const {
     sender,
@@ -328,7 +330,7 @@ function SendConfirmation({ route }) {
                     ),
                   },
                   note,
-                })
+                }, originAppId)
               );
             }, 200);
           })

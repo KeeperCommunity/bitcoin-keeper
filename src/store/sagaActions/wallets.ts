@@ -30,14 +30,15 @@ export const autoSyncWallets = (
   syncAll?: boolean,
   hardRefresh?: boolean,
   addNotifications?: boolean,
-  backupCheckAppId?: string
+  originAppId?: string
 ) => ({
   type: AUTO_SYNC_WALLETS,
+  ...(originAppId ? { originAppId } : {}),
   payload: {
     syncAll,
     hardRefresh,
     addNotifications,
-    backupCheckAppId,
+    backupCheckAppId: originAppId,
   },
 });
 
@@ -48,9 +49,11 @@ export const updateSignerPolicy = (
     restrictions: SignerRestriction;
     signingDelay: number;
   },
-  verificationToken
+  verificationToken,
+  originAppId?: string
 ) => ({
   type: UPDATE_SIGNER_POLICY,
+  originAppId,
   payload: {
     signer,
     signingKey,
@@ -139,8 +142,9 @@ export const updateKeyDetails = (signer: VaultSigner, key: string, value: any) =
   },
 });
 
-export const generateNewAddress = (wallet: Wallet | Vault) => ({
+export const generateNewAddress = (wallet: Wallet | Vault, originAppId?: string) => ({
   type: GENERATE_NEW_ADDRESS,
+  originAppId,
   payload: { wallet },
 });
 

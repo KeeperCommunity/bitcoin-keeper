@@ -122,6 +122,7 @@ test('migration rejection and transport failure preserve responses, invalidate c
     return { json: { updated: false, err: 'fixture-rejection' } };
   } };
   const transport = loadModule('src/services/backup/transport.ts', { '../rest/RestClient': rest });
+  transport.setBackupUploadGuard((appId) => appId === 'fixture-account');
   const service = relay(transport, rest, errors);
   assert.deepEqual(JSON.parse(JSON.stringify(await service.migrateXfp('fixture-account', signerChanges))),
     { updated: false, err: 'fixture-rejection' });
