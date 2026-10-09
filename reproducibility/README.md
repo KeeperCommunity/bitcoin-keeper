@@ -40,11 +40,15 @@ are selected by fixed Google URLs and checked by SHA-256 before unpacking. The
 archive names, sizes, and Google-published SHA-1 values were checked against
 [Google's SDK repository index](https://dl.google.com/android/repository/repository2-1.xml)
 before recording the SHA-256 values. The input checker also verifies their
-installed revisions. Google SDK archives lack `package.xml`, so the image adds
-checked local package metadata for their exact paths and revisions. Ubuntu apt
-packages, Maven artifacts, and transitive native downloads still lack recorded
-hashes.
-Those are remaining build-input gaps. The script is therefore an independent
+installed revisions. Ubuntu packages are installed from the fixed
+`20261008T000000Z` Jammy archive snapshot, with explicit versions for the six
+requested packages and APT's signed metadata and package hash checks. This
+also fixes the repository state used to resolve transitive apt dependencies.
+The snapshot is a diagnostic input, not a claim about the publisher's build
+environment. Google SDK archives lack `package.xml`, so the image adds checked
+local package metadata for their exact paths and revisions. Ubuntu apt package
+hashes are not recorded in this repository; Maven artifacts and transitive
+native downloads also remain unpinned. The script is therefore an independent
 **diagnostic build path**, not a final WalletScrutiny recipe.
 
 The placeholder configuration cannot establish whether a distributed APK or
@@ -239,9 +243,11 @@ It does not output environment values. A local dependency install is necessary;
 linking to a sibling `node_modules` directory recreates an observed historical
 build-path dependency and fails this check.
 
-The diagnostic container pins its base image and command-line tools archive;
-this checker verifies their installed versions but not every apt, Maven, or
-transitive native input. It does not run the build or compare a binary and is
+The diagnostic container pins its base image, Ubuntu apt snapshot and requested
+package versions, and command-line tools archive. The Docker build checks the
+snapshot source and six installed package versions. The input checker does not
+verify every apt dependency hash, Maven artifact, or transitive native input.
+It does not run the build or compare a binary and is
 not a WalletScrutiny `build.sh`. Run its focused tests with:
 
 ```sh
@@ -253,10 +259,10 @@ python3 -m unittest reproducibility/test_verify_android_inputs.py
 1. Make the clean Linux diagnostic APK/AAB build pass in CI, then repeat it
    from the same commit and compare payloads and build manifests. Resolve any
    changing inputs or path-sensitive output.
-2. Lock the remaining apt, Maven, and native downloads and confirm that the
-   candidate release source consumes only the reviewed, noncredential Android
-   environment fields. The seven proposed values can be checked against the
-   public v2.6.3 APK without asking the owner to supply them.
+2. Record the resolved apt dependency hashes, lock Maven and native downloads,
+   and confirm that the candidate release source consumes only the reviewed,
+   noncredential Android environment fields. The seven proposed values can be
+   checked against the public v2.6.3 APK without asking the owner to supply them.
 3. For the release selected later, rebuild its exact public commit with its
    reviewed production configuration. Compare the resulting APK with that
    release's authenticated GitHub APK and corresponding Play splits. Investigate
