@@ -43,6 +43,7 @@ import {
   generateOutputDescriptors,
   parseTextforVaultConfig,
 } from 'src/utils/service-utilities/utils';
+import { installElectrumWalletFixture } from './electrumWalletFixture';
 
 jest.mock('src/store/store', () => ({
   store: {
@@ -55,6 +56,10 @@ jest.mock('src/store/store', () => ({
 }));
 
 jest.mock('realm', () => ({}));
+
+beforeAll(() => {
+  installElectrumWalletFixture();
+});
 
 const connectToElectrumClient = async () => {
   try {

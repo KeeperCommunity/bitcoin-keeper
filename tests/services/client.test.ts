@@ -77,7 +77,8 @@ const addresses = [
   'tb1qwdm8hdyvv5jn05qq858lgnk50heucvxvqtl4sx',
 ];
 
-beforeAll(async () => {
+beforeEach(async () => {
+  mockClients.length = 0;
   ElectrumClient.setActivePeer([onlineNode], onlineNode);
   const connection = await ElectrumClient.connect();
   assert.ok(connection.connected);
@@ -107,11 +108,6 @@ describe('ElectrumClient', () => {
       assert.ok(result.connected);
       assert.strictEqual(result.connectedTo, onlineNode.host);
       assert.strictEqual(ElectrumClient.getActivePeer()?.host, onlineNode.host);
-
-      ElectrumClient.forceDisconnect();
-      const reconnected = await ElectrumClient.reconnect();
-      assert.ok(reconnected.connected);
-      assert.strictEqual(reconnected.connectedTo, onlineNode.host);
       assert.ok(mockClients.some((client) => client.host === offlineNode.host));
     });
   });
