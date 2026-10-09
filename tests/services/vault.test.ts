@@ -67,6 +67,10 @@ const connectToElectrumClient = async () => {
   }
 };
 
+afterAll(() => {
+  ElectrumClient.forceDisconnect();
+});
+
 describe('Vault: Single-Sig(1-of-1)', () => {
   let primaryMnemonic: string;
   let vault: Vault;
