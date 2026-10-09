@@ -294,6 +294,7 @@ function fixture(options = {}) {
       'deleteAppImageEntityWorker',
       'deleteVaultImageWorker',
       'deleteBackupWorker',
+      'backupAllSignersAndVaultsWorker',
       'checkBackupCondition',
       'setServerBackupFailed',
       'updateAppImageWorker',

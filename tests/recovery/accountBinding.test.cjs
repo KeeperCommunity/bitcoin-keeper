@@ -1,7 +1,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { fixture, wallet, signer, enums, loadModule } = require('./sagaHarness.cjs');
+const { fixture, wallet, signer, enums, loadModule, functions } = require('./sagaHarness.cjs');
 const { harness } = require('./helpers.cjs');
+const vm = require('node:vm');
+const ts = require('typescript');
 
 function switchToOptedInB(f) {
   f.app.id = 'B';
@@ -59,6 +61,63 @@ test('selected B blocks stale A writes even before Realm finishes switching', as
   assert.equal(f.calls.length, 0);
   assert.equal(f.collections.Wallet.length, 1);
   assert.equal(f.collections.Wallet[0].specs.totalExternalAddresses, 4);
+});
+
+test('verified A backup completion after selected B switch cannot enable A or report success', async () => {
+  const f = fixture();
+  const originAppId = f.app.id;
+  f.state.bhr.automaticCloudBackupByAppId[originAppId] = false;
+  f.scope.runBackupInspection = function* () {
+    f.state.storage.appId = 'B';
+    f.state.bhr.automaticCloudBackupByAppId.B = true;
+    return true;
+  };
+  const result = await f.run('backupAllSignersAndVaultsWorker', { appId: originAppId });
+  assert.equal(result, false);
+  assert.ok(!f.actions.some((action) => action.type === 'setAutomaticCloudBackup' &&
+    action.payload.enabled === true));
+  assert.ok(!f.actions.some((action) => action.type === 'setBackupAllSuccess' &&
+    action.payload.status === true));
+});
+
+test('dispatch gate drops stale enable and success actions while preserving account-specific resets', () => {
+  const scope = {
+    Set,
+    RealmSchema: { KeeperApp: 'KeeperApp' },
+    dbManager: { getObjectByIndex: () => ({ id: realmAppId }) },
+  };
+  let selectedAppId = 'B';
+  let realmAppId = 'A';
+  vm.runInNewContext(ts.transpileModule(
+    functions('src/store/store.ts', [
+      'accountOwnedActions', 'accountOwnedUtxoUiActions', 'bindActionOrigin',
+    ]),
+    { compilerOptions: { target: ts.ScriptTarget.ES2020 } }
+  ).outputText, scope);
+  const seen = [];
+  const middleware = scope.bindActionOrigin({
+    getState: () => ({ storage: { appId: selectedAppId } }),
+  })((action) => { seen.push(action); return action; });
+  const enableA = { type: 'bhr/setAutomaticCloudBackup', payload: { appId: 'A', enabled: true } };
+  middleware(enableA);
+  assert.equal(seen.length, 0, 'selected B blocks A enable even while Realm still A');
+  middleware({ type: 'bhr/setBackupAllSuccess', payload: { appId: 'A', status: true } });
+  assert.equal(seen.length, 0, 'selected B blocks A success even while Realm still A');
+  selectedAppId = 'A';
+  realmAppId = 'B';
+  middleware(enableA);
+  assert.equal(seen.length, 0, 'Realm B blocks A enable even while Redux still A');
+  middleware({ type: 'bhr/setBackupAllSuccess', payload: { appId: 'A', status: true } });
+  assert.equal(seen.length, 0, 'Realm B blocks A success even while Redux still A');
+  realmAppId = 'A';
+  middleware(enableA);
+  assert.equal(seen.length, 1);
+  middleware({ type: 'bhr/setBackupAllSuccess', payload: { appId: 'A', status: true } });
+  assert.equal(seen.length, 2);
+  selectedAppId = 'B';
+  middleware({ type: 'bhr/setAutomaticCloudBackup', payload: { appId: 'A', enabled: false } });
+  middleware({ type: 'bhr/setBackupAllSuccess', payload: { appId: 'A', status: false } });
+  assert.equal(seen.length, 4, 'A disable and success reset remain account-specific after switch');
 });
 
 test('A to opted-in B during connectivity wait blocks upload and preserves B local wallet', async () => {

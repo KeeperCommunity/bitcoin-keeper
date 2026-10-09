@@ -1136,20 +1136,22 @@ export function* backupFreshnessWatcher() {
 function* backupAllSignersAndVaultsWorker({ appId }: { appId: string }) {
   const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
   if (!appId || appId !== id) return false;
+  const selected = yield select((state: RootState) => state.storage.appId === appId);
+  if (!selected) return false;
   yield put(setBackupAllSuccess({ appId, status: false }));
   yield put(setBackupAllFailure({ appId, status: false }));
   yield put(setBackupAllLoading({ appId, status: true }));
   try {
     const verified = yield call(runBackupInspection, true, appId, true);
     const current: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-    if (current?.id === id) {
-      if (verified) yield put(setAutomaticCloudBackup({ appId, enabled: true }));
-      yield put(
-        verified
-          ? setBackupAllSuccess({ appId, status: true })
-          : setBackupAllFailure({ appId, status: true })
-      );
-    }
+    const stillSelected = yield select((state: RootState) => state.storage.appId === appId);
+    if (current?.id !== appId || !stillSelected) return false;
+    if (verified) yield put(setAutomaticCloudBackup({ appId, enabled: true }));
+    yield put(
+      verified
+        ? setBackupAllSuccess({ appId, status: true })
+        : setBackupAllFailure({ appId, status: true })
+    );
     return verified;
   } finally {
     yield put(setBackupAllLoading({ appId, status: false }));
