@@ -783,7 +783,7 @@ function* refreshWalletsWorker({
         return dbManager.getObjectById(schema, wallet.id);
       });
       if (!currentWallet || currentWallet.networkType !== refreshScope.networkType) return false;
-      currentWallets.push(getJSONFromRealmObject(currentWallet));
+      currentWallets.push(getJSONFromRealmObject(currentWallet) as unknown as Wallet | Vault);
     }
     wallets = currentWallets;
 
@@ -1193,7 +1193,7 @@ export function* autoWalletsSyncWorker({
       activeSucceeded = yield call(refreshWalletsWorker, {
         originAppId: sourceAppId,
         payload: {
-          wallets: active.map(getJSONFromRealmObject),
+          wallets: active.map((wallet) => getJSONFromRealmObject(wallet) as unknown as Wallet | Vault),
           options: { hardRefresh, addNotifications },
         },
       });
@@ -1217,7 +1217,9 @@ export function* autoWalletsSyncWorker({
       archivedSucceeded = yield call(refreshWalletsWorker, {
         originAppId: sourceAppId,
         payload: {
-          wallets: archived.map(getJSONFromRealmObject),
+          wallets: archived.map(
+            (wallet) => getJSONFromRealmObject(wallet) as unknown as Wallet | Vault
+          ),
           options: { hardRefresh, addNotifications: false },
         },
       });
