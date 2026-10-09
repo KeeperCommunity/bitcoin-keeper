@@ -35,13 +35,15 @@ hash, environment **names**, and local dependency layout before Gradle builds.
 Gradle and Yarn caches and Java's user home are isolated inside each container
 run. The buildscript and app do not declare `mavenLocal()` because it can resolve
 dependencies from a mutable local cache outside this diagnostic path. The
-Android platform, Build-Tools, NDK, and CMake archives are selected by fixed
-Google URLs and checked by SHA-256 before unpacking. The archive names, sizes,
-and Google-published SHA-1 values were checked against
+Android platform, Build-Tools, both required NDK versions, and CMake archives
+are selected by fixed Google URLs and checked by SHA-256 before unpacking. The
+archive names, sizes, and Google-published SHA-1 values were checked against
 [Google's SDK repository index](https://dl.google.com/android/repository/repository2-1.xml)
 before recording the SHA-256 values. The input checker also verifies their
-installed revisions. Ubuntu apt packages, Maven artifacts, and transitive
-native downloads still lack recorded hashes.
+installed revisions. Google SDK archives lack `package.xml`, so the image adds
+checked local package metadata for their exact paths and revisions. Ubuntu apt
+packages, Maven artifacts, and transitive native downloads still lack recorded
+hashes.
 Those are remaining build-input gaps. The script is therefore an independent
 **diagnostic build path**, not a final WalletScrutiny recipe.
 

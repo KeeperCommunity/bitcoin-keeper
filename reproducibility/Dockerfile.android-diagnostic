@@ -58,8 +58,27 @@ RUN set -euo pipefail \
     && download_checked_sdk_archive platform-36_r02.zip 37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e "${ANDROID_SDK_ROOT}/platforms" \
     && download_checked_sdk_archive build-tools_r35_linux.zip bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88 "${ANDROID_SDK_ROOT}/build-tools" \
     && mv "${ANDROID_SDK_ROOT}/build-tools/android-15" "${ANDROID_SDK_ROOT}/build-tools/35.0.0" \
+    && download_checked_sdk_archive android-ndk-r27-linux.zip 2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc "${ANDROID_SDK_ROOT}/ndk" \
+    && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27" "${ANDROID_SDK_ROOT}/ndk/27.0.12077973" \
     && download_checked_sdk_archive android-ndk-r27b-linux.zip 33e16af1a6bbabe12cad54b2117085c07eab7e4fa67cdd831805f0e94fd826c1 "${ANDROID_SDK_ROOT}/ndk" \
     && mv "${ANDROID_SDK_ROOT}/ndk/android-ndk-r27b" "${ANDROID_SDK_ROOT}/ndk/27.1.12297006" \
     && download_checked_sdk_archive cmake-3.22.1-linux.zip 9196644852a978012caf7a4067ba1898debf6cc204c3341562771e31080d6869 "${ANDROID_SDK_ROOT}/cmake/3.22.1"
+
+# The archives have source.properties but no package.xml. SDK tooling needs
+# local package metadata for side-by-side NDK and CMake detection in particular.
+COPY sdk-package-metadata/platform-36.xml /opt/android-sdk/platforms/android-36/package.xml
+COPY sdk-package-metadata/build-tools-35.0.0.xml /opt/android-sdk/build-tools/35.0.0/package.xml
+COPY sdk-package-metadata/ndk-27.0.12077973.xml /opt/android-sdk/ndk/27.0.12077973/package.xml
+COPY sdk-package-metadata/ndk-27.1.12297006.xml /opt/android-sdk/ndk/27.1.12297006/package.xml
+COPY sdk-package-metadata/cmake-3.22.1.xml /opt/android-sdk/cmake/3.22.1/package.xml
+
+# Verify SDK Manager itself recognizes every manually unpacked package. This
+# catches schema errors that source.properties-only revision checks would miss.
+RUN sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --list_installed > /tmp/keeper-installed-sdk-packages.txt \
+    && for package in 'platforms;android-36' 'build-tools;35.0.0' \
+         'ndk;27.0.12077973' 'ndk;27.1.12297006' 'cmake;3.22.1'; do \
+         grep -Fq "$package" /tmp/keeper-installed-sdk-packages.txt || { echo "SDK Manager did not recognize $package" >&2; exit 1; }; \
+       done \
+    && rm /tmp/keeper-installed-sdk-packages.txt
 
 WORKDIR /workspace/keeper
