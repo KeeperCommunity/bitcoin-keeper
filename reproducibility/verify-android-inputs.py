@@ -144,6 +144,8 @@ def check_toolchain(inputs, sdk_root):
     for package, revision in inputs["android_packages"].items():
         if sdk_revision(sdk_root / package) != revision:
             raise InputError(f"Android SDK package revision differs: {package}")
+        if package.startswith("platforms/") and not (sdk_root / package / "android.jar").is_file():
+            raise InputError(f"Android platform is missing android.jar: {package}")
     platform = inputs["android_platform"]
     if sdk_revision(sdk_root / platform["path"]) != platform["revision"]:
         raise InputError("Android platform revision differs from pinned Android inputs")

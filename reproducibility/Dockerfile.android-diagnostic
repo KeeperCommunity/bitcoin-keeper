@@ -71,8 +71,8 @@ RUN curl -LfsS "https://dl.google.com/android/repository/commandlinetools-linux-
 
 # These exact Linux archives and their sizes/SHA-1 appear in Google's
 # repository2-1.xml. SHA-256 was computed from downloads matching that index.
-# The platform package path also has extension variants; use the base rev 2
-# archive explicitly instead of resolving the moving platforms;android-36 path.
+# Platform package paths have extension variants; select the required rev 2
+# (API 36) and rev 3 (API 33) archives rather than resolving moving paths.
 # Some ZIP entries have owner-only read permissions. Make the SDK readable by
 # the non-root user that builds the app without changing any file bytes.
 RUN set -euo pipefail \
@@ -85,6 +85,9 @@ RUN set -euo pipefail \
          rm /tmp/android-sdk-package.zip; \
        } \
     && download_checked_sdk_archive platform-36_r02.zip 37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e "${ANDROID_SDK_ROOT}/platforms" \
+    && download_checked_sdk_archive platform-33-ext3_r03.zip b32b10f787867987f03ae8e101d217e053a9065b7136379fb353b388379aed1d "${ANDROID_SDK_ROOT}/platforms" \
+    && mv "${ANDROID_SDK_ROOT}/platforms/android-13" "${ANDROID_SDK_ROOT}/platforms/android-33" \
+    && download_checked_sdk_archive platform-tools_r37.0.1-linux.zip d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1 "${ANDROID_SDK_ROOT}" \
     && download_checked_sdk_archive build-tools_r35_linux.zip bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88 "${ANDROID_SDK_ROOT}/build-tools" \
     && mv "${ANDROID_SDK_ROOT}/build-tools/android-15" "${ANDROID_SDK_ROOT}/build-tools/35.0.0" \
     && download_checked_sdk_archive android-ndk-r27-linux.zip 2f17eb8bcbfdc40201c0b36e9a70826fcd2524ab7a2a235e2c71186c302da1dc "${ANDROID_SDK_ROOT}/ndk" \
@@ -97,6 +100,8 @@ RUN set -euo pipefail \
 # The archives have source.properties but no package.xml. SDK tooling needs
 # local package metadata for side-by-side NDK and CMake detection in particular.
 COPY sdk-package-metadata/platform-36.xml /opt/android-sdk/platforms/android-36/package.xml
+COPY sdk-package-metadata/platform-33.xml /opt/android-sdk/platforms/android-33/package.xml
+COPY sdk-package-metadata/platform-tools-37.0.1.xml /opt/android-sdk/platform-tools/package.xml
 COPY sdk-package-metadata/build-tools-35.0.0.xml /opt/android-sdk/build-tools/35.0.0/package.xml
 COPY sdk-package-metadata/ndk-27.0.12077973.xml /opt/android-sdk/ndk/27.0.12077973/package.xml
 COPY sdk-package-metadata/ndk-27.1.12297006.xml /opt/android-sdk/ndk/27.1.12297006/package.xml
@@ -105,7 +110,8 @@ COPY sdk-package-metadata/cmake-3.22.1.xml /opt/android-sdk/cmake/3.22.1/package
 # Verify SDK Manager itself recognizes every manually unpacked package. This
 # catches schema errors that source.properties-only revision checks would miss.
 RUN sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --list_installed > /tmp/keeper-installed-sdk-packages.txt \
-    && for package in 'platforms;android-36' 'build-tools;35.0.0' \
+    && for package in 'platforms;android-36' 'platforms;android-33' \
+         'platform-tools' 'build-tools;35.0.0' \
          'ndk;27.0.12077973' 'ndk;27.1.12297006' 'cmake;3.22.1'; do \
          grep -Fq "$package" /tmp/keeper-installed-sdk-packages.txt || { echo "SDK Manager did not recognize $package" >&2; exit 1; }; \
        done \

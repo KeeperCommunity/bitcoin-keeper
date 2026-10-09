@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).with_name("verify-android-inputs.py")
@@ -63,6 +64,24 @@ class AndroidInputTests(unittest.TestCase):
             package = Path(temporary)
             (package / "source.properties").write_text("Pkg.Revision = 3.22.1\n")
             self.assertEqual(MODULE.sdk_revision(package), "3.22.1")
+
+    def test_additional_android_platform_needs_jar(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            sdk = Path(temporary)
+            platform = sdk / "platforms/android-33"
+            platform.mkdir(parents=True)
+            (platform / "source.properties").write_text("Pkg.Revision=3\n")
+            inputs = {
+                "node": "22.23.3",
+                "yarn": "1.22.22",
+                "java": "17.0.19",
+                "android_packages": {"platforms/android-33": "3"},
+                "android_platform": {"path": "platforms/android-36", "revision": "2"},
+            }
+            outputs = iter(("v22.23.3", "1.22.22", "java.version = 17.0.19"))
+            with patch.object(MODULE, "run", side_effect=lambda *args: next(outputs)):
+                with self.assertRaisesRegex(MODULE.InputError, "missing android.jar"):
+                    MODULE.check_toolchain(inputs, sdk)
 
 
 if __name__ == "__main__":
