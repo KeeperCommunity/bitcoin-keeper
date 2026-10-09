@@ -1,4 +1,5 @@
 import config from 'react-native-config';
+import { resolveChannelURL } from './channelURL';
 import { EntityKind, WalletType } from '../../services/wallets/enums';
 import { Address, devAddress, prodAddress } from '../../constants/address';
 
@@ -23,7 +24,7 @@ const DEFAULT_CONFIG = {
   HEXA_ID_MAINNET: 'b01623f1065ba45d68b516efe2873f59bfc9b9b2d8b194f94f989d87d711830a',
   SENTRY_DNS: 'https://25289533edf7432994f58edeaf6541dc@o1388909.ingest.sentry.io/6711631',
   ENVIRONMENT: APP_STAGE.DEVELOPMENT,
-  CHANNEL_URL: 'http://localhost:4002/',
+  CHANNEL_URL: resolveChannelURL(),
   LETS_EXCHANGE_AFFILIATE_ID: 'G0BiaS34U81NR3ra',
 };
 
@@ -80,9 +81,7 @@ class Configuration {
 
   public ENVIRONMENT: string;
 
-  public CHANNEL_URL: string = config.CHANNEL_URL?.trim()
-    ? config.CHANNEL_URL.trim()
-    : DEFAULT_CONFIG.CHANNEL_URL.trim();
+  public CHANNEL_URL: string = resolveChannelURL(config.CHANNEL_URL);
 
   public GASFREE_API_KEY: string = config.GASFREE_API_KEY?.trim();
   public GASFREE_API_SECRET: string = config.GASFREE_API_SECRET?.trim();
