@@ -3,6 +3,7 @@ import { call, put, select, fork } from 'redux-saga/effects';
 import { generateEncryptionKey } from 'src/utils/service-utilities/encryption';
 import BIP85 from 'src/services/wallets/operations/BIP85';
 import DeviceInfo from 'react-native-device-info';
+import NativeConfig from 'react-native-config';
 import { KeeperApp } from 'src/models/interfaces/KeeperApp';
 import { RealmSchema } from 'src/storage/realm/enum';
 import { AppSubscriptionLevel, SubscriptionTier } from 'src/models/enums/SubscriptionTier';
@@ -41,6 +42,7 @@ import {
 } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import LoginMethod from 'src/models/enums/LoginMethod';
+import { shouldAutomaticallyCreateMobileWallet } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
 
 export function* setupKeeperAppWorker({ payload }) {
   try {
@@ -95,27 +97,36 @@ export function* setupKeeperAppWorker({ payload }) {
 
       yield put(addAccount(appID));
 
-      const defaultWallet: NewWalletInfo = {
-        walletType: WalletType.DEFAULT,
-        walletDetails: {
-          name: 'Mobile Wallet',
-          description: '',
-          instanceNum: 0,
-          derivationPath: WalletUtilities.getDerivationPath(
-            false,
-            bitcoinNetworkType,
-            0,
-            DerivationPurpose.BIP84
-          ),
-        },
-      };
-
+      const createDefaultWallet = shouldAutomaticallyCreateMobileWallet({
+        emptyWalletFlag: NativeConfig.KEEPER_EMPTY_WALLET_ONBOARDING,
+        previewFlag: NativeConfig.KEEPER_PREVIEW,
+        testnetOnlyFlag: NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY,
+        bundleId: DeviceInfo.getBundleId(),
+      });
+      let defaultWallet: NewWalletInfo;
+      if (createDefaultWallet) {
+        defaultWallet = {
+          walletType: WalletType.DEFAULT,
+          walletDetails: {
+            name: 'Mobile Wallet',
+            description: '',
+            instanceNum: 0,
+            derivationPath: WalletUtilities.getDerivationPath(
+              false,
+              bitcoinNetworkType,
+              0,
+              DerivationPurpose.BIP84
+            ),
+          },
+        };
+      }
       const recoveryKeySigner = setupRecoveryKeySigningKey(primaryMnemonic);
-      yield call(addNewWalletsWorker, { payload: [defaultWallet] });
+      if (createDefaultWallet) yield call(addNewWalletsWorker, { payload: [defaultWallet] });
       yield call(addSigningDeviceWorker, { payload: { signers: [recoveryKeySigner] } });
-      yield put(
-        updateDefaultWalletCreatedByAppId({ appId: appID, networkType: bitcoinNetworkType })
-      );
+      if (createDefaultWallet)
+        yield put(
+          updateDefaultWalletCreatedByAppId({ appId: appID, networkType: bitcoinNetworkType })
+        );
       yield put(setAppId(appID));
       yield put(setAppCreated(true));
       yield put(resetRealyWalletState());

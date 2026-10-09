@@ -22,8 +22,11 @@ import { SubscriptionTier } from 'src/models/enums/SubscriptionTier';
 import { AppIconWrapper } from 'src/utils/AppIconWrapper';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { updateDefaultWalletCreatedByAppId } from '../reducers/account';
+import NativeConfig from 'react-native-config';
+import DeviceInfo from 'react-native-device-info';
+import { shouldAutomaticallyCreateMobileWallet } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
 
-function* changeBitcoinNetworkWorker({ payload }) {
+export function* changeBitcoinNetworkWorker({ payload }) {
   let activeNode;
   const { network, callback } = payload;
   try {
@@ -58,7 +61,15 @@ function* changeBitcoinNetworkWorker({ payload }) {
     // Create default wallet and signer if not created already
     const { defaultWalletCreatedByAppId } = yield select((state: RootState) => state.account);
     const defaultWalletCreated = defaultWalletCreatedByAppId[id];
-    if (!defaultWalletCreated[bitcoinNetworkType]) {
+    if (
+      shouldAutomaticallyCreateMobileWallet({
+        emptyWalletFlag: NativeConfig.KEEPER_EMPTY_WALLET_ONBOARDING,
+        previewFlag: NativeConfig.KEEPER_PREVIEW,
+        testnetOnlyFlag: NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY,
+        bundleId: DeviceInfo.getBundleId(),
+      }) &&
+      !defaultWalletCreated[bitcoinNetworkType]
+    ) {
       const cosigner = yield call(getCosignerDetails, primaryMnemonic, 0);
       const hw = setupKeeperSigner(cosigner);
       if (hw) {

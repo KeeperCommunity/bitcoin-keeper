@@ -10,6 +10,7 @@ import {
 } from 'src/utils/service-utilities/encryption';
 import BIP85 from 'src/services/wallets/operations/BIP85';
 import DeviceInfo from 'react-native-device-info';
+import NativeConfig from 'react-native-config';
 import { KeeperApp } from 'src/models/interfaces/KeeperApp';
 import { RealmSchema } from 'src/storage/realm/enum';
 import Relay from 'src/services/backend/Relay';
@@ -93,6 +94,7 @@ import { addToUaiStackWorker, uaiActionedWorker } from './uai';
 import { addAccount, saveDefaultWalletState, setRecoveryKeyBackedUp } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
+import { shouldRestoreFallbackMobileWallet } from 'src/services/wallets/operations/recoverable/emptyWalletOnboarding';
 
 export function* updateAppImageWorker({
   payload,
@@ -401,7 +403,18 @@ function* getAppImageWorker({ payload }) {
       previousVersion
     );
 
-    if ((!appImage.wallets || !Object.entries(appImage.wallets).length) && !allVaultImages.length) {
+    if (
+      shouldRestoreFallbackMobileWallet(
+        {
+          emptyWalletFlag: NativeConfig.KEEPER_EMPTY_WALLET_ONBOARDING,
+          previewFlag: NativeConfig.KEEPER_PREVIEW,
+          testnetOnlyFlag: NativeConfig.KEEPER_PREVIEW_TESTNET_ONLY,
+          bundleId: DeviceInfo.getBundleId(),
+        },
+        Boolean(appImage.wallets && Object.entries(appImage.wallets).length),
+        Boolean(allVaultImages.length)
+      )
+    ) {
       // recreate first wallet
       const defaultWallet: NewWalletInfo = {
         walletType: WalletType.DEFAULT,

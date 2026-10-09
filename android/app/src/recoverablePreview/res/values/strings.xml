@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Keeper Preview</string>
+    <string name="backup_with_keeper_scheme">keeperrecoverablepreview</string>
+    <string name="deep_link_prefix">/app/recoverable-preview</string>
+</resources>

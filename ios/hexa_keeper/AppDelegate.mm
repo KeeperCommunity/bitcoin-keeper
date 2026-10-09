@@ -27,7 +27,9 @@
     [[NSUserDefaults standardUserDefaults] setValue:@"1strun" forKey:@"FirstRun"];
     [[NSUserDefaults standardUserDefaults] synchronize];
   }
+#if !KEEPER_RECOVERABLE_PREVIEW
   [FIRApp configure];
+#endif
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
