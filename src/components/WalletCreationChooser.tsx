@@ -20,7 +20,6 @@ export type WalletCreationChooserProps = {
   onAdvancedWallet: () => void;
   onImportWallet?: () => void;
   showSeedless?: boolean;
-  seedlessBadge?: string;
   seedlessResumeHint?: string;
   previewNotice?: string;
 };
@@ -127,7 +126,6 @@ export default function WalletCreationChooser({
   onAdvancedWallet,
   onImportWallet,
   showSeedless = false,
-  seedlessBadge,
   seedlessResumeHint,
   previewNotice,
 }: WalletCreationChooserProps) {
@@ -139,10 +137,9 @@ export default function WalletCreationChooser({
   return (
     <View testID="wallet-creation-chooser" style={styles.chooserSection}>
       <WalletChoiceCard
-        title="Simple Wallet"
+        title="Single-Key Wallet"
         icon="◉"
-        eyebrow="SINGLE KEY"
-        description="On this phone or a signing device."
+        description="Use your phone or a signing device."
         testID="wallet-choice-simple"
         onPress={onSimpleWallet}
       />
@@ -151,8 +148,7 @@ export default function WalletCreationChooser({
           <WalletChoiceCard
             title="Seedless Wallet"
             icon="✦"
-            eyebrow={seedlessBadge}
-            description="Phone, hardware, Server Key. Any 2 to spend. No new seed words."
+            description="Phone, compatible hardware and Server Key. 2 of 3 keys to spend."
             highlighted
             testID="wallet-choice-seedless"
             onPress={onSeedlessWallet}
@@ -165,10 +161,9 @@ export default function WalletCreationChooser({
         </>
       )}
       <WalletChoiceCard
-        title="Advanced Wallet"
+        title="Custom Wallet"
         icon="✣"
-        eyebrow="CUSTOM MULTISIG"
-        description="Choose your keys and Miniscript rules."
+        description="Choose your keys and spending rules."
         testID="wallet-choice-advanced"
         onPress={onAdvancedWallet}
       />

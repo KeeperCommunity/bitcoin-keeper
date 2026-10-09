@@ -55,7 +55,7 @@ export default function WalletChoiceScreen({ route }: { route?: WalletChoiceRout
     stage === 'chooser'
       ? 'Choose a Wallet'
       : stage === 'simple'
-      ? 'Simple Wallet'
+      ? 'Single-Key Wallet'
       : stage === 'hot'
       ? 'Hot Wallet'
       : stage === 'cold'
@@ -73,13 +73,13 @@ export default function WalletChoiceScreen({ route }: { route?: WalletChoiceRout
             onAdvancedWallet={() => navigation.navigate('AddNewWallet')}
             onImportWallet={() => navigation.navigate('VaultConfigurationCreation')}
             showSeedless
-            seedlessBadge="TESTNET PREVIEW"
+            previewNotice="TESTNET PREVIEW · Seedless setup is simulated; no Seedless Wallet is created."
           />
         )}
         {stage === 'simple' && (
           <View testID="wallet-choice-simple-options" style={styles.section}>
             <Text color={`${colorMode}.primaryText`} style={styles.body}>
-              A Simple Wallet uses one key to spend. Choose where that key would be held.
+              Choose where you want to hold the key.
             </Text>
             <WalletChoiceCard
               title="Hot Wallet"

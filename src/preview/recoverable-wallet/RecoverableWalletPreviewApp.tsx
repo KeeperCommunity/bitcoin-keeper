@@ -274,11 +274,10 @@ function PreviewContent() {
       onAdvancedWallet={() => openChoice('advanced')}
       onImportWallet={() => openChoice('import')}
       showSeedless
-      seedlessBadge={fromWallets ? 'FEATURED' : 'TESTNET PREVIEW'}
       previewNotice={
         fromWallets
           ? undefined
-          : 'Simulated choices only. No wallet, key, address, or backup is created in this testnet preview.'
+          : 'TESTNET PREVIEW · Simulated choices. No wallet, key, address, or backup is created.'
       }
       seedlessResumeHint={
         hasDraft ? 'Your Seedless Wallet walkthrough will resume where you left off.' : undefined
@@ -295,13 +294,13 @@ function PreviewContent() {
             : surface === 'chooser'
             ? 'Choose a Wallet'
             : surface === 'simple'
-            ? 'Simple Wallet'
+            ? 'Single-Key Wallet'
             : surface === 'hot'
             ? 'Hot Wallet'
             : surface === 'cold'
             ? 'Cold Wallet'
             : surface === 'advanced'
-            ? 'Advanced Wallet'
+            ? 'Custom Wallet'
             : surface === 'import'
             ? 'Import Wallet'
             : surface === 'recovery'
@@ -380,8 +379,8 @@ function PreviewContent() {
                 : 'A Cold Wallet would use one external signing key. No device is connected or registered here.'}
             </PreviewText>
             <Banner palette={palette}>
-              SIMULATED CHOICE · Simple Wallet creation is not available in this preview. No wallet,
-              address, or backup exists.
+              SIMULATED CHOICE · Single-Key Wallet creation is not available in this preview. No
+              wallet, address, or backup exists.
             </Banner>
             <LinkAction
               label="Choose Another"
@@ -395,14 +394,14 @@ function PreviewContent() {
         {surface === 'advanced' && (
           <View testID="preview-advanced-wallet" style={styles.section}>
             <PreviewText color={palette.text} style={styles.pageTitle}>
-              Custom multisig
+              Custom setup
             </PreviewText>
             <PreviewText color={palette.muted}>
-              Advanced Wallet is for choosing your keys and spending rules, including Miniscript
+              Custom Wallet is for choosing your keys and spending rules, including Miniscript
               options such as Inheritance Key, Emergency Key, and Wallet Timelock.
             </PreviewText>
             <Banner palette={palette}>
-              PREVIEW ONLY · Advanced Wallet creation is not connected in this isolated app. No
+              PREVIEW ONLY · Custom Wallet creation is not connected in this isolated app. No
               policy, key, or wallet is created.
             </Banner>
           </View>

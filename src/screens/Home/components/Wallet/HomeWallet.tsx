@@ -312,7 +312,7 @@ const HomeWallet = () => {
                   )
                 }
                 showSeedless
-                seedlessBadge="TESTNET PREVIEW"
+                previewNotice="TESTNET PREVIEW · Seedless setup is simulated; no Seedless Wallet is created."
               />
             </Box>
           ) : null

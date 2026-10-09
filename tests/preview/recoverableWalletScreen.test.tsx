@@ -93,14 +93,19 @@ describe('Recoverable Wallet preview on a small screen', () => {
   test('navigates the three-choice entry and keeps other paths simulated', () => {
     const screen = render(<RecoverableWalletPreviewApp />);
     const chooser = screen.getByTestId('wallet-creation-chooser');
-    expect(chooser).toHaveTextContent('Simple Wallet');
+    expect(chooser).toHaveTextContent('Single-Key Wallet');
     expect(chooser).toHaveTextContent('Seedless Wallet');
-    expect(chooser).toHaveTextContent('Advanced Wallet');
-    expect(chooser).toHaveTextContent('On this phone or a signing device');
-    expect(chooser).toHaveTextContent('Any 2 to spend. No new seed words.');
+    expect(chooser).toHaveTextContent('Custom Wallet');
+    expect(chooser).toHaveTextContent('Use your phone or a signing device.');
+    expect(chooser).toHaveTextContent(
+      'Phone, compatible hardware and Server Key. 2 of 3 keys to spend.'
+    );
+    expect(chooser).toHaveTextContent('Choose your keys and spending rules.');
     expect(chooser).not.toHaveTextContent('Recovery Key');
     expect(chooser).not.toHaveTextContent('How would you like to hold your bitcoin?');
-    expect(chooser).toHaveTextContent('FEATURED');
+    expect(chooser).not.toHaveTextContent('FEATURED');
+    expect(chooser).not.toHaveTextContent('SINGLE KEY');
+    expect(chooser).not.toHaveTextContent('CUSTOM MULTISIG');
     const seedlessTitle = screen.getByText('Seedless Wallet');
     expect(seedlessTitle.props.allowFontScaling).toBe(true);
     expect(seedlessTitle.props.numberOfLines).toBeUndefined();
@@ -118,7 +123,7 @@ describe('Recoverable Wallet preview on a small screen', () => {
 
     fireEvent.press(screen.getByTestId('wallet-choice-advanced'));
     expect(screen.getByTestId('preview-advanced-wallet')).toHaveTextContent(
-      'Advanced Wallet creation is not connected'
+      'Custom Wallet creation is not connected'
     );
     fireEvent.press(screen.getByTestId('preview-back'));
     fireEvent.press(screen.getByTestId('wallet-choice-import'));
