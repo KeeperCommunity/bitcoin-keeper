@@ -125,3 +125,27 @@ jobs:
           unzip -tq "$aab" >/dev/null
           sha256sum "$apk" "$aab"
           echo 'Diagnostic APK/AAB built with placeholder config and debug signing; no reproducibility verdict.'
+
+      - name: Stage diagnostic APK and provenance
+        env:
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          apk=android/app/build/outputs/apk/production/release/app-production-release.apk
+          artifact_dir="$RUNNER_TEMP/android-diagnostic-apk"
+          mkdir -p "$artifact_dir"
+          cp "$apk" "$artifact_dir/keeper-diagnostic-production-release.apk"
+          {
+            printf 'source_commit=%s\n' "$SOURCE_COMMIT"
+            printf 'workflow_run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'apk_sha256=%s\n' "$(sha256sum "$artifact_dir/keeper-diagnostic-production-release.apk" | cut -d ' ' -f1)"
+            printf 'configuration=placeholder\nsigning=public-debug-key\npurpose=package-inspection-only\n'
+          } > "$artifact_dir/provenance.txt"
+
+      - name: Upload diagnostic APK for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-diagnostic-apk-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/android-diagnostic-apk/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

@@ -9,10 +9,16 @@ does not yet establish a reproducibility verdict for v2.6.3.
 The [Android diagnostic build workflow](../.github/workflows/android-diagnostic-build.yml)
 is set up to compile an APK and AAB from the combined draft with the live public
 channel URL and `ENVIRONMENT=PRODUCTION`, dummy service endpoints and IDs, and
-the checked-in debug key. It also checks that Gradle rejects a retired GasFree
-credential. A successful run would verify that the draft compiles in a clean CI
+the checked-in debug key. It verifies the exact PR source and pinned Android
+inputs before Gradle, and checks that Gradle rejects a retired GasFree
+credential. A successful run verifies that the draft compiles in a clean CI
 checkout; its outputs cannot be compared to a production release for a
-reproducibility verdict. The workflow does not publish the diagnostic artifacts.
+reproducibility verdict. After validation, the workflow keeps only the debug
+APK and its source/hash provenance as a seven-day CI artifact for package
+inspection. Placeholder Relay settings block fresh account setup, so this
+artifact alone does not enable native pairing smoke. Pairing QA needs a
+separately reviewed disposable configuration or seeded account. The CI artifact
+is not a signed production release.
 
 ## v2.6.3 reference and measured result
 
