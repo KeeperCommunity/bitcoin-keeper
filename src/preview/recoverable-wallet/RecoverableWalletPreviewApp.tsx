@@ -26,6 +26,7 @@ import {
 } from 'src/services/wallets/recoverable/contactRecoveryFlow';
 import {
   HARDWARE_CHOICES,
+  canPreviewInheritanceForHardware,
   initialPreviewDraft,
   PreviewAction,
   PreviewDraft,
@@ -292,6 +293,7 @@ function PreviewContent() {
   }, [surface, draft.stage, automaticStep]);
 
   const selectedDevice = HARDWARE_CHOICES.find(({ id }) => id === draft.hardware);
+  const canProposeInheritance = canPreviewInheritanceForHardware(draft.hardware);
   const hasDraft =
     automaticStep > 0 ||
     draft.stage !== 'automatic' ||
@@ -665,37 +667,59 @@ function PreviewContent() {
             <PreviewText color={palette.text} style={styles.pageTitle}>
               Inheritance Key
             </PreviewText>
-            <PreviewText color={palette.muted}>
-              Proposal, not configured: an Inheritance Key would give your heir a delayed path after
-              a fixed on-chain unlock date. Opening Keeper would not reset that date.
-            </PreviewText>
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: draft.inheritanceEnabled }}
-              testID="preview-inheritance-toggle"
-              onPress={() => act({ type: 'SET_INHERITANCE', enabled: !draft.inheritanceEnabled })}
-            >
-              <Panel palette={palette} selected={draft.inheritanceEnabled}>
-                <PreviewText color={palette.text} style={styles.cardTitle}>
-                  {draft.inheritanceEnabled ? '✓ Add Inheritance Key' : '○ Add Inheritance Key'}
-                </PreviewText>
+            {canProposeInheritance ? (
+              <>
                 <PreviewText color={palette.muted}>
-                  Optional. It does not lower the 2-of-3 spending requirement today.
+                  Proposal, not configured: an Inheritance Key would give your heir a delayed path
+                  after a fixed on-chain unlock date. Opening Keeper would not reset that date.
                 </PreviewText>
-              </Panel>
-            </Pressable>
-            {draft.inheritanceEnabled && (
-              <Banner palette={palette}>
-                SIMULATED PROPOSAL · Your heir would need an Inheritance Key and a second signer
-                they can access without Server Key. Changing the unlock date would require a new
-                wallet and moving bitcoin. No heir, date, signer, or Miniscript policy is
-                configured.
+                <Banner palette={palette} testID="preview-inheritance-candidate">
+                  UNVERIFIED CANDIDATE · Coldcard has not been proven to register or sign this full
+                  inheritance policy. No Inheritance Key or policy is created here.
+                </Banner>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: draft.inheritanceEnabled }}
+                  testID="preview-inheritance-toggle"
+                  onPress={() =>
+                    act({ type: 'SET_INHERITANCE', enabled: !draft.inheritanceEnabled })
+                  }
+                >
+                  <Panel palette={palette} selected={draft.inheritanceEnabled}>
+                    <PreviewText color={palette.text} style={styles.cardTitle}>
+                      {draft.inheritanceEnabled ? '✓ Add Inheritance Key' : '○ Add Inheritance Key'}
+                    </PreviewText>
+                    <PreviewText color={palette.muted}>
+                      Optional. It does not lower the 2-of-3 spending requirement today.
+                    </PreviewText>
+                  </Panel>
+                </Pressable>
+                {draft.inheritanceEnabled && (
+                  <Banner palette={palette}>
+                    SIMULATED PROPOSAL · Your heir would need an Inheritance Key and a second signer
+                    they can access without Server Key. Changing the unlock date would require a new
+                    wallet and moving bitcoin. No heir, date, signer, or Miniscript policy is
+                    configured.
+                  </Banner>
+                )}
+              </>
+            ) : (
+              <Banner palette={palette} testID="preview-inheritance-unavailable">
+                Inheritance Key is unavailable with {selectedDevice?.id} in this preview. Keeper
+                cannot verify the full delayed policy with this device yet. Continue with 2 of 3 or
+                change device.
               </Banner>
             )}
             <PrimaryAction
               label="Review Policy"
               onPress={() => act({ type: 'NEXT' })}
               palette={palette}
+            />
+            <LinkAction
+              label="Change Device"
+              onPress={() => act({ type: 'CHANGE_HARDWARE' })}
+              palette={palette}
+              testID="preview-change-hardware"
             />
             <LinkAction
               label="Cancel"
@@ -738,8 +762,10 @@ function PreviewContent() {
               </PreviewText>
               <PreviewText color={palette.muted}>
                 {draft.inheritanceEnabled
-                  ? 'Proposed delayed path, not configured: after a fixed on-chain unlock date, your heir would use an Inheritance Key plus a designated second signer available without Server Key. Opening Keeper would not reset the date. Changing it would require a new wallet and moving bitcoin. No date, signer, or Miniscript policy exists in this preview.'
-                  : 'The proposed wallet has only the base 2-of-3 spending path.'}
+                  ? 'Proposed delayed path, not configured: after a fixed on-chain unlock date, your heir would use an Inheritance Key plus a designated second signer available without Server Key. Opening Keeper would not reset the date. Changing it would require a new wallet and moving bitcoin. No date, signer, or Miniscript policy exists in this preview. Coldcard compatibility remains unverified.'
+                  : canProposeInheritance
+                  ? 'The proposed wallet has only the base 2-of-3 spending path.'
+                  : `The proposed wallet has only the base 2-of-3 spending path. Inheritance Key is unavailable with ${selectedDevice?.id} in this preview.`}
               </PreviewText>
             </Panel>
             <Banner palette={palette}>

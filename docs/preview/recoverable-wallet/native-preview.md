@@ -38,7 +38,7 @@ Before future cloud backup work, register a dedicated iCloud container for the p
 ## Native checks
 
 1. Confirm production Keeper and Keeper Preview install simultaneously without replacing each other.
-2. Confirm the preview icon/name is `Keeper Preview`, has no production deep link/backup intent, and starts directly in the simulated flow.
+2. Confirm the preview icon/name is `Keeper Preview`, has no production deep link/backup intent, and starts at the empty Wallets chooser. Selecting Seedless Wallet should start the simulated key sequence directly.
 3. Check iOS Keychain and Android app data remain inaccessible to the other app. On iOS, inspect the signed preview entitlements; they must contain no production iCloud or Keychain group.
 4. Confirm both preview backends use only local unreachable URLs and the UI has no mainnet control, wallet creation, signing, or cloud-backup action.
 5. Uninstall Preview and confirm production Keeper and its wallet/backups remain intact.

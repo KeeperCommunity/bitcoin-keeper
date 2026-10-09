@@ -131,6 +131,9 @@ describe('Recoverable Wallet preview on a small screen', () => {
     fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
     expect(screen.getByTestId('preview-connect')).toHaveTextContent('Coldcard');
     fireEvent.press(screen.getByTestId('preview-continue-simulation'));
+    expect(screen.getByTestId('preview-inheritance-candidate')).toHaveTextContent(
+      'Coldcard has not been proven to register or sign'
+    );
     fireEvent.press(screen.getByTestId('preview-inheritance-toggle'));
     fireEvent.press(screen.getByTestId('primary-Review Policy'));
     expect(screen.getByTestId('preview-review')).toHaveTextContent('Spending now · 2 of 3');
@@ -148,6 +151,50 @@ describe('Recoverable Wallet preview on a small screen', () => {
     fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
     expect(screen.getByTestId('preview-mobile-key-status')).toHaveTextContent(
       'Adding… · SIMULATED'
+    );
+  });
+
+  test.each(['TAPSIGNER', 'Satochip', 'Jade'] as const)(
+    'shows %s inheritance unavailable and retains the base 2-of-3 path',
+    (hardware) => {
+      const screen = render(<RecoverableWalletPreviewApp />);
+      fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+      finishSimulatedAutomaticSetup();
+      fireEvent.press(screen.getByTestId('primary-Choose Hardware'));
+      fireEvent.press(screen.getByTestId(`preview-hardware-${hardware}`));
+      fireEvent.press(screen.getByTestId('primary-Continue'));
+      fireEvent.press(screen.getByTestId('preview-continue-simulation'));
+      expect(screen.getByTestId('preview-inheritance-unavailable')).toHaveTextContent(
+        `Inheritance Key is unavailable with ${hardware}`
+      );
+      expect(screen.queryByTestId('preview-inheritance-toggle')).toBeNull();
+      fireEvent.press(screen.getByTestId('primary-Review Policy'));
+      expect(screen.getByTestId('preview-review')).toHaveTextContent(
+        `Inheritance Key is unavailable with ${hardware}`
+      );
+      expect(screen.getByTestId('preview-review')).toHaveTextContent(
+        'only the base 2-of-3 spending path'
+      );
+    }
+  );
+
+  test('can change device from blocked inheritance to an unverified Coldcard proposal', () => {
+    const screen = render(<RecoverableWalletPreviewApp />);
+    fireEvent.press(screen.getByTestId('wallet-choice-seedless'));
+    finishSimulatedAutomaticSetup();
+    fireEvent.press(screen.getByTestId('primary-Choose Hardware'));
+    fireEvent.press(screen.getByTestId('preview-hardware-Jade'));
+    fireEvent.press(screen.getByTestId('primary-Continue'));
+    fireEvent.press(screen.getByTestId('preview-continue-simulation'));
+    fireEvent.press(screen.getByTestId('preview-change-hardware'));
+    expect(screen.getByTestId('preview-hardware')).toBeTruthy();
+    expect(screen.getByTestId('primary-Continue').props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(screen.getByTestId('preview-hardware-Coldcard'));
+    fireEvent.press(screen.getByTestId('primary-Continue'));
+    fireEvent.press(screen.getByTestId('preview-continue-simulation'));
+    expect(screen.getByTestId('preview-inheritance-candidate')).toBeTruthy();
+    expect(screen.getByTestId('preview-inheritance-toggle').props.accessibilityState.checked).toBe(
+      false
     );
   });
 

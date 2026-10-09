@@ -49,16 +49,16 @@ describe('Recoverable Wallet walkthrough', () => {
     expect(reducePreviewDraft(reviewStage, { type: 'NEXT' }).stage).toBe('complete');
   });
 
-  test('inheritance is chosen before one final review and remains editable when going back', () => {
+  test('Coldcard inheritance remains an unverified proposal before one final review', () => {
     let draft = reducePreviewDraft(initialPreviewDraft, { type: 'NEXT' });
-    draft = reducePreviewDraft(draft, { type: 'SELECT_HARDWARE', hardware: 'Satochip' });
+    draft = reducePreviewDraft(draft, { type: 'SELECT_HARDWARE', hardware: 'Coldcard' });
     draft = reducePreviewDraft(draft, { type: 'NEXT' });
     draft = reducePreviewDraft(draft, { type: 'CONTINUE_SIMULATION' });
     draft = reducePreviewDraft(draft, { type: 'SET_INHERITANCE', enabled: true });
     draft = reducePreviewDraft(draft, { type: 'NEXT' });
     expect(draft).toMatchObject({
       stage: 'review',
-      hardware: 'Satochip',
+      hardware: 'Coldcard',
       inheritanceEnabled: true,
     });
 
@@ -66,6 +66,43 @@ describe('Recoverable Wallet walkthrough', () => {
     draft = reducePreviewDraft(draft, { type: 'SET_INHERITANCE', enabled: false });
     draft = reducePreviewDraft(draft, { type: 'NEXT' });
     expect(draft).toMatchObject({ stage: 'review', inheritanceEnabled: false });
+  });
+
+  test.each(['TAPSIGNER', 'Satochip', 'Jade'] as const)(
+    '%s cannot enter the inheritance proposal but can review base 2-of-3',
+    (hardware) => {
+      let draft = reducePreviewDraft(initialPreviewDraft, { type: 'NEXT' });
+      draft = reducePreviewDraft(draft, { type: 'SELECT_HARDWARE', hardware });
+      draft = reducePreviewDraft(draft, { type: 'NEXT' });
+      draft = reducePreviewDraft(draft, { type: 'CONTINUE_SIMULATION' });
+      expect(reducePreviewDraft(draft, { type: 'SET_INHERITANCE', enabled: true })).toEqual(draft);
+      draft = reducePreviewDraft(draft, { type: 'NEXT' });
+      expect(draft).toMatchObject({ stage: 'review', hardware, inheritanceEnabled: false });
+      expect(
+        reducePreviewDraft(
+          { ...draft, stage: 'inheritance', inheritanceEnabled: true },
+          { type: 'NEXT' }
+        ).stage
+      ).toBe('inheritance');
+    }
+  );
+
+  test('changing away from Coldcard discards the old inheritance choice', () => {
+    let draft = reducePreviewDraft(initialPreviewDraft, { type: 'NEXT' });
+    draft = reducePreviewDraft(draft, { type: 'SELECT_HARDWARE', hardware: 'Coldcard' });
+    draft = reducePreviewDraft(draft, { type: 'NEXT' });
+    draft = reducePreviewDraft(draft, { type: 'CONTINUE_SIMULATION' });
+    draft = reducePreviewDraft(draft, { type: 'SET_INHERITANCE', enabled: true });
+    draft = reducePreviewDraft(draft, { type: 'CHANGE_HARDWARE' });
+    expect(draft).toMatchObject({
+      stage: 'hardware',
+      hardware: null,
+      inheritanceEnabled: false,
+    });
+    draft = reducePreviewDraft(draft, { type: 'SELECT_HARDWARE', hardware: 'Jade' });
+    draft = reducePreviewDraft(draft, { type: 'NEXT' });
+    draft = reducePreviewDraft(draft, { type: 'CONTINUE_SIMULATION' });
+    expect(reducePreviewDraft(draft, { type: 'SET_INHERITANCE', enabled: true })).toEqual(draft);
   });
 
   test('a connection attempt never marks hardware connected and a reset discards the draft', () => {
