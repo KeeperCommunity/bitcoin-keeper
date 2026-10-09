@@ -32,6 +32,24 @@ builds on a clean Ubuntu runner when a `codex/android-repro*` branch is pushed
 or a pull request targets a main development or release branch. No APK or AAB
 is uploaded by that workflow.
 
+Two independent clean builds of the exact source commit
+`594397ec4212d91ba06bfaa5f473574cc54c4f6d` passed in
+[run 37920600243](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37920600243)
+and [run 37925672723](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37925672723).
+Their retained manifests are byte-for-byte identical (SHA-256
+`390ebdd7481de40ed7d0850a25e5de65ff69edd307507b4978b0a6416b128670`):
+all 1,610 APK entries and 1,698 AAB entries have the same uncompressed size
+and content hash. The whole AAB is also identical (SHA-256
+`f08727ab342ef8a1b9740cbcdbaa3fc62ae2f0fb022cb06b40e2c78f970effc0`).
+The whole APK differs between the runs (`d95ea56f9a8ede9e271bb39bd768685bb723693d3c6aa7214ab6559867b14a7c`
+versus `dcb43bdf361306b29cf1b48efade55b253c0dd7e82d3c6a0372fe0e48979437a`),
+so its differing bytes are outside the uncompressed entry contents, such as
+ZIP packaging metadata or the APK signing block. The workflow did not retain
+the APKs, so the exact byte locations remain unmeasured. The two generated
+toolchain image IDs also differ, despite the same pinned base image and runner
+image version. This is repeat-build evidence for the placeholder diagnostic,
+not a comparison with a distributed release.
+
 The container uses a digest-pinned **linux/amd64** Temurin JDK 17.0.19 base.
 Node 22.23.3, Yarn 1.22.22, and Android command-line tools downloads have
 checked SHA-256 hashes. The existing input checker then verifies the exact
