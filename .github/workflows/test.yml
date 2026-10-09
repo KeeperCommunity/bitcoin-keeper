@@ -54,6 +54,11 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Check USDT pause and retired build inputs
+        run: |
+          node --test tests/services/usdtPause.test.cjs tests/recovery/usdtBackup.test.cjs \
+            scripts/verify-channel-config.test.cjs ios/scripts/verify-retired-env.test.cjs
+
       - name: Run tests
         run: npm run test
 
@@ -65,3 +70,6 @@ jobs:
 
       - name: Run release and packaged-artifact tests
         run: npm run test:release
+
+      - name: Test Android reproducibility tools
+        run: python3 -B -m unittest scripts/test_compare_android_apks.py reproducibility/test_verify_android_inputs.py

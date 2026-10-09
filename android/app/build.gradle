@@ -2,6 +2,13 @@ apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
 apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
+// react-native-config embeds every selected env key, even when JavaScript does not use it.
+// Check the resolved env map so direct Gradle builds cannot package retired credentials.
+def retiredCredentialKeys = ['GASFREE_API_KEY', 'GASFREE_API_SECRET',
+                             'LETS_EXCHANGE_API_KEY'].collectMany { [it, "RN_${it}"] }
+if (retiredCredentialKeys.any { project.ext.env.containsKey(it) }) {
+    throw new GradleException('Retired API credentials must not be included in an Android build')
+}
 apply plugin: 'kotlin-android'
 
 /**

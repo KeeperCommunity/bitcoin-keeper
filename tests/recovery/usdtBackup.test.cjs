@@ -91,7 +91,15 @@ const usdtWallet = (type = 'DEFAULT') => ({
   presentationData: { name: 'Before edit', description: 'Before', visibility: 'DEFAULT' },
   specs: { address: 'disposable-tron-address', privateKey: 'fixture-only-private-key',
     balance: 10, transactions: [], hasNewUpdates: false, lastSynched: 1 },
-  accountStatus: { isActive: true, nextNonce: 0 },
+  accountStatus: {
+    address: 'disposable-tron-address',
+    gasFreeAddress: 'saved-fixture-receive-address',
+    isActive: true,
+    frozen: 0,
+    canTransfer: true,
+    nextNonce: 0,
+    fees: { transferFee: 1, activateFee: 2 },
+  },
   createdAt: 1,
 });
 
@@ -153,7 +161,7 @@ test('USDT balance, transaction and account sync avoids redundant backup uploads
   const synced = { ...original,
     specs: { ...original.specs, balance: 12, transactions: [{ txId: 'fixture-tx' }],
       hasNewUpdates: true, lastSynched: 2 },
-    accountStatus: { isActive: true, nextNonce: 1 },
+    accountStatus: { ...original.accountStatus, nextNonce: 1 },
   };
   assert.equal(await f.update(synced), true);
   assert.deepEqual(copy(f.collections.USDTWallet), [synced]);

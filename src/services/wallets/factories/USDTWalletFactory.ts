@@ -187,22 +187,22 @@ export const checkUSDTWalletExists = (address: string, existingWallets: USDTWall
 };
 
 /**
- * Update USDT wallet specs with latest account status
+ * Preserve stored account information. The retired provider is no longer
+ * queried, and the saved GasFree address is needed for chain reads.
  */
 export const updateUSDTWalletAccountStatus = async (
   wallet: USDTWallet
 ): Promise<USDTAccountStatus> => {
-  try {
-    return USDT.getAccountStatus(wallet.specs.address, wallet.networkType);
-  } catch (error) {
-    return wallet.accountStatus;
-  }
+  return wallet.accountStatus;
 };
 
 /**
  * Syncs USDT wallet w/ latest balance
  */
 export const syncUSDTWalletBalance = async (wallet: USDTWallet) => {
+  if (!wallet.accountStatus?.gasFreeAddress) {
+    throw new Error('Stored USDT address is unavailable');
+  }
   const balance = await USDT.getUSDTBalance(
     wallet.accountStatus.gasFreeAddress,
     wallet.networkType
@@ -215,7 +215,9 @@ export const syncUSDTWalletBalance = async (wallet: USDTWallet) => {
  * Evaluates USDT wallet's available balance
  */
 export const getAvailableBalanceUSDTWallet = (wallet: USDTWallet): number => {
-  return wallet.specs.balance - wallet.accountStatus.frozen; // frozen amount is currently under process w/ the GasFree service provider(in-process permit transfers)
+  // Provider-reported frozen funds cannot be refreshed after retirement.
+  // The on-chain balance is the amount shown for the existing wallet.
+  return wallet.specs.balance;
 };
 
 /**
@@ -224,51 +226,20 @@ export const getAvailableBalanceUSDTWallet = (wallet: USDTWallet): number => {
 export const syncUSDTWalletTransactions = async (wallet: USDTWallet) => {
   const existingTransactions = wallet.specs.transactions || [];
 
-  // Step 1: Update existing transactions that have traceId but no txId
-  const updatedExistingTransactions = await Promise.all(
-    existingTransactions.map(async (existingTx) => {
-      // If transaction has traceId but no txId, try to fetch the txId
-      if (existingTx.traceId && !existingTx.txId) {
-        try {
-          const transferStatus = await USDT.getTransferStatus(
-            existingTx.traceId,
-            wallet.networkType
-          );
-          // Update transaction with new information if available
-          if (transferStatus.transactionHash) {
-            const blockNumber = transferStatus.blockInfo?.blockNumber || existingTx.blockNumber;
-            const status = blockNumber
-              ? GasFreeTransferStatus.SUCCEED
-              : transferStatus.status || existingTx.status;
-            return {
-              ...existingTx,
-              txId: transferStatus.transactionHash || existingTx.txId,
-              status,
-              blockNumber: blockNumber,
-              // Update timestamp if we got block timestamp
-              timestamp: transferStatus.blockInfo?.blockTimestamp
-                ? transferStatus.blockInfo.blockTimestamp
-                : existingTx.timestamp,
-            };
-          }
-        } catch (error) {
-          // If fetch fails, keep the original transaction
-          console.warn(`Failed to update transaction with traceId ${existingTx.traceId}:`, error);
-        }
-      }
+  if (!wallet.accountStatus?.gasFreeAddress) {
+    throw new Error('Stored USDT address is unavailable');
+  }
 
-      // Return original transaction if no update needed or failed
-      return existingTx;
-    })
-  );
+  // Preserve trace-only entries without assigning a false failure status.
+  const updatedExistingTransactions = existingTransactions;
 
-  // Step 2: Fetch new transactions from USDT service
+  // Fetch new transactions directly from TRON.
   const { transactions: newTransactions } = await USDT.getUSDTTransactions(
     wallet.accountStatus.gasFreeAddress,
     wallet.networkType
   );
 
-  // Step 3: Merge transactions using updated existing transactions
+  // Merge chain transactions with the stored history.
   const mergedTransactions = [...updatedExistingTransactions];
 
   // Process each new transaction

@@ -2138,6 +2138,15 @@
     "psbtMissingSignature": "This PSBT does not include a signature for the selected signer"
   },
   "usdtWalletText": {
+    "pausedTitle": "La actividad de USDT está limitada",
+    "pausedBody": "La creación de carteras de USDT, el envío, la compra, la venta y el intercambio están pausados. Esta cartera, su saldo e historial siguen disponibles.",
+    "sendingPausedTitle": "El envío de USDT está pausado",
+    "sendingPausedBody": "Keeper no puede enviar USDT desde esta cartera ahora mismo. Los detalles, el saldo y el historial de transacciones de la cartera siguen disponibles.",
+    "receivePausedWarning": "Esta es la dirección de recepción guardada de tu cartera. Keeper no puede enviar USDT desde esta cartera mientras el envío esté pausado. Los fondos recibidos aquí no se pueden enviar mediante Keeper durante la pausa. No deposites nuevos USDT a menos que comprendas esta limitación.",
+    "statusUnavailable": "Estado no disponible",
+    "legacyRequestTitle": "Solicitud anterior de USDT",
+    "legacyRequestNotice": "Keeper ya no puede verificar esta solicitud de USDT anterior. Si se completó, también puede aparecer como una transacción separada en la cadena.",
+    "requestedAmount": "Importe solicitado",
     "pickWalletType": "Pick Your Wallet Type",
     "selectCurrency": "Select the currency you would like to use",
     "bitcoinWallet": "Bitcoin Wallet",

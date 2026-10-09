@@ -18,13 +18,14 @@ import Edit from 'src/assets/images/edit.svg';
 import EditDark from 'src/assets/images/edit-white.svg';
 import { current } from '@reduxjs/toolkit';
 import StatusContent from './components/StatusContent';
-import { USDTTransaction } from 'src/services/wallets/operations/dollars/USDT';
+import {
+  isHistoricalUnverifiedUSDTRequest,
+  USDTTransaction,
+} from 'src/services/wallets/operations/dollars/USDT';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 import Link from 'src/assets/images/link.svg';
 import LinkDark from 'src/assets/images/link-white.svg';
 import openLink from 'src/utils/OpenLink';
-import useToastMessage from 'src/hooks/useToastMessage';
-import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 
 export function EditNoteContent({ existingNote, noteRef }: { existingNote: string; noteRef }) {
   const updateNote = useCallback((text) => {
@@ -52,6 +53,9 @@ const UsdtTransactionDetail = ({ route }) => {
   const transactionId = transaction.txId || transaction.traceId;
   const date = transaction.timestamp;
   const amount = parseFloat(transaction.amount);
+  // A trace without a chain transaction ID is a historical provider request.
+  // Its final result cannot be established after the provider was retired.
+  const legacyRequest = isHistoricalUnverifiedUSDTRequest(transaction);
   const status = transaction.status;
   let transactionType: string;
   if (transaction.to === wallet.accountStatus.gasFreeAddress) {
@@ -66,7 +70,6 @@ const UsdtTransactionDetail = ({ route }) => {
   const [visible, setVisible] = useState(false);
   const [updatingLabel, setUpdatingLabel] = useState(false);
   const close = () => setVisible(false);
-  const { showToast } = useToastMessage();
 
   function InfoCard({
     title,
@@ -120,12 +123,14 @@ const UsdtTransactionDetail = ({ route }) => {
     <ScreenWrapper paddingHorizontal={0} backgroundcolor={`${colorMode}.primaryBackground`}>
       <Box style={styles.headerContainer}>
         <WalletHeader
-          title={usdtWalletText.transactionDetails}
-          subTitle={usdtWalletText.transactionDetailsSubTitle}
+          title={legacyRequest ? usdtWalletText.legacyRequestTitle : usdtWalletText.transactionDetails}
+          subTitle={
+            legacyRequest ? usdtWalletText.statusUnavailable : usdtWalletText.transactionDetailsSubTitle
+          }
         />
         <Box style={styles.transViewWrapper}>
           <Box style={styles.transViewIcon}>
-            {transactionType === 'Received' ? (
+            {legacyRequest ? null : transactionType === 'Received' ? (
               colorMode === 'dark' ? (
                 <IconRecieveDark />
               ) : (
@@ -146,6 +151,11 @@ const UsdtTransactionDetail = ({ route }) => {
             </Box>
           </Box>
           <Box style={styles.amountWrapper}>
+            {legacyRequest && (
+              <Text color={`${colorMode}.GreyText`}>
+                {usdtWalletText.requestedAmount}
+              </Text>
+            )}
             <Text style={styles.amountText} semiBold>
               {amount} <Text style={styles.unitText}>USDT</Text>
             </Text>
@@ -182,14 +192,10 @@ const UsdtTransactionDetail = ({ route }) => {
               </TouchableOpacity> */}
               <TouchableOpacity
                 testID="btn_transactionId"
+                disabled={!transaction.txId}
                 onPress={() => {
                   if (transaction.txId) {
                     redirectToBlockExplorer(transaction.txId);
-                  } else if (transaction.traceId) {
-                    showToast(
-                      'Transaction is being processed and does not have a Transaction ID yet.',
-                      <ToastErrorIcon />
-                    );
                   }
                 }}
               >
@@ -213,8 +219,15 @@ const UsdtTransactionDetail = ({ route }) => {
                 title={usdtWalletText.status}
                 showIcon={false}
                 letterSpacing={2.4}
-                Content={() => <StatusContent status={status} />}
+                Content={() => <StatusContent status={status} unavailable={legacyRequest} />}
               />
+              {legacyRequest && (
+                <InfoCard
+                  title={usdtWalletText.legacyRequestTitle}
+                  describtion={usdtWalletText.legacyRequestNotice}
+                  numberOfLines={0}
+                />
+              )}
               {transactionType === 'Sent' && (
                 <InfoCard
                   title={usdtWalletText.recipientAddress}
@@ -228,13 +241,15 @@ const UsdtTransactionDetail = ({ route }) => {
                 title={
                   transactionType === 'Received'
                     ? usdtWalletText.recievedAmount
+                    : legacyRequest
+                    ? usdtWalletText.requestedAmount
                     : usdtWalletText.sendingAmount
                 }
                 describtion={`${amount} USDT`}
                 showIcon={false}
                 letterSpacing={2.4}
               />
-              {transaction.transferFee || transaction.fee ? (
+              {!legacyRequest && (transaction.transferFee || transaction.fee) ? (
                 <InfoCard
                   title={'Transaction Fee'}
                   describtion={`${transaction.transferFee || transaction.fee} USDT`}
@@ -242,7 +257,7 @@ const UsdtTransactionDetail = ({ route }) => {
                   letterSpacing={2.4}
                 />
               ) : null}
-              {transaction.activateFee ? (
+              {!legacyRequest && transaction.activateFee ? (
                 <InfoCard
                   title={'Activation Fee'}
                   describtion={`${transaction.activateFee} USDT`}

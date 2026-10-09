@@ -24,8 +24,8 @@ const code = ts.transpileModule(
   compilerOptions: { target: ts.ScriptTarget.ES2020 },
 }).outputText;
 
-function fixture({ consent = true, switchDuringRemote = false, switchDuringGeneration = false,
-  switchDuringUpdate = false } = {}) {
+function fixture({ consent = true, creationPaused = true, switchDuringRemote = false,
+  switchDuringGeneration = false, switchDuringUpdate = false } = {}) {
   const state = { active: 'A', remote: [], local: [], errors: [], dispatched: [], invalidated: [] };
   const scope = {
     appId: 'A',
@@ -53,6 +53,7 @@ function fixture({ consent = true, switchDuringRemote = false, switchDuringGener
       bhr: { automaticCloudBackupByAppId: { A: consent } },
     }) },
     isAutomaticCloudBackupEnabled: (backup, appId) => backup.automaticCloudBackupByAppId[appId],
+    USDT_WALLET_CREATION_PAUSED: creationPaused,
     USDTWalletType: { DEFAULT: 'default' },
     USDTWalletSupportedNetwork: 'mainnet',
     generateUSDTWallet: async () => {
@@ -103,16 +104,25 @@ test('a stale A callback invoked while B is active makes no write', async () => 
   assert.deepEqual(f.state.local, []);
 });
 
-test('wallet generation after account switch cannot persist to B or dispatch backup', async () => {
+test('paused USDT setup returns before generation, persistence or backup', async () => {
   const f = fixture({ switchDuringGeneration: true });
+  const result = await f.createWallet({ type: 'default', name: 'new', description: '' });
+  assert.equal(result.error, 'USDT wallet setup is paused');
+  assert.equal(f.state.active, 'A', 'wallet generation must not run during the pause');
+  assert.deepEqual(f.state.local, []);
+  assert.deepEqual(f.state.dispatched, []);
+});
+
+test('when setup resumes, wallet generation after account switch cannot persist to B', async () => {
+  const f = fixture({ creationPaused: false, switchDuringGeneration: true });
   const result = await f.createWallet({ type: 'default', name: 'new', description: '' });
   assert.equal(result.error, 'Account changed');
   assert.deepEqual(f.state.local, []);
   assert.deepEqual(f.state.dispatched, []);
 });
 
-test('wallet create dispatches backup with captured originating account', async () => {
-  const f = fixture();
+test('when setup resumes, wallet create dispatches backup with captured originating account', async () => {
+  const f = fixture({ creationPaused: false });
   const result = await f.createWallet({ type: 'default', name: 'new', description: '' });
   assert.equal(result.newWallet.id, 'wallet');
   assert.equal(f.state.local[0].appId, 'A');
