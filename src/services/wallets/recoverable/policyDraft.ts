@@ -265,7 +265,10 @@ function validateMobile(signer: RecoverableMobileSigner): RecoverableMobileSigne
   };
 }
 
-function validateHardware(signer: RecoverableHardwareSigner): RecoverableHardwareSigner {
+/** Validate public hardware metadata only; this does not establish device possession or policy support. */
+export function validateRecoverableHardwareSigner(
+  signer: RecoverableHardwareSigner
+): RecoverableHardwareSigner {
   const normalized = normalizePublicSigner(signer, 'hardware');
   if (normalized.origin && typeof normalized.origin === 'object') {
     assertOnlyKeys(
@@ -473,7 +476,7 @@ export function buildRecoverablePolicyReview(
     fail('TESTNET_ONLY', 'Recoverable Wallet policy drafts are testnet-only');
   }
   const mobile = validateMobile(input.mobile);
-  const hardware = validateHardware(input.hardware);
+  const hardware = validateRecoverableHardwareSigner(input.hardware);
   const server = validateServer(input.server);
   const inheritance = input.inheritance ? validateInheritance(input.inheritance) : null;
   assertDistinctSigners([mobile, hardware, server, ...(inheritance ? [inheritance.signer] : [])]);

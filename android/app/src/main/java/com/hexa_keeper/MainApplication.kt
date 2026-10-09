@@ -15,6 +15,7 @@ import android.content.Context
 import com.facebook.react.ReactInstanceManager
 import com.hexa_keeper.CloudBackupPackage
 import com.hexa_keeper.KeepScreenAwakePackage
+import com.hexa_keeper.KeeperPreviewMobileKeyPackage
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -29,7 +30,8 @@ class MainApplication : Application(),  ReactApplication {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               add(KeepScreenAwakePackage())
               // Preview credentials and Drive scope are deliberately not provisioned yet.
-              if (!BuildConfig.IS_RECOVERABLE_PREVIEW) add(CloudBackupPackage())
+              if (BuildConfig.IS_RECOVERABLE_PREVIEW) add(KeeperPreviewMobileKeyPackage())
+              else add(CloudBackupPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

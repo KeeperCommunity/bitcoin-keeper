@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		00E356F31AD99517003FC87E /* hexa_keeperTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F21AD99517003FC87E /* hexa_keeperTests.m */; };
+		A7E11A000000000000000002 /* KeeperPreviewMobileKey.m in Sources */ = {isa = PBXBuildFile; fileRef = A7E11A000000000000000001 /* KeeperPreviewMobileKey.m */; };
 		02EFDECE01B760848CCFE2A3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CFF59ED1275C7DD527FF60A7 /* PrivacyInfo.xcprivacy */; };
 		03A1CD3648C24AEB830A5CF4 /* Inter-LightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 18A6256AB47842ABA0F4BF8D /* Inter-LightItalic.ttf */; };
 		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
@@ -64,6 +65,7 @@
 		00E356EE1AD99517003FC87E /* hexa_keeperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hexa_keeperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00E356F11AD99517003FC87E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		00E356F21AD99517003FC87E /* hexa_keeperTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = hexa_keeperTests.m; sourceTree = "<group>"; };
+		A7E11A000000000000000001 /* KeeperPreviewMobileKey.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KeeperPreviewMobileKey.m; sourceTree = "<group>"; };
 		08FBE774D80E15AF57C7A99D /* Pods-hexa_keeper.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hexa_keeper.debug.xcconfig"; path = "Target Support Files/Pods-hexa_keeper/Pods-hexa_keeper.debug.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* hexa_keeper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hexa_keeper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = hexa_keeper/AppDelegate.h; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 			isa = PBXGroup;
 			children = (
 				35112D4E2BD7DA7600343479 /* cloudbackup */,
+				A7E11A000000000000000003 /* recoverablePreviewMobileKey */,
 				F4F7F75B2A0558220027FE4C /* keepScreenAwake */,
 				1F9F461229BF9D5D006C129F /* whirlpool */,
 				13B07FAE1A68108700A75B9A /* hexa_keeper */,
@@ -235,6 +238,14 @@
 			sourceTree = "<group>";
 			tabWidth = 2;
 			usesTabs = 0;
+		};
+		A7E11A000000000000000003 /* recoverablePreviewMobileKey */ = {
+			isa = PBXGroup;
+			children = (
+				A7E11A000000000000000001 /* KeeperPreviewMobileKey.m */,
+			);
+			path = recoverablePreviewMobileKey;
+			sourceTree = "<group>";
 		};
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
@@ -683,6 +694,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A7E11A000000000000000002 /* KeeperPreviewMobileKey.m in Sources */,
 				35112D552BD7DB3000343479 /* cloudbackup.m in Sources */,
 				35112D512BD7DAE700343479 /* CloudBackupHelper.swift in Sources */,
 				F49B77E32848DF5200F9AFBD /* AppDelegate.mm in Sources */,

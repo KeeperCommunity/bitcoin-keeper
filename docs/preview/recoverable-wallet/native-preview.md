@@ -9,6 +9,8 @@ The preview runs the simulated Recoverable Wallet flow only. It creates no walle
 
 Both builds use the checked-in `.env.recoverable-preview` file. It sets `KEEPER_PREVIEW=true`, `KEEPER_PREVIEW_TESTNET_ONLY=true` and local unreachable service URLs. The preview entry also checks the exact native bundle/application ID before showing the flow; mismatches show a locked error screen. The preview runtime does not initialize the normal Keeper app or its wallet store.
 
+The preview-only native Mobile Key module is registered only in the Android `recoverablePreview` flavor and compiled only in the iOS preview scheme's development target. It checks the exact installed app ID again before using device-only secure storage. Its JavaScript service remains uncalled by the walkthrough; the visible Mobile Key status is still simulated. Android native code compiles, while iOS compilation and both platforms' runtime storage behavior remain unverified. Before any real wallet can be funded, test create/load, interrupted writes, corruption, reinstall continuity, and seed exposure through the JavaScript bridge, then establish recovery and policy-bound key identity.
+
 ## Build and install
 
 From the repository root after installing JS dependencies:
