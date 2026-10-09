@@ -20,7 +20,7 @@ RUN set -euo pipefail \
          > /etc/apt/sources.list \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get update \
-    && apt-cache policy curl | grep -Fq 'snapshot.ubuntu.com/ubuntu/20261008T000000Z' \
+    && apt-cache policy curl | grep -F 'snapshot.ubuntu.com/ubuntu/20261008T000000Z' > /dev/null \
     && packages=( \
          'ca-certificates=20260601~22.04.1' \
          'curl=7.81.0-1ubuntu1.29' \
