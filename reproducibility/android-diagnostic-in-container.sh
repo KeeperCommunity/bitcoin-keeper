@@ -55,13 +55,14 @@ assert_tracked_source_clean
 printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
 
 export ENVFILE="$diagnostic_env"
-export KEEPER_ANDROID_KEYSTORE="$repo/android/app/debug.keystore"
-export STORE_PASSWORD=android
-export KEY_ALIAS=androiddebugkey
-export KEY_PASSWORD=android
 (
   cd android
-  ./gradlew :app:assembleProductionRelease :app:bundleProductionRelease --no-daemon --console=plain
+  ./gradlew :app:assembleProductionRelease :app:bundleProductionRelease \
+    -PMYAPP_RELEASE_STORE_FILE="$repo/android/app/debug.keystore" \
+    -PMYAPP_RELEASE_STORE_PASSWORD=android \
+    -PMYAPP_RELEASE_KEY_ALIAS=androiddebugkey \
+    -PMYAPP_RELEASE_KEY_PASSWORD=android \
+    --no-daemon --console=plain
 )
 assert_tracked_source_clean
 
