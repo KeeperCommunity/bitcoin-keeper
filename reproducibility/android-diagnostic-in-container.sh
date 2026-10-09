@@ -57,7 +57,8 @@ printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
 export ENVFILE="$diagnostic_env"
 (
   cd android
-  ./gradlew :app:assembleProductionRelease :app:bundleProductionRelease \
+  ./gradlew --dependency-verification strict \
+    :app:assembleProductionRelease :app:bundleProductionRelease \
     -PMYAPP_RELEASE_STORE_FILE="$repo/android/app/debug.keystore" \
     -PMYAPP_RELEASE_STORE_PASSWORD=android \
     -PMYAPP_RELEASE_KEY_ALIAS=androiddebugkey \

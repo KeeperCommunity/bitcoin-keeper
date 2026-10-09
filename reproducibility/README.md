@@ -53,9 +53,22 @@ also fixes the repository state used to resolve transitive apt dependencies.
 The snapshot is a diagnostic input, not a claim about the publisher's build
 environment. Google SDK archives lack `package.xml`, so the image adds checked
 local package metadata for their exact paths and revisions. Ubuntu apt package
-hashes are not recorded in this repository; Maven artifacts and transitive
-native downloads also remain unpinned. The script is therefore an independent
+hashes are not recorded in this repository; transitive native downloads also
+remain unpinned. The script is therefore an independent
 **diagnostic build path**, not a final WalletScrutiny recipe.
+
+The diagnostic Gradle command uses strict SHA-256 dependency verification from
+[`android/gradle/verification-metadata.xml`](../android/gradle/verification-metadata.xml).
+The candidate was collected by a clean production-flavor APK/AAB build at
+commit `9320a1fccd6ce3142697957b48cf3a91f7b852d9` in
+[CI run 37919910907](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37919910907).
+It records 3,513 artifact checksums for 1,944 components. It also accepts two
+observed Google/Maven Central byte variants of the deprecated empty
+`com.android.tools.build:transform-api:2.0.0-deprecated-use-gradle-api` marker;
+their JAR contents match and neither POM declares dependencies. This file
+checks downloaded Gradle artifacts, not dependency version choices, Yarn
+packages, or native downloads outside Gradle. A fresh strict build must pass
+before treating the candidate as validated, and changes need review.
 
 The placeholder configuration cannot establish whether a distributed APK or
 Play split matches this source. The seven-name environment allowlist in
@@ -155,8 +168,9 @@ successful diagnostic used Node
 not a claim about the publisher's complete toolchain. A third-party recipe
 still needs a digest-pinned Linux container image, exact JDK/Node/Yarn and SDK
 package checksums, a fixed checkout and dependency layout, and verified build
-commands. The Gradle wrapper now has a distribution checksum pin, but the
-Android project has no dependency lock or verification metadata. The published
+commands. The Gradle wrapper has a distribution checksum pin and the
+diagnostic path has candidate verification metadata, but the Android project
+does not lock every dependency version. The published
 Hermes bundle contains a Node 25.9.0
 literal injected by `rn-nodeify` and a path through a sibling
 `keeper-release-2.5.15/node_modules` directory. These historical build inputs
@@ -181,6 +195,14 @@ access or upload. It can use a disposable signing key and compare payloads
 while explicitly accounting for signing differences. A complete recipe must
 then build the production APK and AAB under pinned tools and compare the
 actual distributed artifacts.
+
+For a future release, record the exact source state after Fastlane updates
+`versionCode`, the actual `ENVFILE` path and reviewed configuration
+revision or fingerprint, and the build invocation. The lane can fetch a
+configuration file from a moving branch, while the package script sets
+`ENVFILE=.env.production`; the historical file consumed by v2.6.3 is not
+established by its source tag alone. Inspect the built package fields to
+confirm the release inputs without publishing credential values.
 
 ## Check the seven future build values against a public APK
 
@@ -252,7 +274,8 @@ build-path dependency and fails this check.
 The diagnostic container pins its base image, Ubuntu apt snapshot and requested
 package versions, and command-line tools archive. The Docker build checks the
 snapshot source and six installed package versions. The input checker does not
-verify every apt dependency hash, Maven artifact, or transitive native input.
+verify every apt dependency hash or transitive native input; Gradle checks
+resolved external artifacts against its separate metadata file.
 It does not run the build or compare a binary and is
 not a WalletScrutiny `build.sh`. Run its focused tests with:
 
@@ -262,10 +285,11 @@ python3 -m unittest reproducibility/test_verify_android_inputs.py
 
 ## Next checks
 
-1. Make the clean Linux diagnostic APK/AAB build pass in CI, then repeat it
-   from the same commit and compare payloads and build manifests. Resolve any
+1. Repeat the passing clean Linux diagnostic APK/AAB build from the same
+   commit and compare ZIP entry hashes and build manifests. Resolve any
    changing inputs or path-sensitive output.
-2. Record the resolved apt dependency hashes, lock Maven and native downloads,
+2. Validate Gradle verification metadata in a fresh strict build, record the
+   resolved apt dependency hashes, lock version choices and native downloads,
    and confirm that the candidate release source consumes only the reviewed,
    noncredential Android environment fields. The seven proposed values can be
    checked against the public v2.6.3 APK without asking the owner to supply them.
