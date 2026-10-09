@@ -61,6 +61,15 @@ const tron = {
           blockNumber: 75,
           blockTimestamp: 75,
         },
+        {
+          transactionId: 'chain-no-time',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          formattedValue: 1,
+          confirmed: true,
+          blockNumber: 0,
+          blockTimestamp: 0,
+        },
       ],
       meta: { fingerprint: '', hasMore: false },
     };
@@ -139,7 +148,7 @@ test('stored address, chain reads and ambiguous historical request survive the p
 
   const transactions = await factory.syncUSDTWalletTransactions(wallet);
   assert.equal(historyCalls[0][0], wallet.accountStatus.gasFreeAddress);
-  assert.equal(transactions.length, 3);
+  assert.equal(transactions.length, 4);
   assert.equal(transactions[0].txId, 'chain-1');
   assert.equal(transactions[0].status, historical.GasFreeTransferStatus.SUCCEED);
   assert.equal(transactions[1].txId, 'chain-pending');
@@ -152,6 +161,9 @@ test('stored address, chain reads and ambiguous historical request survive the p
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[0]), false);
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[2]), true);
   assert.equal(transactions[2].status, historical.GasFreeTransferStatus.WAITING);
+  assert.equal(transactions[3].txId, 'chain-no-time');
+  assert.equal(transactions[3].status, historical.GasFreeTransferStatus.CONFIRMING);
+  assert.equal(transactions[3].blockNumber, 0);
   assert.equal(
     usdtModule.isHistoricalUnverifiedUSDTRequest({
       traceId: 'old-request',
