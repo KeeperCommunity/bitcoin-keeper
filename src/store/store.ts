@@ -115,6 +115,20 @@ const accountOwnedUtxoUiActions = new Set([
 ]);
 const bindActionOrigin = (api) => (next) => (action) => {
   const originAppId = api.getState()?.storage?.appId;
+  const enablesBackup = action?.type === 'bhr/setAutomaticCloudBackup' &&
+    action.payload?.enabled === true;
+  const reportsBackupSuccess = action?.type === 'bhr/setBackupAllSuccess' &&
+    action.payload?.status === true;
+  if (enablesBackup || reportsBackupSuccess) {
+    const appId = action.payload.appId;
+    if (!appId || originAppId !== appId) return action;
+    try {
+      if ((dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp)?.id !== appId)
+        return action;
+    } catch {
+      return action;
+    }
+  }
   if (action?.originAppId && accountOwnedUtxoUiActions.has(action.type)) {
     try {
       if (
