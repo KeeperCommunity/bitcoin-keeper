@@ -1,0 +1,8 @@
+# Preparation only. Do not submit until the named Dockerfile exists and its
+# complete build and offline tests have passed on the selected source branch.
+repo: https://github.com/KeeperCommunity/bitcoin-keeper#sprint
+primary_contact: anant@bithyve.com
+homepage: https://bitcoinkeeper.app
+disabled: true
+dockerfile: .oss-scanner/Dockerfile
+threat_model: .oss-scanner/threat_model.md
