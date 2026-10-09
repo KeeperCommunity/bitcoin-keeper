@@ -76,6 +76,7 @@ Each checkpoint may be smaller than the grouping above to keep visible feedback 
 
 ## Integration and communications
 
+- The first live Seedless Wallet trial belongs in Keeper's existing **Testnet** mode: show the choice only while Testnet is active, and keep Mainnet hidden until a separate release decision. The separately installed Keeper Preview remains the engineering walkthrough. Enabling the normal-app choice requires a reviewed testnet-scoped key/backup namespace and create, sign, and restore guards; the current Preview identity gate is not a user rollout switch.
 - Stay rebased on the current Keeper app branch; keep product-facing changes isolated behind a guarded preview feature path. Nothing is merged into shipping app without reviewed CI/native regression and owner approval.
 - Server code is **frozen for this feature pending Adam's contribution and a new owner instruction**. The absence of Adam's PR does not block preview UI, local hardware functionality, cloud transport tests, threat modeling or design.
 - Keep existing R5–R10 commitments intact. This work is recorded in a separate **Now — Parallel Recoverable Wallet** tracker entry, *not* a new numbered work bucket. Release integration will be scheduled later on evidence of readiness.
