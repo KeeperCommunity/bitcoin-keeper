@@ -19,4 +19,16 @@ describe('faucet transaction visibility', () => {
     expect(isFaucetTxVisible({}, txid)).toBe(false);
     expect(isFaucetTxVisible({ specs: { unconfirmedUTXOs: [{ txId: txid }] } }, txid)).toBe(false);
   });
+
+  it('waits until the persisted balance shown on Home is positive', () => {
+    const wallet = {
+      specs: {
+        balances: { confirmed: 0, unconfirmed: 0 },
+        unconfirmedUTXOs: [{ txId: txid }],
+      },
+    };
+    expect(isFaucetTxVisible(wallet, txid)).toBe(false);
+    wallet.specs.balances.unconfirmed = 1000;
+    expect(isFaucetTxVisible(wallet, txid)).toBe(true);
+  });
 });

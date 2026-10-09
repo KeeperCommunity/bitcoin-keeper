@@ -10,6 +10,8 @@ type VisibleWallet = {
 export const isFaucetTxVisible = (wallet: VisibleWallet, txid: string): boolean => {
   const specs = wallet?.specs;
   if (!specs?.balances) return false;
+  // Home displays this sum. Do not announce receipt while it still shows zero.
+  if (!(specs.balances.confirmed + specs.balances.unconfirmed > 0)) return false;
 
   return [...(specs.confirmedUTXOs || []), ...(specs.unconfirmedUTXOs || [])].some(
     (utxo) => utxo.txId?.toLowerCase() === txid.toLowerCase()
