@@ -1,6 +1,7 @@
 # Diagnostic Linux toolchain for an independent Android build attempt.
 # This amd64 image digest is for eclipse-temurin:17.0.19_10-jdk-jammy.
-# Maven artifacts and transitive native downloads remain unpinned.
+# Gradle artifacts are checked by the project's verification metadata;
+# transitive native downloads outside Gradle remain unpinned.
 FROM --platform=linux/amd64 eclipse-temurin:17.0.19_10-jdk-jammy@sha256:b76a309b3dfa907458b4ef428edfcfb37920a5ce0e9c6bc77798a54e039a8330 AS java-node-yarn
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

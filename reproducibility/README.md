@@ -67,8 +67,12 @@ observed Google/Maven Central byte variants of the deprecated empty
 `com.android.tools.build:transform-api:2.0.0-deprecated-use-gradle-api` marker;
 their JAR contents match and neither POM declares dependencies. This file
 checks downloaded Gradle artifacts, not dependency version choices, Yarn
-packages, or native downloads outside Gradle. A fresh strict build must pass
-before treating the candidate as validated, and changes need review.
+packages, or native downloads outside Gradle. A fresh strict build passed at
+PR merge commit `a9abf22a2fcf79bd8523957777b71cbd1ac55185` in
+[CI run 37925955899](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/37925955899),
+validating this metadata for the diagnostic path. Its checksum baseline was
+generated from the earlier clean build; that does not independently
+authenticate every publisher artifact. Changes to the metadata need review.
 
 The placeholder configuration cannot establish whether a distributed APK or
 Play split matches this source. The seven-name environment allowlist in
