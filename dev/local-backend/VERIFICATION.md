@@ -1,8 +1,28 @@
 # Contributor setup verification
 
+## R4 public Relay repin — 9 October 2026
+
+The current source lock pins public Relay
+`fb93c887631a6f567155a88f8e93d566f9d32a53` and public SigningServer
+`3cc7728c27328e7b0358d1f91a32d8d13feba90a`. Compared with the previous
+Relay pin, the follow-up changes signer lookup cleanup and its regression tests;
+it does not change the mobile backup request or response shape or the app's local
+Dockerfile adapter. Relay's exact-head build, disposable backup tests and source
+scans passed in [PR #3](https://github.com/KeeperCommunity/Relay/pull/3).
+
+In the existing anonymous app checkout, with an isolated HOME, disabled
+system/global Git configuration and interactive credential prompts,
+`dev prepare` fetched the new Relay commit and applied the unchanged adapter.
+It preserved the prepared public
+SigningServer checkout. All 11 bootstrap fixtures and Compose configuration
+validation passed. No local Docker build or native app run was repeated for this
+new pin. The earlier full-stack acceptance in
+[app PR #7030](https://github.com/KeeperCommunity/bitcoin-keeper/pull/7030)
+used the previous Relay pin and is historical evidence for that revision.
+
 ## Sprint contributor package — 7 October 2026
 
-The current contributor package pins public Relay
+That sprint contributor package pinned public Relay
 `4c54e28738815546718775dbbdb39f0342c1b646` and public SigningServer
 `3cc7728c27328e7b0358d1f91a32d8d13feba90a`, with local adapter checksums in
 `sources.lock.json`. These are newer revisions than the earlier sprint PR #7014
@@ -18,8 +38,8 @@ changes have their own PR check results. Native app builds must be assessed
 against the selected app branch and platform separately.
 
 All dated sections below are historical evidence for the exact revisions named
-in those sections. They do not verify the current pins or attribute earlier
-private-source failures to the current public backend.
+in those sections. They do not verify the 9 October source lock or attribute
+earlier private-source failures to the current public backend.
 
 ## Public Relay transition — 7 October 2026
 

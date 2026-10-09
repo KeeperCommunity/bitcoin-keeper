@@ -1,7 +1,7 @@
 {
   "relay": {
     "url": "https://github.com/KeeperCommunity/Relay.git",
-    "revision": "4c54e28738815546718775dbbdb39f0342c1b646",
+    "revision": "fb93c887631a6f567155a88f8e93d566f9d32a53",
     "assets": {
       "files/Dockerfile.local": "6dde6c692430b1a91a10cdd82e6f1562023cc5974ffd4d4f58fe57fa1994407a"
     }
