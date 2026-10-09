@@ -48,8 +48,18 @@ const tron = {
           from: 'TStoredGasFreeAddress',
           to: 'TRecipient',
           formattedValue: 2,
+          confirmed: true,
           blockNumber: 1,
           blockTimestamp: 100,
+        },
+        {
+          transactionId: 'chain-no-time',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          formattedValue: 1,
+          confirmed: true,
+          blockNumber: 0,
+          blockTimestamp: 0,
         },
       ],
       meta: { fingerprint: '', hasMore: false },
@@ -129,8 +139,9 @@ test('stored address, chain reads and ambiguous historical request survive the p
 
   const transactions = await factory.syncUSDTWalletTransactions(wallet);
   assert.equal(historyCalls[0][0], wallet.accountStatus.gasFreeAddress);
-  assert.equal(transactions.length, 2);
+  assert.equal(transactions.length, 3);
   assert.equal(transactions[0].txId, 'chain-1');
+  assert.equal(transactions[0].status, historical.GasFreeTransferStatus.SUCCEED);
   assert.equal(transactions[1].traceId, 'historical-trace');
   assert.equal(transactions[0].to, transactions[1].to);
   assert.equal(transactions[0].amount, transactions[1].amount);
@@ -138,6 +149,9 @@ test('stored address, chain reads and ambiguous historical request survive the p
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[0]), false);
   assert.equal(usdtModule.isHistoricalUnverifiedUSDTRequest(transactions[1]), true);
   assert.equal(transactions[1].status, historical.GasFreeTransferStatus.WAITING);
+  assert.equal(transactions[2].txId, 'chain-no-time');
+  assert.equal(transactions[2].status, historical.GasFreeTransferStatus.CONFIRMING);
+  assert.equal(transactions[2].blockNumber, 0);
   assert.equal(
     usdtModule.isHistoricalUnverifiedUSDTRequest({
       traceId: 'old-request',
@@ -145,6 +159,38 @@ test('stored address, chain reads and ambiguous historical request survive the p
     }),
     true,
     'a stored provider status is not independent proof of an on-chain transfer'
+  );
+});
+
+test('refresh upgrades a cached pending entry when its confirmed chain record appears', async () => {
+  const cached = {
+    ...wallet,
+    specs: {
+      ...wallet.specs,
+      transactions: [
+        ...wallet.specs.transactions,
+        {
+          txId: 'chain-1',
+          traceId: 'saved-provider-trace',
+          from: 'TStoredGasFreeAddress',
+          to: 'TRecipient',
+          amount: '2',
+          status: historical.GasFreeTransferStatus.CONFIRMING,
+          timestamp: 90,
+          blockNumber: 0,
+          isGasFree: true,
+        },
+      ],
+    },
+  };
+  const transactions = await factory.syncUSDTWalletTransactions(cached);
+  const confirmed = transactions.find((tx) => tx.txId === 'chain-1');
+  assert.equal(confirmed.status, historical.GasFreeTransferStatus.SUCCEED);
+  assert.equal(confirmed.blockNumber, 1);
+  assert.equal(confirmed.traceId, 'saved-provider-trace');
+  assert.equal(
+    transactions.find((tx) => tx.traceId === 'historical-trace').status,
+    historical.GasFreeTransferStatus.WAITING
   );
 });
 

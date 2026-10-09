@@ -172,16 +172,21 @@ export default class USDT {
   }> {
     const contract = USDT.getUSDTAddress(networkType);
     const result = await getTrc20Transactions(address, contract, networkType, limit, fingerprint);
-    const transactions = result.transactions.map((txn) => ({
-      txId: txn.transactionId,
-      from: txn.from,
-      to: txn.to,
-      amount: txn.formattedValue.toString(),
-      status: txn.blockNumber ? GasFreeTransferStatus.SUCCEED : GasFreeTransferStatus.CONFIRMING,
-      timestamp: txn.blockTimestamp,
-      blockNumber: txn.blockNumber,
-      isGasFree: txn.to !== address,
-    }));
+    const transactions = result.transactions.map((txn) => {
+      // TronGrid can return a timestamp for an unconfirmed transfer. Require
+      // both fields so the stored status and pending indicator agree.
+      const confirmed = Boolean(txn.confirmed && txn.blockNumber);
+      return {
+        txId: txn.transactionId,
+        from: txn.from,
+        to: txn.to,
+        amount: txn.formattedValue.toString(),
+        status: confirmed ? GasFreeTransferStatus.SUCCEED : GasFreeTransferStatus.CONFIRMING,
+        timestamp: txn.blockTimestamp,
+        blockNumber: confirmed ? txn.blockNumber : 0,
+        isGasFree: txn.to !== address,
+      };
+    });
     return { transactions, meta: result.meta };
   }
 }
