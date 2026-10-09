@@ -108,6 +108,11 @@ describe('ElectrumClient', () => {
       assert.ok(result.connected);
       assert.strictEqual(result.connectedTo, onlineNode.host);
       assert.strictEqual(ElectrumClient.getActivePeer()?.host, onlineNode.host);
+
+      ElectrumClient.forceDisconnect();
+      const reconnected = await ElectrumClient.reconnect();
+      assert.ok(reconnected.connected);
+      assert.strictEqual(reconnected.connectedTo, onlineNode.host);
       assert.ok(mockClients.some((client) => client.host === offlineNode.host));
     });
   });
