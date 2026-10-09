@@ -75,7 +75,8 @@ test('home backup warning opens comparison without starting a backup', () => {
     dispatch: action => actions.push(action),
     uaiActioned: payload => ({ type: 'uaiActioned', payload }),
     backupAllSignersAndVaults: () => ({ type: 'backupAllSignersAndVaults' }),
-    navigation: { navigate: route => destinations.push(route) },
+    CommonActions: { navigate: route => route },
+    navigation: { dispatch: route => destinations.push(route) },
   });
   assert.deepEqual(destinations, ['AssistedBackupStatus']);
   assert.ok(!actions.some(action => action.type === 'backupAllSignersAndVaults'), 'view details must not write a backup before the user chooses Back Up Now');
