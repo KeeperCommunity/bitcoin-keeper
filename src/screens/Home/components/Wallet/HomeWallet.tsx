@@ -23,7 +23,7 @@ import CollaborativeWalletIcon from 'src/assets/images/collaborative_vault_white
 import { useAppSelector } from 'src/store/hooks';
 import { resetCollaborativeSession } from 'src/store/reducers/vaults';
 import { useDispatch } from 'react-redux';
-import { autoSyncWallets, refreshWallets } from 'src/store/sagaActions/wallets';
+import { useWalletRefresh } from 'src/hooks/useWalletRefresh';
 import { RefreshControl } from 'react-native';
 import { ELECTRUM_CLIENT } from 'src/services/electrum/client';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
@@ -123,7 +123,8 @@ const HomeWallet = () => {
   const dispatch = useDispatch();
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
   const [collabSessionExistsModalVisible, setCollabSessionExistsModalVisible] = useState(false);
-  const [pullRefresh, setPullRefresh] = useState(false);
+  const [navigateAfterSessionReset, setNavigateAfterSessionReset] = useState(false);
+  const { refreshing: pullRefresh, autoRefresh } = useWalletRefresh();
   const { walletSyncing } = useAppSelector((state) => state.wallet);
   const [pickWalletType, setPickWalletType] = useState(false);
   const [createUsdtWallet, setCreateUsdtWallet] = useState(false);
@@ -157,23 +158,29 @@ const HomeWallet = () => {
     }
   }, [pendingDustToast]);
 
+  useEffect(() => {
+    if (navigateAfterSessionReset && Object.keys(collaborativeSession.signers).length === 0) {
+      setNavigateAfterSessionReset(false);
+      navigation.navigate('SetupCollaborativeWallet');
+    }
+  }, [navigateAfterSessionReset, collaborativeSession.signers, navigation]);
+
+  const resetAndStartCollaborativeWallet = () => {
+    dispatch(resetCollaborativeSession());
+    setNavigateAfterSessionReset(true);
+  };
+
   const handleCollaborativeWalletCreation = () => {
     setShowAddWalletModal(false);
     if (Object.keys(collaborativeSession.signers).length > 0) {
       setCollabSessionExistsModalVisible(true);
     } else {
-      dispatch(resetCollaborativeSession());
-      setTimeout(() => {
-        navigation.navigate('SetupCollaborativeWallet');
-      }, 500); // delaying navigation by 0.5 second to ensure collaborative session reset
+      resetAndStartCollaborativeWallet();
     }
   };
 
   const pullDownRefresh = () => {
-    setPullRefresh(true);
-
-    dispatch(autoSyncWallets(false, false, true));
-    setPullRefresh(false);
+    autoRefresh();
   };
 
   const importUSDTWallet = async (mnemonic) => {
@@ -333,10 +340,7 @@ const HomeWallet = () => {
         secondaryButtonText={common.startNew}
         secondaryCallback={() => {
           setCollabSessionExistsModalVisible(false);
-          dispatch(resetCollaborativeSession());
-          setTimeout(() => {
-            navigation.navigate('SetupCollaborativeWallet');
-          }, 500);
+          resetAndStartCollaborativeWallet();
         }}
         buttonCallback={() => {
           setCollabSessionExistsModalVisible(false);

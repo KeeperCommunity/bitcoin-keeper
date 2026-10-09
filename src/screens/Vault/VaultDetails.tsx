@@ -9,7 +9,7 @@ import SignerIcon from 'src/assets/images/keys-icon.svg';
 import KeeperModal from 'src/components/KeeperModal';
 import TransactionElement from 'src/components/TransactionElement';
 import { MiniscriptTypes, VaultType } from 'src/services/wallets/enums';
-import { refreshWallets } from 'src/store/sagaActions/wallets';
+import { useWalletRefresh } from 'src/hooks/useWalletRefresh';
 import { setIntroModal } from 'src/store/reducers/vaults';
 import { useAppSelector } from 'src/store/hooks';
 import { useDispatch } from 'react-redux';
@@ -159,7 +159,7 @@ function VaultDetails({ navigation, route }: ScreenProps) {
   const originAppId = useRef(activeAppId).current;
   const { showToast } = useToastMessage();
   const { activeVault: vault } = useVault({ vaultId });
-  const [pullRefresh, setPullRefresh] = useState(false);
+  const { refreshing: pullRefresh, refresh } = useWalletRefresh();
   const { vaultSigners: keys } = useSigners(vault.id);
   const transactions = useMemo(
     () =>
@@ -374,9 +374,7 @@ function VaultDetails({ navigation, route }: ScreenProps) {
   }, [syncing, ELECTRUM_CLIENT]);
 
   const syncVault = (hardRefresh) => {
-    setPullRefresh(true);
-    dispatch(refreshWallets([vault], { hardRefresh }));
-    setPullRefresh(false);
+    refresh([vault], { hardRefresh });
   };
 
   const showTimelockModalContent = useCallback(() => {

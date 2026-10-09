@@ -7,7 +7,7 @@ import AddWalletIcon from 'src/assets/images/addWallet_illustration.svg';
 import TickIcon from 'src/assets/images/icon_tick.svg';
 import { hp, wp } from 'src/constants/responsive';
 import Text from 'src/components/KeeperText';
-import { refreshWallets } from 'src/store/sagaActions/wallets';
+import { useWalletRefresh } from 'src/hooks/useWalletRefresh';
 import { setIntroModal } from 'src/store/reducers/wallets';
 import { useAppSelector } from 'src/store/hooks';
 import useWallets from 'src/hooks/useWallets';
@@ -27,7 +27,7 @@ import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import { useUTXOSpendability } from 'src/hooks/useUTXOSpendability';
 
 // TODO: add type definitions to all components
-function TransactionsAndUTXOs({ transactions, setPullRefresh, pullRefresh, wallet }) {
+function TransactionsAndUTXOs({ transactions, pullRefresh, onRefresh, wallet }) {
   const { walletSyncing } = useAppSelector((state) => state.wallet);
   const syncing = walletSyncing && wallet ? !!walletSyncing[wallet.id] : false;
 
@@ -36,9 +36,9 @@ function TransactionsAndUTXOs({ transactions, setPullRefresh, pullRefresh, walle
       <ActivityIndicatorView visible={syncing} showLoader />
       <Transactions
         transactions={transactions}
-        setPullRefresh={setPullRefresh}
         pullRefresh={pullRefresh}
         currentWallet={wallet}
+        onBitcoinRefresh={onRefresh}
       />
     </>
   );
@@ -69,7 +69,7 @@ function WalletDetails({ route }: ScreenProps) {
   const { walletSyncing } = useAppSelector((state) => state.wallet);
   const syncing = walletSyncing && wallet ? !!walletSyncing[wallet.id] : false;
   const introModal = useAppSelector((state) => state.wallet.introModal) || false;
-  const [pullRefresh, setPullRefresh] = useState(false);
+  const { refreshing: pullRefresh, refresh } = useWalletRefresh();
   const viewAll_color = ThemedColor({ name: 'viewAll_color' });
 
   useEffect(() => {
@@ -113,9 +113,7 @@ function WalletDetails({ route }: ScreenProps) {
   }, [viewTransaction, wallet, navigation]);
 
   const pullDownRefresh = (hardRefresh) => {
-    setPullRefresh(true);
-    dispatch(refreshWallets([wallet], { hardRefresh }));
-    setPullRefresh(false);
+    refresh([wallet], { hardRefresh });
   };
 
   return (
@@ -179,9 +177,9 @@ function WalletDetails({ route }: ScreenProps) {
             ) : null}
             <TransactionsAndUTXOs
               transactions={wallet?.specs?.transactions}
-              setPullRefresh={setPullRefresh}
               pullRefresh={pullRefresh}
               wallet={wallet}
+              onRefresh={() => pullDownRefresh(true)}
             />
           </Box>
         ) : (

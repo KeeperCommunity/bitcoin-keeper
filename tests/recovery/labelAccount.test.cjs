@@ -24,8 +24,8 @@ const code = ts.transpileModule(extracted, {
   compilerOptions: { target: ts.ScriptTarget.ES2020 },
 }).outputText;
 
-function fixture({ consent = true, switchDuringCheck = false, switchDuringWalletRead = false } = {}) {
-  const state = { active: 'A', reduxActive: 'A', saved: [], deleted: [], uploaded: [], uiActions: [], failed: 0, consent };
+function fixture({ consent = true, switchDuringCheck = false, switchDuringWalletRead = false, switchDuringDescriptor = false } = {}) {
+  const state = { active: 'A', reduxActive: 'A', networkType: 'MAINNET', saved: [], deleted: [], uploaded: [], uiActions: [], failed: 0, consent };
   const dbManager = {
     getObjectByIndex: () => ({ id: state.active, primarySeed: `seed-${state.active}` }),
     createObjectBulk: (_schema, tags) => {
@@ -49,11 +49,14 @@ function fixture({ consent = true, switchDuringCheck = false, switchDuringWallet
   };
   const scope = {
     call, delay, put, dbManager, console,
-    store: { getState: () => ({ storage: { appId: state.reduxActive } }) },
+    store: { getState: () => ({ storage: { appId: state.reduxActive }, settings: { bitcoinNetworkType: state.networkType } }) },
     RealmSchema: { KeeperApp: 'KeeperApp', Tags: 'Tags', Wallet: 'Wallet', Vault: 'Vault' },
     LabelRefType: { TXN: 'TXN', ADDR: 'ADDR', OUTPUT: 'OUTPUT' },
     EntityKind: { VAULT: 'VAULT' },
-    generateAbbreviatedOutputDescriptors: () => 'disposable-origin',
+    generateAbbreviatedOutputDescriptors: () => {
+      if (switchDuringDescriptor) state.networkType = 'TESTNET';
+      return 'disposable-origin';
+    },
     generateEncryptionKey: (seed) => seed,
     hash256: (value) => `hash(${value})`,
     encrypt: (_key, value) => value,
@@ -124,6 +127,18 @@ test('unconsented A can label locally with zero backup upload', async () => {
   const f = fixture({ consent: false });
   await f.run('importLabelsWorker', { labels: [{ type: 'TX', ref: 'tx', label: 'note', origin: 'fixture' }] });
   assert.equal(f.state.saved[0].appId, 'A');
+  assert.deepEqual(f.state.uploaded, []);
+});
+
+test('network switch before scoped label persistence writes neither Realm nor relay', async () => {
+  const f = fixture({ switchDuringDescriptor: true });
+  await f.run('bulkUpdateLabelsWorker', {
+    labelChanges: { added: [{ name: 'note', isSystem: false }], deleted: [] },
+    UTXO: { txId: 'tx', vout: 0 },
+    wallet: { ...wallet, networkType: 'MAINNET' },
+    scope: { appId: 'A', networkType: 'MAINNET' },
+  });
+  assert.deepEqual(f.state.saved, []);
   assert.deepEqual(f.state.uploaded, []);
 });
 

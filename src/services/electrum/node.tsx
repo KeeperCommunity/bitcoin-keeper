@@ -108,10 +108,28 @@ export default class Node {
     );
   }
 
-  public static async connectToSelectedNode(selectedNode: NodeDetail) {
-    // connects to the selected node
+  public static async connectToSelectedNode(
+    selectedNode: NodeDetail,
+    originAppId = this.currentAccountId()
+  ) {
+    if (!this.isAccountActive(originAppId)) {
+      return { connected: false, connectedTo: undefined, error: 'Account changed' };
+    }
+    // The tapped node must connect on its own; only then enable eligible saved
+    // public peers for a later connection loss.
     ElectrumClient.setActivePeer([], selectedNode);
-    const { connected, connectedTo, error } = await ElectrumClient.connect();
+    const { connected, connectedTo, error, generation } = await ElectrumClient.connect();
+    // The async connection may finish after another account has opened Realm.
+    // Never read its nodes or equip them as peers for the old connection.
+    if (!this.isAccountActive(originAppId)) {
+      return { connected: false, connectedTo: undefined, error: 'Account changed' };
+    }
+    if (connected) {
+      ElectrumClient.setFailoverPeers(
+        this.getAllNodes().filter((node) => node.networkType === selectedNode.networkType),
+        generation
+      );
+    }
     return { connected, connectedTo, error };
   }
 

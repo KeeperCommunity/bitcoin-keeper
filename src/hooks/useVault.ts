@@ -4,6 +4,7 @@ import { getJSONFromRealmObject } from 'src/storage/realm/utils';
 import { useQuery } from '@realm/react';
 import { VaultType, VisibilityType } from 'src/services/wallets/enums';
 import { useAppSelector } from 'src/store/hooks';
+import { useMemo } from 'react';
 
 type Params =
   | {
@@ -25,19 +26,29 @@ const useVault = ({
   getFirst = false,
   getHiddenWallets = true,
 }: Params) => {
-  let allVaults: Vault[] = useQuery(RealmSchema.Vault);
-
+  const realmVaults = useQuery(RealmSchema.Vault) as unknown as Vault[];
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
-  allVaults = includeArchived
-    ? allVaults.map(getJSONFromRealmObject)
-    : allVaults.filtered('archived != true').map(getJSONFromRealmObject);
-  // Filter vaults based on network
-  allVaults = allVaults.filter((wallet) => wallet.networkType === bitcoinNetworkType);
+  // Select before converting: toJSON traverses address, UTXO and history data.
+  // The useQuery reference changes on Realm writes, but stays stable across
+  // unrelated renders of the same screen.
+  const allVaultsIncludingCanary: Vault[] = useMemo(
+    () =>
+      realmVaults
+        .filter(
+          (vault) =>
+            (includeArchived || !vault.archived) && vault.networkType === bitcoinNetworkType
+        )
+        .map(getJSONFromRealmObject) as unknown as Vault[],
+    [realmVaults, includeArchived, bitcoinNetworkType]
+  );
   //Filtering Canary Vaults from at all UI level where Vaults are consumed
-  const allVaultsIncludingCanary = allVaults;
-  allVaults = allVaults.filter((vault) => vault.type !== VaultType.CANARY);
-  const allNonHiddenNonArchivedVaults = allVaults.filter(
-    (vault) => vault.presentationData.visibility === VisibilityType.DEFAULT
+  const allVaults = useMemo(
+    () => allVaultsIncludingCanary.filter((vault) => vault.type !== VaultType.CANARY),
+    [allVaultsIncludingCanary]
+  );
+  const allNonHiddenNonArchivedVaults = useMemo(
+    () => allVaults.filter((vault) => vault.presentationData.visibility === VisibilityType.DEFAULT),
+    [allVaults]
   );
   if (!vaultId) {
     if (getHiddenWallets) {

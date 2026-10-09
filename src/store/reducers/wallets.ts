@@ -18,10 +18,12 @@ export type WalletsState = {
   testCoinsReceived: boolean;
   testCoinsFailed: boolean;
   testCoinsQuotaReached: boolean;
+  testCoinsPending: 'propagation' | 'sync' | 'unknown' | null;
 
   introModal: boolean;
   err: string;
   walletSyncing: {};
+  refreshRequests: Record<string, 'pending' | 'success' | 'failure'>;
   signerPolicyError?: string;
 };
 
@@ -38,11 +40,13 @@ const initialState: WalletsState = {
   testCoinsReceived: false,
   testCoinsFailed: false,
   testCoinsQuotaReached: false,
+  testCoinsPending: null,
 
   introModal: true,
 
   err: '',
   walletSyncing: {},
+  refreshRequests: {},
 };
 
 export type syncingPayload = {
@@ -65,6 +69,12 @@ const walletSlice = createSlice({
     },
     setTestCoinsQuotaReached: (state, action: PayloadAction<boolean>) => {
       state.testCoinsQuotaReached = action.payload;
+    },
+    setTestCoinsPending: (
+      state,
+      action: PayloadAction<'propagation' | 'sync' | 'unknown' | null>
+    ) => {
+      state.testCoinsPending = action.payload;
     },
     setIntroModal: (state, action: PayloadAction<boolean>) => {
       state.introModal = action.payload;
@@ -94,6 +104,23 @@ const walletSlice = createSlice({
     },
     resetSyncing: (state) => {
       state.walletSyncing = {};
+      state.refreshRequests = {};
+    },
+    startRefreshRequest: (state, action: PayloadAction<string>) => {
+      state.refreshRequests[action.payload] = 'pending';
+    },
+    finishRefreshRequest: (
+      state,
+      action: PayloadAction<{ requestId: string; succeeded: boolean }>
+    ) => {
+      if (state.refreshRequests[action.payload.requestId] === 'pending') {
+        state.refreshRequests[action.payload.requestId] = action.payload.succeeded
+          ? 'success'
+          : 'failure';
+      }
+    },
+    clearRefreshRequest: (state, action: PayloadAction<string>) => {
+      delete state.refreshRequests[action.payload];
     },
     setSignerPolicyError: (state, action: PayloadAction<string>) => {
       state.signerPolicyError = action.payload;
@@ -114,12 +141,16 @@ export const {
   setTestCoinsReceived,
   setTestCoinsFailed,
   setTestCoinsQuotaReached,
+  setTestCoinsPending,
   setIntroModal,
   walletGenerationFailed,
   newWalletCreated,
   resetWalletStateFlags,
   resetSyncing,
   setSyncing,
+  startRefreshRequest,
+  finishRefreshRequest,
+  clearRefreshRequest,
   setSignerPolicyError,
 } = walletSlice.actions;
 
@@ -130,10 +161,12 @@ const walletPersistConfig = {
     'testCoinsReceived',
     'testCoinsFailed',
     'testCoinsQuotaReached',
+    'testCoinsPending',
     'hasNewWalletsGenerationFailed',
     'hasNewWalletsGenerationSucceeded',
     'isGeneratingNewWallet',
     'walletSyncing',
+    'refreshRequests',
     'setSignerPolicyError',
   ],
 };

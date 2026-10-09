@@ -223,32 +223,47 @@ export default class Relay {
 
   public static getTestcoins = async (
     recipientAddress: string,
-    network: any,
+    network: NetworkType,
     appId: string
   ): Promise<{
-    txid: any;
-    funded: any;
+    txid: string;
+    funded: boolean;
   }> => {
-    if (network === NetworkType.MAINNET) {
+    if (network !== NetworkType.TESTNET) {
       throw new Error('Invalid network: failed to fund via testnet');
     }
 
     try {
-      const res = await RestClient.post(`${config.RELAY}testnetFaucet`, {
-        recipientAddress,
-        appId,
-      });
-      const { txid, funded } = res.data;
+      const res = await RestClient.post(
+        `${config.RELAY}testnetFaucet`,
+        { recipientAddress, appId },
+        undefined,
+        { timeout: 20000 }
+      );
+      const { txid, funded } = res.data || {};
+      if (!funded || typeof txid !== 'string' || !/^[0-9a-f]{64}$/i.test(txid)) {
+        throw new Error('FAUCET_OUTCOME_UNKNOWN');
+      }
       return {
         txid,
         funded,
       };
     } catch (err) {
+      if (err?.message === 'FAUCET_OUTCOME_UNKNOWN') throw err;
       if (err.response?.status === 429) {
         throw new Error('FAUCET_DAILY_LIMIT_REACHED');
       }
-      if (err.response) throw new Error(err.response.data.err);
-      if (err.code) throw new Error(err.code);
+      if (
+        err?.code === 'ECONNABORTED' ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ERR_NETWORK' ||
+        err?.response?.status >= 500
+      ) {
+        // The relay may have broadcast before the response was lost. Never retry automatically.
+        throw new Error('FAUCET_OUTCOME_UNKNOWN');
+      }
+      if (err?.response) throw new Error(err.response.data?.err || 'FAUCET_REQUEST_FAILED');
+      throw new Error('FAUCET_REQUEST_FAILED');
     }
   };
 
@@ -302,7 +317,7 @@ export default class Relay {
 
   public static checkTorStatus = async () => {
     try {
-      const response = await RestClient.get(TOR_ENDPOINT, { timeout: 20000 });
+      const response = await RestClient.get(TOR_ENDPOINT, undefined, { timeout: 20000 });
       const data = (response as AxiosResponse).data || (response as any).json;
       return data.IsTor;
     } catch (error) {

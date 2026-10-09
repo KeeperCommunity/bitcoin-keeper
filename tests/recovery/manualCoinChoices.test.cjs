@@ -117,6 +117,16 @@ for (const kind of ['Wallet', 'Vault']) for (const choice of ['doNotSpend', 'spe
   const f = sagaFixture(); const restored = withCoins(kind); restored.specs.confirmedUTXOs = [coin(choice)];
   f.collections[kind].push(restored);
   f.scope.ELECTRUM_CLIENT = { isClientConnected: true };
+  f.scope.WALLET_SYNC_SCOPE_CHANGED = 'WALLET_SYNC_SCOPE_CHANGED';
+  f.scope.ElectrumClient = {
+    getConnectionGeneration: () => 1,
+    assertConnectionGeneration: (_generation, networkType) => {
+      assert.equal(networkType, enums.NetworkType.MAINNET);
+    },
+    resetCurrentPeerIndex: () => {
+      throw new Error('Current-network refresh should not reconnect');
+    },
+  };
   f.scope.WalletUtilities.getNetworkByType = () => ({});
   f.scope.WalletOperations = { syncWalletsViaElectrumClient: async () => {
     const synced = clone(restored);
@@ -132,7 +142,10 @@ for (const kind of ['Wallet', 'Vault']) for (const choice of ['doNotSpend', 'spe
   f.scope.setElectrumNotConnectedErr = error => { throw Error(error); };
   f.scope.ELECTRUM_NOT_CONNECTED_ERR = 'offline'; f.scope.ELECTRUM_NOT_CONNECTED_ERR_TOR = 'tor-offline';
   loadFunctions(f.scope, 'src/store/sagas/wallets.ts', ['refreshWalletsWorker']);
-  await f.run('refreshWalletsWorker', { payload: { wallets: [restored], options: { hardRefresh: true } } });
+  await f.run('refreshWalletsWorker', {
+    originAppId: f.app.id,
+    payload: { wallets: [restored], options: { hardRefresh: true } },
+  });
   assert.equal(f.collections[kind][0].specs.confirmedUTXOs[0].spendability, choice);
   assert.equal(f.collections[kind][0].specs.confirmedUTXOs[0].isManualOverride, true);
 });

@@ -2,7 +2,7 @@ import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
 import { call, delay, put } from 'redux-saga/effects';
 import { BIP329Label, UTXOSpendability } from 'src/services/wallets/interfaces';
-import { EntityKind, LabelRefType } from 'src/services/wallets/enums';
+import { EntityKind, LabelRefType, NetworkType } from 'src/services/wallets/enums';
 import Relay from 'src/services/backend/Relay';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { generateAbbreviatedOutputDescriptors } from 'src/utils/service-utilities/utils';
@@ -27,6 +27,8 @@ import {
 } from './bhr';
 import { encrypt, generateEncryptionKey, hash256 } from 'src/utils/service-utilities/encryption';
 
+type LabelSyncScope = { appId: string; networkType: NetworkType };
+
 function currentOriginApp(originAppId?: string): KeeperApp | null {
   if (!originAppId || store.getState().storage.appId !== originAppId) return null;
   try {
@@ -39,8 +41,18 @@ function currentOriginApp(originAppId?: string): KeeperApp | null {
 
 // Keep the ownership check and local writes in one synchronous turn. An action
 // created for A must never mutate B's Realm after a network or saga wait.
-function persistTagsForOrigin(originAppId: string, added: BIP329Label[], deleted: string[] = []) {
+function persistTagsForOrigin(
+  originAppId: string,
+  added: BIP329Label[],
+  deleted: string[] = [],
+  scope?: LabelSyncScope
+) {
   if (!currentOriginApp(originAppId)) return false;
+  if (
+    scope &&
+    (scope.appId !== originAppId || store.getState().settings.bitcoinNetworkType !== scope.networkType)
+  )
+    return false;
   if (added.length && dbManager.createObjectBulk(RealmSchema.Tags, added) !== true) return false;
   for (const id of deleted) {
     if (dbManager.deleteObjectById(RealmSchema.Tags, id) !== true) return false;
@@ -127,6 +139,7 @@ export function* bulkUpdateLabelsWorker({
     txId?: string;
     address?: string;
     wallet: Wallet;
+    scope?: LabelSyncScope;
   };
   originAppId?: string;
 }) {
@@ -136,7 +149,14 @@ export function* bulkUpdateLabelsWorker({
     if (!app) return;
     const primarySeed = app.primarySeed;
     yield put(originUiAction(setSyncingUTXOs(true), originAppId));
-    const { labelChanges, wallet, UTXO, txId, address } = payload;
+    const { labelChanges, wallet, UTXO, txId, address, scope } = payload;
+    if (
+      scope &&
+      (scope.appId !== originAppId ||
+        store.getState().settings.bitcoinNetworkType !== scope.networkType ||
+        wallet.networkType !== scope.networkType)
+    )
+      return;
     const origin = generateAbbreviatedOutputDescriptors(wallet);
     let addedTags: BIP329Label[] = [];
     let deletedTagIds: string[] = [];
@@ -156,10 +176,16 @@ export function* bulkUpdateLabelsWorker({
     if (labelChanges.deleted) {
       deletedTagIds = labelChanges.deleted.map((label) => `${ref}${label.name}`);
     }
-    if (!(yield call(persistTagsForOrigin, originAppId, addedTags, deletedTagIds))) return;
+    if (!(yield call(persistTagsForOrigin, originAppId, addedTags, deletedTagIds, scope))) return;
     try {
       const backupResponse = yield call(checkBackupCondition, originAppId);
-      if (!backupResponse && currentOriginApp(originAppId)) {
+      if (
+        !backupResponse &&
+        currentOriginApp(originAppId) &&
+        (!scope ||
+          (scope.appId === originAppId &&
+            store.getState().settings.bitcoinNetworkType === scope.networkType))
+      ) {
         const encryptionKey = generateEncryptionKey(primarySeed);
         const tagsToBackup = addedTags.map((tag) => ({
           id: hash256(hash256(encryptionKey + tag.id)),

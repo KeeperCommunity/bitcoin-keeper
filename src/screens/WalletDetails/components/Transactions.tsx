@@ -1,7 +1,5 @@
 import { FlatList, RefreshControl } from 'react-native';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { refreshWallets } from 'src/store/sagaActions/wallets';
+import React, { useContext, useEffect, useMemo } from 'react';
 import EmptyStateView from 'src/components/EmptyView/EmptyStateView';
 import NoTransactionIcon from 'src/assets/images/noTransaction.svg';
 import TransactionElement from 'src/components/TransactionElement';
@@ -52,8 +50,8 @@ function Transactions({
   pullRefresh,
   currentWallet,
   setInitialLoading,
+  onBitcoinRefresh,
 }) {
-  const dispatch = useDispatch();
   const navigation = useNavigation();
   const { translations } = useContext(LocalizationContext);
   const { common } = translations;
@@ -80,16 +78,19 @@ function Transactions({
   }, [transactions]);
 
   const pullDownRefresh = async () => {
-    setInitialLoading(true);
+    if (currentWallet.entityKind !== EntityKind.USDT_WALLET) {
+      onBitcoinRefresh?.();
+      return;
+    }
+    setPullRefresh?.(true);
+    setInitialLoading?.(true);
     try {
-      if (currentWallet.entityKind === EntityKind.USDT_WALLET) {
-        await syncWallet(currentWallet);
-      } else dispatch(refreshWallets([currentWallet], { hardRefresh: true }));
+      await syncWallet(currentWallet);
     } catch (error) {
       captureError(error);
     } finally {
-      setPullRefresh(false);
-      setInitialLoading(false);
+      setPullRefresh?.(false);
+      setInitialLoading?.(false);
     }
   };
 
