@@ -235,12 +235,28 @@ It does not output environment values. A local dependency install is necessary;
 linking to a sibling `node_modules` directory recreates an observed historical
 build-path dependency and fails this check.
 
-This check does not yet pin the container image, Android command-line tools
-download, Maven artifacts, or every transitive native input. It does not run
-the build or compare a binary and is not a WalletScrutiny `build.sh`. The exact
-production environment names and values still need release-owner review before
-any public recipe or verdict. Run its focused tests with:
+The diagnostic container pins its base image and command-line tools archive;
+this checker verifies their installed versions but not every apt, Maven, or
+transitive native input. It does not run the build or compare a binary and is
+not a WalletScrutiny `build.sh`. Run its focused tests with:
 
 ```sh
 python3 -m unittest reproducibility/test_verify_android_inputs.py
 ```
+
+## Next checks
+
+1. Make the clean Linux diagnostic APK/AAB build pass in CI, then repeat it
+   from the same commit and compare payloads and build manifests. Resolve any
+   changing inputs or path-sensitive output.
+2. Lock the remaining apt, Maven, and native downloads and confirm that the
+   candidate release source consumes only the reviewed, noncredential Android
+   environment fields. The seven proposed values can be checked against the
+   public v2.6.3 APK without asking the owner to supply them.
+3. For the release selected later, rebuild its exact public commit with its
+   reviewed production configuration. Compare the resulting APK with that
+   release's authenticated GitHub APK and corresponding Play splits. Investigate
+   every payload difference before reporting a result.
+4. Once that process works end to end, publish a WalletScrutiny-compatible
+   `build.sh` and `COMPARISON_RESULTS.yaml`. Do not infer a match from the
+   diagnostic build or from package signatures alone.
