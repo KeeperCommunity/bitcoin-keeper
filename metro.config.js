@@ -16,6 +16,8 @@ const config = {
   resolver: {
     assetExts: assetExts.filter((ext) => ext !== 'svg'),
     sourceExts: [...sourceExts, 'svg'],
+    // OneKey hd-core uses package.json "exports" field
+    unstable_enablePackageExports: true,
   },
 };
 

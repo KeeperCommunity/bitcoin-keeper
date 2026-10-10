@@ -183,6 +183,9 @@ export const getSignerNameFromType = (type: SignerType, isMock = false, isAmf = 
     case SignerType.LEDGER:
       name = 'Ledger';
       break;
+    case SignerType.ONEKEY:
+      name = 'OneKey';
+      break;
     case SignerType.MOBILE_KEY:
       name = 'Recovery Key';
       break;
@@ -475,6 +478,9 @@ export const getSDMessage = ({ type }: { type: SignerType }) => {
     }
     case SignerType.TREZOR: {
       return 'Trusted signers from SatoshiLabs';
+    }
+    case SignerType.ONEKEY: {
+      return 'OneKey hardware wallet over Bluetooth';
     }
     case SignerType.OTHER_SD: {
       return 'Varies with different signer';

@@ -44,10 +44,11 @@ import useExchangeRates from 'src/hooks/useExchangeRates';
 import useCurrencyCode from 'src/store/hooks/state-selectors/useCurrencyCode';
 import { SATOSHIS_IN_BTC } from 'src/constants/Bitcoin';
 import { InteracationMode } from '../Vault/HardwareModalMap';
+import OneKeyBleModal from 'src/components/OneKeyBleModal';
 import { Vault } from 'src/services/wallets/interfaces/vault';
 import KeyPadView from 'src/components/AppNumPad/KeyPadView';
 import AmountDetailsInput from '../Send/AmountDetailsInput';
-import { getAccountFromSigner } from 'src/utils/utilities';
+import { getAccountFromSigner, getKeyUID } from 'src/utils/utilities';
 import WalletHeader from 'src/components/WalletHeader';
 
 const AddressVerifiableSigners = [
@@ -57,6 +58,7 @@ const AddressVerifiableSigners = [
   SignerType.COLDCARD,
   SignerType.JADE,
   SignerType.PORTAL,
+  SignerType.ONEKEY,
 ];
 
 const SignerTypesNeedingRegistration = [
@@ -80,12 +82,13 @@ function ReceiveScreen({ route }: { route }) {
   // const amount = route?.params?.amount;
   const [receivingAddress, setReceivingAddress] = useState(null);
   const [paymentURI, setPaymentURI] = useState(null);
+  const [onekeyVerifyState, setOnekeyVerifyState] = useState<any>({ visible: false });
 
   const { translations } = useContext(LocalizationContext);
   const { common, home, wallet: walletTranslation, vault: vaultTranslations } = translations;
 
   const navigation = useNavigation();
-  const { vaultSigners } = useSigners(wallet.id);
+  const { vaultSigners } = useSigners(wallet?.id ?? '');
   const [addVerifiableSigners, setAddVerifiableSigners] = useState([]);
   const [signersNeedRegistration, setSignersNeedRegistration] = useState([]);
 
@@ -281,6 +284,19 @@ function ReceiveScreen({ route }: { route }) {
                 receiveAddressIndex: currentAddressIdx - 1,
               })
             );
+          } else if (signer.type === SignerType.ONEKEY) {
+            const vKey = (wallet as Vault).signers?.find(
+              (vaultSigner) => getKeyUID(vaultSigner) === getKeyUID(signer)
+            );
+            setOnekeyVerifyState({
+              visible: true,
+              signer,
+              vaultKey: vKey,
+              vault: wallet,
+              vaultId: wallet.id,
+              receiveAddressIndex: currentAddressIdx - 1,
+              receivingAddress,
+            });
           } else {
             navigation.dispatch(
               CommonActions.navigate('ConnectChannel', {
@@ -348,6 +364,7 @@ function ReceiveScreen({ route }: { route }) {
   };
 
   return (
+    <>
     <ScreenWrapper backgroundcolor={`${colorMode}.primaryBackground`}>
       <Box style={{ flexDirection: 'row', marginBottom: hp(25) }}>
         <WalletHeader
@@ -582,6 +599,18 @@ function ReceiveScreen({ route }: { route }) {
         </Pressable>
       )}
     </ScreenWrapper>
+    <OneKeyBleModal
+      visible={onekeyVerifyState.visible}
+      close={() => setOnekeyVerifyState({ visible: false })}
+      mode="verify-address"
+      signer={onekeyVerifyState.signer}
+      vaultKey={onekeyVerifyState.vaultKey}
+      vault={onekeyVerifyState.vault}
+      vaultId={onekeyVerifyState.vaultId}
+      receiveAddressIndex={onekeyVerifyState.receiveAddressIndex}
+      receivingAddress={onekeyVerifyState.receivingAddress}
+    />
+    </>
   );
 }
 

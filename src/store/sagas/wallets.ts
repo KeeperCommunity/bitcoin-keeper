@@ -446,6 +446,14 @@ export function* addSigningDeviceWorker({
             type,
             signerXpubs: _.merge(existingSigner.signerXpubs, newSigner.signerXpubs),
             signerName,
+            ...(existingSigner.type === SignerType.ONEKEY &&
+            newSigner.type === SignerType.ONEKEY &&
+            newSigner.extraData?.bleConnectId
+              ? {
+                  signerName: newSigner.signerName,
+                  signerDescription: newSigner.signerDescription,
+                }
+              : {}),
           });
           continue;
         }

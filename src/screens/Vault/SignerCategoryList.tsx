@@ -61,6 +61,7 @@ function SignerCategoryList() {
     { type: SignerType.SPECTER, background: 'pantoneGreen', isTrue: false },
     { type: SignerType.KEYSTONE, background: 'brownBackground', isTrue: false },
     { type: SignerType.LEDGER, background: 'headerWhite', isTrue: false },
+    { type: SignerType.ONEKEY, background: 'headerWhite', isTrue: false },
     { type: SignerType.PORTAL, background: 'pantoneGreen', isTrue: false },
     { type: SignerType.TREZOR, background: 'brownBackground', isTrue: false },
     { type: SignerType.BITBOX02, background: 'headerWhite', isTrue: false },

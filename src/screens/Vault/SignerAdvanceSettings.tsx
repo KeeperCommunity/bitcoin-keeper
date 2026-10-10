@@ -932,6 +932,14 @@ function SignerAdvanceSettings({ route }: any) {
           description: signerTranslation.kruxDesc,
           FAQ: 'https://selfcustody.github.io/krux/faq/',
         };
+      case SignerType.ONEKEY:
+        return {
+          title: 'OneKey',
+          subTitle: 'Connect OneKey hardware wallet via Bluetooth',
+          assert: <ThemedSvg name={'onekey_illustration'} />,
+          description: 'OneKey hardware wallet over Bluetooth',
+          FAQ: 'https://help.onekey.so',
+        };
       default:
         return {
           title: '',
