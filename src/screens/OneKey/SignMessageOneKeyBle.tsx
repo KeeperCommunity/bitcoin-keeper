@@ -61,8 +61,8 @@ function SignMessageOneKeyBle() {
     if (!isFocused) return undefined;
     const controller = new AbortController();
     const sub = onekeyUIEmitter.addListener(ONEKEY_UI_EVENT, (event: OneKeyUIEvent) => {
-      if (!controller.signal.aborted && UI_PROMPTS[event]) {
-        setSdkPrompt(UI_PROMPTS[event]);
+      if (!controller.signal.aborted && (event === 'idle' || UI_PROMPTS[event])) {
+        setSdkPrompt(event === 'idle' ? '' : UI_PROMPTS[event]);
       }
     });
     const timer = setTimeout(() => runSignMessage(controller.signal), 300);

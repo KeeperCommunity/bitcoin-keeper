@@ -18,6 +18,7 @@ const mockRemoveListener = jest.fn();
 let mockFocused = true;
 let mockParams;
 let mockVault;
+let mockUIHandler: (event: string) => void;
 
 jest.mock('react-redux', () => ({ useDispatch: () => mockDispatch }));
 jest.mock('src/store/hooks', () => ({
@@ -67,7 +68,12 @@ jest.mock('src/services/onekeyBle', () => ({
   signMessageWithOneKey: jest.fn(),
   verifyAddressOnOneKey: jest.fn(),
   ONEKEY_UI_EVENT: 'ui',
-  onekeyUIEmitter: { addListener: () => ({ remove: mockRemoveListener }) },
+  onekeyUIEmitter: {
+    addListener: (_event, handler) => {
+      mockUIHandler = handler;
+      return { remove: mockRemoveListener };
+    },
+  },
 }));
 jest.mock('src/hooks/useSignerFromKey', () => () => ({ signer: mockSigner }));
 jest.mock('src/services/sentry', () => ({ captureError: jest.fn() }));
@@ -184,6 +190,25 @@ describe('OneKey flow cancellation', () => {
     jest.clearAllTimers();
     jest.useRealTimers();
   });
+
+  test.each([SignWithOneKeyBle, SignMessageOneKeyBle])(
+    '%p clears the PIN hint when the SDK completes its interaction', async (Screen) => {
+      let finishScan;
+      (oneKey.searchOneKeyDevices as jest.Mock).mockReturnValueOnce(
+        new Promise((resolve) => { finishScan = resolve; })
+      );
+      let view: ReactTestRenderer;
+      await act(async () => { view = create(<Screen />); });
+      await act(async () => jest.advanceTimersByTimeAsync(300));
+      await act(async () => mockUIHandler('pin'));
+      expect(JSON.stringify(view.toJSON())).toContain('Please enter PIN on your OneKey device');
+      await act(async () => mockUIHandler('idle'));
+      expect(JSON.stringify(view.toJSON())).not.toContain('Please enter PIN on your OneKey device');
+      await act(async () => view.unmount());
+      await act(async () => finishScan([]));
+      expect(oneKey.getOneKeyDeviceInfo).not.toHaveBeenCalled();
+    }
+  );
 
   test.each([SignWithOneKeyBle, SignMessageOneKeyBle])(
     'leaving %p before startup prevents scanning',

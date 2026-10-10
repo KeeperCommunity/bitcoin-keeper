@@ -1,7 +1,8 @@
 import HardwareBLESDK from '@onekeyfe/hd-ble-sdk';
 import {
   type CoreApi,
-  type Features,
+  type DeviceState,
+  type HardwareUiInteractionMeta,
   type SearchDevice,
   UI_EVENT,
   UI_REQUEST,
@@ -48,6 +49,8 @@ export type OneKeySignerData = {
 export type OneKeyDeviceInfo = {
   connectId: string;
   deviceId: string;
+  deviceType: SearchDevice['deviceType'];
+  bleName: string;
   masterFingerprint: string;
   deviceLabel: string; // Device name shown on device (e.g. "My OneKey")
   serialNo: string; // Hardware serial number (e.g. "PRA471B")
@@ -67,6 +70,11 @@ let sdkInitPromise: Promise<CoreApi> | null = null;
 let bleManager: BleManager | null = null;
 let uiListenerBound = false;
 let pendingScan: Promise<SDKResult<SearchDevice[]>> | null = null;
+let uiState: {
+  phase: 'pin' | 'button' | 'processing' | 'closed';
+  connectId?: string;
+  interaction?: HardwareUiInteractionMeta;
+} = { phase: 'closed' };
 
 const SCAN_TIMEOUT_MS = 15_000;
 const bip32 = BIP32Factory(ecc);
@@ -79,12 +87,52 @@ const getCoreSdk = () => HardwareBLESDK as unknown as CoreApi;
 const handleUIEvent = (message: any) => {
   if (!sdkInstance) return;
 
+  // Requests nest V2 metadata; close events carry it directly in the payload.
+  const candidate = message?.payload?.interaction ?? message?.payload;
+  const interaction: HardwareUiInteractionMeta | undefined =
+    candidate?.protocol === 'V2' &&
+    typeof candidate.interactionId === 'string' &&
+    typeof candidate.phaseId === 'string' &&
+    typeof candidate.sequence === 'number'
+      ? candidate
+      : undefined;
+  const connectId =
+    typeof message?.payload?.device?.connectId === 'string'
+      ? message.payload.device.connectId
+      : undefined;
+  const isProtocolV2 =
+    message?.payload?.device?.connectProtocol === 'V2' ||
+    message?.payload?.interaction?.protocol === 'V2';
+  const isDifferentDevice = Boolean(
+    uiState.connectId && connectId && uiState.connectId !== connectId
+  );
+
+  if (
+    message?.type === UI_REQUEST.REQUEST_PIN ||
+    message?.type === UI_REQUEST.REQUEST_BUTTON
+  ) {
+    if (
+      !isDifferentDevice &&
+      interaction &&
+      uiState.interaction?.interactionId === interaction.interactionId &&
+      interaction.sequence <= uiState.interaction.sequence
+    ) return;
+    uiState = {
+      phase: message.type === UI_REQUEST.REQUEST_PIN ? 'pin' : 'button',
+      connectId: connectId ?? uiState.connectId,
+      interaction:
+        interaction ?? (isDifferentDevice || !isProtocolV2 ? undefined : uiState.interaction),
+    };
+  }
+
   if (message?.type === UI_REQUEST.REQUEST_PIN) {
     onekeyUIEmitter.emit(ONEKEY_UI_EVENT, UI_REQUEST.REQUEST_PIN);
-    sdkInstance.uiResponse({
-      type: UI_RESPONSE.RECEIVE_PIN,
-      payload: '@@ONEKEY_INPUT_PIN_IN_DEVICE',
-    });
+    if (!isProtocolV2) {
+      sdkInstance.uiResponse({
+        type: UI_RESPONSE.RECEIVE_PIN,
+        payload: '@@ONEKEY_INPUT_PIN_IN_DEVICE',
+      });
+    }
     return;
   }
 
@@ -96,6 +144,10 @@ const handleUIEvent = (message: any) => {
   if (message?.type === UI_REQUEST.REQUEST_PASSPHRASE) {
     // Keeper does not support OneKey hidden-wallet passphrases. Keep all
     // operations on the main wallet even if a call accidentally asks.
+    if (isProtocolV2) {
+      sdkInstance.cancel(message?.payload?.device?.connectId);
+      return;
+    }
     sdkInstance.uiResponse({
       type: UI_RESPONSE.RECEIVE_PASSPHRASE,
       payload: {
@@ -104,6 +156,36 @@ const handleUIEvent = (message: any) => {
         save: false,
       },
     });
+  }
+
+  if (
+    message?.type === UI_REQUEST.CLOSE_UI_PIN_WINDOW ||
+    message?.type === UI_REQUEST.CLOSE_UI_WINDOW
+  ) {
+    if (
+      isDifferentDevice ||
+      (!interaction && uiState.interaction && uiState.phase !== 'closed') ||
+      (interaction && uiState.interaction && (
+        interaction.interactionId !== uiState.interaction.interactionId ||
+        interaction.sequence <= uiState.interaction.sequence
+      ))
+    ) return;
+    // A late PIN completion must not dismiss a later confirmation phase.
+    if (
+      message.type === UI_REQUEST.CLOSE_UI_PIN_WINDOW && (
+        uiState.phase !== 'pin' ||
+        (interaction && (
+          interaction.phase !== 'pin' ||
+          (uiState.interaction && interaction.phaseId !== uiState.interaction.phaseId)
+        ))
+      )
+    ) return;
+    uiState = {
+      phase: message.type === UI_REQUEST.CLOSE_UI_PIN_WINDOW ? 'processing' : 'closed',
+      connectId: connectId ?? uiState.connectId,
+      interaction: interaction ?? uiState.interaction,
+    };
+    onekeyUIEmitter.emit(ONEKEY_UI_EVENT, 'idle');
   }
 };
 
@@ -137,7 +219,8 @@ export const getOneKeySdk = async (): Promise<CoreApi> => {
 
   sdkInitPromise = (async () => {
     const sdk = getCoreSdk();
-    await sdk.init({ debug: false, fetchConfig: true });
+    const initialized = await sdk.init({ debug: false, fetchConfig: true });
+    if (!initialized) throw new Error('Failed to initialize OneKey SDK');
     sdkInstance = sdk;
     bindUIListener(sdk);
     return sdk;
@@ -335,7 +418,7 @@ export const searchOneKeyDevices = async (signal?: AbortSignal): Promise<SearchD
 };
 
 /**
- * Resolve device_id and master fingerprint from a connected device.
+ * Open the standard wallet and read unified device identity and fingerprint.
  * Returns both so callers can verify device identity.
  */
 export const getOneKeyDeviceInfo = async (
@@ -344,24 +427,32 @@ export const getOneKeyDeviceInfo = async (
 ): Promise<OneKeyDeviceInfo> => {
   checkCancellation(signal);
   const sdk = await getOneKeySdk();
-  const result = (await callWithCancellation(
+  const walletResult = await callWithCancellation(
     sdk,
-    () => sdk.getFeatures(connectId),
+    () => sdk.openWalletSession(connectId, { mode: 'standard' }),
     signal,
     connectId
-  )) as SDKResult<Features>;
+  );
+  if (!walletResult.success) throw new Error(getErrorMessage(walletResult));
+  if (walletResult.payload.walletType !== 'standard') {
+    throw new Error('OneKey hidden wallets are not supported');
+  }
+
+  const result = (await callWithCancellation(
+    sdk,
+    () => sdk.getDeviceState(connectId, { scope: 'settings' }),
+    signal,
+    connectId
+  )) as SDKResult<DeviceState>;
   if (!result?.success) throw new Error(getErrorMessage(result));
 
-  const deviceId = result?.payload?.device_id;
-  if (!deviceId) throw new Error('Failed to get OneKey device_id');
-
-  const serialNo =
-    (result.payload as any)?.onekey_serial_no ||
-    (result.payload as any)?.onekey_serial ||
-    (result.payload as any)?.serial_no ||
-    '';
+  const { deviceId, deviceType, serialNo, label, bleName } = result.payload.identity;
+  if (!deviceId) throw new Error('Failed to get OneKey deviceId');
+  if (deviceId !== walletResult.payload.deviceId) {
+    throw new Error('OneKey device changed while opening the wallet');
+  }
   const deviceLabel =
-    result?.payload?.label || result?.payload?.ble_name || `OneKey ${deviceId.slice(-4)}`;
+    label || bleName || `OneKey ${deviceId.slice(-4)}`;
 
   // Fetch root fingerprint via a lightweight key derivation
   const fpResult = (await callWithCancellation(
@@ -379,7 +470,15 @@ export const getOneKeyDeviceInfo = async (
   if (!fpResult?.success) throw new Error(getErrorMessage(fpResult));
 
   const mfp = toMasterFingerprint(fpResult?.payload?.root_fingerprint);
-  return { connectId, deviceId, masterFingerprint: mfp, deviceLabel, serialNo };
+  return {
+    connectId,
+    deviceId,
+    deviceType,
+    bleName: bleName || '',
+    masterFingerprint: mfp,
+    deviceLabel,
+    serialNo,
+  };
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

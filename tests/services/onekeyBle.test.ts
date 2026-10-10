@@ -1,31 +1,40 @@
 import { BleManager } from 'react-native-ble-plx';
 import HardwareBLESDK from '@onekeyfe/hd-ble-sdk';
 import * as bitcoinMessage from 'bitcoinjs-message';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
+import { UI_EVENT, UI_REQUEST, UI_RESPONSE } from '@onekeyfe/hd-core';
 import { NetworkType } from 'src/services/wallets/enums';
 import {
   assertOneKeyFingerprint,
   ensureOneKeyBLEReady,
   fetchOneKeySignerData,
   getOneKeyDeviceInfo,
+  getOneKeySdk,
+  ONEKEY_UI_EVENT,
   searchOneKeyDevices,
   signPsbtWithOneKey,
   signMessageWithOneKey,
 } from 'src/services/onekeyBle';
 
 jest.mock('@onekeyfe/hd-ble-sdk', () => ({
-  init: jest.fn().mockResolvedValue(undefined),
+  init: jest.fn().mockResolvedValue(true),
   on: jest.fn(),
   searchDevices: jest.fn(),
   btcGetPublicKey: jest.fn(),
   btcSignPsbt: jest.fn(),
   btcSignMessage: jest.fn(),
   getFeatures: jest.fn(),
+  getDeviceState: jest.fn(),
+  openWalletSession: jest.fn(),
+  uiResponse: jest.fn(),
   cancel: jest.fn(),
 }));
 jest.mock('@onekeyfe/hd-core', () => ({
   UI_EVENT: 'UI_EVENT',
-  UI_REQUEST: { REQUEST_PIN: 'pin', REQUEST_BUTTON: 'button', REQUEST_PASSPHRASE: 'passphrase' },
+  UI_REQUEST: {
+    REQUEST_PIN: 'pin', REQUEST_BUTTON: 'button', REQUEST_PASSPHRASE: 'passphrase',
+    CLOSE_UI_PIN_WINDOW: 'close-pin', CLOSE_UI_WINDOW: 'close',
+  },
   UI_RESPONSE: { RECEIVE_PIN: 'pin', RECEIVE_PASSPHRASE: 'passphrase' },
 }));
 jest.mock('react-native-ble-plx', () => ({ BleManager: jest.fn() }));
@@ -36,10 +45,18 @@ jest.mock('bip32', () => ({ __esModule: true, default: () => ({}) }));
 const sdk = HardwareBLESDK as unknown as Record<string, jest.Mock>;
 const adapter = { onStateChange: jest.fn(), state: jest.fn(), stopDeviceScan: jest.fn() };
 const remove = jest.fn();
+let uiHandler: (message: any) => void;
 
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  sdk.on.mockImplementation((event, handler) => {
+    if (event === UI_EVENT) uiHandler = handler;
+  });
+  sdk.openWalletSession.mockResolvedValue({
+    success: true,
+    payload: { protocol: 'V2', walletType: 'standard', deviceId: 'test-id', passphraseState: null },
+  });
   Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
   Object.defineProperty(Platform, 'Version', { configurable: true, value: 31 });
   jest.spyOn(PermissionsAndroid, 'requestMultiple').mockResolvedValue({
@@ -52,8 +69,254 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Finish the simulated prompt without leaking the SDK singleton's UI state.
+  uiHandler?.({
+    type: UI_REQUEST.REQUEST_BUTTON,
+    payload: { device: { connectId: 'test-reset', connectProtocol: 'V1' } },
+  });
+  uiHandler?.({ type: UI_REQUEST.CLOSE_UI_WINDOW });
   jest.clearAllTimers();
   jest.useRealTimers();
+});
+
+test('failed SDK initialization is not cached and can be retried', async () => {
+  sdk.init.mockResolvedValueOnce(false);
+  await expect(getOneKeySdk()).rejects.toThrow('Failed to initialize OneKey SDK');
+  expect(sdk.on).not.toHaveBeenCalled();
+  await expect(getOneKeySdk()).resolves.toBe(sdk);
+  expect(sdk.init).toHaveBeenCalledTimes(2);
+  expect(sdk.on).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  ['pro', 'V1'],
+  ['pro2', 'V2'],
+  ['neo', 'V2'],
+])(
+  'reads %s identity and custom name after opening the standard wallet',
+  async (deviceType, protocol) => {
+    sdk.openWalletSession.mockResolvedValueOnce({
+      success: true,
+      payload: { protocol, walletType: 'standard', deviceId: 'test-id', passphraseState: null },
+    });
+    sdk.getDeviceState.mockResolvedValueOnce({
+      success: true,
+      payload: {
+        identity: {
+          deviceId: 'test-id',
+          deviceType,
+          serialNo: 'fixture-serial',
+          label: 'My Keeper',
+          bleName: 'fixture-ble',
+        },
+      },
+    });
+    sdk.btcGetPublicKey.mockResolvedValueOnce({
+      success: true,
+      payload: { root_fingerprint: 0x1234abcd },
+    });
+
+    await expect(getOneKeyDeviceInfo('test-device')).resolves.toEqual({
+      connectId: 'test-device',
+      deviceId: 'test-id',
+      deviceType,
+      serialNo: 'fixture-serial',
+      deviceLabel: 'My Keeper',
+      bleName: 'fixture-ble',
+      masterFingerprint: '1234ABCD',
+    });
+    expect(sdk.openWalletSession).toHaveBeenCalledWith('test-device', { mode: 'standard' });
+    expect(sdk.getDeviceState).toHaveBeenCalledWith('test-device', { scope: 'settings' });
+    expect(sdk.openWalletSession.mock.invocationCallOrder[0]).toBeLessThan(
+      sdk.btcGetPublicKey.mock.invocationCallOrder[0]
+    );
+    expect(sdk.getFeatures).not.toHaveBeenCalled();
+  }
+);
+
+test('wallet-open failures stop device identification before key derivation', async () => {
+  sdk.openWalletSession.mockResolvedValueOnce({
+    success: false,
+    payload: { error: 'Device disconnected' },
+  });
+  await expect(getOneKeyDeviceInfo('test-device')).rejects.toThrow('Device disconnected');
+  expect(sdk.getDeviceState).not.toHaveBeenCalled();
+  expect(sdk.btcGetPublicKey).not.toHaveBeenCalled();
+});
+
+test('a different device identity cannot continue the opened wallet flow', async () => {
+  sdk.getDeviceState.mockResolvedValueOnce({
+    success: true,
+    payload: { identity: { deviceId: 'different-id' } },
+  });
+  await expect(getOneKeyDeviceInfo('test-device')).rejects.toThrow('device changed');
+  expect(sdk.btcGetPublicKey).not.toHaveBeenCalled();
+});
+
+test.each([
+  [{ device: { connectProtocol: 'V1' } }, true],
+  [{ device: { connectProtocol: 'V2' } }, false],
+  [{ interaction: { protocol: 'V2' } }, false],
+])(
+  'PIN hints preserve V1 responses and leave V2 on-device prompts non-blocking: %j',
+  async (payload, responds) => {
+    await getOneKeySdk();
+    const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+    uiHandler({ type: UI_REQUEST.REQUEST_PIN, payload });
+    expect(emit).toHaveBeenCalledWith(ONEKEY_UI_EVENT, UI_REQUEST.REQUEST_PIN);
+    if (responds) {
+      expect(sdk.uiResponse).toHaveBeenCalledWith({
+        type: UI_RESPONSE.RECEIVE_PIN,
+        payload: '@@ONEKEY_INPUT_PIN_IN_DEVICE',
+      });
+    } else {
+      expect(sdk.uiResponse).not.toHaveBeenCalled();
+    }
+  }
+);
+
+test.each([UI_REQUEST.CLOSE_UI_PIN_WINDOW, UI_REQUEST.CLOSE_UI_WINDOW])(
+  'legacy close event %s clears its prompt without issuing another cancel',
+  async (type) => {
+    await getOneKeySdk();
+    const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+    uiHandler({ type: UI_REQUEST.REQUEST_PIN });
+    emit.mockClear();
+    uiHandler({ type });
+    expect(emit).toHaveBeenCalledWith(ONEKEY_UI_EVENT, 'idle');
+    expect(sdk.cancel).not.toHaveBeenCalled();
+  }
+);
+
+const uiInteraction = (overrides: Record<string, unknown> = {}) => ({
+  protocol: 'V2',
+  interactionId: 'interaction-1',
+  phaseId: 'pin-1',
+  sequence: 1,
+  phase: 'pin',
+  transition: 'start',
+  ...overrides,
+});
+
+test.each([
+  ['pro2', UI_REQUEST.CLOSE_UI_PIN_WINDOW],
+  ['neo', UI_REQUEST.CLOSE_UI_PIN_WINDOW],
+  ['pro2', UI_REQUEST.CLOSE_UI_WINDOW],
+  ['neo', UI_REQUEST.CLOSE_UI_WINDOW],
+])('a matching %s close event %s clears the prompt once', async (deviceType, type) => {
+  await getOneKeySdk();
+  const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+  const device = { connectId: 'test-device', connectProtocol: 'V2', deviceType };
+  uiHandler({ type: UI_REQUEST.REQUEST_PIN, payload: { device, interaction: uiInteraction() } });
+  emit.mockClear();
+  const close = {
+    type,
+    payload: { ...uiInteraction({ sequence: 2, transition: 'complete' }), device },
+  };
+  uiHandler(close);
+  uiHandler(close);
+  expect(emit).toHaveBeenCalledTimes(1);
+  expect(emit).toHaveBeenCalledWith(ONEKEY_UI_EVENT, 'idle');
+  expect(sdk.uiResponse).not.toHaveBeenCalled();
+  expect(sdk.cancel).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['late PIN completion', UI_REQUEST.CLOSE_UI_PIN_WINDOW, uiInteraction({ sequence: 4 })],
+  ['old interaction', UI_REQUEST.CLOSE_UI_WINDOW, uiInteraction({ interactionId: 'older', sequence: 4 })],
+  ['older sequence', UI_REQUEST.CLOSE_UI_WINDOW, uiInteraction({ sequence: 2 })],
+  ['duplicate sequence', UI_REQUEST.CLOSE_UI_WINDOW, uiInteraction({ sequence: 3 })],
+  ['another device', UI_REQUEST.CLOSE_UI_WINDOW, {
+    ...uiInteraction({ sequence: 4 }), device: { connectId: 'other-device' },
+  }],
+  ['metadata-less close', UI_REQUEST.CLOSE_UI_WINDOW, undefined],
+  ['metadata-less PIN close', UI_REQUEST.CLOSE_UI_PIN_WINDOW, undefined],
+])('%s cannot dismiss the current V2 button prompt', async (_name, type, payload) => {
+  await getOneKeySdk();
+  const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+  const device = { connectId: 'test-device', connectProtocol: 'V2' };
+  uiHandler({ type: UI_REQUEST.REQUEST_PIN, payload: { device, interaction: uiInteraction() } });
+  uiHandler({
+    type: UI_REQUEST.REQUEST_BUTTON,
+    payload: { device, interaction: uiInteraction({ phase: 'button', phaseId: 'button-1', sequence: 3 }) },
+  });
+  emit.mockClear();
+  uiHandler({ type, payload });
+  expect(emit).not.toHaveBeenCalled();
+  expect(sdk.cancel).not.toHaveBeenCalled();
+  uiHandler({
+    type: UI_REQUEST.CLOSE_UI_WINDOW,
+    payload: { ...uiInteraction({ phase: 'button', phaseId: 'button-1', sequence: 5 }), device },
+  });
+  expect(emit).toHaveBeenCalledWith(ONEKEY_UI_EVENT, 'idle');
+});
+
+test('a PIN close from another phase cannot dismiss the current V2 PIN prompt', async () => {
+  await getOneKeySdk();
+  const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+  const device = { connectId: 'test-device', connectProtocol: 'V2' };
+  uiHandler({ type: UI_REQUEST.REQUEST_PIN, payload: { device, interaction: uiInteraction() } });
+  emit.mockClear();
+  uiHandler({
+    type: UI_REQUEST.CLOSE_UI_PIN_WINDOW,
+    payload: { ...uiInteraction({ phaseId: 'older-pin', sequence: 2 }), device },
+  });
+  expect(emit).not.toHaveBeenCalled();
+  uiHandler({
+    type: UI_REQUEST.CLOSE_UI_PIN_WINDOW,
+    payload: { ...uiInteraction({ sequence: 3 }), device },
+  });
+  expect(emit).toHaveBeenCalledWith(ONEKEY_UI_EVENT, 'idle');
+});
+
+test('an older V2 request cannot replace the current button prompt', async () => {
+  await getOneKeySdk();
+  const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+  const device = { connectId: 'test-device', connectProtocol: 'V2' };
+  uiHandler({
+    type: UI_REQUEST.REQUEST_BUTTON,
+    payload: { device, interaction: uiInteraction({ phase: 'button', phaseId: 'button-1', sequence: 3 }) },
+  });
+  emit.mockClear();
+  uiHandler({ type: UI_REQUEST.REQUEST_PIN, payload: { device, interaction: uiInteraction() } });
+  uiHandler({
+    type: UI_REQUEST.CLOSE_UI_PIN_WINDOW,
+    payload: { ...uiInteraction({ sequence: 4 }), device },
+  });
+  expect(emit).not.toHaveBeenCalled();
+});
+
+test('switching from a V2 device to a legacy device preserves PIN responses and close handling', async () => {
+  await getOneKeySdk();
+  const emit = jest.spyOn(DeviceEventEmitter, 'emit');
+  uiHandler({
+    type: UI_REQUEST.REQUEST_BUTTON,
+    payload: {
+      device: { connectId: 'pro2-device', connectProtocol: 'V2' },
+      interaction: uiInteraction({ phase: 'button' }),
+    },
+  });
+  uiHandler({
+    type: UI_REQUEST.REQUEST_PIN,
+    payload: { device: { connectId: 'legacy-device', connectProtocol: 'V1' } },
+  });
+  expect(sdk.uiResponse).toHaveBeenCalledWith({
+    type: UI_RESPONSE.RECEIVE_PIN,
+    payload: '@@ONEKEY_INPUT_PIN_IN_DEVICE',
+  });
+  emit.mockClear();
+  uiHandler({ type: UI_REQUEST.CLOSE_UI_PIN_WINDOW });
+  expect(emit).toHaveBeenCalledWith(ONEKEY_UI_EVENT, 'idle');
+});
+
+test('an unexpected V2 hidden-wallet selection is cancelled instead of sending an empty passphrase', async () => {
+  await getOneKeySdk();
+  uiHandler({
+    type: UI_REQUEST.REQUEST_PASSPHRASE,
+    payload: { device: { connectProtocol: 'V2', connectId: 'test-device' } },
+  });
+  expect(sdk.cancel).toHaveBeenCalledWith('test-device');
+  expect(sdk.uiResponse).not.toHaveBeenCalled();
 });
 
 test('permission denial does not start adapter discovery', async () => {
@@ -301,15 +564,15 @@ test('a retry waits for the cancelled SDK scan to finish before starting a new s
   expect(sdk.searchDevices).toHaveBeenCalledTimes(2);
 });
 
-test('cancelling device identification prevents a later fingerprint request', async () => {
-  let finishFeatures;
-  sdk.getFeatures.mockReturnValueOnce(new Promise((resolve) => { finishFeatures = resolve; }));
+test.each(['openWalletSession', 'getDeviceState'])('cancelling identification during %s prevents a later fingerprint request', async (method) => {
+  let finishState;
+  sdk[method].mockReturnValueOnce(new Promise((resolve) => { finishState = resolve; }));
   const controller = new AbortController();
   const result = expect(getOneKeyDeviceInfo('test-device', controller.signal)).rejects.toThrow('cancelled');
   await jest.advanceTimersByTimeAsync(1);
   controller.abort();
   await result;
-  finishFeatures({ success: true, payload: { device_id: 'test-id' } });
+  finishState({ success: true, payload: { identity: { deviceId: 'test-id' } } });
   await jest.advanceTimersByTimeAsync(1);
   expect(sdk.cancel).toHaveBeenCalledWith('test-device');
   expect(sdk.btcGetPublicKey).not.toHaveBeenCalled();

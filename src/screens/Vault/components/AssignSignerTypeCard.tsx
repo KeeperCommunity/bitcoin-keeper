@@ -98,15 +98,14 @@ function AssignSignerTypeCard({
     device: SearchDevice;
     deviceInfo: OneKeyDeviceInfo;
   }) => {
-    const bleName = device?.name;
+    const deviceTypeName = getDeviceTypeName({ ...device, deviceType: deviceInfo.deviceType });
+    const bleName = deviceInfo.bleName || device?.name;
     const signerUpdates: Partial<Signer> = {
-      signerName: getDeviceTypeName(device),
+      signerName: deviceInfo.deviceLabel || deviceTypeName,
+      signerDescription:
+        bleName && bleName !== 'Unknown' ? `${deviceTypeName} · ${bleName}` : deviceTypeName,
       extraData: { ...signer?.extraData, bleConnectId: deviceInfo.connectId },
     };
-
-    if (bleName && bleName !== 'Unknown') {
-      signerUpdates.signerDescription = bleName;
-    }
 
     persistSignerType(SignerType.ONEKEY, signerUpdates);
   };

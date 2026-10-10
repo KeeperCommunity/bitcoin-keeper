@@ -227,12 +227,11 @@ function OneKeyBleModal({
 
       const { signer: newSigner } = setupUSBSigner(SignerType.ONEKEY, signerData, isMultisig);
 
-      // Title: "OneKey Pro" / "OneKey Classic", Subtitle: BLE name (e.g. "Pro 04DD")
-      newSigner.signerName = getDeviceTypeName(device);
-      const bleName = device?.name;
-      if (bleName && bleName !== 'Unknown') {
-        newSigner.signerDescription = bleName;
-      }
+      const deviceTypeName = getDeviceTypeName({ ...device, deviceType: deviceInfo.deviceType });
+      const bleName = deviceInfo.bleName || device?.name;
+      newSigner.signerName = deviceInfo.deviceLabel || deviceTypeName;
+      newSigner.signerDescription =
+        bleName && bleName !== 'Unknown' ? `${deviceTypeName} · ${bleName}` : deviceTypeName;
       newSigner.extraData = { ...newSigner.extraData, bleConnectId: deviceInfo.connectId };
 
       if (mode === 'setup') {
@@ -449,13 +448,7 @@ function OneKeyBleModal({
         activeOpacity={0.7}
       >
         <Box style={styles.deviceRow}>
-          {img ? (
-            <Image source={img} style={styles.deviceImage} resizeMode="contain" />
-          ) : (
-            <Box style={styles.fallbackIcon}>
-              <Text style={styles.fallbackText}>OK</Text>
-            </Box>
-          )}
+          <Image source={img} style={styles.deviceImage} resizeMode="contain" />
           <Box style={{ flex: 1 }}>
             <Text style={styles.deviceName} color={`${colorMode}.primaryText`}>
               {getDeviceDisplayName(device)}
@@ -648,20 +641,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 8,
     marginRight: 12,
-  },
-  fallbackIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#44D62C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  fallbackText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000',
   },
   deviceName: {
     fontSize: 15,

@@ -9,6 +9,7 @@ export const DEVICE_IMAGES: Record<string, ImageSourcePropType> = {
   classicpure: require('src/assets/images/onekey-devices/classic-pure.png'),
   touch: require('src/assets/images/onekey-devices/touch.png'),
   pro: require('src/assets/images/onekey-devices/pro-black.png'),
+  pro2: require('src/assets/images/onekey-devices/pro2-black.png'),
 };
 
 // ─── Device type names ───────────────────────────────────────────────────────
@@ -19,13 +20,15 @@ export const DEVICE_TYPE_NAMES: Record<string, string> = {
   classicpure: 'OneKey Classic 1S Pure',
   touch: 'OneKey Touch',
   pro: 'OneKey Pro',
+  pro2: 'OneKey Pro 2',
+  neo: 'OneKey Neo',
 };
 
 // ─── Helper functions ────────────────────────────────────────────────────────
 
-export const getDeviceImage = (deviceOrType?: SearchDevice | string): ImageSourcePropType | null => {
+export const getDeviceImage = (deviceOrType?: SearchDevice | string): ImageSourcePropType => {
   const dt = typeof deviceOrType === 'string' ? deviceOrType : deviceOrType?.deviceType;
-  return dt ? DEVICE_IMAGES[dt] || null : null;
+  return (dt && DEVICE_IMAGES[dt]) || DEVICE_IMAGES.pro2;
 };
 
 export const getDeviceDisplayName = (device: SearchDevice): string => {
