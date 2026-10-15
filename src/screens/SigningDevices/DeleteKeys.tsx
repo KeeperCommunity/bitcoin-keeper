@@ -14,7 +14,9 @@ import ShowIcon from 'src/assets/images/show.svg';
 import { useDispatch } from 'react-redux';
 import { updateSignerDetails } from 'src/store/sagaActions/wallets';
 import { Signer, Vault } from 'src/services/wallets/interfaces/vault';
-import useVault from 'src/hooks/useVault';
+import { useQuery } from '@realm/react';
+import { RealmSchema } from 'src/storage/realm/enum';
+import { getJSONFromRealmObject } from 'src/storage/realm/utils';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import ActionCard from 'src/components/ActionCard';
 import WalletVault from 'src/assets/images/wallet_vault.svg';
@@ -62,7 +64,9 @@ function DeleteKeys({ route }) {
   const navigation = useNavigation();
   const [unhidingKeyUID, setUnhidingKeyUID] = useState('');
   const [multipleHidden, setMultipleHidden] = useState(false);
-  const { allVaults } = useVault({ includeArchived: true });
+  // Deletion safety must include hidden/canary wallets and both networks.
+  // Presentation hooks intentionally filter those records out.
+  const allVaults: Vault[] = useQuery(RealmSchema.Vault).map(getJSONFromRealmObject);
   const { archivedVaults } = useArchivedVault();
   const [warningEnabled, setHideWarning] = useState(false);
   const [vaultsUsed, setVaultsUsed] = useState<Vault[]>();
@@ -85,6 +89,17 @@ function DeleteKeys({ route }) {
 
   const onSuccess = () => {
     if (signerToDelete) {
+      // References may have changed while the passcode dialog was open.
+      const vaultsInvolved = getActiveReferences(signerToDelete);
+      if (vaultsInvolved.length) {
+        setConfirmPassVisible(false);
+        setSignerToDelete(null);
+        setMultipleHidden(vaultsInvolved.length > 1);
+        setVaultsUsed(vaultsInvolved);
+        setHideWarning(true);
+        return;
+      }
+      setConfirmPassVisible(false);
       const involvedArchivedVaults = archivedVaults.filter((vault) =>
         vault.signers.find((s) => getKeyUID(s) === getKeyUID(signerToDelete))
       );
@@ -125,11 +140,15 @@ function DeleteKeys({ route }) {
     }
   };
 
-  const handleDelete = (signer: Signer) => {
-    setMultipleHidden(false);
-    const vaultsInvolved = allVaults.filter(
-      (vault) => !vault.archived && vault.signers.find((s) => getKeyUID(s) === getKeyUID(signer))
+  const getActiveReferences = (signer: Signer) =>
+    allVaults.filter(
+      (vault) => !vault.archived && vault.signers.some((s) => getKeyUID(s) === getKeyUID(signer))
     );
+
+  const handleDelete = (signer: Signer) => {
+    setSignerToDelete(null);
+    setMultipleHidden(false);
+    const vaultsInvolved = getActiveReferences(signer);
     if (vaultsInvolved.length > 0) {
       if (vaultsInvolved.length > 1) setMultipleHidden(true);
       setHideWarning(true);
@@ -217,7 +236,7 @@ function DeleteKeys({ route }) {
 
   return (
     <ScreenWrapper barStyle="dark-content" backgroundcolor={`${colorMode}.primaryBackground`}>
-      <WalletHeader title={signerText.hiddenKeys} subTitle={signerText.showingHiddenKeys} />
+      <WalletHeader title={signerText.manageKeys} subTitle={signerText.ViewAndChangeKeyDetails} />
       <Box style={styles.container}>
         {allUnhideSigners.length === 0 && !showAll ? (
           <Box style={styles.emptyWrapper}>
@@ -240,13 +259,11 @@ function DeleteKeys({ route }) {
                 <KeyCard
                   key={getKeyUID(signer)}
                   isLoading={getKeyUID(signer) === unhidingKeyUID && !showAll}
-                  primaryAction={
-                    signer.hidden === true && showDelete ? () => handleDelete(signer) : null
-                  }
+                  primaryAction={showDelete ? () => handleDelete(signer) : null}
                   secondaryAction={() =>
                     signer.hidden === true ? unhide(signer) : hideSigner(signer)
                   }
-                  primaryText={signer.hidden === true && showDelete ? signerText.delete : null}
+                  primaryText={showDelete ? signerText.delete : null}
                   secondaryText={signer.hidden === true ? signerText.unhide : 'Hide'}
                   primaryIcon={showDelete ? <DeleteIcon /> : null}
                   secondaryIcon={signer.hidden === true ? <ShowIcon /> : <HideWalletIcon />}
@@ -342,7 +359,10 @@ function DeleteKeys({ route }) {
       <KeeperModal
         visible={confirmPassVisible}
         closeOnOverlayClick={false}
-        close={() => setConfirmPassVisible(false)}
+        close={() => {
+          setConfirmPassVisible(false);
+          setSignerToDelete(null);
+        }}
         title={signerText.enterPasscode}
         subTitleWidth={wp(240)}
         subTitle={signerText.confirmPasscodeToDeleteKey}
@@ -371,7 +391,10 @@ function DeleteKeys({ route }) {
             )}
             <PasscodeVerifyModal
               useBiometrics={false}
-              close={() => setConfirmPassVisible(false)}
+              close={() => {
+                setConfirmPassVisible(false);
+                setSignerToDelete(null);
+              }}
               onSuccess={onSuccess}
             />
           </Box>

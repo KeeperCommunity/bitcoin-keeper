@@ -14,6 +14,7 @@ import ScreenWrapper from 'src/components/ScreenWrapper';
 import { getApp } from '@react-native-firebase/app';
 import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import { setupKeeperApp } from 'src/store/sagaActions/storage';
+import { setAppCreationError } from 'src/store/reducers/login';
 import useToastMessage from 'src/hooks/useToastMessage';
 import { Box, Pressable, useColorMode } from '@gluestack-ui/themed-native-base';
 import LoadingAnimation from 'src/components/Loader';
@@ -321,23 +322,6 @@ function NewKeeperApp({ navigation }: { navigation }) {
       <KeeperModal
         dismissible={false}
         close={() => {}}
-        visible={appCreationError}
-        title={common.somethingWrong}
-        subTitle={login.checkinternetConnection}
-        modalBackground={`${colorMode}.modalWhiteBackground`}
-        textColor={`${colorMode}.textGreen`}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={Box}
-        buttonText={common.retry}
-        buttonCallback={() => {
-          setInitiating(true);
-        }}
-        subTitleWidth={wp(250)}
-        showCloseIcon={false}
-      />
-      <KeeperModal
-        dismissible={false}
-        close={() => {}}
         visible={modalVisible}
         title={getSignUpModalContent().title}
         subTitle={getSignUpModalContent().subTitle}
@@ -364,6 +348,7 @@ function NewKeeperApp({ navigation }: { navigation }) {
         Content={Box}
         buttonText={common.retry}
         buttonCallback={() => {
+          dispatch(setAppCreationError(false));
           setInitiating(true);
         }}
         modalBackground={`${colorMode}.modalWhiteBackground`}

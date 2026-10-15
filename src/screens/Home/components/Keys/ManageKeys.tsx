@@ -1,6 +1,7 @@
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
+import Text from 'src/components/KeeperText';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 
 import KeeperModal from 'src/components/KeeperModal';
@@ -106,6 +107,14 @@ const ManageKeys = ({ addedSigner }) => {
           onPress={handleModalOpen}
           containerStyle={{ right: wp(22.5) }}
         />
+        <Pressable
+          accessibilityRole="button"
+          testID="manage_keys_actions"
+          onPress={() => navigation.navigate('DeleteKeys')}
+          style={{ paddingVertical: hp(12) }}
+        >
+          <Text color={`${colorMode}.textGreen`}>{translations.signer.manageKeys}</Text>
+        </Pressable>
         <Box style={styles.contentContainer}>
           <SignerList navigation={navigation} />
         </Box>
