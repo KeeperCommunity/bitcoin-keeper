@@ -17,6 +17,7 @@ import {
   setBackupAllFailure,
   setBackupAllSuccess,
   setSeedConfirmed,
+  isAutomaticCloudBackupEnabled,
 } from 'src/store/reducers/bhr';
 import { CommonActions, useIsFocused, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@realm/react';
@@ -41,7 +42,7 @@ const ContentType = {
   mismatch: 'mismatch',
   healthCheckSuccessful: 'healthCheckSuccessful',
 };
-function Content({ contentType, asbEnabled }: { contentType: string; asbEnabled: boolean }) {
+function Content({ contentType, asbEnabled }: { contentType: string; asbEnabled?: boolean }) {
   const { BackupWallet } = useContext(LocalizationContext).translations;
   const illustrations = {
     [ContentType.verifying]: (
@@ -64,6 +65,9 @@ function Content({ contentType, asbEnabled }: { contentType: string; asbEnabled:
       <Box alignItems="center">{illustrations[contentType]}</Box>
       {descriptions[contentType] && <Text>{descriptions[contentType]}</Text>}
       {asbEnabled && <Text>{BackupWallet.assistedServerBackupEnabled}</Text>}
+      {contentType !== ContentType.healthCheckSuccessful && (
+        <Text>{BackupWallet.retainedOlderCopyNotice}</Text>
+      )}
     </Box>
   );
 }
@@ -74,17 +78,21 @@ function BackupHealthCheckList({ isUaiFlow }) {
   const { translations } = useContext(LocalizationContext);
   const { BackupWallet, vault: vaultText, common } = translations;
   const dispatch = useAppDispatch();
-  const { primaryMnemonic, backup, id } = useQuery(RealmSchema.KeeperApp).map(
+  const { primaryMnemonic, id } = useQuery(RealmSchema.KeeperApp).map(
     getJSONFromRealmObject
-  )[0];
+  )[0] as { primaryMnemonic: string; id: string };
   const {
     backupMethod,
     seedConfirmed,
-    automaticCloudBackup,
-    backupAllLoading,
-    backupAllFailure,
-    backupAllSuccess,
+    automaticCloudBackupByAppId,
+    backupAllLoadingByAppId,
+    backupAllFailureByAppId,
+    backupAllSuccessByAppId,
   } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = isAutomaticCloudBackupEnabled({ automaticCloudBackupByAppId }, id);
+  const backupAllLoading = !!backupAllLoadingByAppId?.[id];
+  const backupAllFailure = !!backupAllFailureByAppId?.[id];
+  const backupAllSuccess = !!backupAllSuccessByAppId?.[id];
   const [healthCheckModal, setHealthCheckModal] = useState(false);
   const [showConfirmSeedModal, setShowConfirmSeedModal] = useState(isUaiFlow);
   const [verificationModal, setVerificationModal] = useState(false);
@@ -103,13 +111,12 @@ function BackupHealthCheckList({ isUaiFlow }) {
     setShowConfirmSeedModal(true);
   };
 
-
   useEffect(() => {
-    if (backupAllSuccess || backupAllFailure) {
+    if (backupAllSuccess) {
       if (!automaticCloudBackup) setAsbEnabled(true);
-      dispatch(setBackupAllSuccess(false));
-      dispatch(setBackupAllFailure(false));
-      dispatch(setAutomaticCloudBackup(true));
+      dispatch(setBackupAllSuccess({ appId: id, status: false }));
+      dispatch(setBackupAllFailure({ appId: id, status: false }));
+      dispatch(setAutomaticCloudBackup({ appId: id, enabled: true }));
       setHealthCheckModal(true);
     }
   }, [backupAllSuccess, backupAllFailure]);
@@ -118,12 +125,9 @@ function BackupHealthCheckList({ isUaiFlow }) {
     if (seedConfirmed) {
       setShowConfirmSeedModal(false);
       dispatch(setRecoveryKeyBackedUp({ appId: id as string, status: true }));
-      if (!automaticCloudBackup) dispatch(backupAllSignersAndVaults());
-      else {
-        setTimeout(() => {
-          setHealthCheckModal(true);
-        }, 100);
-      }
+      setTimeout(() => {
+        setHealthCheckModal(true);
+      }, 100);
     }
     return () => {
       dispatch(setSeedConfirmed(false));
@@ -132,13 +136,14 @@ function BackupHealthCheckList({ isUaiFlow }) {
 
   useEffect(() => {
     if (backupAllFailure && isFocused) {
-      dispatch(setBackupAllFailure(false));
+      setFailedVerificationModal(true);
+      dispatch(setBackupAllFailure({ appId: id, status: false }));
     }
   }, [backupAllFailure]);
 
   useEffect(() => {
     if (backupAllSuccess && isFocused) {
-      dispatch(setBackupAllSuccess(false));
+      dispatch(setBackupAllSuccess({ appId: id, status: false }));
       dispatch(seedBackedConfirmed(true));
     }
   }, [backupAllSuccess]);
@@ -191,7 +196,7 @@ function BackupHealthCheckList({ isUaiFlow }) {
             } else {
               setBackupMismatchModal(true);
             }
-          })
+          }, id)
         );
       } else {
         dispatch(seedBackedConfirmed(true));
@@ -285,12 +290,12 @@ function BackupHealthCheckList({ isUaiFlow }) {
         closeOnOverlayClick={false}
         buttonTextColor={`${colorMode}.buttonText`}
         buttonBackground={`${colorMode}.pantoneGreen`}
-        buttonText={'Backup Now'}
+        buttonText={BackupWallet.backUpNow}
         buttonCallback={() => {
-          dispatch(backupAllSignersAndVaults());
+          dispatch(backupAllSignersAndVaults(id));
           setBackupMismatchModal(false);
         }}
-        secondaryButtonText="Home"
+        secondaryButtonText={BackupWallet.home}
         secondaryCallback={() => {
           navigtaion.dispatch(CommonActions.navigate('Home'));
         }}

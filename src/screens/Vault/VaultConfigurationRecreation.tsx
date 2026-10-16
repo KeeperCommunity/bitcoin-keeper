@@ -9,6 +9,7 @@ import ImportIcon from 'src/assets/images/import.svg';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import OptionCard from 'src/components/OptionCard';
 import RNFS from 'react-native-fs';
+import { getDocumentReadPath } from 'src/utils/documentReadPath';
 import { pick, types } from '@react-native-documents/picker';
 import Colors from 'src/theme/Colors';
 import Text from 'src/components/KeeperText';
@@ -54,7 +55,8 @@ function VaultConfigurationCreation() {
         type: [types.docx, types.allFiles],
         allowMultiSelection: false,
       });
-      const content = await RNFS.readFile(response[0].uri, 'utf8');
+      const readPath = getDocumentReadPath(response[0].uri, Platform.OS);
+      const content = await RNFS.readFile(readPath, 'utf8');
       navigateToSetup(content);
     } catch (err) {
       console.log(err);

@@ -117,3 +117,12 @@ index 2ee2c50..6fbfe6f 100644
    [subviews insertObject:subview atIndex:atIndex];
  }
  
+diff --git a/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec b/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec
+index fb99142..3f5cbb6 100644
+--- a/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec
++++ b/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec
+@@ -78,3 +78,3 @@ Pod::Spec.new do |spec|
+       spec.user_target_xcconfig = {
+-        'HERMES_CLI_PATH' => "#{hermes_compiler_path}/hermesc/osx-bin/hermesc"
++        'HERMES_CLI_PATH' => '${PODS_ROOT}/../../node_modules/hermes-compiler/hermesc/osx-bin/hermesc'
+       }

@@ -1,12 +1,17 @@
 {
   "name": "hexa_keeper",
-  "version": "2.5.13",
+  "version": "2.6.4",
   "private": true,
   "scripts": {
     "ios": "npx react-native run-ios --scheme=hexa_keeper_dev --simulator 'iPhone 16' ",
     "iosProd": "npx react-native run-ios --scheme=hexa_keeper --simulator 'iPhone 16' ",
     "start": "react-native start",
     "test": "jest",
+    "test:release": "node --test scripts/release-version.test.cjs scripts/verify-channel-config.test.cjs && python3 -B -m unittest discover -s scripts -p 'test_release_artifact.py' && ruby scripts/test_fastlane_build_only.rb",
+    "version:inspect": "node scripts/release-version.cjs inspect",
+    "version:check": "node scripts/release-version.cjs check",
+    "version:apply": "node scripts/release-version.cjs apply",
+    "release:preflight": "node scripts/release-version.cjs release-check",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "npm run lint -- --fix",
     "prepare": "husky install && chmod +x setup.sh && sh ./setup.sh",
@@ -14,7 +19,7 @@
     "androidDevelopmentDebug": "ENVFILE=.env react-native run-android --mode=developmentDebug --appIdSuffix=development",
     "androidDevelopmentRelease": "ENVFILE=.env react-native run-android --mode=developmentRelease --appIdSuffix=development",
     "androidProductionDebug": "ENVFILE=.env react-native run-android --mode=productionDebug",
-    "androidProductionRelease": "ENVFILE=.env react-native run-android --mode=productionRelease",
+    "androidProductionRelease": "node scripts/verify-channel-config.cjs .env.production && ENVFILE=.env.production react-native run-android --mode=productionRelease",
     "uninstall ios": "xcrun simctl uninstall booted io.hexawallet.keeper",
     "uninstall ios:dev": "xcrun simctl uninstall booted io.hexawallet.hexakeeper.dev",
     "uninstall android": "adb uninstall io.hexawallet.bitcoinkeeper",
@@ -23,7 +28,10 @@
     "release android prod": "cd android && ENVFILE=.env.production bundle exec fastlane live --env production",
     "release ios dev": "cd ios && ENVFILE=.env bundle exec fastlane dev --env dev",
     "release ios prod": "cd ios && ENVFILE=.env.production bundle exec fastlane live --env production",
-    "maestro:test:regression": "maestro test flows/regression.yaml"
+    "maestro:test:regression": "maestro test flows/regression.yaml",
+    "test:recovery": "node --test tests/recovery/*.test.cjs",
+    "test:automatic-backup-genuine": "node scripts/run-automatic-backup-genuine.cjs",
+    "test:protected-backup-genuine": "node scripts/run-protected-backup-genuine.cjs"
   },
   "dependencies": {
     "@bitcoinerlab/miniscript": "1.4.0",
@@ -128,7 +136,12 @@
     "stream": "0.0.2",
     "stream-browserify": "1.0.0",
     "tronweb": "6.0.3",
-    "url": "0.10.1"
+    "url": "0.10.1",
+    "@exodus/bytes": "1.16.0",
+    "@scure/bip32": "2.4.0",
+    "@scure/bip39": "2.4.0",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
   },
   "devDependencies": {
     "@babel/core": "7.26.0",

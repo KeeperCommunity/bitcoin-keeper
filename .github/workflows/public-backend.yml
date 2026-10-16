@@ -1,0 +1,59 @@
+name: Public backend setup
+
+on:
+  push:
+    branches: [sprint, main]
+    paths:
+      - 'dev/local-backend/**'
+      - '.github/workflows/public-backend.yml'
+  pull_request:
+    branches: [sprint, main]
+    paths:
+      - 'dev/local-backend/**'
+      - '.github/workflows/public-backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-backend-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  signing:
+    name: Public SigningServer adapter
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: ./dev/local-backend/dev prepare-signing
+      - run: npm ci --ignore-scripts
+        working-directory: dev/local-backend/.sources/signing
+      - run: npm run compile
+        working-directory: dev/local-backend/.sources/signing
+      - run: npm test
+        working-directory: dev/local-backend/.sources/signing
+
+  backend:
+    name: Local backend and bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.9'
+      - run: python3 -B -m unittest discover -s dev/local-backend -p 'test_*.py'
+      - run: ./dev/local-backend/dev up
+      - run: ./dev/local-backend/verify-local.sh --persistence --boundaries
+      - name: Stop containers and retain volumes
+        if: always()
+        run: ./dev/local-backend/dev stop

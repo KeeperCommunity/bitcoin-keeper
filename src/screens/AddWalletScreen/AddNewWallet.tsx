@@ -69,7 +69,7 @@ function AddNewWallet({ navigation, route }) {
   const [selectedWalletType, setSelectedWalletType] = useState('');
   const [customConfigModalVisible, setCustomConfigModalVisible] = useState(false);
   const [showEnhancedOptionsModal, setShowEnhancedOptionsModal] = useState(false);
-  const { vaultId } = route.params || {};
+  const { vaultId, isAddInheritanceKeyFromParams } = route.params || {};
   const DashedCtaTextColor = ThemedColor({ name: 'DashedCtaTextColor' });
   const DashedCtaBorderColor = ThemedColor({ name: 'DashedCtaBorderColor' });
   const dashed_CTA_background = ThemedColor({ name: 'dashed_CTA_background' });
@@ -81,7 +81,7 @@ function AddNewWallet({ navigation, route }) {
     activeVault?.scheme?.miniscriptScheme?.usedMiniscriptTypes?.includes(
       MiniscriptTypes.INHERITANCE
     ) ||
-      route.isAddInheritanceKeyFromParams ||
+      isAddInheritanceKeyFromParams ||
       false
   );
 

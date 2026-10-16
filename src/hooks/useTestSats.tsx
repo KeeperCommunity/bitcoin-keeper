@@ -8,6 +8,7 @@ import {
   setTestCoinsFailed,
   setTestCoinsReceived,
   setTestCoinsQuotaReached,
+  setTestCoinsPending,
 } from 'src/store/reducers/wallets';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { useNavigation } from '@react-navigation/native';
@@ -19,9 +20,8 @@ import KeeperModal from 'src/components/KeeperModal';
 
 const useTestSats = ({ wallet }) => {
   const { setAppLoading, setLoadingContent } = useContext(AppContext);
-  const { testCoinsReceived, testCoinsFailed, testCoinsQuotaReached } = useAppSelector(
-    (state) => state.wallet
-  );
+  const { testCoinsReceived, testCoinsFailed, testCoinsQuotaReached, testCoinsPending } =
+    useAppSelector((state) => state.wallet);
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const { showToast } = useToastMessage();
   const dispatch = useDispatch();
@@ -30,20 +30,32 @@ const useTestSats = ({ wallet }) => {
   const navigation = useNavigation();
   const { colorMode } = useColorMode();
   const [quotaModalVisible, setQuotaModalVisible] = useState(false);
+  const [pendingModalKind, setPendingModalKind] = useState<typeof testCoinsPending>(null);
 
   useEffect(() => {
-    setAppLoading(false);
     if (testCoinsReceived) {
+      setAppLoading(false);
       showToast(walletText.recievedSats, <TickIcon />);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         dispatch(setTestCoinsReceived(false));
         navigation.goBack();
       }, 3000);
+      return () => clearTimeout(timer);
     } else if (testCoinsFailed) {
+      setAppLoading(false);
       showToast(errorText.processFailed);
       dispatch(setTestCoinsFailed(false));
     }
+    return undefined;
   }, [testCoinsReceived, testCoinsFailed]);
+
+  useEffect(() => {
+    if (testCoinsPending) {
+      setAppLoading(false);
+      setPendingModalKind(testCoinsPending);
+      dispatch(setTestCoinsPending(null));
+    }
+  }, [testCoinsPending]);
 
   useEffect(() => {
     if (testCoinsQuotaReached) {
@@ -104,6 +116,24 @@ const useTestSats = ({ wallet }) => {
         showCloseIcon={false}
         buttonText={common.ok}
         buttonCallback={() => setQuotaModalVisible(false)}
+      />
+      <KeeperModal
+        visible={!!pendingModalKind}
+        close={() => setPendingModalKind(null)}
+        title={walletText.faucetPendingTitle}
+        subTitle={
+          pendingModalKind === 'unknown'
+            ? walletText.faucetOutcomeUnknown
+            : pendingModalKind === 'sync'
+            ? walletText.faucetSyncPending
+            : walletText.faucetPropagationPending
+        }
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        showCloseIcon={false}
+        buttonText={common.ok}
+        buttonCallback={() => setPendingModalKind(null)}
       />
     </>
   );

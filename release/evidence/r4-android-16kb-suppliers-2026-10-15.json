@@ -1,0 +1,1212 @@
+{
+  "schema": 1,
+  "inspection_date": "2026-10-15",
+  "source_baseline": "698078e1765d1e0728145f0ef6def05195192b30",
+  "page_size": 16384,
+  "scope": [
+    "Read-only inspection of supplier AAR bytes; no native build, simulator or runtime test.",
+    "13 AARs and 50 inspected 64-bit entries include debug/release variants, repeated shared libraries and both old/new JNA. This is NOT an inventory of 50 retained APK libraries.",
+    "The Mac-local developmentDebug APK SHA256 8d73e790f9b47766c92e927d7fe8425ad4967cfe44607cf35312cbb87e469af8 was unavailable in Cloud. Its reported 49/59 raw RELRO-end flags cannot be enumerated or classified here.",
+    "The JNA 5.14.0 x86_64 supplier entry fails static checks but the app explicitly excludes lib/x86_64/libjnidispatch.so. The arm64 entry remains a declared production input.",
+    "AAR ZIP offsets are not final APK ZIP proof. Source-built adapters, final APK packaging and Android strict-16KB runtime remain separate checks.",
+    "An unaligned raw RELRO end alone does not imply Android 17 strict-mode rejection when RELRO covers its complete matching LOAD."
+  ],
+  "references": {
+    "guide": "https://developer.android.com/guide/practices/page-sizes",
+    "bionic_revision": "06356e41c5ed7b12220b24c05ba4fdb873b126a7",
+    "bionic_check_program_header_alignment": "https://android.googlesource.com/platform/bionic/+/06356e41c5ed7b12220b24c05ba4fdb873b126a7/linker/linker_phdr.cpp#557",
+    "bionic_fix_min_align": "https://android.googlesource.com/platform/bionic/+/06356e41c5ed7b12220b24c05ba4fdb873b126a7/linker/linker_phdr_16kib_compat.cpp#445"
+  },
+  "checker": "scripts/check-android-16kb.py",
+  "checker_unit_tests": {
+    "command": "python3 -B -m unittest discover -s scripts -p 'test_check_android_16kb.py'",
+    "passed": 20,
+    "failed": 0
+  },
+  "summary": {
+    "aar_count": 13,
+    "inspected_64bit_entries": 50,
+    "passing_entries": 48,
+    "failing_entries": 2
+  },
+  "artifacts": [
+    {
+      "coordinate": "com.facebook.fbjni:fbjni:0.7.0",
+      "url": "https://repo.maven.apache.org/maven2/com/facebook/fbjni/fbjni/0.7.0/fbjni-0.7.0.aar",
+      "sha256": "7e319ae110ac5e5ef18904170aea5c3e753e915d196699d7fd39d36c8e1dfe36",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libc++_shared.so",
+          "sha256": "3e852764502d06e0cf1080d532ae7c608b7649d946a3a9d7e84e3d4b7d683214",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1282800,
+              "memsz": 40208,
+              "end": 1323008,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libfbjni.so",
+          "sha256": "a9e35ba55d3f956920281f519385f8a72475ee24819799cb08375fdd4cce2b22",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 187536,
+              "memsz": 4976,
+              "end": 192512,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libc++_shared.so",
+          "sha256": "0a2c7afa35b183fdd5a3cb20e2080ad54cbea06c2a4f0bc8f122cb7d1e9e0b9f",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1242192,
+              "memsz": 39856,
+              "end": 1282048,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libfbjni.so",
+          "sha256": "a51410366a0394e05bc04052cfb237c70dcf7d4d53a56e1d00a041436cb0b653",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 183504,
+              "memsz": 4912,
+              "end": 188416,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "com.facebook.hermes:hermes-android:0.14.1:debug",
+      "url": "https://repo.maven.apache.org/maven2/com/facebook/hermes/hermes-android/0.14.1/hermes-android-0.14.1-debug.aar",
+      "sha256": "f2cf4d13e7de78baec93b1c29aa2a0dbf4774af96c57e2c858890e809eed2869",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libhermesvm.so",
+          "sha256": "02430039489a47f7aacb9e1c505d3af8d6c04d8c453a94d8bc39f5e8bae4c448",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 3668576,
+              "memsz": 58784,
+              "end": 3727360,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libhermesvm.so",
+          "sha256": "67f80125c7cf0f02b146b1d5f7cd23fc23c15877ec18a3c0c6468974b63e0883",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 4019584,
+              "memsz": 60032,
+              "end": 4079616,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ],
+      "module_metadata": {
+        "url": "https://repo.maven.apache.org/maven2/com/facebook/hermes/hermes-android/0.14.1/hermes-android-0.14.1.module",
+        "downloaded_size_and_sha256_match": true
+      }
+    },
+    {
+      "coordinate": "com.facebook.hermes:hermes-android:0.14.1:release",
+      "url": "https://repo.maven.apache.org/maven2/com/facebook/hermes/hermes-android/0.14.1/hermes-android-0.14.1-release.aar",
+      "sha256": "b4e57b503718697db4677aac75c2aaec1d3bb4cfda50ab9935c80da08072c63e",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libhermesvm.so",
+          "sha256": "eb5a852e438dd9efcf85076abd89c7c38372e9b3b7ee85cd40915dabf6593d85",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 2121616,
+              "memsz": 36976,
+              "end": 2158592,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libhermesvm.so",
+          "sha256": "002bec5ba8cee35b4799f6ab4881efe19962088d53fc9e0dcedb552a86a4b524",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 2207936,
+              "memsz": 36672,
+              "end": 2244608,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ],
+      "module_metadata": {
+        "url": "https://repo.maven.apache.org/maven2/com/facebook/hermes/hermes-android/0.14.1/hermes-android-0.14.1.module",
+        "downloaded_size_and_sha256_match": true
+      }
+    },
+    {
+      "coordinate": "io.legere:pdfiumandroid:1.0.32",
+      "url": "https://repo.maven.apache.org/maven2/io/legere/pdfiumandroid/1.0.32/pdfiumandroid-1.0.32.aar",
+      "sha256": "561759462d8071ad16d54f0b83ebdc4daa6e63cd8b0833a6516dcebeaa848f3a",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libpdfium.so",
+          "sha256": "e3ad7644b9dd203f27e0650d5a1af0a2a73548fad9fe608c209fbd55888d3643",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 4724160,
+              "memsz": 51776,
+              "end": 4775936,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libpdfiumandroid.so",
+          "sha256": "be53f7f812f9ab94b09c694db79b30170c9af9937387be945733424e654b776c",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 425184,
+              "memsz": 21280,
+              "end": 446464,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libpdfium.so",
+          "sha256": "4f48d1c92fd74a2e5758c98034036393d5b5f12f5eab39175979894976725869",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 4895424,
+              "memsz": 77120,
+              "end": 4972544,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libpdfiumandroid.so",
+          "sha256": "ab5666f50f7fab63a0981fc977fc11e1738399540a950a69482261b4c1f80a49",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 411760,
+              "memsz": 22416,
+              "end": 434176,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "com.facebook.react:react-android:0.83.9:debug",
+      "url": "https://repo.maven.apache.org/maven2/com/facebook/react/react-android/0.83.9/react-android-0.83.9-debug.aar",
+      "sha256": "e8a7e428e5369a541e1eb267b703fb53d84c5be5b2ab32a0d5f8f30dc745e5cc",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libc++_shared.so",
+          "sha256": "3e852764502d06e0cf1080d532ae7c608b7649d946a3a9d7e84e3d4b7d683214",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1282800,
+              "memsz": 40208,
+              "end": 1323008,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libfbjni.so",
+          "sha256": "a9e35ba55d3f956920281f519385f8a72475ee24819799cb08375fdd4cce2b22",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 187536,
+              "memsz": 4976,
+              "end": 192512,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libhermestooling.so",
+          "sha256": "f691a1cc4e8e85340ab92f5c5a692a9f5566e9278454b352da097fdf9b59689b",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 719472,
+              "memsz": 17808,
+              "end": 737280,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libjsi.so",
+          "sha256": "3b8cc60472b8e1a0d84df444c8bd4a7b1954fb3470c4c34fbac3615e847ed715",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 919312,
+              "memsz": 18672,
+              "end": 937984,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libreactnative.so",
+          "sha256": "22f599e15b3dd932d82677b2abeb6845c08668e751ee3425e3fbe68db673cfa3",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 19971840,
+              "memsz": 303360,
+              "end": 20275200,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libc++_shared.so",
+          "sha256": "0a2c7afa35b183fdd5a3cb20e2080ad54cbea06c2a4f0bc8f122cb7d1e9e0b9f",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1242192,
+              "memsz": 39856,
+              "end": 1282048,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libfbjni.so",
+          "sha256": "a51410366a0394e05bc04052cfb237c70dcf7d4d53a56e1d00a041436cb0b653",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 183504,
+              "memsz": 4912,
+              "end": 188416,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libhermestooling.so",
+          "sha256": "6b774fe4a5fa31943d7399737da7299e7dd65696d81bc964c3522c26b4a138ce",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 680592,
+              "memsz": 15728,
+              "end": 696320,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libjsi.so",
+          "sha256": "68767a1866fb857c75739e59a3a29c83809229649c7cc14716d3841d53c9afe5",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 907328,
+              "memsz": 18368,
+              "end": 925696,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libreactnative.so",
+          "sha256": "29e5981ab51238dab700cd84e15279619e5a05581eee52880f35cc2db790ef5e",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 19327536,
+              "memsz": 300496,
+              "end": 19628032,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ],
+      "module_metadata": {
+        "url": "https://repo.maven.apache.org/maven2/com/facebook/react/react-android/0.83.9/react-android-0.83.9.module",
+        "downloaded_size_and_sha256_match": true
+      }
+    },
+    {
+      "coordinate": "com.facebook.react:react-android:0.83.9:release",
+      "url": "https://repo.maven.apache.org/maven2/com/facebook/react/react-android/0.83.9/react-android-0.83.9-release.aar",
+      "sha256": "a511f9e013cd27bcd7bacb3d825fc681f7778cb11bd14f76e0c24388aee70eeb",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libc++_shared.so",
+          "sha256": "3e852764502d06e0cf1080d532ae7c608b7649d946a3a9d7e84e3d4b7d683214",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1282800,
+              "memsz": 40208,
+              "end": 1323008,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libfbjni.so",
+          "sha256": "a9e35ba55d3f956920281f519385f8a72475ee24819799cb08375fdd4cce2b22",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 187536,
+              "memsz": 4976,
+              "end": 192512,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libhermestooling.so",
+          "sha256": "fd2e39f4e3a968a868445e01ae3294e779f1e7c3838103b5e667b06ab865b387",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 146896,
+              "memsz": 8752,
+              "end": 155648,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libjsi.so",
+          "sha256": "8122d5fe2ecfd84772c7b9abedb40cb79175608c7deaf68c25c5d398bc3fda2b",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 400688,
+              "memsz": 13008,
+              "end": 413696,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libreactnative.so",
+          "sha256": "a0da6ff20683f8bee87861f2683a6fcda8a86fe0fdc22112668c5ab123265f57",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 6173632,
+              "memsz": 150592,
+              "end": 6324224,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libc++_shared.so",
+          "sha256": "0a2c7afa35b183fdd5a3cb20e2080ad54cbea06c2a4f0bc8f122cb7d1e9e0b9f",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1242192,
+              "memsz": 39856,
+              "end": 1282048,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libfbjni.so",
+          "sha256": "a51410366a0394e05bc04052cfb237c70dcf7d4d53a56e1d00a041436cb0b653",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 183504,
+              "memsz": 4912,
+              "end": 188416,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libhermestooling.so",
+          "sha256": "ca834ac984a34cbcd14381f4fc63287af58495ec0bf3f3466976e1c0fc96e5ec",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 143584,
+              "memsz": 7968,
+              "end": 151552,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libjsi.so",
+          "sha256": "d728958aa4ea58816c557ea0ae5b87e44983a5b056e27b6a3ddc2413c9e52bc1",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 407808,
+              "memsz": 9984,
+              "end": 417792,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libreactnative.so",
+          "sha256": "458499dfe2014ba2b9bd7555aabf28b9d3d5b6825330376362720863f6e3c974",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 6288496,
+              "memsz": 150416,
+              "end": 6438912,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ],
+      "module_metadata": {
+        "url": "https://repo.maven.apache.org/maven2/com/facebook/react/react-android/0.83.9/react-android-0.83.9.module",
+        "downloaded_size_and_sha256_match": true
+      }
+    },
+    {
+      "coordinate": "io.sentry:sentry-native-ndk:0.13.3",
+      "url": "https://repo.maven.apache.org/maven2/io/sentry/sentry-native-ndk/0.13.3/sentry-native-ndk-0.13.3.aar",
+      "sha256": "f09e7dd432b99e0b9c782eeec5c90887171b3ff5065134bc246ff217f7698c32",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libsentry-android.so",
+          "sha256": "0cc45445f6f545256be5102a39fae3c482d40970b8b3f6cffb8e0f00a3e1172e",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 31392,
+              "memsz": 1376,
+              "end": 32768,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libsentry.so",
+          "sha256": "7ba1fe9acd50e7f6ff980aae31ea06123e99e3e4b4c6dbadd1314cdfaca1b4f9",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 731344,
+              "memsz": 26416,
+              "end": 757760,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libsentry-android.so",
+          "sha256": "747747abea1312a76a61eabe673b185556c6467e6d02facefefc7ee645483b8f",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 30896,
+              "memsz": 1872,
+              "end": 32768,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libsentry.so",
+          "sha256": "a388dbf74c684603c02730bb90ea2ac4db7df5048334874a6d9c7f5beedf6dd8",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 717696,
+              "memsz": 23680,
+              "end": 741376,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "com.google.mlkit:barcode-scanning:17.3.0",
+      "url": "https://dl.google.com/dl/android/maven2/com/google/mlkit/barcode-scanning/17.3.0/barcode-scanning-17.3.0.aar",
+      "sha256": "64c5cf48bb94b6c54f2c785c660640a7d167aff6ad72bc2c920706dc4187b79a",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libbarhopper_v3.so",
+          "sha256": "ec09597e9eb3aee0eb55ae3366da0d4ba416f5aa35a1af0b3811f50ff46743a1",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 4866048,
+              "memsz": 49152,
+              "end": 4915200,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libbarhopper_v3.so",
+          "sha256": "6c5deea87d962af008fd48c3229db13ab68eef2e9feeccb2df5b33a920c0579a",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 5832704,
+              "memsz": 45056,
+              "end": 5877760,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "androidx.camera:camera-core:1.5.0-alpha03",
+      "url": "https://dl.google.com/dl/android/maven2/androidx/camera/camera-core/1.5.0-alpha03/camera-core-1.5.0-alpha03.aar",
+      "sha256": "c07ef5ee196ae35a4d3d77babae6197460929b38970c9ca7d3acc61e85986198",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libimage_processing_util_jni.so",
+          "sha256": "067d083e0c4de78aac6ae431df298947020990fe3f5ae743b5bd418d0d144b46",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 42912,
+              "memsz": 2144,
+              "end": 45056,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libimage_processing_util_jni.so",
+          "sha256": "352fa6662094b3a3e3ad60893219cb889180c452c74ffab8025720e0bef4c6db",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 59728,
+              "memsz": 1712,
+              "end": 61440,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "io.github.zhongwuzw:mmkv:2.4.0",
+      "url": "https://repo.maven.apache.org/maven2/io/github/zhongwuzw/mmkv/2.4.0/mmkv-2.4.0.aar",
+      "sha256": "f1f40d7460d689aa3768bb51c38de917ab4cd5946928db371f1be1aaa5997e82",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libc++_shared.so",
+          "sha256": "ad74bf43eb1fd576518168f664ad16a74e00eeda9595875c33dd87f6dd197869",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1243288,
+              "memsz": 42856,
+              "end": 1286144,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/arm64-v8a/libmmkv.so",
+          "sha256": "7e63e305547b410717b12ea6c15aacd7c59610b4b6ebcb1796fe18929fedc2a5",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 366336,
+              "memsz": 6400,
+              "end": 372736,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libc++_shared.so",
+          "sha256": "294e0ce4e88589103952c57c9484f917c26509d66170bc86d07d48f0fc879de4",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 1219776,
+              "memsz": 41792,
+              "end": 1261568,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libmmkv.so",
+          "sha256": "4f646fce28adccac88af7a4179f6928503337c196c7f52c1a15afbff222c4f5a",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 368576,
+              "memsz": 4160,
+              "end": 372736,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "libportal-react-native@2ff681b0b725009768acadb35b2731fb1a402fa3:android/libs/libportal-android-0.3.4-SNAPSHOT.aar",
+      "url": "https://github.com/bithyve/libportal-react-native/blob/2ff681b0b725009768acadb35b2731fb1a402fa3/android/libs/libportal-android-0.3.4-SNAPSHOT.aar",
+      "sha256": "f12252c9ca9c8dc2fa58e44841e5b340e95072dae2c9ae1e21d79a23e060c1fa",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libportal.so",
+          "sha256": "7c1e474e03dfdc71bea0aeaa8afca22bb357ac23df99136ed73453ed4e1d677d",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 2415072,
+              "memsz": 50720,
+              "end": 2465792,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libportal.so",
+          "sha256": "dbc6a0afeffe068209495005ce9d010f39b3cd47f6e33a8a9b4a901b7616d4fc",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 2700800,
+              "memsz": 55808,
+              "end": 2756608,
+              "end_mod_16384": 4096,
+              "whole_matching_load_exemption": true
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "coordinate": "net.java.dev.jna:jna:5.14.0@aar",
+      "url": "https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.aar",
+      "sha256": "81a8b9afc65f9d6b205338c25908af8de0ff8411a00985104c9d83fffdfab380",
+      "static_status": "FAIL",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libjnidispatch.so",
+          "sha256": "3730ce014f7a6807ae74af78c3b9f5a3cba1f5886316b3d3858493df923efe96",
+          "load_min_p_align": 65536,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 220064,
+              "memsz": 1120,
+              "end": 221184,
+              "end_mod_16384": 8192,
+              "whole_matching_load_exemption": false
+            }
+          ],
+          "android17_effective_program_alignment": 8192,
+          "android17_load_page_overlap": false,
+          "static_status": "FAIL",
+          "failures": [
+            "Android 17 effective program alignment is 8192",
+            "nonaligned RELRO end has no whole-LOAD exemption"
+          ]
+        },
+        {
+          "entry": "jni/x86_64/libjnidispatch.so",
+          "sha256": "a6d3997d3cfc0dba1b00fd2943b41e7395741e88336ed6f6237b594c94083eea",
+          "load_min_p_align": 4096,
+          "load_alignment_pass": false,
+          "load_16kb_congruence_pass": false,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 109312,
+              "memsz": 1280,
+              "end": 110592,
+              "end_mod_16384": 12288,
+              "whole_matching_load_exemption": false
+            }
+          ],
+          "android17_effective_program_alignment": 4096,
+          "android17_load_page_overlap": false,
+          "static_status": "FAIL",
+          "failures": [
+            "LOAD p_align is not a power of two of at least 16384",
+            "LOAD virtual/file offsets are not congruent",
+            "Android 17 effective program alignment is 4096",
+            "nonaligned RELRO end has no whole-LOAD exemption"
+          ]
+        }
+      ]
+    },
+    {
+      "coordinate": "net.java.dev.jna:jna:5.18.1@aar",
+      "url": "https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/5.18.1/jna-5.18.1.aar",
+      "sha256": "7f053e3ec99e14dd71259c82c1c8a02738d64a13c31226b2acc170f3060951e0",
+      "static_status": "PASS",
+      "libraries": [
+        {
+          "entry": "jni/arm64-v8a/libjnidispatch.so",
+          "sha256": "abc26e994517bcaa3309acdb0a27373864086c7569c89d3087b8626fada9ef06",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 179096,
+              "memsz": 1128,
+              "end": 180224,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": false
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        },
+        {
+          "entry": "jni/x86_64/libjnidispatch.so",
+          "sha256": "3809247e9b804a05ed8377b87d545cf5b5e97f960f75e725bc8497b40260e417",
+          "load_min_p_align": 16384,
+          "load_alignment_pass": true,
+          "load_16kb_congruence_pass": true,
+          "load_declared_congruence_pass": true,
+          "relro": [
+            {
+              "vaddr": 129792,
+              "memsz": 1280,
+              "end": 131072,
+              "end_mod_16384": 0,
+              "whole_matching_load_exemption": false
+            }
+          ],
+          "android17_effective_program_alignment": 16384,
+          "android17_load_page_overlap": false,
+          "static_status": "PASS",
+          "failures": []
+        }
+      ]
+    }
+  ]
+}

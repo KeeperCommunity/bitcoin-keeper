@@ -51,7 +51,9 @@ const KeeperSettings = ({ route }) => {
     };
   }, []); // Empty dependency array means this runs once on mount
 
-  const { backupAllLoading } = useAppSelector((state) => state.bhr);
+  const backupAllLoading = useAppSelector(
+    (state) => !!state.bhr.backupAllLoadingByAppId?.[state.storage.appId]
+  );
   const dispatch = useDispatch();
 
   return (

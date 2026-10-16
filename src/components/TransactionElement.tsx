@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import moment from 'moment';
@@ -21,10 +21,16 @@ import Colors from 'src/theme/Colors';
 import useLabelsNew from 'src/hooks/useLabelsNew';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { Vault } from 'src/services/wallets/interfaces/vault';
-import { USDTTransaction } from 'src/services/wallets/operations/dollars/USDT';
+import {
+  isHistoricalUnverifiedUSDTRequest,
+  isUSDTStatusUnavailable,
+  USDTTransaction,
+} from 'src/services/wallets/operations/dollars/USDT';
+import { GasFreeTransferStatus } from 'src/services/wallets/operations/dollars/GasFree';
 import { EntityKind } from 'src/services/wallets/enums';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 import ThemedColor from './ThemedColor/ThemedColor';
+import { LocalizationContext } from 'src/context/Localization/LocContext';
 
 function TransactionElement({
   transaction,
@@ -44,12 +50,19 @@ function TransactionElement({
   let amount: number;
   let confirmations: number;
   let transactionType: string;
+  const legacyUSDTRequest =
+    wallet.entityKind === EntityKind.USDT_WALLET &&
+    isHistoricalUnverifiedUSDTRequest(transaction as USDTTransaction);
+  const unavailableUSDTStatus =
+    wallet.entityKind === EntityKind.USDT_WALLET &&
+    isUSDTStatusUnavailable(transaction as USDTTransaction);
   if (wallet.entityKind === EntityKind.USDT_WALLET) {
     transactionId =
       (transaction as USDTTransaction).txId || (transaction as USDTTransaction).traceId;
     date = (transaction as USDTTransaction).timestamp;
     amount = parseFloat((transaction as USDTTransaction).amount);
-    confirmations = (transaction as USDTTransaction).blockNumber ? 6 : 0; // Assuming 6 confirmations for USDT transactions(no. of conf on Tron doesn't really make any finality sense)
+    confirmations =
+      (transaction as USDTTransaction).status === GasFreeTransferStatus.CHAIN_CONFIRMED ? 1 : 0;
     if (
       (transaction as USDTTransaction).to === (wallet as USDTWallet).accountStatus.gasFreeAddress
     ) {
@@ -65,6 +78,7 @@ function TransactionElement({
 
   const { labels } = useLabelsNew({ txid: transactionId });
   const { colorMode } = useColorMode();
+  const { translations } = useContext(LocalizationContext);
   const formattedDate = moment(date)?.format('DD MMM YY  .  HH:mm A');
   const viewAll_color = ThemedColor({ name: 'viewAll_color' });
 
@@ -73,6 +87,7 @@ function TransactionElement({
       <Box
         style={[
           styles.container,
+          unavailableUSDTStatus ? styles.legacyContainer : styles.standardContainer,
           isCached && [
             styles.cachedContainer,
             { backgroundColor: colorMode === 'light' ? Colors.brightCream : Colors.TertiaryBlack },
@@ -82,12 +97,12 @@ function TransactionElement({
       >
         <Box style={styles.rowCenter}>
           <Box style={styles.circle}>
-            {confirmations === 0 && !isCached && (
+            {confirmations === 0 && !isCached && !unavailableUSDTStatus && (
               <Box style={styles.transaction}>
                 <TransactionPendingIcon />
               </Box>
             )}
-            {isCached ? (
+            {legacyUSDTRequest ? null : isCached ? (
               <IconCache />
             ) : transactionType === 'Received' ? (
               colorMode === 'light' ? (
@@ -104,15 +119,22 @@ function TransactionElement({
           <Box style={styles.transactionContainer}>
             <Text
               color={`${colorMode}.primaryText`}
-              numberOfLines={1}
+              numberOfLines={legacyUSDTRequest ? undefined : 1}
               style={styles.transactionIdText}
               medium
             >
-              {labels[transactionId]?.[0]?.name || transactionId}
+              {legacyUSDTRequest
+                ? translations.usdtWalletText.legacyRequestTitle
+                : labels[transactionId]?.[0]?.name || transactionId}
             </Text>
             <Text color={viewAll_color} style={styles.transactionDate} numberOfLines={1}>
               {formattedDate}
             </Text>
+            {unavailableUSDTStatus && (
+              <Text color={viewAll_color} style={styles.legacyStatus}>
+                {translations.usdtWalletText.statusUnavailable}
+              </Text>
+            )}
             {(transaction as Transaction).tags?.includes('potential-dust-spend') && (
               <Box style={styles.dustLabelChip}>
                 <Text style={styles.dustLabelText} color="rgba(217, 44, 44, 1)">
@@ -123,15 +145,17 @@ function TransactionElement({
           </Box>
         </Box>
         <Box style={styles.rowCenter}>
-          <CurrencyInfo
-            hideAmounts={false}
-            amount={amount}
-            fontSize={15}
-            color={`${colorMode}.primaryText`}
-            balanceMaxWidth={wp(80)}
-            variation={colorMode === 'light' ? 'richBlack' : 'light'}
-            wallet={wallet}
-          />
+          {!legacyUSDTRequest && (
+            <CurrencyInfo
+              hideAmounts={false}
+              amount={amount}
+              fontSize={15}
+              color={`${colorMode}.primaryText`}
+              balanceMaxWidth={wp(80)}
+              variation={colorMode === 'light' ? 'richBlack' : 'light'}
+              wallet={wallet}
+            />
+          )}
           <Box style={[styles.arrowIconWrapper]}>
             {colorMode === 'dark' ? <IconArrowWhite /> : <IconArrow />}
           </Box>
@@ -145,10 +169,16 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderRadius: 10,
-    height: hp(76),
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
+  },
+  standardContainer: {
+    height: hp(76),
+  },
+  legacyContainer: {
+    minHeight: hp(76),
+    paddingVertical: hp(8),
   },
   rowCenter: {
     marginHorizontal: wp(10),
@@ -166,6 +196,12 @@ const styles = StyleSheet.create({
     width: wp(125),
     marginHorizontal: 3,
     lineHeight: 17,
+  },
+  legacyStatus: {
+    fontSize: 10,
+    width: wp(125),
+    marginHorizontal: 3,
+    lineHeight: 13,
   },
   transactionIdText: {
     marginHorizontal: 4,

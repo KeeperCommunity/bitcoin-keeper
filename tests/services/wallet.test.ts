@@ -12,6 +12,7 @@ import {
   TransactionPrerequisite,
 } from 'src/services/wallets/interfaces';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
+import { installElectrumWalletFixture } from './electrumWalletFixture';
 
 jest.mock('src/store/store', () => ({
   store: {
@@ -24,6 +25,10 @@ jest.mock('src/store/store', () => ({
 }));
 
 jest.mock('realm', () => ({}));
+
+beforeAll(() => {
+  installElectrumWalletFixture();
+});
 
 describe('Wallet Functionality Tests', () => {
   let primaryMnemonic: string;

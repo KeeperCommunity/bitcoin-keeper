@@ -1,6 +1,7 @@
 import { Signer, Vault, VaultSigner } from 'src/services/wallets/interfaces/vault';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { SignerRestriction } from 'src/models/interfaces/AssistedKeys';
+import { EntityKind, VisibilityType } from 'src/services/wallets/enums';
 import { NewWalletInfo } from '../sagas/wallets';
 
 // types and action creators: dispatched by components and sagas
@@ -12,6 +13,7 @@ export const REFRESH_WALLETS = 'REFRESH_WALLETS';
 export const TEST_SATS_RECIEVE = 'TEST_SATS_RECIEVE';
 export const UPDATE_WALLET_DETAILS = 'UPDATE_WALLET_DETAILS';
 export const UPDATE_VAULT_DETAILS = 'UPDATE_VAULT_DETAILS';
+export const UPDATE_RECOVERY_VISIBILITY = 'UPDATE_RECOVERY_VISIBILITY';
 export const UPDATE_SIGNER_DETAILS = 'UPDATE_SIGNER_DETAILS';
 export const UPDATE_KEY_DETAILS = 'UPDATE_KEY_DETAILS';
 export const GENERATE_NEW_ADDRESS = 'GENERATE_NEW_ADDRESS';
@@ -29,13 +31,20 @@ export const getTestcoins = (testWallet: Wallet) => ({
 export const autoSyncWallets = (
   syncAll?: boolean,
   hardRefresh?: boolean,
-  addNotifications?: boolean
+  addNotifications?: boolean,
+  originAppId?: string,
+  archivedOnly?: boolean,
+  requestId?: string
 ) => ({
   type: AUTO_SYNC_WALLETS,
+  ...(originAppId ? { originAppId } : {}),
   payload: {
     syncAll,
     hardRefresh,
     addNotifications,
+    backupCheckAppId: originAppId,
+    archivedOnly,
+    requestId,
   },
 });
 
@@ -46,9 +55,11 @@ export const updateSignerPolicy = (
     restrictions: SignerRestriction;
     signingDelay: number;
   },
-  verificationToken
+  verificationToken,
+  originAppId?: string
 ) => ({
   type: UPDATE_SIGNER_POLICY,
+  originAppId,
   payload: {
     signer,
     signingKey,
@@ -59,12 +70,14 @@ export const updateSignerPolicy = (
 
 export const refreshWallets = (
   wallets: (Wallet | Vault)[],
-  options: { hardRefresh?: boolean, dustScan?: boolean }
+  options: { hardRefresh?: boolean; dustScan?: boolean },
+  requestId?: string
 ) => ({
   type: REFRESH_WALLETS,
   payload: {
     wallets,
     options,
+    requestId,
   },
 });
 
@@ -119,6 +132,17 @@ export const updateVaultDetails = (
   },
 });
 
+export const updateRecoveryVisibility = (
+  entityId: string,
+  entityKind: EntityKind.WALLET | EntityKind.VAULT,
+  visibility: VisibilityType,
+  onLocalComplete?: (updated: boolean) => void
+) => ({
+  type: UPDATE_RECOVERY_VISIBILITY,
+  payload: { entityId, entityKind, visibility },
+  onLocalComplete,
+});
+
 export const updateSignerDetails = (signer: Signer, key: string, value: any) => ({
   type: UPDATE_SIGNER_DETAILS,
   payload: {
@@ -137,8 +161,9 @@ export const updateKeyDetails = (signer: VaultSigner, key: string, value: any) =
   },
 });
 
-export const generateNewAddress = (wallet: Wallet | Vault) => ({
+export const generateNewAddress = (wallet: Wallet | Vault, originAppId?: string) => ({
   type: GENERATE_NEW_ADDRESS,
+  originAppId,
   payload: { wallet },
 });
 

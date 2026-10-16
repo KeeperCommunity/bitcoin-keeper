@@ -4,7 +4,6 @@ import { StyleSheet } from 'react-native';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import TabBar from 'src/components/TabBar';
 import { hp, wp } from 'src/constants/responsive';
-import AddNode from './AddNode';
 import Node from 'src/services/electrum/node';
 import { NodeDetail } from 'src/services/wallets/interfaces';
 import useToastMessage from 'src/hooks/useToastMessage';
@@ -24,7 +23,6 @@ import {
   predefinedMainnetNodes,
   predefinedTestnetNodes,
 } from 'src/services/electrum/predefinedNodes';
-import SelectableServerItem from './components/SelectableServerItem';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -32,8 +30,12 @@ import { NetworkType } from 'src/services/wallets/enums';
 import { updateAppImage } from 'src/store/sagaActions/bhr';
 import { useAppSelector } from 'src/store/hooks';
 import WalletHeader from 'src/components/WalletHeader';
+import { captureBackupWriteIntent, currentBackupAccountSession } from 'src/services/backup/transport';
+import { beginBackupLocalOperation } from 'src/services/backup/automatic';
+import SelectableServerItem from './components/SelectableServerItem';
+import AddNode from './AddNode';
 
-const PrivateElectrum = ({ host, port, useSSL, setHost, setPort, setUseSSL, connectionError }) => {
+function PrivateElectrum({ host, port, useSSL, setHost, setPort, setUseSSL, connectionError }) {
   return (
     <Box>
       <AddNode
@@ -47,10 +49,11 @@ const PrivateElectrum = ({ host, port, useSSL, setHost, setPort, setUseSSL, conn
       />
     </Box>
   );
-};
+}
 
-const PublicServer = ({ currentlySelectedNode, handleSelectNode }) => {
+function PublicServer({ currentlySelectedNode, handleSelectNode }) {
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
+
   const predefinedNodes =
     bitcoinNetworkType === NetworkType.TESTNET ? predefinedTestnetNodes : predefinedMainnetNodes;
   return (
@@ -65,9 +68,9 @@ const PublicServer = ({ currentlySelectedNode, handleSelectNode }) => {
       ))}
     </Box>
   );
-};
+}
 
-const NodeSelection = () => {
+function NodeSelection() {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const { colorMode } = useColorMode();
@@ -88,6 +91,8 @@ const NodeSelection = () => {
 
   const tabsData = [{ label: settings.publicServer }, { label: settings.privateElectrum }];
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
+  const renderedAppId = useAppSelector((state) => state.storage.appId);
+  const renderedAccountSession = currentBackupAccountSession();
 
   const nodes: NodeDetail[] = Node.getAllNodes();
 
@@ -96,6 +101,12 @@ const NodeSelection = () => {
   }, [nodes.length]);
 
   const onSaveCallback = async (nodeDetail: NodeDetail) => {
+    const originAppId = renderedAppId;
+    const originBackupAccountSession = renderedAccountSession;
+    if (!originAppId || !Node.isAccountActive(originAppId) ||
+      currentBackupAccountSession() !== originBackupAccountSession) return;
+    const originBackupWriteIntent = captureBackupWriteIntent(originAppId);
+    const operation = beginBackupLocalOperation(originAppId, originBackupWriteIntent, originBackupAccountSession);
     setSaveLoading(true);
 
     // Sanitize host
@@ -110,11 +121,20 @@ const NodeSelection = () => {
     }
 
     const nodeToSave = { ...nodeDetail };
-    const { saved, connectionError: nodeConnectionError } = await Node.save(nodeToSave, nodeList);
+    const { saved, committedOperation, connectionError: nodeConnectionError } = await Node.save(nodeToSave, nodeList, originAppId, operation);
+    if (!Node.isAccountActive(originAppId) || currentBackupAccountSession() !== originBackupAccountSession) {
+      setSaveLoading(false);
+      return;
+    }
     if (saved) {
       const updatedNodeList = Node.getAllNodes();
       setNodeList(updatedNodeList);
-      dispatch(updateAppImage({ wallets: null, signers: null, updateNodes: true }));
+      if (committedOperation) dispatch({
+        ...updateAppImage({ wallets: null, signers: null, updateNodes: true }, originAppId),
+        originBackupAccountSession,
+        originBackupWriteIntent,
+        committedOperation,
+      });
       const newNode = updatedNodeList.find(
         (node) => node.host === nodeToSave.host && node.port === nodeToSave.port
       );
@@ -144,6 +164,11 @@ const NodeSelection = () => {
   };
 
   const onConnectToNode = async (selectedNode: NodeDetail) => {
+    const originAppId = renderedAppId;
+    const originBackupAccountSession = renderedAccountSession;
+    const isCurrent = () => Node.isAccountActive(originAppId) &&
+      currentBackupAccountSession() === originBackupAccountSession;
+    if (!originAppId || !isCurrent()) return;
     let nodes = Node.getAllNodes();
     if (
       currentlySelectedNode &&
@@ -152,6 +177,7 @@ const NodeSelection = () => {
     ) {
       // disconnect currently selected node(if connected)
       await Node.disconnect(currentlySelectedNode);
+      if (!isCurrent()) return;
       currentlySelectedNode.isConnected = false;
       Node.update(currentlySelectedNode, { isConnected: currentlySelectedNode.isConnected });
 
@@ -167,11 +193,16 @@ const NodeSelection = () => {
     setLoading(true);
 
     const node = { ...selectedNode };
-    const { connected, connectedTo, error } = await Node.connectToSelectedNode(node);
+    const { connected, connectedTo, error } = await Node.connectToSelectedNode(node, originAppId, originBackupAccountSession);
+    if (!isCurrent()) {
+      setLoading(false);
+      return;
+    }
 
     if (connected) {
       node.isConnected = connected;
       await Node.update(node, { isConnected: connected });
+      if (!isCurrent()) return;
       dispatch(electrumClientConnectionExecuted({ successful: node.isConnected, connectedTo }));
       showToast(`${errorTranslations.ConnectedTo} ${connectedTo}`, <TickIcon />);
       nodes = nodes.map((item) => {
@@ -305,7 +336,7 @@ const NodeSelection = () => {
       </Box>
     </ScreenWrapper>
   );
-};
+}
 
 const styles = StyleSheet.create({
   tabBarContainer: {

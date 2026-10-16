@@ -17,6 +17,8 @@ import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
 import { EntityKind, VisibilityType } from 'src/services/wallets/enums';
 import { captureError } from 'src/services/sentry';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
+import { refreshWallets, updateRecoveryVisibility } from 'src/store/sagaActions/wallets';
 import BackupModalContent from '../AppSettings/BackupModal';
 import { credsAuthenticated } from 'src/store/reducers/login';
 import { useDispatch } from 'react-redux';
@@ -31,7 +33,6 @@ import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import Instruction from 'src/components/Instruction';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
-import { refreshWallets } from 'src/store/sagaActions/wallets';
 
 function WalletSettings({ route }) {
   const { colorMode } = useColorMode();
@@ -67,20 +68,28 @@ function WalletSettings({ route }) {
 
   const updateWalletVisibility = () => {
     try {
-      const updatedPresentationData = {
-        ...wallet.presentationData,
-        visibility: VisibilityType.HIDDEN,
-      };
-      dbManager.updateObjectById(RealmSchema.Wallet, wallet.id, {
-        presentationData: updatedPresentationData,
-      });
-      showToast(
-        walletTranslation.walletHiddenSuccessMessage,
-        <TickIcon />,
-        IToastCategory.DEFAULT,
-        5000
+      const appId = (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id;
+      const backupSession = currentBackupAccountSession();
+      dispatch(
+        updateRecoveryVisibility(wallet.id, EntityKind.WALLET, VisibilityType.HIDDEN, (updated) => {
+          if (
+            currentBackupAccountSession() !== backupSession ||
+            (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id !== appId
+          )
+            return;
+          if (!updated) {
+            showToast(walletTranslation.somethingWentWrong);
+            return;
+          }
+          showToast(
+            walletTranslation.walletHiddenSuccessMessage,
+            <TickIcon />,
+            IToastCategory.DEFAULT,
+            5000
+          );
+          navigation.navigate('Home');
+        })
       );
-      navigation.navigate('Home');
     } catch (error) {
       captureError(error);
       showToast(walletTranslation.somethingWentWrong);

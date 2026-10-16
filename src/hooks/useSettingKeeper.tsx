@@ -51,6 +51,7 @@ import {
   setAutomaticCloudBackup,
   setDeleteBackupSuccess,
   setDeleteBackupFailure,
+  isAutomaticCloudBackupEnabled,
 } from 'src/store/reducers/bhr';
 import useToastMessage from './useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
@@ -75,6 +76,7 @@ export const useSettingKeeper = () => {
   const data = useQuery(RealmSchema.BackupHistory);
   const [confirmPass, setConfirmPass] = useState(false);
   const [showDeleteBackup, setShowDeleteBackup] = useState(false);
+  const [showEnableBackup, setShowEnableBackup] = useState(false);
   const themeToggleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backupToggleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { translations } = useContext(LocalizationContext);
@@ -92,12 +94,17 @@ export const useSettingKeeper = () => {
   });
   const { id }: KeeperApp = useQuery(RealmSchema.KeeperApp).map(getJSONFromRealmObject)[0];
   const {
-    backupAllFailure,
-    backupAllSuccess,
-    automaticCloudBackup,
-    deleteBackupSuccess,
-    deleteBackupFailure,
+    backupAllFailureByAppId,
+    backupAllSuccessByAppId,
+    automaticCloudBackupByAppId,
+    deleteBackupSuccessByAppId,
+    deleteBackupFailureByAppId,
   } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = isAutomaticCloudBackupEnabled({ automaticCloudBackupByAppId }, id);
+  const backupAllFailure = !!backupAllFailureByAppId?.[id];
+  const backupAllSuccess = !!backupAllSuccessByAppId?.[id];
+  const deleteBackupSuccess = !!deleteBackupSuccessByAppId?.[id];
+  const deleteBackupFailure = !!deleteBackupFailureByAppId?.[id];
 
   useEffect(() => {
     if (isOnL4) {
@@ -142,8 +149,8 @@ export const useSettingKeeper = () => {
 
   useEffect(() => {
     if (backupAllSuccess && isFocused) {
-      dispatch(setBackupAllSuccess(false));
-      dispatch(setAutomaticCloudBackup(true));
+      dispatch(setBackupAllSuccess({ appId: id, status: false }));
+      dispatch(setAutomaticCloudBackup({ appId: id, enabled: true }));
       setTimeout(() => {
         dispatch(setShowTipModal({ status: true, address: config.ADDRESS.assistServer }));
       }, 1000);
@@ -152,28 +159,29 @@ export const useSettingKeeper = () => {
 
   useEffect(() => {
     if (deleteBackupSuccess && isFocused) {
-      dispatch(setDeleteBackupSuccess(false));
-      dispatch(setAutomaticCloudBackup(false));
+      dispatch(setDeleteBackupSuccess({ appId: id, status: false }));
+      dispatch(setAutomaticCloudBackup({ appId: id, enabled: false }));
+      showToast(settings.assistedServerDeleteBackupConfirmed);
     }
-  }, [deleteBackupSuccess]);
+  }, [deleteBackupSuccess, id, isFocused]);
 
   useEffect(() => {
     if (deleteBackupFailure && isFocused) {
-      dispatch(setDeleteBackupFailure(false));
+      dispatch(setDeleteBackupFailure({ appId: id, status: false }));
       showToast(errorText.unableToDeleteAssistedServer, <ToastErrorIcon />);
     }
   }, [deleteBackupFailure]);
 
   useEffect(() => {
     if (backupAllFailure && isFocused) {
-      dispatch(setBackupAllFailure(false));
+      dispatch(setBackupAllFailure({ appId: id, status: false }));
     }
   }, [backupAllFailure]);
 
   const toggleAutomaticBackupMode = useCallback(() => {
-    if (!automaticCloudBackup) dispatch(backupAllSignersAndVaults());
+    if (!automaticCloudBackup) setShowEnableBackup(true);
     else setShowDeleteBackup(true);
-  }, [automaticCloudBackup, dispatch]);
+  }, [automaticCloudBackup, dispatch, id]);
 
   const debouncedAutomaticBackupToggle = useCallback(() => {
     if (backupToggleTimeoutRef.current) {
@@ -262,7 +270,7 @@ export const useSettingKeeper = () => {
       title: settings.assistedServerBackup,
       description: settings.assistedServerBackupSubtitle,
       icon: <CloudBackupIcon width={14} height={14} />,
-      onPress: debouncedAutomaticBackupToggle,
+      onPress: () => navigation.dispatch(CommonActions.navigate('AssistedBackupStatus')),
       rightIcon: isOnL2Above ? (
         <Switch onValueChange={debouncedAutomaticBackupToggle} value={automaticCloudBackup} />
       ) : (
@@ -456,31 +464,52 @@ export const useSettingKeeper = () => {
   ];
 
   const DeleteBackupModal = (
-    <KeeperModal
-      visible={showDeleteBackup}
-      closeOnOverlayClick={false}
-      close={() => setShowDeleteBackup(false)}
-      title={settings.assistedServerBackup}
-      subTitleWidth={wp(240)}
-      subTitle={settings.assistedServerDeleteBackupSubtitle}
-      modalBackground={`${colorMode}.modalWhiteBackground`}
-      textColor={`${colorMode}.textGreen`}
-      subTitleColor={`${colorMode}.modalSubtitleBlack`}
-      Content={() => (
-        <Buttons
-          primaryText={settings.assistedServerDeleteBackupModalCTA}
-          primaryCallback={() => {
-            setShowDeleteBackup(false);
-            dispatch(deleteBackup());
-          }}
-          secondaryCallback={() => {
-            setShowDeleteBackup(false);
-            dispatch(setAutomaticCloudBackup(false));
-          }}
-          secondaryText={settings.assistedServerDeleteBackupModalSecondaryCTA}
-        />
-      )}
-    />
+    <>
+      <KeeperModal
+        visible={showDeleteBackup}
+        closeOnOverlayClick={false}
+        close={() => setShowDeleteBackup(false)}
+        title={settings.assistedServerDeleteBackupTitle}
+        subTitleWidth={wp(240)}
+        subTitle={settings.assistedServerDeleteBackupSubtitle}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        Content={() => (
+          <Buttons
+            primaryText={settings.assistedServerDeleteBackupModalCTA}
+            primaryCallback={() => {
+              setShowDeleteBackup(false);
+              dispatch(deleteBackup(id));
+            }}
+            secondaryCallback={() => {
+              setShowDeleteBackup(false);
+              dispatch(setAutomaticCloudBackup({ appId: id, enabled: false }));
+              showToast(settings.assistedServerBackupDisabled);
+            }}
+            secondaryText={settings.assistedServerDeleteBackupModalSecondaryCTA}
+          />
+        )}
+      />
+      <KeeperModal
+        visible={showEnableBackup}
+        closeOnOverlayClick={false}
+        close={() => setShowEnableBackup(false)}
+        title={settings.assistedServerEnableBackupTitle}
+        subTitle={settings.assistedServerEnableBackupSubtitle}
+        subTitleWidth={wp(240)}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        buttonText={settings.assistedServerEnableBackupCTA}
+        buttonCallback={() => {
+          setShowEnableBackup(false);
+          dispatch(backupAllSignersAndVaults(id));
+        }}
+        secondaryButtonText={common.cancel}
+        secondaryCallback={() => setShowEnableBackup(false)}
+      />
+    </>
   );
 
   return {

@@ -1,0 +1,146 @@
+"""Regression checks for setup operations that must preserve developer work."""
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import keeper
+import verify
+
+
+class PreserveDeveloperWork(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.app = Path(self.temp.name)
+        self.here = self.app / 'dev/local-backend'
+        self.here.mkdir(parents=True)
+        self.contexts = [patch.object(keeper, 'HERE', self.here), patch.object(keeper, 'APP', self.app),
+                         patch.dict('os.environ', {}, clear=True)]
+        for context in self.contexts:
+            context.start()
+            self.addCleanup(context.stop)
+
+    def test_environment_is_exclusive_and_preserves_production(self):
+        (self.here / 'app.env.local.example').write_text('RELAY=http://localhost:3000/\n')
+        production = self.app / '.env.production'
+        production.write_text('existing-production-sentinel\n')
+        keeper.app_env()
+        self.assertEqual((self.app / '.env.local').stat().st_mode & 0o777, 0o600)
+        keeper.app_env()  # Same configuration is repeatable.
+        (self.app / '.env.local').write_text('developer-settings\n')
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            keeper.app_env()
+        self.assertEqual((self.app / '.env.local').read_text(), 'developer-settings\n')
+        self.assertEqual(production.read_text(), 'existing-production-sentinel\n')
+
+    def test_swapped_ports_do_not_rewrite_each_other(self):
+        (self.here / 'app.env.local.example').write_text(
+            'RELAY=http://localhost:3000/\nCHANNEL=http://localhost:4002/\n'
+            'SIGNING=http://localhost:3003/\n')
+        (self.here / '.env').write_text('KEEPER_RELAY_PORT=4002\nKEEPER_CHANNEL_PORT=3000\n')
+        keeper.app_env()
+        self.assertEqual((self.app / '.env.local').read_text(),
+                         'RELAY=http://localhost:4002/\nCHANNEL=http://localhost:3000/\n'
+                         'SIGNING=http://localhost:3003/\n')
+
+    def test_adapter_tampering_is_rejected_before_fetch(self):
+        adapter = self.here / 'adapters/relay'
+        adapter.mkdir(parents=True)
+        (adapter / 'local.patch').write_text('changed')
+        (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {
+            'assets': {'local.patch': hashlib.sha256(b'original').hexdigest()}}}))
+        with patch.object(keeper, 'run') as command:
+            with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
+                keeper.prepare()
+            command.assert_not_called()
+
+    def test_unlisted_adapter_file_is_rejected_before_fetch(self):
+        adapter = self.here / 'adapters/relay/files'
+        adapter.mkdir(parents=True)
+        (adapter / 'unlisted.js').write_text('unexpected')
+        (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {'assets': {}}}))
+        with patch.object(keeper, 'run') as command:
+            with self.assertRaisesRegex(ValueError, 'file set does not match'):
+                keeper.prepare()
+            command.assert_not_called()
+
+    def test_adapter_symlinks_are_rejected_before_fetch_even_when_listed(self):
+        adapter = self.here / 'adapters/relay/files'
+        adapter.mkdir(parents=True)
+        target = self.app / 'outside-adapter.js'
+        target.write_text('fixture')
+        (adapter / 'link.js').symlink_to(target)
+        for assets in ({}, {'files/link.js': hashlib.sha256(b'fixture').hexdigest()}):
+            with self.subTest(listed=bool(assets)):
+                (self.here / 'sources.lock.json').write_text(json.dumps({
+                    'relay': {'assets': assets}}))
+                with patch.object(keeper, 'run') as command:
+                    with self.assertRaisesRegex(ValueError, 'symlinks are not allowed'):
+                        keeper.prepare()
+                    command.assert_not_called()
+
+    def test_unknown_existing_checkout_is_not_overwritten(self):
+        source = self.here / '.sources/relay'
+        source.mkdir(parents=True)
+        edit = source / 'my-work.ts'
+        edit.write_text('keep this')
+        (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {'assets': {}}}))
+        with patch.object(keeper, 'run') as command:
+            with self.assertRaisesRegex(ValueError, 'not overwritten'):
+                keeper.prepare()
+            command.assert_not_called()
+        self.assertEqual(edit.read_text(), 'keep this')
+
+    def test_port_collision_is_rejected(self):
+        (self.here / '.env').write_text('KEEPER_RELAY_PORT=3003\n')
+        with self.assertRaisesRegex(ValueError, 'distinct ports'):
+            keeper.settings()
+
+    def test_metro_port_is_reserved_for_each_backend_service(self):
+        for service in ('RELAY', 'CHANNEL', 'SIGNING'):
+            with self.subTest(service=service):
+                (self.here / '.env').write_text(f'KEEPER_{service}_PORT=8081\n')
+                with self.assertRaisesRegex(ValueError, 'reserved for Metro'):
+                    keeper.settings()
+
+    def test_invalid_two_fa_requires_the_pinned_token_failure(self):
+        with patch.object(verify, 'request', return_value={
+                'err': 'Validation failed: verification token is either invalid or has expired'}):
+            verify.verify_invalid_two_fa('3003', {'id': 'disposable-signer'})
+        for unrelated in ({'err': 'Unauthorized request'}, {'err': 'Invalid request schema'},
+                          {'valid': False}, {'valid': True}):
+            with self.subTest(response=unrelated):
+                with patch.object(verify, 'request', return_value=unrelated):
+                    with self.assertRaisesRegex(RuntimeError, 'unrelated error'):
+                        verify.verify_invalid_two_fa('3003', {'id': 'disposable-signer'})
+
+    def test_fetch_failure_explains_public_revision_and_cleans_temporary_checkout(self):
+        (self.here / 'sources.lock.json').write_text(json.dumps({'relay': {
+            'assets': {}, 'url': 'https://github.com/example/private-backend.git',
+            'revision': 'a' * 40}}))
+        with patch.object(keeper, 'run', side_effect=[
+                None, None, subprocess.CalledProcessError(128, ['git', 'fetch'])]):
+            with self.assertRaisesRegex(ValueError, 'pinned public backend revision'):
+                keeper.prepare()
+        self.assertEqual(list((self.here / '.sources').iterdir()), [])
+
+    def test_signing_prepare_does_not_fetch_relay(self):
+        (self.here / 'sources.lock.json').write_text(json.dumps({
+            'relay': {'assets': {}, 'url': 'https://github.com/example/private-relay.git', 'revision': 'a' * 40},
+            'signing': {'assets': {}, 'url': 'https://github.com/example/public-signing.git', 'revision': 'b' * 40},
+        }))
+        with patch.object(keeper, 'run', side_effect=[
+                None, None, subprocess.CalledProcessError(128, ['git', 'fetch'])]) as command:
+            with self.assertRaisesRegex(ValueError, 'pinned public backend revision'):
+                keeper.prepare(only='signing')
+        self.assertEqual(command.call_count, 3)
+        self.assertIn('https://github.com/example/public-signing.git', command.call_args_list[1].args[0])
+        self.assertEqual(list((self.here / '.sources').iterdir()), [])
+
+
+if __name__ == '__main__':
+    unittest.main()

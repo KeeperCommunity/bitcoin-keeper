@@ -281,16 +281,13 @@ const parseKeyExpression = (keyExpression) => {
   if (bracketMatch) {
     const insideBracket = bracketMatch[1];
     masterFingerprint = insideBracket.substring(0, 8).toUpperCase();
-    path = `m${insideBracket
-      .substring(8)
-      .replace(/(\d+)h/g, "$1'")
-      .replace(/'/g, "'")}`;
+    path = `m${insideBracket.substring(8).replace(/(\d+)h/g, "$1'")}`;
     xpub = bracketMatch[2].replace(/[^\w\s]+$/, '').split(/[^\w]+/)[0];
   } else {
     // Case 2: If the keyExpression is not enclosed in square brackets
     const parts = keyExpression.split("'");
     masterFingerprint = parts[0].substring(0, 8).toUpperCase();
-    path = `m${keyExpression.substring(8, keyExpression.lastIndexOf("'") + 1).replace(/'/g, "'")}`;
+    path = `m${keyExpression.substring(8, keyExpression.lastIndexOf("'") + 1)}`;
     xpub = keyExpression
       .substring(keyExpression.lastIndexOf("'") + 1)
       .replace(/[^\w\s]+$/, '')
@@ -713,43 +710,7 @@ export const createDecipheriv = (data: { iv: string; encryptedData: string }, pa
   return JSON.parse(decrypted.toString());
 };
 
-export const createCipherGcm = (data: string, password: string) => {
-  const algorithm = 'aes-256-gcm';
-  const key = Buffer.from(password, 'hex');
-  const iv = crypto.randomBytes(12); // 12 bytes for GCM
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-  const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return {
-    iv: iv.toString('hex'),
-    encryptedData: encrypted.toString('hex'),
-    authTag: authTag.toString('hex'),
-  };
-};
-
-interface DecryptData {
-  iv: string;
-  encryptedData: string;
-  authTag: string;
-}
-
-export const createDecipherGcm = (data: DecryptData, password: string) => {
-  const algorithm = 'aes-256-gcm';
-  const key = Buffer.from(password, 'hex');
-  const iv = Buffer.from(data.iv, 'hex');
-  const encryptedText = Buffer.from(data.encryptedData, 'hex');
-  const authTag = Buffer.from(data.authTag, 'hex');
-  const decipher = crypto.createDecipheriv(algorithm, key, iv);
-  decipher.setAuthTag(authTag);
-  let decrypted: Buffer;
-
-  try {
-    decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
-  } catch (err) {
-    throw new Error(`Failed to decrypt data: ${err.message}`);
-  }
-  return JSON.parse(decrypted.toString('utf-8'));
-};
+export { createCipherGcm, createDecipherGcm } from 'src/services/channel/crypto';
 
 export const getArchivedVaults = (allVaults: Vault[], vault: Vault) => {
   return vault.archived || !vault.archivedId
@@ -815,6 +776,16 @@ export function findChangeFromReceiverAddresses(
   return receiverAddresses;
 }
 
-export const accountNoFromDerivationPath = (derivationPath) => {
-  return derivationPath.split('/')[3].replace("'", '');
+export const accountNoFromDerivationPath = (derivationPath: string): string => {
+  if (typeof derivationPath !== 'string') throw new Error('Invalid derivation path');
+  const segments = derivationPath.split('/');
+  if (segments[0] !== 'm' || segments.length < 4) throw new Error('Invalid derivation path');
+  let accountNumber = '';
+  for (let index = 1; index < segments.length; index += 1) {
+    const child = /^([0-9]+)(?:'|h)?$/.exec(segments[index]);
+    if (!child || child[0] !== segments[index] || Number(child[1]) > 0x7fffffff)
+      throw new Error('Invalid derivation path');
+    if (index === 3) [, accountNumber] = child;
+  }
+  return accountNumber;
 };

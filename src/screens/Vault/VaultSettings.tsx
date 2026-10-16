@@ -32,6 +32,9 @@ import PrivateVaultSetupIcon from 'src/assets/privateImages/vault_setup.svg';
 import Text from 'src/components/KeeperText';
 import { ConciergeTag } from 'src/models/enums/ConciergeTag';
 import ConciergeNeedHelp from 'src/assets/images/conciergeNeedHelp.svg';
+import { useDispatch } from 'react-redux';
+import { updateRecoveryVisibility } from 'src/store/sagaActions/wallets';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
 import SettingCard from '../Home/components/Settings/Component/SettingCard';
 import EditWalletDetailsModal from '../WalletDetails/EditWalletDetailsModal';
 import WalletConfiguration from './components/WalletConfiguration';
@@ -42,10 +45,10 @@ import { NfcTech } from 'react-native-nfc-manager';
 import { useQuery } from '@realm/react';
 import ImportExportLabels from 'src/components/ImportExportLabels';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
-import { useSelector } from 'react-redux';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 function VaultSettings({ route }) {
+  const dispatch = useDispatch();
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
   const navigation = useNavigation();
@@ -109,15 +112,28 @@ function VaultSettings({ route }) {
 
   const updateWalletVisibility = () => {
     try {
-      dbManager.updateObjectById(RealmSchema.Vault, vault.id, {
-        presentationData: {
-          name: vault.presentationData.name,
-          description: vault.presentationData.description,
-          visibility: VisibilityType.HIDDEN,
-        },
-      });
-      showToast(vaultText.vaultHiddenSuccessMessage, <TickIcon />, IToastCategory.DEFAULT, 5000);
-      navigation.navigate('Home');
+      const appId = (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id;
+      const backupSession = currentBackupAccountSession();
+      dispatch(
+        updateRecoveryVisibility(vault.id, EntityKind.VAULT, VisibilityType.HIDDEN, (updated) => {
+          if (
+            currentBackupAccountSession() !== backupSession ||
+            (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id !== appId
+          )
+            return;
+          if (!updated) {
+            showToast(walletText.somethingWentWrong, <ToastErrorIcon />);
+            return;
+          }
+          showToast(
+            vaultText.vaultHiddenSuccessMessage,
+            <TickIcon />,
+            IToastCategory.DEFAULT,
+            5000
+          );
+          navigation.navigate('Home');
+        })
+      );
     } catch (error) {
       console.log(error);
     }

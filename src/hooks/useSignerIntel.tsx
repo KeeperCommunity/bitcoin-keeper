@@ -1,4 +1,4 @@
-import { MiniscriptTypes, SignerType } from 'src/services/wallets/enums';
+import { SignerType } from 'src/services/wallets/enums';
 import { getSignerNameFromType, isSignerAMF } from 'src/hardware';
 import { SubscriptionTier } from 'src/models/enums/SubscriptionTier';
 import { VaultScheme, VaultSigner } from 'src/services/wallets/interfaces/vault';
@@ -64,11 +64,9 @@ const useSignerIntel = ({
     areSignersValid = false;
   } else {
     const signerCount = Array.from(selectedSigners.keys()).length;
-    const maxKeys = scheme?.miniscriptScheme?.usedMiniscriptTypes?.includes(
-      MiniscriptTypes.INHERITANCE
-    )
-      ? scheme.n + 1
-      : scheme.n;
+    // AddSigningDevice selects the primary quorum. Inheritance and Emergency
+    // Keys are retained/configured separately and must not disable this step.
+    const maxKeys = scheme.n;
     areSignersValid =
       signerCount > 0 &&
       !(

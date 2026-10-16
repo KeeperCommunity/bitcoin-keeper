@@ -60,8 +60,18 @@
           <category android:name="android.intent.category.DEFAULT" />
           <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="https" />
-            <data android:host="bitcoinkeeper.app" />
+            <data android:host="www.bitcoinkeeper.app" />
             <data android:pathPrefix="@string/deep_link_prefix" /> 
+        </intent-filter>
+
+        <!-- Keep legacy apex links resolvable. Only www is verified because the apex redirects. -->
+        <intent-filter>
+          <action android:name="android.intent.action.VIEW" />
+          <category android:name="android.intent.category.DEFAULT" />
+          <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+            <data android:host="bitcoinkeeper.app" />
+            <data android:pathPrefix="@string/deep_link_prefix" />
         </intent-filter>
       </activity>
       <meta-data android:name="firebase_analytics_collection_deactivated" android:value="true" />

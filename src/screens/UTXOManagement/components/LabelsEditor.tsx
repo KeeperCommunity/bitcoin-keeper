@@ -28,6 +28,8 @@ function LabelsEditor({ utxo = null, address = null, wallet, onLabelsSaved, read
   const { showToast } = useToastMessage();
   const processDispatched = useRef(false);
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   const labelsKey = address ? address : `${utxo.txId}:${utxo.vout}`;
 
   const getSortedNames = (labels) =>
@@ -106,9 +108,9 @@ function LabelsEditor({ utxo = null, address = null, wallet, onLabelsSaved, read
     const labelChanges = getLabelChanges(initialLabels, finalLabels);
     processDispatched.current = true;
     if (address) {
-      dispatch(bulkUpdateLabels({ labelChanges, address, wallet }));
+      dispatch(bulkUpdateLabels({ labelChanges, address, wallet }, originAppId));
     } else {
-      dispatch(bulkUpdateLabels({ labelChanges, UTXO: utxo, wallet }));
+      dispatch(bulkUpdateLabels({ labelChanges, UTXO: utxo, wallet }, originAppId));
     }
   };
 

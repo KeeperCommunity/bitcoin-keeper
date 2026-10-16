@@ -1,5 +1,20 @@
+import { changesBackedUpRecovery, isBackedUpSchema } from 'src/services/backup/localMutation';
 import { RealmSchema } from './enum';
 import realm from './realm';
+import type { RecoveryCommitObserver } from './realm';
+
+let recoveryMutationObserver: () => void = () => undefined;
+const setRecoveryMutationObserver = (observer: () => void) => {
+  recoveryMutationObserver = observer;
+};
+const setRecoveryCommitObserver = (observer: RecoveryCommitObserver) =>
+  realm.setRecoveryCommitObserver(observer);
+const notifyRecoveryCreateOrDelete = (schema: RealmSchema, hasObject: boolean) => {
+  if (hasObject && isBackedUpSchema(schema)) recoveryMutationObserver();
+};
+const notifyRecoveryUpdate = (schema: RealmSchema, object: any, updateProps: any) => {
+  if (changesBackedUpRecovery(schema, object, updateProps)) recoveryMutationObserver();
+};
 
 /**
  * intializes realm
@@ -27,10 +42,12 @@ const deleteRealm = (key: ArrayBuffer | ArrayBufferView | Int8Array) => realm.de
  */
 const createObject = (schema: RealmSchema, object: any, updateMode = Realm.UpdateMode.All) => {
   try {
+    notifyRecoveryCreateOrDelete(schema, !!object);
     const hasCreated = realm.create(schema, object, updateMode);
     return hasCreated;
   } catch (err) {
     console.log(err);
+    return false;
   }
 };
 
@@ -45,10 +62,12 @@ const createObjectBulk = (
   updateMode = Realm.UpdateMode.All
 ) => {
   try {
+    notifyRecoveryCreateOrDelete(schema, !!objects?.length);
     const hasCreated = realm.createBulk(schema, objects, updateMode);
     return hasCreated;
   } catch (err) {
     console.log(err);
+    return false;
   }
 };
 
@@ -105,11 +124,12 @@ const getObjectByPrimaryId = (schema: RealmSchema, name: string, primaryId: stri
 const updateObjectById = (schema: RealmSchema, id: string, updateProps: any) => {
   try {
     const object = getObjectById(schema, id);
-    for (const [key, value] of Object.entries(updateProps)) {
-      realm.write(() => {
+    notifyRecoveryUpdate(schema, object, updateProps);
+    realm.write(() => {
+      for (const [key, value] of Object.entries(updateProps)) {
         object[key] = value;
-      });
-    }
+      }
+    });
     return true;
   } catch (err) {
     console.error({ err });
@@ -131,11 +151,12 @@ const updateObjectByPrimaryId = (
 ) => {
   try {
     const object = getObjectByPrimaryId(schema, name, primaryId);
-    for (const [key, value] of Object.entries(updateProps)) {
-      realm.write(() => {
+    notifyRecoveryUpdate(schema, object, updateProps);
+    realm.write(() => {
+      for (const [key, value] of Object.entries(updateProps)) {
         object[key] = value;
-      });
-    }
+      }
+    });
     return true;
   } catch (err) {
     console.error({ err });
@@ -177,6 +198,7 @@ const getCollection = (schema: RealmSchema) => {
 const deleteObjectById = (schema: RealmSchema, id: string) => {
   try {
     const object = getObjectById(schema, id);
+    notifyRecoveryCreateOrDelete(schema, !!object);
     realm.delete(object);
     return true;
   } catch (err) {
@@ -192,6 +214,7 @@ const deleteObjectById = (schema: RealmSchema, id: string) => {
 const deleteObjectByPrimaryKey = (schema: RealmSchema, key: string, value: any) => {
   try {
     const object = getObjectByPrimaryId(schema, key, value);
+    notifyRecoveryCreateOrDelete(schema, !!object);
     realm.delete(object);
     return true;
   } catch (err) {
@@ -215,11 +238,12 @@ const updateObjectByQuery = (
     const objects = realm.get(schema);
     const object = objects.find(queryFn);
     if (object) {
-      for (const [key, value] of Object.entries(updateProps)) {
-        realm.write(() => {
+      notifyRecoveryUpdate(schema, object, updateProps);
+      realm.write(() => {
+        for (const [key, value] of Object.entries(updateProps)) {
           object[key] = value;
-        });
-      }
+        }
+      });
       return true;
     }
     return false;
@@ -268,4 +292,6 @@ export default {
   getObjectByField,
   updateObjectByQuery,
   getObjectByQuery,
+  setRecoveryMutationObserver,
+  setRecoveryCommitObserver,
 };

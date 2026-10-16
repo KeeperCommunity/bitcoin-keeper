@@ -1,13 +1,35 @@
+import { buffers, END, eventChannel } from 'redux-saga';
+import { inspectBackup, RepairPhase } from 'src/services/backup/repair';
+import {
+  hasRecoveryRecords,
+  prepareRecoveryImage,
+  prepareRecoverySourceImage,
+} from 'src/services/backup/restore';
+import type {
+  BackupRecoverySource, ProtectedBackupState, RecoveryProvenance,
+} from 'src/services/backup/restore';
+import { readProtectedBackup, sameProtectedBackupBase } from 'src/services/backup/protected';
+import { BackupImage, pauseBackup, validateProtectedRecoveryMetadata } from 'src/services/backup/image';
+import {
+  backupRevision,
+  captureBackupWriteIntent,
+  currentBackupAccountSession,
+  backupConsentEpoch,
+  protectBackupConsentCompletion,
+  protectBackupRecoveryConsentDisable,
+  clearVerifiedRemoteRevision,
+  notifyBackupReconciliation,
+  markBackupMutation,
+} from 'src/services/backup/transport';
+import type { BackupWriteIntent } from 'src/services/backup/intent';
+import { beginBackupLocalOperation, commitBackupLocalOperation, enqueueAutomaticBackupOperation, beginBackupDeleteOperation, isBackupVerificationCurrent, isAutomaticBackupResultCurrent } from 'src/services/backup/automatic';
+import type { BackupLocalCommit } from 'src/services/backup/automatic';
 import * as bip39 from 'bip39';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
-import { call, put, select } from 'redux-saga/effects';
+import { call, put, select, takeMaybe, takeEvery, takeLatest, cancelled } from 'redux-saga/effects';
 import config from 'src/utils/service-utilities/config';
-import {
-  decrypt,
-  encrypt,
-  generateEncryptionKey,
-  hash256,
-} from 'src/utils/service-utilities/encryption';
+import { translations } from 'src/context/Localization/LocContext';
+import { encrypt, generateEncryptionKey, hash256 } from 'src/utils/service-utilities/encryption';
 import BIP85 from 'src/services/wallets/operations/BIP85';
 import DeviceInfo from 'react-native-device-info';
 import { KeeperApp } from 'src/models/interfaces/KeeperApp';
@@ -42,31 +64,48 @@ import CloudBackupModule from 'src/nativemodules/CloudBackup';
 import { generateOutputDescriptors } from 'src/utils/service-utilities/utils';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import { getJSONFromRealmObject } from 'src/storage/realm/utils';
+import { setupRecoveryKeySigningKey } from 'src/hardware/signerSetup';
+import {
+  getKeyUID,
+  sanitizeSeedKeyForBackup,
+  sanitizeVaultSignersForSeedKeyBackup,
+} from 'src/utils/utilities';
+import NetInfo from '@react-native-community/netinfo';
+import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 import { autoSyncWallets, updateSignerDetails } from '../sagaActions/wallets';
 import { createWatcher } from '../utilities';
 import {
   appImagerecoveryRetry,
   setAppImageError,
   setAutomaticCloudBackup,
+  isAutomaticCloudBackupEnabled,
   setBackupAllFailure,
   setBackupAllLoading,
   setBackupAllSuccess,
+  setBackupRepairState,
+  commitBackupInspection,
+  setBackupRepairRunning,
+  invalidateBackupRepair,
   setBackupLoading,
   setBackupType,
   setDeleteBackupFailure,
   setDeleteBackupSuccess,
-  setHomeToastMessage,
   setIsCloudBsmsBackupRequired,
   setPendingAllBackup,
   setSeedConfirmed,
+  setRecoveryDiscovery,
+  setProtectedBackupState,
 } from '../reducers/bhr';
 import {
+  CHECK_BACKUP_FRESHNESS,
+  REPAIR_BACKUP,
   BACKUP_ALL_SIGNERS_AND_VAULTS,
   BACKUP_BSMS_ON_CLOUD,
   BSMS_CLOUD_HEALTH_CHECK,
   DELETE_APP_IMAGE_ENTITY,
   DELETE_BACKUP,
   GET_APP_IMAGE,
+  getAppImage,
   HEALTH_CHECK_STATUS_UPDATE,
   SEED_BACKEDUP,
   SEED_BACKEDUP_CONFIRMED,
@@ -79,213 +118,197 @@ import {
 import { uaiActioned, uaiChecks } from '../sagaActions/uai';
 import { setAppCreated, setAppId, setDefaultWalletCreated } from '../reducers/storage';
 import { applyUpgradeSequence, KEY_MANAGEMENT_VERSION } from './upgrade';
-import { RootState } from '../store';
-import { setupRecoveryKeySigningKey } from 'src/hardware/signerSetup';
+import { RootState, store } from '../store';
 import { addNewWalletsWorker, addSigningDeviceWorker, NewWalletInfo } from './wallets';
-import {
-  areSetsEqual,
-  getKeyUID,
-  sanitizeSeedKeyForBackup,
-  sanitizeVaultSignersForSeedKeyBackup,
-} from 'src/utils/utilities';
-import NetInfo from '@react-native-community/netinfo';
 import { addToUaiStackWorker, uaiActionedWorker } from './uai';
-import { addAccount, saveDefaultWalletState, setRecoveryKeyBackedUp } from '../reducers/account';
+import { addAccount, saveDefaultWalletState, setRecoveryKeyStatus } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
-import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 
-export function* updateAppImageWorker({
-  payload,
-}: {
-  payload: {
-    wallets?: Wallet[] | USDTWallet[];
-    signers?: Signer[];
-    updateNodes?: boolean;
-  };
-}) {
+function currentBackupAppId(): string | undefined {
   try {
-    const backupResponse = yield call(checkBackupCondition);
-    if (backupResponse) return { updated: true, error: '' };
-
-    const { wallets, signers, updateNodes } = payload;
-    const { primarySeed, id, publicId, subscription, networkType, version }: KeeperApp = yield call(
-      dbManager.getObjectByIndex,
-      RealmSchema.KeeperApp
-    );
-    const walletsObject = {};
-    const signersObject = {};
-    const nodesList = [];
-    const encryptionKey = generateEncryptionKey(primarySeed);
-    if (wallets) {
-      for (const wallet of wallets) {
-        const encrytedWallet = encrypt(encryptionKey, JSON.stringify(wallet));
-        walletsObject[wallet.id] = encrytedWallet;
-      }
-    } else if (signers) {
-      for (const signer of signers) {
-        const encrytedSigner = encrypt(
-          encryptionKey,
-          JSON.stringify(sanitizeSeedKeyForBackup(signer))
-        );
-        signersObject[getKeyUID(signer)] = encrytedSigner;
-      }
-    } else if (updateNodes) {
-      const nodes: NodeDetail[] = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
-      if (nodes && nodes.length > 0) {
-        for (const index in nodes) {
-          const node = nodes[index];
-          node.isConnected = false;
-          const encrytedNode = encrypt(encryptionKey, JSON.stringify(node));
-          nodesList.push(encrytedNode);
-        }
-      }
-    }
-
-    const response = yield call(Relay.updateAppImage, {
-      appId: id,
-      publicId,
-      walletsObject,
-      signersObject,
-      networkType,
-      subscription: JSON.stringify(subscription),
-      version,
-      nodes: nodesList,
-    });
-    return response;
-  } catch (err) {
-    console.log({ err });
-    console.error('App image update failed', err);
-    yield call(setServerBackupFailed);
-    return { updated: true, error: '' };
+    const id = (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp)?.id;
+    return id && store.getState().storage.appId === id ? id : undefined;
+  } catch {
+    return undefined;
   }
 }
 
-export function* updateVaultImageWorker({
-  payload,
-}: {
-  payload: {
-    vault: Vault;
-    archiveVaultId?: string;
-    isUpdate?: boolean;
-  };
-}) {
-  const backupResponse = yield call(checkBackupCondition);
-  if (backupResponse) return { updated: true, error: '' };
-
-  const { vault, archiveVaultId, isUpdate } = payload;
-  const { primarySeed, id, subscription }: KeeperApp = yield call(
-    dbManager.getObjectByIndex,
-    RealmSchema.KeeperApp
-  );
-  const encryptionKey = generateEncryptionKey(primarySeed);
-  const vaultEncrypted = encrypt(
-    encryptionKey,
-    JSON.stringify(sanitizeVaultSignersForSeedKeyBackup(vault))
-  );
-
-  if (isUpdate) {
-    const response = yield call(Relay.updateVaultImage, {
-      isUpdate,
-      vaultId: vault.id,
-      vault: vaultEncrypted,
-    });
-    return response;
+// Builders read committed Realm records. Action objects are used only to select
+// IDs, never as the recovery payload sent to the server.
+export function buildAutomaticAppMutation(
+  payload: { wallets?: (Wallet | USDTWallet)[]; signers?: Signer[]; updateNodes?: boolean },
+  appId: string
+) {
+  if (currentBackupAppId() !== appId) throw new Error('Backup account changed');
+  const app = getJSONFromRealmObject(dbManager.getObjectByIndex(RealmSchema.KeeperApp)) as unknown as KeeperApp;
+  const encryptionKey = generateEncryptionKey(app.primarySeed);
+  const walletsObject: Record<string, string> = {};
+  const signersObject: Record<string, string> = {};
+  for (const selected of payload.wallets || []) {
+    const schema = selected.entityKind === EntityKind.USDT_WALLET ? RealmSchema.USDTWallet : RealmSchema.Wallet;
+    const stored = dbManager.getObjectById(schema, selected.id);
+    if (!stored) throw new Error('Committed wallet is missing');
+    walletsObject[selected.id] = encrypt(encryptionKey, JSON.stringify(getJSONFromRealmObject(stored)));
   }
-
-  const signersData: Array<{
-    signerId: string;
-    xfpHash: string;
-  }> = [];
-  for (const signer of vault.signers) {
-    signersData.push({
-      // TODO: Upate relay to use KeyUID
-      signerId: getKeyUID(signer),
-      xfpHash: hash256(signer.masterFingerprint),
-    });
+  for (const selected of payload.signers || []) {
+    const signerId = getKeyUID(selected);
+    const stored = dbManager.getObjectByPrimaryId(RealmSchema.Signer, 'id', signerId);
+    if (!stored) throw new Error('Committed signer is missing');
+    signersObject[signerId] = encrypt(encryptionKey,
+      JSON.stringify(sanitizeSeedKeyForBackup(getJSONFromRealmObject(stored) as unknown as Signer)));
   }
+  const nodes = payload.updateNodes
+    ? Array.from(dbManager.getCollection(RealmSchema.NodeConnect)).map((node: any) =>
+      encrypt(encryptionKey, JSON.stringify({ ...(node.toJSON ? getJSONFromRealmObject(node) : node), isConnected: false })))
+    : [];
+  return { operation: 'updateAppImage' as const, body: {
+    appId, publicId: app.publicId, walletsObject, signersObject,
+    networkType: app.networkType, subscription: JSON.stringify(app.subscription),
+    version: app.version, nodes, replaceNodes: !!payload.updateNodes,
+  } };
+}
 
-  // TODO to be removed
-  const subscriptionStrings = JSON.stringify(subscription);
+export function buildAutomaticVaultMutation(vaultId: string, appId: string, isUpdate = true) {
+  if (currentBackupAppId() !== appId) throw new Error('Backup account changed');
+  const app = getJSONFromRealmObject(dbManager.getObjectByIndex(RealmSchema.KeeperApp)) as unknown as KeeperApp;
+  const stored = dbManager.getObjectById(RealmSchema.Vault, vaultId);
+  if (!stored) throw new Error('Committed vault is missing');
+  const vault = getJSONFromRealmObject(stored) as unknown as Vault;
+  return { operation: 'updateVaultImage' as const, body: {
+    appId, appID: appId, vaultId, isUpdate,
+    vault: encrypt(generateEncryptionKey(app.primarySeed),
+      JSON.stringify(sanitizeVaultSignersForSeedKeyBackup(vault))),
+    signersData: vault.signers.map((signer) => ({
+      signerId: getKeyUID(signer), xfpHash: hash256(signer.masterFingerprint),
+    })),
+    scheme: vault.scheme,
+    isArchived: !!vault.archived, subscription: JSON.stringify(app.subscription),
+  } };
+}
 
+export function* queueCommittedBackupWorker(
+  appId: string,
+  committedOperation: BackupLocalCommit | undefined,
+  mutations: Parameters<typeof enqueueAutomaticBackupOperation>[1],
+  requestSession: number
+) {
+  if (currentBackupAppId() !== appId || requestSession !== currentBackupAccountSession())
+    return { updated: false, backupPending: true, error: 'Backup account changed' };
+  if (committedOperation?.committed === false)
+    return { updated: false, backupPending: true, error: 'Local recovery operation failed' };
+  const enabled = yield select((state: RootState) => isAutomaticCloudBackupEnabled(state.bhr, appId));
+  if (!enabled) return { updated: committedOperation?.committed === true,
+    backupConfirmed: false, backupPending: false, error: '' };
+  yield put(setPendingAllBackup({ appId, pending: true }));
+  if (!committedOperation)
+    return { updated: false, localCommitted: false, backupConfirmed: false,
+      backupPending: true, error: 'Committed local operation is missing' };
   try {
-    const response = yield call(Relay.updateVaultImage, {
-      appID: id,
-      vaultId: vault.id,
-      signersData,
-      vault: vaultEncrypted,
-      subscription: subscriptionStrings,
-      ...(archiveVaultId && { archiveVaultId }),
-    });
-    return response;
-  } catch (err) {
-    captureError(err);
-    yield call(setServerBackupFailed);
-    return { updated: true, error: '' };
+    const result = yield call(enqueueAutomaticBackupOperation, committedOperation, mutations);
+    if (currentBackupAppId() !== appId || requestSession !== currentBackupAccountSession())
+      return { updated: false, localCommitted: committedOperation.committed,
+        backupConfirmed: false, backupPending: true, error: 'Backup account changed' };
+    // Cloud confirmation is separate from the successful local commit. A
+    // transport failure never rolls back or prevents the user's local change.
+    return { ...result, updated: committedOperation.committed, error: '' };
+  } catch {
+    if (currentBackupAppId() !== appId || requestSession !== currentBackupAccountSession())
+      return { updated: false, localCommitted: committedOperation.committed,
+        backupConfirmed: false, backupPending: true, error: 'Backup account changed' };
+    yield put(setPendingAllBackup({ appId, pending: true }));
+    return { updated: committedOperation.committed, backupConfirmed: false, backupPending: true, error: '' };
   }
 }
 
-// TODO: Other functions here only handle Relay backup, but this also updates local DB, should move that part out
-export function* deleteAppImageEntityWorker({
-  payload,
-}: {
-  payload: {
-    signerIds?: string[];
-    walletIds?: string[];
-  };
+export function* updateAppImageWorker({ payload, originAppId, originBackupAccountSession, committedOperation }: {
+  originAppId?: string;
+  originBackupAccountSession?: number;
+  originBackupWriteIntent?: BackupWriteIntent;
+  committedOperation?: BackupLocalCommit;
+  payload: { wallets?: Wallet[] | USDTWallet[]; signers?: Signer[]; updateNodes?: boolean };
 }) {
+  const appId = originAppId || currentBackupAppId();
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  if (!appId || currentBackupAppId() !== appId || requestSession !== currentBackupAccountSession())
+    return { updated: false, error: 'Backup account changed' };
   try {
-    const { signerIds, walletIds } = payload;
-    const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-    let response;
-
-    const backupResponse = yield call(checkBackupCondition);
-    if (backupResponse) response = { updated: true, error: '' };
-    else {
-      response = yield call(Relay.deleteAppImageEntity, {
-        appId: id,
-        signers: signerIds,
-        walletIds,
-      });
-    }
-
-    if (walletIds?.length > 0) {
-      for (const walletId of walletIds) {
-        yield call(dbManager.deleteObjectById, RealmSchema.Wallet, walletId);
-      }
-    }
-    if (signerIds?.length > 0) {
-      for (const signerId of signerIds) {
-        yield call(dbManager.deleteObjectByPrimaryKey, RealmSchema.Signer, 'id', signerId);
-      }
-    }
-    return response;
-  } catch (err) {
-    captureError(err);
-    return { updated: false, error: err };
+    return yield call(queueCommittedBackupWorker, appId, committedOperation,
+      [buildAutomaticAppMutation(payload, appId)], requestSession);
+  } catch {
+    yield put(setPendingAllBackup({ appId, pending: true }));
+    return { updated: !!committedOperation?.committed, backupConfirmed: false, backupPending: true, error: 'Committed app image unavailable' };
   }
 }
 
-export function* deleteVaultImageWorker({
-  payload,
-}: {
-  payload: {
-    vaultIds: string[];
-  };
+export function* updateVaultImageWorker({ payload, originAppId, originBackupAccountSession, committedOperation }: {
+  originAppId?: string;
+  originBackupAccountSession?: number;
+  originBackupWriteIntent?: BackupWriteIntent;
+  committedOperation?: BackupLocalCommit;
+  payload: { vault: Vault; archiveVaultId?: string; isUpdate?: boolean };
 }) {
+  const appId = originAppId || currentBackupAppId();
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  if (!appId || currentBackupAppId() !== appId || requestSession !== currentBackupAccountSession())
+    return { updated: false, error: 'Backup account changed' };
   try {
-    const backupResponse = yield call(checkBackupCondition);
-    if (backupResponse) return { updated: true, error: '' };
-    const { vaultIds } = payload;
-    const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-    const response = yield call(Relay.deleteVaultImage, {
-      appId: id,
-      vaults: vaultIds,
-    });
-    return response;
-  } catch (err) {
-    captureError(err);
-    return { updated: false, error: err };
+    return yield call(queueCommittedBackupWorker, appId, committedOperation,
+      [buildAutomaticVaultMutation(payload.vault.id, appId, payload.isUpdate)], requestSession);
+  } catch {
+    yield put(setPendingAllBackup({ appId, pending: true }));
+    return { updated: !!committedOperation?.committed, backupConfirmed: false, backupPending: true, error: 'Committed vault image unavailable' };
   }
+}
+
+export function* deleteAppImageEntityWorker({ payload, originAppId, originBackupAccountSession, originBackupWriteIntent }: {
+  originAppId?: string;
+  originBackupAccountSession?: number;
+  originBackupWriteIntent?: BackupWriteIntent;
+  payload: { signerIds?: string[]; walletIds?: string[]; walletSchema?: RealmSchema };
+}) {
+  const appId = originAppId || currentBackupAppId();
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  if (!appId || currentBackupAppId() !== appId || requestSession !== currentBackupAccountSession())
+    return { updated: false, error: 'Backup account changed' };
+  const operation = beginBackupLocalOperation(appId, originBackupWriteIntent, requestSession);
+  const walletIds = [...new Set(payload.walletIds || [])];
+  const signerIds = [...new Set(payload.signerIds || [])];
+  const walletSchema = payload.walletSchema || RealmSchema.Wallet;
+  const committedOperation = commitBackupLocalOperation(operation, (localRealm) => {
+    for (const vault of localRealm.objects(RealmSchema.Vault)) {
+      if (vault.signers.some((key) => signerIds.includes(getKeyUID(key))))
+        throw new Error('A retained vault still requires this signer');
+    }
+    for (const walletId of walletIds) {
+      const stored = localRealm.objectForPrimaryKey(walletSchema, walletId);
+      if (!stored) throw new Error('Wallet deletion target is missing');
+      localRealm.delete(stored);
+    }
+    for (const signerId of signerIds) {
+      const stored = localRealm.objectForPrimaryKey(RealmSchema.Signer, signerId);
+      if (!stored) throw new Error('Signer deletion target is missing');
+      localRealm.delete(stored);
+    }
+  });
+  if (!committedOperation.committed) return { updated: false, error: 'Local recovery deletion failed' };
+  return yield call(queueCommittedBackupWorker, appId, committedOperation, [{
+    operation: 'deleteAppImageEntity', body: { appId, walletIds, signers: signerIds },
+  }], requestSession);
+}
+
+export function* deleteVaultImageWorker({ payload, originAppId, originBackupAccountSession, committedOperation }: {
+  originAppId?: string;
+  originBackupAccountSession?: number;
+  originBackupWriteIntent?: BackupWriteIntent;
+  committedOperation?: BackupLocalCommit;
+  payload: { vaultIds: string[] };
+}) {
+  const appId = originAppId || currentBackupAppId();
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  if (!appId) return { updated: false, error: 'Backup account changed' };
+  return yield call(queueCommittedBackupWorker, appId, committedOperation, [{
+    operation: 'deleteVaults', body: { appId, vaults: [...new Set(payload.vaultIds)] },
+  }], requestSession);
 }
 
 function* seedBackeupConfirmedWorked({
@@ -335,16 +358,46 @@ function* seedBackedUpWorker() {
   }
 }
 
-function* getAppImageWorker({ payload }) {
+let latestRecoveryReadRequest = 0;
+
+function* getAppImageWorker({ payload }: ReturnType<typeof getAppImage>) {
+  const request = ++latestRecoveryReadRequest;
+  const requestSession = currentBackupAccountSession();
   const { primaryMnemonic, isForgot } = payload;
+  const selection = payload.selection ?? { source: 'protected' };
+  const source: BackupRecoverySource = selection.source === 'legacy-older'
+    ? 'legacy-older' : 'protected';
+  let keeperAppId: string;
+  let namespaceId: string;
+  let provenance: RecoveryProvenance;
+  let protectedState: ProtectedBackupState;
+  let recoverySession: number;
+  const assertRequestIdentity = () => {
+    if (request !== latestRecoveryReadRequest) throw new Error('Recovery request changed');
+  };
+  const requestIsCurrent = () => request === latestRecoveryReadRequest &&
+    (recoverySession ?? requestSession) === currentBackupAccountSession();
+  function* putCurrent(action: any) {
+    if (requestIsCurrent()) yield put(action);
+  }
+  const assertRequestSession = () => {
+    assertRequestIdentity();
+    if (requestSession !== currentBackupAccountSession())
+      throw new Error('Backup account changed');
+  };
   try {
-    yield put(setAppImageError(''));
+    yield* putCurrent(setAppImageError(''));
+    yield* putCurrent(setRecoveryDiscovery({ status: 'checking', source }));
+    if (selection.source !== 'protected' &&
+      (selection.source !== 'legacy-older' || selection.olderCopyConfirmed !== true))
+      throw new Error('Older recovery copy was not selected');
     if (!bip39.validateMnemonic(primaryMnemonic)) {
       throw Error('Invalid mnemonic');
     }
     const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
     const primarySeed = bip39.mnemonicToSeedSync(primaryMnemonic);
     const appID = crypto.createHash('sha256').update(primarySeed).digest('hex');
+    keeperAppId = appID;
     if (isForgot) {
       // Allow only existing appId to be recovered using forgot passcode flow.
       const { allAccounts } = yield select((state: RootState) => state.account);
@@ -353,23 +406,53 @@ function* getAppImageWorker({ payload }) {
     }
 
     const encryptionKey = generateEncryptionKey(primarySeed.toString('hex'));
-    let appImage = { appId: appID, version: null, wallets: {}, signers: {}, nodes: [] };
-    let subscription = null;
-    let labels = [];
-    let allVaultImages = [];
-
-    try {
-      const response = yield call(Relay.getAppImage, appID);
-      if (response) {
-        appImage = response.appImage || appImage;
-        subscription = response.subscription || subscription;
-        labels = response.labels || labels;
-        allVaultImages = response.allVaultImages || allVaultImages;
+    assertRequestSession();
+    let prepared;
+    if (source === 'protected') {
+      const result = yield call(readProtectedBackup, primaryMnemonic, undefined, appID);
+      assertRequestSession();
+      namespaceId = result.namespaceId;
+      if (result.state === 'neverEnrolled' || result.state === 'deleted') {
+        yield* putCurrent(setRecoveryDiscovery({
+          status: result.state === 'deleted' ? 'protected-deleted' : 'protected-absent',
+          source,
+          keeperAppId: appID,
+          namespaceId,
+          legacyMayPredateDeletion: result.state === 'deleted',
+        }));
+        return;
       }
-    } catch (err) {
-      console.log('Error retrieving app image from relay:', err);
-      // Continue with empty defaults
+      prepared = prepareRecoverySourceImage(appID, {
+        source: 'protected', namespaceId, response: result.snapshot,
+      });
+      protectedState = {
+        status: 'present', namespaceId,
+        generation: result.snapshot.generation, authEpoch: result.snapshot.authEpoch,
+      };
+      if (!hasRecoveryRecords(result.snapshot)) {
+        yield* putCurrent(setRecoveryDiscovery({
+          status: 'protected-empty', source, keeperAppId: appID, namespaceId,
+          legacyMayPredateDeletion: result.snapshot.suppressLegacyFallback,
+        }));
+        return;
+      }
+    } else {
+      // Older copies are read only after a separate, deliberate UI choice.
+      // A protected absence, tombstone or request error never selects this path.
+      const response = yield call(Relay.getAppImage, appID);
+      assertRequestSession();
+      prepared = prepareRecoverySourceImage(appID, {
+        source: 'legacy-older', olderCopyConfirmed: true, response,
+        legacyMayPredateDeletion: true,
+      });
     }
+    const { appImage, labels, allVaultImages } = prepared;
+    provenance = prepared.provenance;
+    yield* putCurrent(setRecoveryDiscovery({
+      status: source === 'protected' ? 'protected-found' : 'legacy-selected',
+      source, keeperAppId: appID, namespaceId, provenance,
+    }));
+    assertRequestSession();
 
     const previousVersion = appImage.version;
 
@@ -388,7 +471,7 @@ function* getAppImageWorker({ payload }) {
       icon: 'assets/ic_diamond_hands.svg',
       receipt: '',
     };
-    yield call(
+    recoverySession = yield call(
       recoverApp,
       primaryMnemonic,
       primarySeed,
@@ -398,8 +481,20 @@ function* getAppImageWorker({ payload }) {
       appImage,
       allVaultImages,
       labels,
-      previousVersion
+      previousVersion,
+      requestSession,
+      (ownedSession: number) => {
+        if (request !== latestRecoveryReadRequest) throw new Error('Backup account changed');
+        // Error feedback may follow only the session selected by this restore.
+        // This callback supplies no remote baseline or upload authority.
+        recoverySession = ownedSession;
+      },
+      source === 'protected',
+      assertRequestIdentity
     );
+    if (request !== latestRecoveryReadRequest ||
+      recoverySession !== currentBackupAccountSession() || currentBackupAppId() !== appID)
+      throw new Error('Backup account changed');
 
     if ((!appImage.wallets || !Object.entries(appImage.wallets).length) && !allVaultImages.length) {
       // recreate first wallet
@@ -417,42 +512,112 @@ function* getAppImageWorker({ payload }) {
           instanceNum: 0,
         },
       };
-      yield call(addNewWalletsWorker, { payload: [defaultWallet] });
+      assertRequestIdentity();
+      const created = yield call(addNewWalletsWorker, {
+        payload: [defaultWallet],
+        originAppId: appID,
+        originBackupAccountSession: recoverySession,
+      });
+      if (created !== true) throw new Error('Recovery data unavailable');
     }
 
+    assertRequestIdentity();
     const recoveryKeySigner = setupRecoveryKeySigningKey(primaryMnemonic);
-    yield call(addSigningDeviceWorker, { payload: { signers: [recoveryKeySigner] } });
+    yield call(addSigningDeviceWorker, {
+      payload: { signers: [recoveryKeySigner] },
+      originAppId: appID,
+      originBackupAccountSession: recoverySession,
+    });
+    if (request !== latestRecoveryReadRequest ||
+      recoverySession !== currentBackupAccountSession() || currentBackupAppId() !== appID)
+      throw new Error('Backup account changed');
+    const recoveredSigners: Signer[] = yield call(dbManager.getCollection, RealmSchema.Signer);
+    const recoveredKey = recoveredSigners.find(
+      (signer) => getKeyUID(signer) === getKeyUID(recoveryKeySigner)
+    );
+    // Key creation/merging can return without throwing after a rejected write.
+    // Verify the required derived key material before exposing recovery success.
+    if (
+      !recoveredKey ||
+      !Object.values(recoveryKeySigner.signerXpubs).some((entries) => entries.length > 0) ||
+      !Object.entries(recoveryKeySigner.signerXpubs).every(([type, entries]) =>
+        entries.every((expected) =>
+          recoveredKey.signerXpubs[type]?.some(
+            (actual) =>
+              actual.xpub === expected.xpub &&
+              actual.derivationPath === expected.derivationPath &&
+              actual.xpriv === expected.xpriv
+          )
+        )
+      )
+    )
+      throw new Error('Recovery data unavailable');
 
     // applying the restore upgrade sequence if required
     const newVersion = DeviceInfo.getVersion();
     if (previousVersion && semver.lt(previousVersion, newVersion)) {
       console.log(`applying restore upgarde sequence - from: ${previousVersion} to ${newVersion}`);
-      yield call(applyUpgradeSequence, { previousVersion, newVersion });
-      try {
-        yield call(Relay.updateAppImage, {
-          appId: appImage.appId,
-          version: newVersion,
-        });
-      } catch (err) {
-        console.log(err);
-      }
+      assertRequestIdentity();
+      yield call(applyUpgradeSequence, {
+        previousVersion,
+        newVersion,
+        isRecovery: true,
+        originBackupAccountSession: recoverySession,
+      });
     }
-    yield put(addAccount(appID));
-    yield put(autoSyncWallets(true, true, false));
-    yield put(
+    if (request !== latestRecoveryReadRequest ||
+      recoverySession !== currentBackupAccountSession() || currentBackupAppId() !== appID)
+      throw new Error('Backup account changed');
+    yield* putCurrent(addAccount(appID));
+    yield* putCurrent(autoSyncWallets(true, true, false, appID));
+    yield* putCurrent(
       saveDefaultWalletState({
         appId: appID,
         data: { [NetworkType.MAINNET]: true, [NetworkType.TESTNET]: true },
       })
     );
-    yield put(uaiChecks([uaiType.SECURE_VAULT]));
-    yield put(loadConciergeUser(null));
-    yield put(loadConciergeTickets([]));
-    yield put(setRecoveryKeyBackedUp({ appId: appID, status: true }));
+    yield* putCurrent(uaiChecks([uaiType.SECURE_VAULT]));
+    yield* putCurrent(loadConciergeUser(null));
+    yield* putCurrent(loadConciergeTickets([]));
+    yield* putCurrent(setRecoveryKeyStatus({ appId: appID, status: 'confirmed' }));
+    if (protectedState) {
+      const hint: ProtectedBackupState = yield select(
+        (state: RootState) => state.bhr.protectedBackupStateByAppId?.[appID]
+      );
+      if (request !== latestRecoveryReadRequest ||
+        recoverySession !== currentBackupAccountSession() || currentBackupAppId() !== appID)
+        throw new Error('Backup account changed');
+      // Retain a later authenticated tombstone/generation observed during this
+      // restore. This persisted source hint is never verification or consent.
+      const comparable = !hint?.namespaceId || hint.namespaceId === namespaceId;
+      const older = hint && (
+        hint.generation > protectedState.generation || hint.authEpoch > protectedState.authEpoch ||
+        (hint.generation === protectedState.generation && hint.authEpoch === protectedState.authEpoch &&
+          hint.status === 'deleted')
+      );
+      if (comparable && !older)
+        yield* putCurrent(setProtectedBackupState({ appId: appID, state: protectedState }));
+    }
+    yield* putCurrent(setRecoveryDiscovery({
+      status: 'restored', source, keeperAppId: appID, namespaceId, provenance,
+    }));
+    yield* putCurrent(setAppCreated(true));
   } catch (err) {
-    yield put(setAppImageError(err.message));
+    // A late response for a previous account/request must not replace the
+    // current recovery screen's provenance or present an error as absence.
+    const activeSession = recoverySession ?? requestSession;
+    if (request === latestRecoveryReadRequest && activeSession === currentBackupAccountSession()) {
+      const error = err.message || 'Recovery data unavailable';
+      yield* putCurrent(setRecoveryDiscovery({
+        status: 'read-error', source, keeperAppId, namespaceId, error,
+      }));
+      yield* putCurrent(setAppImageError(error));
+    }
   } finally {
-    yield put(appImagerecoveryRetry());
+    const wasCancelled = yield cancelled();
+    if (!wasCancelled && request === latestRecoveryReadRequest &&
+      (recoverySession ?? requestSession) === currentBackupAccountSession())
+      yield* putCurrent(appImagerecoveryRetry());
   }
 }
 
@@ -465,14 +630,57 @@ function* recoverApp(
   appImage,
   allVaultImages,
   labels,
-  previousVersion
+  previousVersion,
+  originBackupAccountSession?: number,
+  onRecoverySession?: (ownedSession: number) => void,
+  protectedMetadata = false,
+  assertRecoveryRequest: (() => void) | undefined = undefined
 ) {
+  // Recovery selects appID after the first Realm write. Keep the session from
+  // the initiating action across decryption and all earlier async work.
+  const originSession = originBackupAccountSession ?? currentBackupAccountSession();
+  const assertOrigin = () => {
+    assertRecoveryRequest?.();
+    if (currentBackupAccountSession() !== originSession)
+      throw new Error('Backup account changed');
+  };
+  assertOrigin();
   const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
+  const recovered: BackupImage = yield call(
+    prepareRecoveryImage,
+    encryptionKey,
+    appID,
+    appImage,
+    allVaultImages,
+    labels,
+    protectedMetadata,
+    assertOrigin
+  );
+  if (protectedMetadata)
+    validateProtectedRecoveryMetadata({allVaultImages, labels}, recovered, getKeyUID, hash256, encryptionKey);
+  // A restored copy does not inherit old opt-in state. Revoke only after full
+  // validation, before any local write or producer, for BOTH recovery sources.
+  assertOrigin();
+  yield call(() => {
+    assertOrigin();
+    const consentEpoch = backupConsentEpoch(appID);
+    store.dispatch(protectBackupRecoveryConsentDisable(
+      setAutomaticCloudBackup({appId: appID, enabled: false}), appID, originSession
+    ));
+    assertOrigin();
+    if (store.getState().bhr.automaticCloudBackupByAppId?.[appID] !== false ||
+      backupConsentEpoch(appID) <= consentEpoch)
+      throw new Error('Recovery backup consent could not be disabled');
+    markBackupMutation(appID);
+    clearVerifiedRemoteRevision(appID);
+    notifyBackupReconciliation(appID);
+  });
   const entropy = yield call(
     BIP85.bip39MnemonicToEntropy,
     config.BIP85_IMAGE_ENCRYPTIONKEY_DERIVATION_PATH,
     primaryMnemonic
   );
+  assertOrigin();
   const imageEncryptionKey = generateEncryptionKey(entropy.toString('hex'));
   const publicId = WalletUtilities.getFingerprintFromSeed(primarySeed);
   const app: KeeperApp = {
@@ -495,28 +703,38 @@ function* recoverApp(
     networkType: bitcoinNetworkType,
   };
 
-  yield call(dbManager.createObject, RealmSchema.KeeperApp, app);
+  yield call(writeRecoveredObject, RealmSchema.KeeperApp, app, assertOrigin);
+  assertOrigin();
+  yield put(setAppId(appID));
+  const recoveryAccountSession = currentBackupAccountSession();
+  const assertRecoveryAccount = () => {
+    assertRecoveryRequest?.();
+    if (currentBackupAccountSession() !== recoveryAccountSession || currentBackupAppId() !== appID)
+      throw new Error('Backup account changed');
+  };
+  assertRecoveryAccount();
+  onRecoverySession?.(recoveryAccountSession);
+  function* writeRecord(schema: RealmSchema, record: any) {
+    yield call(writeRecoveredObject, schema, record, assertRecoveryAccount);
+  }
 
   // Wallet recreation
   if (appImage.wallets) {
-    for (const [key, value] of Object.entries(appImage.wallets)) {
+    for (const decryptedWallet of Object.values(recovered.wallets) as Wallet[]) {
       try {
-        const decryptedWallet: Wallet = JSON.parse(decrypt(encryptionKey, value));
         if (decryptedWallet.entityKind === EntityKind.USDT_WALLET)
-          yield call(dbManager.createObject, RealmSchema.USDTWallet, decryptedWallet);
-        else yield call(dbManager.createObject, RealmSchema.Wallet, decryptedWallet);
+          yield call(writeRecord, RealmSchema.USDTWallet, decryptedWallet);
+        else yield call(writeRecord, RealmSchema.Wallet, decryptedWallet);
       } catch (err) {
-        console.log('Error recovering a wallet: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
 
   // Signers recreatin
   if (appImage.signers) {
-    for (const [key, value] of Object.entries(appImage.signers)) {
+    for (const decrytpedSigner of Object.values(recovered.signers) as Signer[]) {
       try {
-        const decrytpedSigner: Signer = JSON.parse(decrypt(encryptionKey, value));
         if (!decrytpedSigner?.id) {
           decrytpedSigner.id = getKeyUID(decrytpedSigner);
         }
@@ -526,20 +744,18 @@ function* recoverApp(
             ? NetworkType.TESTNET
             : NetworkType.MAINNET;
         }
-        yield call(dbManager.createObject, RealmSchema.Signer, decrytpedSigner);
+        yield call(writeRecord, RealmSchema.Signer, decrytpedSigner);
       } catch (err) {
-        console.log('Error recovering a signer: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
 
   // Vault recreation
   if (allVaultImages.length > 0) {
-    for (const vaultImage of allVaultImages) {
+    // Legacy vaults carry the pre-key-management signer shape until migration.
+    for (const vault of Object.values(recovered.vaults)) {
       try {
-        const vault = JSON.parse(decrypt(encryptionKey, vaultImage.vault));
-
         if (semver.lt(previousVersion, KEY_MANAGEMENT_VERSION)) {
           if (vault?.signers?.length) {
             vault.signers.forEach((signer, index) => {
@@ -590,31 +806,22 @@ function* recoverApp(
                 hidden: false,
                 signerXpubs,
               };
-              yield call(dbManager.createObject, RealmSchema.Signer, signerObject);
+              yield call(writeRecord, RealmSchema.Signer, signerObject);
             }
           }
-
-          yield call(dbManager.createObject, RealmSchema.Vault, vault);
         }
-        yield call(dbManager.createObject, RealmSchema.Vault, vault);
+        yield call(writeRecord, RealmSchema.Vault, vault);
       } catch (err) {
-        console.log('Error recovering a vault: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
 
   // Labels Restore
   if (labels) {
-    const restoredLabels = [];
-    for (const label of labels) {
-      try {
-        restoredLabels.push(JSON.parse(decrypt(encryptionKey, label.content)));
-      } catch {
-        console.log('Failed to restore label');
-      }
+    for (const label of Object.values(recovered.labels)) {
+      yield call(writeRecord, RealmSchema.Tags, label);
     }
-    yield call(dbManager.createObjectBulk, RealmSchema.Tags, restoredLabels);
   }
 
   if (appImage.nodes) {
@@ -625,21 +832,26 @@ function* recoverApp(
     );
     for (const node of existingNodes) {
       if (node && node.id) {
-        yield call(dbManager.deleteObjectById, RealmSchema.NodeConnect, node.id.toString());
+        assertRecoveryAccount();
+        const deleted = yield call(
+          dbManager.deleteObjectById,
+          RealmSchema.NodeConnect,
+          node.id.toString()
+        );
+        assertRecoveryAccount();
+        if (deleted !== true) throw new Error('Recovery data unavailable');
       }
     }
-    for (const node of appImage.nodes) {
+    for (const decryptedNode of Object.values(recovered.nodes) as NodeDetail[]) {
       try {
-        const decryptedNode = JSON.parse(decrypt(encryptionKey, node));
         if (!decryptedNode?.networkType) {
           decryptedNode.networkType = config.isDevMode()
             ? NetworkType.TESTNET
             : NetworkType.MAINNET;
         }
-        yield call(dbManager.createObject, RealmSchema.NodeConnect, decryptedNode);
+        yield call(writeRecord, RealmSchema.NodeConnect, decryptedNode);
       } catch (err) {
-        console.log('Error recovering a node: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
@@ -647,38 +859,58 @@ function* recoverApp(
   // Connect to a node
   const savedNodes: NodeDetail[] = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
   if (savedNodes.length > 0 && !savedNodes.find((node) => node.isConnected)) {
+    assertRecoveryAccount();
     const firstNode = savedNodes[0];
     firstNode.isConnected = true;
 
-    yield call(
+    const connected = yield call(
       dbManager.updateObjectById,
       RealmSchema.NodeConnect,
       firstNode.id.toString(),
       firstNode
     );
+    assertRecoveryAccount();
+    if (connected !== true) throw new Error('Recovery data unavailable');
   }
 
   // seed confirm for recovery
-  yield call(dbManager.createObject, RealmSchema.BackupHistory, {
+  yield call(writeRecord, RealmSchema.BackupHistory, {
     title: BackupAction.SEED_BACKUP_CONFIRMED,
     date: moment().unix(),
     confirmed: true,
     subtitle: 'Recovered using backup phrase',
   });
 
-  yield put(setSeedConfirmed(true));
+  // Recovery proves possession of the Recovery Key, but is not consent to
+  // enable Assisted Server Backup. This transient flag triggers a new upload
+  // when the health-check screen mounts; persistent key status is set by the
+  // completed recovery worker instead.
+  assertRecoveryAccount();
+  yield put(setSeedConfirmed(false));
+  assertRecoveryAccount();
   yield put(setBackupType(BackupType.SEED));
+  assertRecoveryAccount();
   yield put(uaiActioned({ uaiType: uaiType.RECOVERY_PHRASE_HEALTH_CHECK, action: true }));
 
   // create/add restored object for version
-  yield call(dbManager.createObject, RealmSchema.VersionHistory, {
+  yield call(writeRecord, RealmSchema.VersionHistory, {
     version: `${DeviceInfo.getVersion()}(${DeviceInfo.getBuildNumber()})`,
     date: new Date().toString(),
-    title: 'Restored version',
+    title: 'Recovered Wallet',
   });
+  return recoveryAccountSession;
+}
 
-  yield put(setAppId(appID));
-  yield put(setAppCreated(true));
+function* writeRecoveredObject(schema: RealmSchema, record: any, assertActive?: () => void) {
+  // Realm's adapter returns false/undefined on a rejected write instead of
+  // throwing. Never count that record as recovered or report partial success.
+  assertActive?.();
+  const written = yield call(dbManager.createObject, schema, record);
+  if (written !== true) throw new Error('Recovery data unavailable');
+  // Realm writes complete synchronously. Break the saga's synchronous effect
+  // chain between records so a large restore cannot exhaust the JS stack.
+  yield call(pauseBackup);
+  assertActive?.();
 }
 
 function* healthCheckSatutsUpdateWorker({
@@ -712,9 +944,7 @@ function* healthCheckSatutsUpdateWorker({
           };
 
           const oldDetialsArray = [...signer.healthCheckDetails];
-          const oldDetails = oldDetialsArray.map((details) => {
-            return { ...details, date: new Date(details.actionDate) };
-          });
+          const oldDetails = oldDetialsArray.map((details) => ({ ...details, date: new Date(details.actionDate) }));
 
           const updatedDetailsArray: HealthCheckDetails[] = [...oldDetails, newHealthCheckDetails];
 
@@ -928,7 +1158,11 @@ export const bsmsCloudHealthCheckWatcher = createWatcher(
 export const updateAppImageWatcher = createWatcher(updateAppImageWorker, UPDATE_APP_IMAGE);
 export const updateVaultImageWatcher = createWatcher(updateVaultImageWorker, UPDATE_VAULT_IMAGE);
 
-export const getAppImageWatcher = createWatcher(getAppImageWorker, GET_APP_IMAGE);
+export function* getAppImageWatcher() {
+  // Recovery owns one intent. Cancellation also stops called wallet/signer/
+  // upgrade generators; explicit request checks still guard async crypto.
+  yield takeLatest(GET_APP_IMAGE, getAppImageWorker);
+}
 export const seedBackedUpWatcher = createWatcher(seedBackedUpWorker, SEED_BACKEDUP);
 
 export const seedBackeupConfirmedWatcher = createWatcher(
@@ -942,126 +1176,205 @@ export const healthCheckSignerWatcher = createWatcher(
 );
 
 export const deleteAppImageEntityWatcher = createWatcher(
-  deleteAppImageEntityWorker,
+  deleteAppImageEntityRequestWorker,
   DELETE_APP_IMAGE_ENTITY
 );
 
-function* backupAllSignersAndVaultsWorker() {
-  yield put(setBackupAllSuccess(false));
-  yield put(setBackupAllFailure(false));
-  yield put(setBackupAllLoading(true));
+function* deleteAppImageEntityRequestWorker(
+  action: Parameters<typeof deleteAppImageEntityWorker>[0] & {
+    onComplete?: (deleted: boolean) => void;
+  }
+) {
+  let deleted = false;
   try {
-    // clear backup failure notification
-    const uaiCollection = dbManager.getObjectByField(
-      RealmSchema.UAI,
-      uaiType.SERVER_BACKUP_FAILURE,
-      'uaiType'
-    );
-    for (const uai of uaiCollection) {
-      if (uai.uaiType === uaiType.SERVER_BACKUP_FAILURE) {
-        yield call(uaiActionedWorker, {
-          payload: { uaiId: uai.id, action: false },
-        });
-      }
-    }
-
-    const { primarySeed, id, publicId, subscription, networkType, version }: KeeperApp = yield call(
-      dbManager.getObjectByIndex,
-      RealmSchema.KeeperApp
-    );
-    const encryptionKey = generateEncryptionKey(primarySeed);
-    const walletObject = {};
-    const signersObject = {};
-    const vaultObject = {};
-
-    // update all wallets and signers
-    const btcWallets: Wallet[] = yield call(dbManager.getCollection, RealmSchema.Wallet);
-    const usdtWallets = yield call(dbManager.getObjectByIndex, RealmSchema.USDTWallet, null, true);
-    const wallets = [...btcWallets, ...usdtWallets];
-
-    for (const index in wallets) {
-      const wallet = wallets[index];
-      const encrytedWallet = encrypt(encryptionKey, JSON.stringify(wallet));
-      walletObject[wallet.id] = encrytedWallet;
-    }
-    const signers: Signer[] = yield call(dbManager.getCollection, RealmSchema.Signer);
-    for (const index in signers) {
-      const signer = signers[index];
-      const encrytedSigner = encrypt(
-        encryptionKey,
-        JSON.stringify(sanitizeSeedKeyForBackup(signer))
-      );
-      signersObject[getKeyUID(signer)] = encrytedSigner;
-    }
-    const vaults: Vault[] = yield call(dbManager.getCollection, RealmSchema.Vault);
-    for (const index in vaults) {
-      const vault = vaults[index];
-      const vaultEncrypted = encrypt(
-        encryptionKey,
-        JSON.stringify(sanitizeVaultSignersForSeedKeyBackup(vault))
-      );
-      const signersData: Array<{
-        signerId: string;
-        xfpHash: string;
-      }> = [];
-      for (const signer of vault.signers) {
-        signersData.push({
-          signerId: getKeyUID(signer),
-          xfpHash: hash256(signer.masterFingerprint),
-        });
-      }
-      vaultObject[vault.id] = {
-        vaultId: vault.id,
-        signersData,
-        vault: vaultEncrypted,
-      };
-    }
-
-    const nodes: NodeDetail[] = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
-    const nodesToUpdate = [];
-    if (nodes && nodes.length > 0) {
-      for (const index in nodes) {
-        const node = nodes[index];
-        node.isConnected = false;
-        const encryptedNode = encrypt(encryptionKey, JSON.stringify(node));
-        nodesToUpdate.push(encryptedNode);
-      }
-    }
-
-    const labels = yield call(dbManager.getCollection, RealmSchema.Tags);
-    const tagsToBackup = labels.map((tag) => ({
-      id: hash256(hash256(encryptionKey + tag.id)),
-      content: encrypt(encryptionKey, JSON.stringify(tag)),
-    }));
-
-    yield call(Relay.backupAllSignersAndVaults, {
-      appId: id,
-      publicId,
-      walletObject,
-      signersObject,
-      vaultObject,
-      networkType,
-      subscription: JSON.stringify(subscription),
-      version,
-      nodes: nodesToUpdate,
-      labels: tagsToBackup,
-    });
-    yield put(setBackupAllSuccess(true));
-    yield put(setPendingAllBackup(false));
-    return true;
+    const result = yield call(deleteAppImageEntityWorker, action);
+    deleted = result?.updated === true;
   } catch (error) {
-    yield put(setBackupAllFailure(true));
-    yield call(setServerBackupFailed);
-    console.log('🚀 ~ function*backupAllSignersAndVaultsWorker ~ error:', error);
-    yield put(
-      setHomeToastMessage({
-        message: 'Assisted server backup failed. Please try again later.',
-        isError: true,
-      })
-    );
+    captureError(error);
+  }
+  if (action.onComplete) {
+    try {
+      action.onComplete(deleted);
+    } catch (error) {
+      captureError(error);
+    }
+  }
+  return deleted;
+}
+
+const backupInspectionOwners = new Map<string, number>();
+
+function* runBackupInspection(
+  repair: boolean,
+  expectedAppId?: string,
+  explicitChoice = false,
+  expectedSession?: number
+) {
+  const requestSession = expectedSession ?? currentBackupAccountSession();
+  if (requestSession !== currentBackupAccountSession()) return false;
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if ((expectedAppId && id !== expectedAppId) || requestSession !== currentBackupAccountSession())
     return false;
+  backupInspectionOwners.set(id, (backupInspectionOwners.get(id) ?? 0) + 1);
+  let finalPhase: RepairPhase = 'unverified';
+  let verifiedEvidence: { revision: number; intent: BackupWriteIntent } | undefined;
+  let inspection: Promise<RepairPhase> | undefined;
+  let updates: ReturnType<typeof eventChannel<RepairPhase>> | undefined;
+  const evidenceStillCurrent = () => {
+    const currentIntent = captureBackupWriteIntent(id);
+    return !!verifiedEvidence && !!currentIntent &&
+      backupRevision(id) === verifiedEvidence.revision &&
+      currentIntent.appId === verifiedEvidence.intent.appId &&
+      currentIntent.accountSession === verifiedEvidence.intent.accountSession &&
+      currentIntent.baseRevision === verifiedEvidence.intent.baseRevision &&
+      sameProtectedBackupBase(currentIntent.protectedBase, verifiedEvidence.intent.protectedBase) &&
+      currentIntent.baselineEpoch === verifiedEvidence.intent.baselineEpoch;
+  };
+  try {
+    yield put(setBackupRepairRunning({ appId: id, running: true }));
+    updates = eventChannel<RepairPhase>((emit) => {
+      // The repair service accepts the origin session as its fifth argument.
+      const inspectWithSession = inspectBackup as (
+        appId: string,
+        shouldRepair: boolean,
+        onPhase: (phase: RepairPhase) => void,
+        explicitlyChosen: boolean,
+        session: number
+      ) => Promise<RepairPhase>;
+      inspection = inspectWithSession(id, repair, (phase) => {
+        if (phase === 'verified') {
+          const intent = captureBackupWriteIntent(id);
+          verifiedEvidence = intent ? { revision: backupRevision(id), intent } : undefined;
+        }
+        emit(phase);
+      }, explicitChoice, requestSession);
+      inspection.then(
+        () => emit(END),
+        () => emit(END)
+      );
+      return () => {};
+    }, buffers.expanding());
+    while (true) {
+      const phase = yield takeMaybe(updates);
+      if (phase === END) break;
+      if (requestSession !== currentBackupAccountSession()) return false;
+      finalPhase = phase;
+      // Verification is tentative until the final, synchronous Redux commit.
+      // A Realm write can invalidate it while this channel is draining.
+      if (phase !== 'verified') yield put(setBackupRepairState({ appId: id, phase }));
+    }
+    // No yield may separate the current-state check from this one Redux action:
+    // it commits the visible phase and pending flag together.
+    const outcome: { active: boolean; verified: boolean } = yield call(() => {
+      if (currentBackupAppId() !== id || requestSession !== currentBackupAccountSession())
+        return { active: false, verified: false };
+      const verified = finalPhase === 'verified' && evidenceStillCurrent();
+      store.dispatch(commitBackupInspection({
+        appId: id,
+        phase: finalPhase === 'verified' && !verified ? 'unverified' : finalPhase,
+        pending: !verified,
+      }));
+      return { active: true, verified };
+    });
+    if (outcome.active) {
+      if (outcome.verified) {
+        const notifications = dbManager.getObjectByField(
+          RealmSchema.UAI,
+          uaiType.SERVER_BACKUP_FAILURE,
+          'uaiType'
+        ) as unknown as Array<{ id: string }>;
+        for (const uai of notifications) {
+          const stillActive = yield select((state: RootState) => state.storage.appId === id);
+          if (!stillActive || currentBackupAppId() !== id ||
+              requestSession !== currentBackupAccountSession() || !evidenceStillCurrent()) break;
+          yield call(uaiActionedWorker, { payload: { uaiId: uai.id, action: true } });
+        }
+      } else if (
+        !dbManager.getObjectByField(RealmSchema.UAI, uaiType.SERVER_BACKUP_FAILURE, 'uaiType')
+          ?.length
+      ) {
+        const stillActive = yield select((state: RootState) => state.storage.appId === id);
+        if (!stillActive || currentBackupAppId() !== id ||
+            requestSession !== currentBackupAccountSession()) return false;
+        yield call(addToUaiStackWorker, {
+          payload: {
+            uaiType: uaiType.SERVER_BACKUP_FAILURE,
+            uaiDetails: {
+              heading: translations.recoveryBackup.notificationTitle,
+              body: translations.recoveryBackup.notificationBody,
+            },
+          },
+        });
+      }
+    }
+    return outcome.verified && requestSession === currentBackupAccountSession() &&
+      evidenceStillCurrent();
   } finally {
-    yield put(setBackupAllLoading(false));
+    updates?.close();
+    // Cancellation closes this listener, but does not stop its shared operation.
+    // Keep ownership until that operation settles, including a queued repair.
+    if (inspection) yield call(() => inspection.catch(() => undefined));
+    const remaining = (backupInspectionOwners.get(id) ?? 1) - 1;
+    if (remaining) backupInspectionOwners.set(id, remaining);
+    else backupInspectionOwners.delete(id);
+    yield put(setBackupRepairRunning({ appId: id, running: remaining > 0 }));
+  }
+}
+
+function* backupFreshnessWorker({ type, appId, originBackupAccountSession }) {
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  if (requestSession !== currentBackupAccountSession()) return;
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if (!appId || id !== appId || requestSession !== currentBackupAccountSession()) return;
+  const enabled = yield select((state: RootState) =>
+    state.storage.appId === appId && isAutomaticCloudBackupEnabled(state.bhr, appId)
+  );
+  const repair = type === REPAIR_BACKUP;
+  if ((repair && !enabled) || requestSession !== currentBackupAccountSession()) return;
+  // Consent-off status checking is read-only; it must not enroll or repair.
+  yield call(runBackupInspection, repair, appId, !repair, requestSession);
+}
+
+export function* backupFreshnessWatcher() {
+  yield takeEvery([CHECK_BACKUP_FRESHNESS, REPAIR_BACKUP], backupFreshnessWorker);
+}
+
+function* backupAllSignersAndVaultsWorker({
+  appId,
+  originBackupAccountSession,
+}: {
+  appId: string;
+  originBackupAccountSession?: number;
+}) {
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  const requestConsentEpoch = backupConsentEpoch(appId);
+  const isCurrentChoice = () => currentBackupAppId() === appId &&
+    requestSession === currentBackupAccountSession() && backupConsentEpoch(appId) === requestConsentEpoch;
+  if (requestSession !== currentBackupAccountSession()) return false;
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if (!appId || appId !== id) return false;
+  const selected = yield select((state: RootState) => state.storage.appId === appId);
+  if (!selected) return false;
+  yield put(setBackupAllSuccess({ appId, status: false }));
+  yield put(setBackupAllFailure({ appId, status: false }));
+  yield put(setBackupAllLoading({ appId, status: true }));
+  try {
+    const verified = yield call(runBackupInspection, true, appId, true, requestSession);
+    return yield call(() => {
+      if (!isCurrentChoice()) return false;
+      const state = store.getState();
+      const stillVerified = verified && state.bhr.backupRepairStateByAppId?.[appId] === 'verified' &&
+        state.bhr.pendingAllBackupByAppId?.[appId] === false && isBackupVerificationCurrent(appId);
+      if (stillVerified) store.dispatch(protectBackupConsentCompletion(
+        setAutomaticCloudBackup({ appId, enabled: true }), appId, requestConsentEpoch
+      ));
+      if (!isCurrentChoice() || (stillVerified && !isBackupVerificationCurrent(appId))) return false;
+      store.dispatch(stillVerified ? setBackupAllSuccess({ appId, status: true })
+        : setBackupAllFailure({ appId, status: true }));
+      return stillVerified;
+    });
+  } finally {
+    if (isCurrentChoice()) yield put(setBackupAllLoading({ appId, status: false }));
   }
 }
 
@@ -1070,152 +1383,136 @@ export const backupAllSignersAndVaultsWatcher = createWatcher(
   BACKUP_ALL_SIGNERS_AND_VAULTS
 );
 
-function* deleteBackupWorker() {
-  yield put(setBackupAllLoading(true));
+function* deleteBackupWorker({ appId, originBackupAccountSession }: {
+  appId: string;
+  originBackupAccountSession?: number;
+  originBackupWriteIntent?: BackupWriteIntent;
+}) {
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  const requestConsentEpoch = backupConsentEpoch(appId);
+  const isCurrent = () => currentBackupAppId() === appId && currentBackupAccountSession() === requestSession &&
+    backupConsentEpoch(appId) === requestConsentEpoch;
+  if (!appId || !isCurrent()) return false;
+  yield put(setDeleteBackupSuccess({ appId, status: false }));
+  yield put(setDeleteBackupFailure({ appId, status: false }));
+  yield put(setBackupAllLoading({ appId, status: true }));
   try {
-    const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-
-    yield call(Relay.deleteBackup, {
-      appId: id,
+    // Delete only the protected copy. Its authenticated fresh tuple is bound
+    // to this original session; retained older copies and all local data stay.
+    const intent = yield call(beginBackupDeleteOperation, appId, requestSession);
+    if (!isCurrent()) return false;
+    if (!intent?.committed || !intent.intent) throw new Error('Backup deletion preflight failed');
+    const result = yield call(enqueueAutomaticBackupOperation, intent, [{
+      operation: 'deleteBackup', body: { appId },
+    }]);
+    if (!result?.updated || !result?.backupConfirmed) throw new Error('Backup deletion not confirmed');
+    const completed = yield call(() => {
+      if (!isCurrent() || !isAutomaticBackupResultCurrent(result, appId)) return false;
+      store.dispatch(setDeleteBackupSuccess({ appId, status: true }));
+      if (!isCurrent() || !isAutomaticBackupResultCurrent(result, appId)) return false;
+      store.dispatch(setPendingAllBackup({ appId, pending: false }));
+      return true;
     });
-    yield put(setDeleteBackupSuccess(true));
-    yield put(setPendingAllBackup(false));
-    return true;
-  } catch (error) {
-    yield put(setDeleteBackupFailure(true));
-    console.log('🚀 ~ deleteBackupWorker ~ error:', error);
+    if (!completed && isCurrent()) yield put(setDeleteBackupFailure({ appId, status: true }));
+    return completed;
+  } catch {
+    if (isCurrent()) {
+      yield put(setPendingAllBackup({ appId, pending: true }));
+      yield put(setDeleteBackupFailure({ appId, status: true }));
+    }
     return false;
   } finally {
-    yield put(setBackupAllLoading(false));
+    if (isCurrent()) yield put(setBackupAllLoading({ appId, status: false }));
   }
 }
 
 export const deleteBackupWatcher = createWatcher(deleteBackupWorker, DELETE_BACKUP);
 
-export function* checkBackupCondition() {
-  const { pendingAllBackup, automaticCloudBackup } = yield select((state: RootState) => state.bhr);
-  const { subscription }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-  // if (automaticCloudBackup && subscription.level === AppSubscriptionLevel.L1 && !pendingAllBackup) {
-  if (automaticCloudBackup && !pendingAllBackup) {
-    return true;
-  }
-  if (!automaticCloudBackup) return true;
+export function* checkBackupCondition(expectedAppId?: string) {
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if (expectedAppId && expectedAppId !== id) return true;
+  const enabled = yield select((state: RootState) =>
+    state.storage.appId === id && isAutomaticCloudBackupEnabled(state.bhr, id)
+  );
+  if (!enabled) return true;
+  markBackupMutation(id);
+  yield put(invalidateBackupRepair(id));
   const netInfo = yield call(NetInfo.fetch);
+  const current: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  const stillEnabled = yield select((state: RootState) =>
+    state.storage.appId === id && isAutomaticCloudBackupEnabled(state.bhr, id)
+  );
+  if (current?.id !== id || (expectedAppId && current.id !== expectedAppId) || !stillEnabled)
+    return true;
   if (!netInfo.isConnected) {
-    yield call(setServerBackupFailed);
+    yield call(setServerBackupFailed, id);
     return true;
   }
-  if (pendingAllBackup) {
-    yield call(backupAllSignersAndVaultsWorker);
-    return true;
-  }
+  // Never suppress this incremental write or replace it with a snapshot: wallet
+  // creation invokes us before persisting the new wallet to Realm. An old
+  // mismatch is repaired only after Back Up Now, separately from this mutation.
   return false;
 }
 
-export function* setServerBackupFailed() {
+export function* setServerBackupFailed(expectedAppId?: string) {
+  const { id: appId }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if (expectedAppId && expectedAppId !== appId) return;
+  const ownerIsActive = yield select((state: RootState) => state.storage.appId === appId);
+  if (!ownerIsActive || currentBackupAppId() !== appId) return;
   const uaiCollection = dbManager.getObjectByField(
     RealmSchema.UAI,
     uaiType.SERVER_BACKUP_FAILURE,
     'uaiType'
-  );
+  ) as unknown as Array<{ id: string; uaiType: uaiType }>;
   for (const uai of uaiCollection) {
     if (uai.uaiType === uaiType.SERVER_BACKUP_FAILURE) {
+      const stillActive = yield select((state: RootState) => state.storage.appId === appId);
+      if (!stillActive || currentBackupAppId() !== appId) return;
       yield call(uaiActionedWorker, {
         payload: { uaiId: uai.id, action: false },
       });
     }
   }
+  const stillActive = yield select((state: RootState) => state.storage.appId === appId);
+  if (!stillActive || currentBackupAppId() !== appId) return;
   yield call(addToUaiStackWorker, {
     payload: {
       uaiType: uaiType.SERVER_BACKUP_FAILURE,
       uaiDetails: {
-        heading: 'Assisted Server Backup Has Failed',
-        body: "Retry backup to Keeper's servers",
+        heading: translations.recoveryBackup.retryNotificationTitle,
+        body: translations.recoveryBackup.retryNotificationBody,
       },
     },
   });
-  yield put(setPendingAllBackup(true));
+  const activeAfterNotice = yield select((state: RootState) => state.storage.appId === appId);
+  if (!activeAfterNotice || currentBackupAppId() !== appId) return;
+  yield put(setPendingAllBackup({ appId, pending: true }));
 }
 
-function* validateServerBackupWorker({ callback }) {
-  try {
-    const { primarySeed, id }: KeeperApp = yield call(
-      dbManager.getObjectByIndex,
-      RealmSchema.KeeperApp
-    );
-    const encryptionKey = generateEncryptionKey(primarySeed as string);
-    let { allVaultImages, appImage, labels } = yield call(Relay.getAppImage, id);
-    const { nodes, wallets, signers = {} } = appImage;
-
-    // Check for vaults
-    let localVaultIds = yield call(dbManager.getCollection, RealmSchema.Vault);
-    localVaultIds = localVaultIds.map((item) => item.id);
-    let decryptedVaultIds = [];
-    for (const index in allVaultImages) {
-      decryptedVaultIds.push(JSON.parse(decrypt(encryptionKey, allVaultImages[index].vault)).id);
-    }
-    if (!areSetsEqual(new Set(localVaultIds), new Set(decryptedVaultIds)))
-      return callback({ status: false, message: 'Vaults do not match' });
-
-    // Check for labels
-    let localLabelIds: any = yield call(dbManager.getCollection, RealmSchema.Tags);
-    localLabelIds = localLabelIds.map((item) => item.id);
-    if (labels.length !== localLabelIds.length)
-      return callback({ status: false, message: 'Labels do not match' });
-    const decryptedLabelIds = [];
-    for (const index in labels) {
-      decryptedLabelIds.push(JSON.parse(decrypt(encryptionKey, labels[index].content)).id);
-    }
-    if (!areSetsEqual(new Set(localLabelIds), new Set(decryptedLabelIds)))
-      return callback({ status: false, message: 'Labels do not match' });
-
-    //  Check for Signers
-    let localSignerIds: any = yield call(dbManager.getCollection, RealmSchema.Signer);
-    localSignerIds = localSignerIds.map((item) => item.id);
-    if (Object.keys(signers).length !== localSignerIds.length)
-      return callback({ status: false, message: 'Signers do not match' });
-    let decryptedSignerIds = [];
-    for (const index in signers) {
-      decryptedSignerIds.push(JSON.parse(decrypt(encryptionKey, signers[index])).id);
-    }
-    if (!areSetsEqual(new Set(localSignerIds), new Set(decryptedSignerIds)))
-      return callback({ status: false, message: 'Signers do not match' });
-
-    //  Check for Wallets
-    let localWallets: any = yield call(dbManager.getCollection, RealmSchema.Wallet);
-    const walletsBackupLength = Array.isArray(wallets)
-      ? wallets.length
-      : Object.keys(wallets).length;
-    if (walletsBackupLength !== localWallets.length)
-      return callback({ status: false, message: 'Wallets do not match' });
-    const localWalletIds = localWallets.map((item) => item.id);
-    let decryptedWalletIds = [];
-    for (const index in wallets) {
-      decryptedWalletIds.push(JSON.parse(decrypt(encryptionKey, wallets[index])).id);
-    }
-    if (!areSetsEqual(new Set(localWalletIds), new Set(decryptedWalletIds)))
-      return callback({ status: false, message: 'Wallets do not match' });
-
-    //  Check for nodes
-    let localNodes: any = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
-    localNodes = localNodes.map((node) => {
-      node.isConnected = false;
-      return JSON.stringify(node);
-    });
-    if (localNodes.length !== nodes.length)
-      return callback({ status: false, message: 'Nodes do not match' });
-    const decryptedNodes = [];
-    for (const index in nodes) {
-      decryptedNodes.push(JSON.stringify(JSON.parse(decrypt(encryptionKey, nodes[index]))));
-    }
-    const missingNodes = decryptedNodes.filter((item) => !localNodes.includes(item));
-    if (missingNodes.length > 0) return callback({ status: false, message: 'Nodes do not match' });
-
-    return callback({ status: true, message: 'Backup verified successfully.' });
-  } catch (error) {
-    console.log('🚀 ~ function*validateServerBackupWorker ~ error:', error);
-    return callback({ status: false, message: 'Backup verification failed.', error: true });
+function* validateServerBackupWorker({ callback, originAppId, originBackupAccountSession }) {
+  const requestSession = originBackupAccountSession ?? currentBackupAccountSession();
+  if (requestSession !== currentBackupAccountSession()) {
+    callback({ status: false, error: true, message: 'Backup account changed.' });
+    return;
   }
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  if (!originAppId || originAppId !== id || requestSession !== currentBackupAccountSession()) {
+    callback({ status: false, error: true, message: 'Backup account changed.' });
+    return;
+  }
+  const matched = yield call(runBackupInspection, false, originAppId, false, requestSession);
+  const stillActive = yield select((state: RootState) => state.storage.appId === originAppId);
+  if (!stillActive || currentBackupAppId() !== originAppId ||
+      requestSession !== currentBackupAccountSession()) {
+    callback({ status: false, error: true, message: 'Backup account changed.' });
+    return;
+  }
+  const { backupRepairStateByAppId = {} } = yield select((state: RootState) => state.bhr);
+  callback({
+    status: matched,
+    error: backupRepairStateByAppId[originAppId] === 'unverified',
+    message: matched ? 'Backup verified successfully.' : 'Backup could not be verified.',
+  });
 }
 
 export const validateSeverBackupWatcher = createWatcher(

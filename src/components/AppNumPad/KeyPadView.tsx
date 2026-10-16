@@ -28,8 +28,9 @@ const KeyPadView: React.FC<Props> = ({
 }: Props) => {
   const { colorMode } = useColorMode();
 
+  // Keep the native keypad container stable when pointerEvents changes after login unlocks.
   return (
-    <Box pointerEvents={disabled ? 'none' : 'auto'} mt="auto">
+    <Box collapsable={false} pointerEvents={disabled ? 'none' : 'auto'} mt="auto">
       <Box style={styles.keyWrapperView}>
         <KeyPadButton
           title="1"

@@ -8,7 +8,7 @@ import useToastMessage from 'src/hooks/useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import { useDispatch } from 'react-redux';
 import { getTnxDetails } from 'src/store/sagaActions/swap';
-import { CoinLogo } from './Swaps';
+import { CoinLogo } from './component/CoinLogo';
 import { StyleSheet } from 'react-native';
 import CircleIconWrapper from 'src/components/CircleIconWrapper';
 import { hp, wp } from 'src/constants/responsive';

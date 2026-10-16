@@ -2,12 +2,33 @@ import ElectrumClient from 'src/services/electrum/client';
 import { NodeDetail } from 'src/services/wallets/interfaces';
 import dbManager from 'src/storage/realm/dbManager';
 import { RealmSchema } from 'src/storage/realm/enum';
-import { NetworkType } from '../wallets/enums';
-import { predefinedMainnetNodes, predefinedTestnetNodes } from './predefinedNodes';
 import { store } from 'src/store/store';
+import { commitBackupLocalOperation } from 'src/services/backup/automatic';
+import type { BackupLocalOperation } from 'src/services/backup/automatic';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
+import { predefinedMainnetNodes, predefinedTestnetNodes } from './predefinedNodes';
+import { NetworkType } from '../wallets/enums';
 
 export default class Node {
-  public static async save(nodeDetail: NodeDetail, nodeList: NodeDetail[]) {
+  public static currentAccountId(): string | undefined {
+    const {appId} = store.getState().storage;
+    return this.isAccountActive(appId) ? appId : undefined;
+  }
+
+  public static isAccountActive(appId?: string): boolean {
+    try {
+      return !!appId && store.getState().storage.appId === appId &&
+        (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as any)?.id === appId;
+    } catch {
+      return false;
+    }
+  }
+
+  public static async save(nodeDetail: NodeDetail, _nodeList: NodeDetail[], originAppId?: string, backupOperation?: BackupLocalOperation) {
+    originAppId ??= this.currentAccountId();
+    const accountSession = backupOperation?.accountSession ?? currentBackupAccountSession();
+    if (!this.isAccountActive(originAppId))
+      return { saved: false, connectionError: 'Account changed' };
     const { bitcoinNetworkType } = store.getState().settings;
     if (!nodeDetail.host || !nodeDetail.port) {
       return { saved: false, connectionError: 'Missing node host URL or port' };
@@ -19,6 +40,8 @@ export default class Node {
     if (!isConnectable) {
       return { saved: false, connectionError };
     }
+    if (!this.isAccountActive(originAppId) || accountSession !== currentBackupAccountSession())
+      return { saved: false, connectionError: 'Account changed' };
 
     const node = { ...nodeDetail };
 
@@ -40,29 +63,27 @@ export default class Node {
         savedNode.id === node.id || (savedNode.host === node.host && savedNode.port === node.port)
     );
 
-    if (isPredefinedNode && !isSavedNode) {
-      if (!node.id) {
-        node.id = nodeList.length + 1001;
-      }
-      dbManager.createObject(RealmSchema.NodeConnect, node);
-      return { saved: true };
-    }
-
+    if (!node.id && isExistingNode) return { saved: true };
     if (!node.id) {
-      if (isExistingNode) {
-        return { saved: true };
-      }
-      // case: save new node (first 1000 IDs reserved to predefined nodes)
-      node.id = nodeList.length + 1001;
-      dbManager.createObject(RealmSchema.NodeConnect, node);
-    } else {
-      // case: update existing node
-      dbManager.updateObjectById(RealmSchema.NodeConnect, node.id.toString(), {
-        ...node,
-      });
+      // IDs cover both networks because the recoverable node map is account-wide.
+      const savedNodes = Array.from(dbManager.getCollection(RealmSchema.NodeConnect)) as unknown as NodeDetail[];
+      node.id = Math.max(1000, ...savedNodes.map((saved) => saved.id)) + 1;
     }
-
-    return { saved: true };
+    if (backupOperation) {
+      const committedOperation = commitBackupLocalOperation(backupOperation, (localRealm) => {
+        // NodeConnect has no Realm primary key; use its stable id and network.
+        const saved = localRealm.objects(RealmSchema.NodeConnect)
+          .filtered('id == $0 AND networkType == $1', node.id, node.networkType)[0];
+        if (saved) Object.assign(saved, node);
+        else localRealm.create(RealmSchema.NodeConnect, node);
+      });
+      return { saved: committedOperation.committed, committedOperation,
+        connectionError: committedOperation.committed ? undefined : 'Node changes could not be saved' };
+    }
+    const saved = (isPredefinedNode && !isSavedNode) || !allNodes.some((savedNode) => savedNode.id === node.id)
+      ? dbManager.createObject(RealmSchema.NodeConnect, node)
+      : dbManager.updateObjectById(RealmSchema.NodeConnect, node.id.toString(), node);
+    return { saved: saved === true };
   }
 
   public static update(nodeDetail: NodeDetail, propsToUpdate: any) {
@@ -90,10 +111,29 @@ export default class Node {
     );
   }
 
-  public static async connectToSelectedNode(selectedNode: NodeDetail) {
-    // connects to the selected node
+  public static async connectToSelectedNode(
+    selectedNode: NodeDetail,
+    originAppId = this.currentAccountId(),
+    originBackupAccountSession = currentBackupAccountSession()
+  ) {
+    if (!this.isAccountActive(originAppId) || currentBackupAccountSession() !== originBackupAccountSession) {
+      return { connected: false, connectedTo: undefined, error: 'Account changed' };
+    }
+    // The tapped node must connect on its own; only then enable eligible saved
+    // public peers for a later connection loss.
     ElectrumClient.setActivePeer([], selectedNode);
-    const { connected, connectedTo, error } = await ElectrumClient.connect();
+    const { connected, connectedTo, error, generation } = await ElectrumClient.connect();
+    // The async connection may finish after another account has opened Realm.
+    // Never read its nodes or equip them as peers for the old connection.
+    if (!this.isAccountActive(originAppId) || currentBackupAccountSession() !== originBackupAccountSession) {
+      return { connected: false, connectedTo: undefined, error: 'Account changed' };
+    }
+    if (connected) {
+      ElectrumClient.setFailoverPeers(
+        this.getAllNodes().filter((node) => node.networkType === selectedNode.networkType),
+        generation
+      );
+    }
     return { connected, connectedTo, error };
   }
 

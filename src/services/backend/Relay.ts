@@ -1,3 +1,5 @@
+import { backupPost } from '../backup/transport';
+import type { BackupWriteIntent } from '../backup/intent';
 import { NetworkType } from 'src/services/wallets/enums';
 import { SubScriptionPlan } from 'src/models/interfaces/Subscription';
 import {
@@ -16,6 +18,11 @@ import { Platform } from 'react-native';
 
 const { HEXA_ID, RELAY } = config;
 const TOR_ENDPOINT = 'https://check.torproject.org/api/ip';
+
+function requireBackupWriteIntent(intent: BackupWriteIntent | undefined): BackupWriteIntent {
+  if (!intent) throw new Error('Backup write intent unavailable');
+  return intent;
+}
 
 interface SignerChange {
   oldSignerId: string;
@@ -106,16 +113,25 @@ export default class Relay {
     return res.data || res.json;
   };
 
-  public static updateAppImage = async (
-    appImage
-  ): Promise<{
+  public static updateAppImage = async (appImage: {
+    appId: string;
+    publicId?: string;
+    walletsObject?: Record<string, string>;
+    signersObject?: Record<string, string>;
+    networkType?: string;
+    subscription?: string;
+    version?: string;
+    nodes?: string[];
+    // Required to clear nodes: older clients send [] for unrelated updates.
+    replaceNodes?: boolean;
+  }, intent: BackupWriteIntent | undefined): Promise<{
     status: string;
     updated: boolean;
     err?: string;
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}updateAppImage`, appImage);
+      const res = await backupPost(`${RELAY}updateAppImage`, appImage, false, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -126,13 +142,14 @@ export default class Relay {
 
   public static migrateXfp = async (
     appId: string,
-    signerChanges: SignerChange[]
+    signerChanges: SignerChange[],
+    intent: BackupWriteIntent | undefined
   ): Promise<{
     updated: boolean;
     err?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}migrateXfps`, { appId, signerChanges });
+      const res = await backupPost(`${RELAY}migrateXfps`, { appId, signerChanges }, false, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -142,7 +159,8 @@ export default class Relay {
   };
 
   public static deleteAppImageEntity = async (
-    entityList
+    entityList,
+    intent: BackupWriteIntent | undefined
   ): Promise<{
     status: string;
     updated: boolean;
@@ -150,7 +168,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteAppImageEntity`, entityList);
+      const res = await backupPost(`${RELAY}deleteAppImageEntity`, entityList, false, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -160,7 +178,8 @@ export default class Relay {
   };
 
   public static deleteVaultImage = async (
-    entityList
+    entityList,
+    intent: BackupWriteIntent | undefined
   ): Promise<{
     status: string;
     updated: boolean;
@@ -168,7 +187,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteVaults`, entityList);
+      const res = await backupPost(`${RELAY}deleteVaults`, entityList, false, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -178,7 +197,8 @@ export default class Relay {
   };
 
   public static updateVaultImage = async (
-    vaultData
+    vaultData,
+    intent: BackupWriteIntent | undefined
   ): Promise<{
     status?: number;
     data?: {
@@ -188,7 +208,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}updateVaultImage`, vaultData);
+      const res = await backupPost(`${RELAY}updateVaultImage`, vaultData, false, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -213,32 +233,47 @@ export default class Relay {
 
   public static getTestcoins = async (
     recipientAddress: string,
-    network: any,
+    network: NetworkType,
     appId: string
   ): Promise<{
-    txid: any;
-    funded: any;
+    txid: string;
+    funded: boolean;
   }> => {
-    if (network === NetworkType.MAINNET) {
+    if (network !== NetworkType.TESTNET) {
       throw new Error('Invalid network: failed to fund via testnet');
     }
 
     try {
-      const res = await RestClient.post(`${config.RELAY}testnetFaucet`, {
-        recipientAddress,
-        appId,
-      });
-      const { txid, funded } = res.data;
+      const res = await RestClient.post(
+        `${config.RELAY}testnetFaucet`,
+        { recipientAddress, appId },
+        undefined,
+        { timeout: 20000 }
+      );
+      const { txid, funded } = res.data || {};
+      if (!funded || typeof txid !== 'string' || !/^[0-9a-f]{64}$/i.test(txid)) {
+        throw new Error('FAUCET_OUTCOME_UNKNOWN');
+      }
       return {
         txid,
         funded,
       };
     } catch (err) {
+      if (err?.message === 'FAUCET_OUTCOME_UNKNOWN') throw err;
       if (err.response?.status === 429) {
         throw new Error('FAUCET_DAILY_LIMIT_REACHED');
       }
-      if (err.response) throw new Error(err.response.data.err);
-      if (err.code) throw new Error(err.code);
+      if (
+        err?.code === 'ECONNABORTED' ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ERR_NETWORK' ||
+        err?.response?.status >= 500
+      ) {
+        // The relay may have broadcast before the response was lost. Never retry automatically.
+        throw new Error('FAUCET_OUTCOME_UNKNOWN');
+      }
+      if (err?.response) throw new Error(err.response.data?.err || 'FAUCET_REQUEST_FAILED');
+      throw new Error('FAUCET_REQUEST_FAILED');
     }
   };
 
@@ -270,29 +305,30 @@ export default class Relay {
   public static modifyLabels = async (
     appId: string,
     addLabels: any[],
-    deleteLabels: any[]
+    deleteLabels: any[],
+    intent: BackupWriteIntent | undefined
   ): Promise<{
     updated: boolean;
   }> => {
     try {
-      const res = (await RestClient.post(`${RELAY}modifyLabels`, {
+      const res = (await backupPost(`${RELAY}modifyLabels`, {
         appId,
         addLabels,
         deleteLabels,
-      })) as AxiosResponse;
+      }, false, requireBackupWriteIntent(intent))) as AxiosResponse;
       const { updated } = res.data || res.json;
       return {
         updated,
       };
     } catch (err) {
-      console.log('err', err);
-      if (err.code) throw new Error(err.code);
+      captureError(err);
+      throw new Error('Failed to update backup labels. Check the backup before trying again.');
     }
   };
 
   public static checkTorStatus = async () => {
     try {
-      const response = await RestClient.get(TOR_ENDPOINT, { timeout: 20000 });
+      const response = await RestClient.get(TOR_ENDPOINT, undefined, { timeout: 20000 });
       const data = (response as AxiosResponse).data || (response as any).json;
       return data.IsTor;
     } catch (error) {
@@ -427,8 +463,10 @@ export default class Relay {
   };
 
   public static backupAllSignersAndVaults = async (
-    allData
+    allData,
+    intent: BackupWriteIntent | undefined
   ): Promise<{
+    updated?: boolean;
     status?: number;
     data?: {
       updated: boolean;
@@ -437,7 +475,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}backupAllSignersAndVaults`, allData);
+      const res = await backupPost(`${RELAY}backupAllSignersAndVaults`, allData, false, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -472,7 +510,8 @@ export default class Relay {
   };
 
   public static deleteBackup = async (
-    body
+    body,
+    intent: BackupWriteIntent | undefined
   ): Promise<{
     status?: number;
     data?: {
@@ -482,7 +521,7 @@ export default class Relay {
     message?: string;
   }> => {
     try {
-      const res = await RestClient.post(`${RELAY}deleteBackup`, body);
+      const res = await backupPost(`${RELAY}deleteBackup`, body, true, requireBackupWriteIntent(intent));
       const data = res.data || res.json;
       return data;
     } catch (err) {
@@ -804,4 +843,3 @@ export default class Relay {
     }
   };
 }
-

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useContext, useState, useRef } from 'react';
 import Text from 'src/components/KeeperText';
 import { StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Box, Pressable, useColorMode, HStack } from '@gluestack-ui/themed-native-base';
@@ -42,8 +42,6 @@ import HideAllIcon from 'src/assets/images/hide_wallet.svg';
 import usePlan from 'src/hooks/usePlan';
 import { deleteAppImageEntity } from 'src/store/sagaActions/bhr';
 import { MANAGEWALLETS } from 'src/navigation/contants';
-import { resetRealyVaultState } from 'src/store/reducers/bhr';
-import { useAppSelector } from 'src/store/hooks';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import MiniscriptPathSelector, {
   MiniscriptPathSelectorRef,
@@ -51,11 +49,33 @@ import MiniscriptPathSelector, {
 import WalletHeader from 'src/components/WalletHeader';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import USDTGreenLogo from 'src/assets/images/usdt-gree-logo.svg';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
+import { isBackupVerificationCurrent } from 'src/services/backup/automatic';
+import { isAutomaticCloudBackupEnabled } from 'src/store/reducers/bhr';
+import { store } from 'src/store/store';
+import { updateRecoveryVisibility } from 'src/store/sagaActions/wallets';
 
 enum PasswordMode {
   DEFAULT = 'DEFAULT',
   SHOWALL = 'SHOWALL',
 }
+
+const activeRealmAppId = (): string | undefined =>
+  (dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as { id: string } | undefined)?.id;
+
+type ListItemProps = {
+  title: string;
+  subtitle: string;
+  balance: number;
+  visibilityToggle: () => void;
+  isHidden: boolean;
+  onDelete: () => void;
+  icon: React.ReactNode;
+  type: EntityKind;
+  isWatchOnly: boolean;
+  canDelete: boolean;
+};
+
 function ListItem({
   title,
   subtitle,
@@ -66,7 +86,8 @@ function ListItem({
   icon,
   type,
   isWatchOnly,
-}) {
+  canDelete,
+}: ListItemProps) {
   const { colorMode } = useColorMode();
   const isDarkMode = colorMode === 'dark';
   const { getSatUnit, getBalance, getCurrencyIcon } = useBalance();
@@ -75,6 +96,8 @@ function ListItem({
   const HexagonIconColor = ThemedColor({ name: 'HexagonIcon' });
 
   const isUSDTWallet = type === EntityKind.USDT_WALLET;
+  const deleteEligible = type === EntityKind.VAULT ||
+    (type === EntityKind.WALLET && (balance === 0 || isWatchOnly)) || isUSDTWallet;
 
   return (
     <Box
@@ -109,12 +132,14 @@ function ListItem({
           </Text>
         </Box>
         <HStack>
-          {isHidden &&
-            (type == 'VAULT' ||
-              (type == 'WALLET' && (balance === 0 || isWatchOnly)) ||
-              isUSDTWallet) && (
+          {isHidden && deleteEligible && canDelete && (
               <ActionChip text="Delete" onPress={onDelete} Icon={<DeleteIcon />} />
             )}
+          {isHidden && deleteEligible && !canDelete && !isUSDTWallet && (
+            <Text fontSize={12} color={`${colorMode}.secondaryText`}>
+              Verify assisted backup before deleting
+            </Text>
+          )}
           <ActionChip
             text={isHidden ? 'Unhide' : 'Hide'}
             onPress={visibilityToggle}
@@ -164,26 +189,15 @@ function ManageWallets() {
   const [confirmPassVisible, setConfirmPassVisible] = useState(false);
   const [confirmPasscodeVisible, setConfirmPasscodeVisible] = useState(false);
 
-  const { relayVaultError, relayVaultUpdate } = useAppSelector((state) => state.bhr);
-
   const { isOnL2Above } = usePlan();
   const navigation: any = useNavigation();
   const dispatch = useDispatch();
+  // The verified phase changes after the producer's final remote readback.
+  // Subscribe so Delete becomes available without leaving this screen.
+  useSelector((state: any) => state.bhr);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const { showToast } = useToastMessage();
   const miniscriptPathSelectorRef = useRef<MiniscriptPathSelectorRef>(null);
-
-  useEffect(() => {
-    if (selectedWallet?.id) {
-      if (relayVaultUpdate) {
-        showToast(errorText.vaultDeleted, <TickIcon />);
-      }
-      if (relayVaultError) {
-        showToast(errorText.failedToDeleteVault, <ToastErrorIcon />);
-      }
-      dispatch(resetRealyVaultState());
-    }
-  }, [relayVaultUpdate, relayVaultError]);
 
   const isWallet = selectedWallet?.entityKind === EntityKind.WALLET;
   const isUSDTWallet = selectedWallet?.entityKind === EntityKind.USDT_WALLET;
@@ -191,7 +205,6 @@ function ManageWallets() {
   const onProceed = () => {
     if (passwordMode === PasswordMode.DEFAULT) {
       updateWalletVisibility(selectedWallet, false);
-      showToast(errorText.walletUnhidden, <TickIcon />);
     }
     if (passwordMode === PasswordMode.SHOWALL) {
       setshowAll(true);
@@ -207,18 +220,62 @@ function ManageWallets() {
   };
 
   const deleteSelectedEntity = async () => {
+    if (selectedWallet && !canDeleteRecoveryEntity(selectedWallet)) {
+      showToast('Verify your assisted backup before deleting', <ToastErrorIcon />);
+      return;
+    }
     if (selectedWallet && selectedWallet.entityKind === EntityKind.VAULT) {
-      dispatch(deleteVault(selectedWallet.id));
+      const vaultId = selectedWallet.id;
+      const appId = activeRealmAppId();
+      const session = currentBackupAccountSession();
+      dispatch(deleteVault(vaultId, (deleted) => {
+        if (
+          currentBackupAccountSession() !== session ||
+          activeRealmAppId() !== appId
+        ) return;
+        if (deleted && !dbManager.getObjectById(RealmSchema.Vault, vaultId))
+          showToast(errorText.vaultDeleted, <TickIcon />);
+        else showToast(errorText.failedToDeleteVault, <ToastErrorIcon />);
+      }));
     }
     if (selectedWallet && selectedWallet.entityKind === EntityKind.WALLET) {
-      dispatch(deleteAppImageEntity({ walletIds: [selectedWallet.id] }));
-      showToast(errorText.waletDeleted, <TickIcon />);
+      const walletId = selectedWallet.id;
+      const appId = activeRealmAppId();
+      const session = currentBackupAccountSession();
+      dispatch(deleteAppImageEntity({
+        walletIds: [walletId],
+        onComplete: (deleted) => {
+          if (
+            currentBackupAccountSession() !== session ||
+            activeRealmAppId() !== appId
+          ) return;
+          if (deleted && !dbManager.getObjectById(RealmSchema.Wallet, walletId))
+            showToast(errorText.waletDeleted, <TickIcon />);
+          else showToast('Failed to delete wallet', <ToastErrorIcon />);
+        },
+      }));
     }
     if (selectedWallet && selectedWallet.entityKind === EntityKind.USDT_WALLET) {
-      const success = await deleteUSDTWallet(selectedWallet.id);
-      if (success) showToast(errorText.waletDeleted, <TickIcon />);
+      const walletId = selectedWallet.id;
+      const appId = activeRealmAppId();
+      const session = currentBackupAccountSession();
+      const success = await deleteUSDTWallet(walletId);
+      if (
+        currentBackupAccountSession() !== session ||
+        activeRealmAppId() !== appId
+      ) return;
+      if (success && !dbManager.getObjectById(RealmSchema.USDTWallet, walletId))
+        showToast(errorText.waletDeleted, <TickIcon />);
       else showToast('Failed to delete USDT wallet', <ToastErrorIcon />);
     }
+  };
+
+  const canDeleteRecoveryEntity = (wallet: Wallet | Vault | USDTWallet): boolean => {
+    if (wallet.entityKind === EntityKind.USDT_WALLET) return true;
+    const appId = activeRealmAppId();
+    const state = store.getState();
+    return !!appId && state.storage.appId === appId &&
+      (!isAutomaticCloudBackupEnabled(state.bhr, appId) || isBackupVerificationCurrent(appId));
   };
 
   const updateWalletVisibility = async (wallet: Wallet | Vault | USDTWallet, hide: boolean) => {
@@ -240,17 +297,18 @@ function ManageWallets() {
             visibility: visibilityType,
           },
         };
-        await updateUSDTWallet(updatedUSDTWallet);
+        const updated = await updateUSDTWallet(updatedUSDTWallet);
+        if (!updated) showToast('Failed to update wallet visibility', <ToastErrorIcon />);
+        else if (!hide) showToast(errorText.walletUnhidden, <TickIcon />);
       } else {
-        // case: regular wallet/vault update
-        const schema = isWallet ? RealmSchema.Wallet : RealmSchema.Vault;
-        dbManager.updateObjectById(schema, id, {
-          presentationData: {
-            name: wallet.presentationData.name,
-            description: wallet.presentationData.description,
-            visibility: visibilityType,
-          },
-        });
+        const appId = activeRealmAppId();
+        const session = currentBackupAccountSession();
+        dispatch(updateRecoveryVisibility(id, isWallet ? EntityKind.WALLET : EntityKind.VAULT,
+          visibilityType, (updated) => {
+            if (activeRealmAppId() !== appId || currentBackupAccountSession() !== session) return;
+            if (!updated) showToast('Failed to update wallet visibility', <ToastErrorIcon />);
+            else if (!hide) showToast(errorText.walletUnhidden, <TickIcon />);
+          }));
       }
     } catch (error) {
       captureError(error);
@@ -402,6 +460,7 @@ function ManageWallets() {
               balance={getWalletBalance(item)}
               isHidden={item.presentationData.visibility === VisibilityType.HIDDEN}
               isWatchOnly={isWatchOnly(item)}
+              canDelete={canDeleteRecoveryEntity(item)}
               visibilityToggle={() => {
                 setSelectedWallet(item);
                 if (item.presentationData.visibility === VisibilityType.HIDDEN) {
@@ -412,6 +471,10 @@ function ManageWallets() {
                 }
               }}
               onDelete={() => {
+                if (!canDeleteRecoveryEntity(item)) {
+                  showToast('Verify your assisted backup before deleting', <ToastErrorIcon />);
+                  return;
+                }
                 if (getWalletBalance(item) > 0 && !isWatchOnly(item)) {
                   setSelectedWallet(item);
                   setShowDeleteVaultBalanceAlert(true);

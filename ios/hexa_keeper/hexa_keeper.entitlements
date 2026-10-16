@@ -6,7 +6,8 @@
 	<string>development</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:bitcoinkeeper.app/app/prod</string>
+		<string>applinks:www.bitcoinkeeper.app</string>
+		<string>applinks:bitcoinkeeper.app</string>
 	</array>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>

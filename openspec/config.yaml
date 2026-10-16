@@ -93,7 +93,7 @@ rules:
     - Confirm the agent implementation checklist in DESIGN.md before finalizing UI design
     - For UI/user-journey changes, specify affected Maestro flow files under flows/ and whether selectors/assertions need updates
   tasks:
-    - Group tasks by layer: UI Components, Business Logic / Hooks, Store (Slice + Saga), Storage, Tests, E2E Flows (Maestro)
+    - "Group tasks by layer: UI Components, Business Logic / Hooks, Store (Slice + Saga), Storage, Tests, E2E Flows (Maestro)"
     - Keep each task completable in a single focused session
     - Add a task for updating the Redux Persist migration version if store shape changes
     - Add a task for unit/integration tests covering the new behaviour

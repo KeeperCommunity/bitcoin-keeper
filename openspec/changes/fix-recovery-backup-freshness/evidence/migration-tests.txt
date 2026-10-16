@@ -1,0 +1,19 @@
+PASS tests/services/recoveryKeyMigration.test.ts
+  migration 4: recoveryKeyBackedUpByAppId → recoveryKeyStatusByAppId
+    ✓ maps Boolean true → "confirmed" (1 ms)
+    ✓ maps Boolean false → "generated"
+    ✓ maps missing entry → "generated" (1 ms)
+    ✓ handles undefined recoveryKeyBackedUpByAppId gracefully
+    ✓ maps multiple apps correctly
+  setRecoveryKeyStatus reducer
+    ✓ sets status to "generated"
+    ✓ sets status to "viewed"
+    ✓ sets status to "skipped"
+    ✓ sets status to "confirmed" and syncs legacy boolean to true
+    ✓ non-confirmed statuses do not change legacy boolean field
+
+Test Suites: 1 passed, 1 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        0.199 s, estimated 1 s
+Ran all test suites matching /tests\/services\/recoveryKeyMigration.test.ts/i.

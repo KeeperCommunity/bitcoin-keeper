@@ -1,8 +1,6 @@
 import { Box, useColorMode, View } from '@gluestack-ui/themed-native-base';
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useCallback, useContext, useState, useEffect } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import DashedCta from 'src/components/DashedCta';
-import WalletCard from './WalletCard';
 import Colors from 'src/theme/Colors';
 import useWallets from 'src/hooks/useWallets';
 import useVault from 'src/hooks/useVault';
@@ -10,11 +8,11 @@ import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { Vault } from 'src/services/wallets/interfaces/vault';
 
 import useWalletAsset from 'src/hooks/useWalletAsset';
-import { EntityKind, VisibilityType, WalletType } from 'src/services/wallets/enums';
-import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
+import { EntityKind, VisibilityType } from 'src/services/wallets/enums';
+import { useNavigation } from '@react-navigation/native';
 import KeeperModal from 'src/components/KeeperModal';
 import Text from 'src/components/KeeperText';
-import { hp, windowWidth, wp } from 'src/constants/responsive';
+import { hp, wp } from 'src/constants/responsive';
 
 import NewWalletIcon from 'src/assets/images/wallet-white-small.svg';
 import ImportWalletIcon from 'src/assets/images/import.svg';
@@ -23,30 +21,24 @@ import CollaborativeWalletIcon from 'src/assets/images/collaborative_vault_white
 import { useAppSelector } from 'src/store/hooks';
 import { resetCollaborativeSession } from 'src/store/reducers/vaults';
 import { useDispatch } from 'react-redux';
-import { autoSyncWallets, refreshWallets } from 'src/store/sagaActions/wallets';
+import { useWalletRefresh } from 'src/hooks/useWalletRefresh';
 import { RefreshControl } from 'react-native';
 import { ELECTRUM_CLIENT } from 'src/services/electrum/client';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
 import CircleIconWrapper from 'src/components/CircleIconWrapper';
-import ThemedColor from 'src/components/ThemedColor/ThemedColor';
-import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
-import BitCoinWalletLogo from 'src/assets/images/bitcoin-wallet-logo.svg';
-import UsdtWalletLogo from 'src/assets/images/usdt-wallet-logo.svg';
 import { useUSDTWallets } from 'src/hooks/useUSDTWallets';
 import {
   getAvailableBalanceUSDTWallet,
   USDTWallet,
-  USDTWalletSupportedNetwork,
-  USDTWalletType,
 } from 'src/services/wallets/factories/USDTWalletFactory';
 import useToastMessage from 'src/hooks/useToastMessage';
-import TickIcon from 'src/assets/images/icon_tick.svg';
-import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import Fab from 'src/components/Fab';
 import AddIcon from 'src/assets/images/add_white.svg';
 import { useUTXOSpendability } from 'src/hooks/useUTXOSpendability';
 import { clearDustToast } from 'src/store/reducers/utxos';
+import { useCollaborativeWalletHandoff } from 'src/hooks/useCollaborativeWalletHandoff';
+import WalletCard from './WalletCard';
 
 function WalletCardItem({
   item,
@@ -105,28 +97,36 @@ function WalletCardItem({
 
 const HomeWallet = () => {
   const { colorMode } = useColorMode();
-  const isDarkMode = colorMode === 'dark';
   const navigation = useNavigation();
   const { wallets } = useWallets({ getAll: true });
   const { translations } = useContext(LocalizationContext);
-  const { wallet: walletText, home, common, usdtWalletText } = translations;
+  const { wallet: walletText, home, common } = translations;
   const { getWalletCardGradient, getWalletTags } = useWalletAsset();
   const { allVaults } = useVault({
     includeArchived: false,
     getFirst: true,
     getHiddenWallets: false,
   });
-  const { usdtWallets, createWallet } = useUSDTWallets();
+  const { usdtWallets } = useUSDTWallets();
   const { collaborativeSession } = useAppSelector((state) => state.vault);
+  const { appId } = useAppSelector((state) => state.storage);
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
 
   const dispatch = useDispatch();
-  const [showAddWalletModal, setShowAddWalletModal] = useState(false);
-  const [collabSessionExistsModalVisible, setCollabSessionExistsModalVisible] = useState(false);
-  const [pullRefresh, setPullRefresh] = useState(false);
+  const resetSession = useCallback(() => dispatch(resetCollaborativeSession()), [dispatch]);
+  const navigateToCollaborativeWallet = useCallback(
+    () => navigation.navigate('SetupCollaborativeWallet'),
+    [navigation]
+  );
+  const collaborativeHandoff = useCollaborativeWalletHandoff({
+    appId,
+    network: bitcoinNetworkType,
+    session: collaborativeSession,
+    resetSession,
+    navigate: navigateToCollaborativeWallet,
+  });
+  const { refreshing: pullRefresh, autoRefresh } = useWalletRefresh();
   const { walletSyncing } = useAppSelector((state) => state.wallet);
-  const [pickWalletType, setPickWalletType] = useState(false);
-  const [createUsdtWallet, setCreateUsdtWallet] = useState(false);
   const syncing =
     ELECTRUM_CLIENT.isClientConnected &&
     Object.values(walletSyncing).some((isSyncing) => isSyncing);
@@ -140,12 +140,6 @@ const HomeWallet = () => {
     ...usdtWallets,
   ].filter((item) => item !== null);
   const [isShowAmount, setIsShowAmount] = useState(false);
-  const DashedCta_hexagonBackgroundColor = ThemedColor({
-    name: 'DashedCta_hexagonBackgroundColor',
-  });
-  const dashed_CTA_background = ThemedColor({
-    name: 'dashed_CTA_background',
-  });
   const { showToast } = useToastMessage();
 
   const pendingDustToast = useAppSelector((state: any) => state.utxos.pendingDustToast);
@@ -157,52 +151,8 @@ const HomeWallet = () => {
     }
   }, [pendingDustToast]);
 
-  const handleCollaborativeWalletCreation = () => {
-    setShowAddWalletModal(false);
-    if (Object.keys(collaborativeSession.signers).length > 0) {
-      setCollabSessionExistsModalVisible(true);
-    } else {
-      dispatch(resetCollaborativeSession());
-      setTimeout(() => {
-        navigation.navigate('SetupCollaborativeWallet');
-      }, 500); // delaying navigation by 0.5 second to ensure collaborative session reset
-    }
-  };
-
   const pullDownRefresh = () => {
-    setPullRefresh(true);
-
-    dispatch(autoSyncWallets(false, false, true));
-    setPullRefresh(false);
-  };
-
-  const importUSDTWallet = async (mnemonic) => {
-    try {
-      const { newWallet, error } = await createWallet({
-        type: USDTWalletType.IMPORTED,
-        name: 'USDT Wallet',
-        description: 'Imported USDT Wallet',
-        importDetails: {
-          mnemonic,
-        },
-      });
-
-      if (newWallet) {
-        showToast('USDT wallet imported successfully!', <TickIcon />);
-        setTimeout(() => {
-          navigation.dispatch(
-            CommonActions.navigate({
-              name: 'Home',
-              params: { selectedOption: 'Wallets' },
-            })
-          );
-        }, 900);
-      } else {
-        throw new Error(error);
-      }
-    } catch (err) {
-      showToast(`Failed to import USDT wallet: ${err.message}`, <ToastErrorIcon />);
-    }
+    autoRefresh();
   };
 
   const CREATE_WALLET_OPTIONS = [
@@ -211,7 +161,7 @@ const HomeWallet = () => {
       subtitle: walletText.createWalletDesc,
       icon: <NewWalletIcon />,
       onPress: () => {
-        setShowAddWalletModal(false);
+        collaborativeHandoff.closeAdd();
         navigation.navigate('AddNewWallet');
       },
       id: 'newWallet',
@@ -221,7 +171,7 @@ const HomeWallet = () => {
       subtitle: walletText.restoreExistingWallet,
       icon: <ImportWalletIcon />,
       onPress: () => {
-        setShowAddWalletModal(false);
+        collaborativeHandoff.closeAdd();
         navigation.navigate('VaultConfigurationCreation');
       },
       id: 'importWallet',
@@ -230,42 +180,10 @@ const HomeWallet = () => {
       title: common.collaborativeWallet,
       subtitle: walletText.walletWithFamily,
       icon: <CollaborativeWalletIcon />,
-      onPress: handleCollaborativeWalletCreation,
+      onPress: collaborativeHandoff.selectCollaborative,
       id: 'collaborativeWallet',
     },
   ];
-  const CREATE_USDT_WALLET_OPTIONS = [
-    {
-      title: walletText.createWallet,
-      subtitle: 'Create a new USDT wallet',
-      icon: <NewWalletIcon />,
-      onPress: () => {
-        navigation.navigate('addUsdtWallet');
-        setCreateUsdtWallet(false);
-      },
-      id: 'usdtnewWallet',
-    },
-    {
-      title: home.ImportWallet,
-      subtitle: walletText.restoreExistingWallet,
-      icon: <ImportWalletIcon />,
-      onPress: () => {
-        setCreateUsdtWallet(false);
-        navigation.dispatch(
-          CommonActions.navigate({
-            name: 'EnterSeedScreen',
-            params: {
-              isImport: true,
-              isUSDTWallet: true,
-              importSeedCta: importUSDTWallet,
-            },
-          })
-        );
-      },
-      id: 'usdtimportWallet',
-    },
-  ];
-
   const renderWalletCard = ({ item }: { item: Wallet | Vault | USDTWallet }) => (
     <WalletCardItem
       item={item}
@@ -282,7 +200,7 @@ const HomeWallet = () => {
       <ActivityIndicatorView visible={syncing} showLoader />
       <Fab
         icon={<AddIcon height={hp(22)} width={wp(22)} />}
-        onPress={() => setPickWalletType(true)}
+        onPress={collaborativeHandoff.openAdd}
       />
       <FlatList
         data={allWallets}
@@ -293,10 +211,11 @@ const HomeWallet = () => {
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
       />
       <KeeperModal
-        visible={showAddWalletModal}
+        visible={collaborativeHandoff.addVisible}
         title={walletText.addNewWallet}
         subTitle={walletText.createOrImportWallet}
-        close={() => setShowAddWalletModal(false)}
+        close={collaborativeHandoff.closeAdd}
+        onModalHide={collaborativeHandoff.waitForAddHide ? collaborativeHandoff.onAddHide : undefined}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         showCloseIcon
@@ -309,96 +228,17 @@ const HomeWallet = () => {
         )}
       />
       <KeeperModal
-        visible={createUsdtWallet}
-        title={walletText.addNewWallet}
-        subTitle={walletText.createOrImportWallet}
-        close={() => setCreateUsdtWallet(false)}
-        textColor={`${colorMode}.textGreen`}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        showCloseIcon
-        Content={() => (
-          <Box style={styles.addWalletOptionsList}>
-            {CREATE_USDT_WALLET_OPTIONS.map((option, index) => (
-              <OptionItem key={index} option={option} colorMode={colorMode} />
-            ))}
-          </Box>
-        )}
-      />
-      <KeeperModal
-        visible={collabSessionExistsModalVisible}
-        close={() => setCollabSessionExistsModalVisible(false)}
+        visible={collaborativeHandoff.sessionVisible}
+        close={collaborativeHandoff.closeSession}
+        onModalHide={
+          collaborativeHandoff.waitForSessionHide ? collaborativeHandoff.onSessionHide : undefined
+        }
         title={walletText.collaborativeSessionExists}
         subTitle={walletText.collaborativeSessionExistsDesc}
         buttonText={common.continueSession}
         secondaryButtonText={common.startNew}
-        secondaryCallback={() => {
-          setCollabSessionExistsModalVisible(false);
-          dispatch(resetCollaborativeSession());
-          setTimeout(() => {
-            navigation.navigate('SetupCollaborativeWallet');
-          }, 500);
-        }}
-        buttonCallback={() => {
-          setCollabSessionExistsModalVisible(false);
-          navigation.navigate('SetupCollaborativeWallet');
-        }}
-      />
-      <KeeperModal
-        visible={pickWalletType}
-        close={() => setPickWalletType(false)}
-        title={usdtWalletText.pickWalletType}
-        subTitle={usdtWalletText.selectCurrency}
-        textColor={`${colorMode}.textGreen`}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        modalBackground={`${colorMode}.modalWhiteBackground`}
-        Content={() => (
-          <Box style={styles.walletTypeContainer}>
-            <TouchableOpacity
-              onPress={() => {
-                setShowAddWalletModal(true);
-                setPickWalletType(false);
-              }}
-            >
-              <Box
-                borderColor={`${colorMode}.separator`}
-                backgroundColor={`${colorMode}.boxSecondaryBackground`}
-                style={styles.typeCard}
-              >
-                <CircleIconWrapper
-                  width={wp(40)}
-                  icon={<BitCoinWalletLogo />}
-                  backgroundColor={Colors.BrightOrange}
-                />
-                <Text color={`${colorMode}.primaryText`} medium>
-                  {usdtWalletText.bitcoinWallet}
-                </Text>
-              </Box>
-            </TouchableOpacity>
-            {bitcoinNetworkType === USDTWalletSupportedNetwork ? (
-              <TouchableOpacity
-                onPress={() => {
-                  setCreateUsdtWallet(true);
-                  setPickWalletType(false);
-                }}
-              >
-                <Box
-                  borderColor={`${colorMode}.separator`}
-                  backgroundColor={`${colorMode}.boxSecondaryBackground`}
-                  style={styles.typeCard}
-                >
-                  <CircleIconWrapper
-                    width={wp(40)}
-                    icon={<UsdtWalletLogo />}
-                    backgroundColor={Colors.DesaturatedTeal}
-                  />
-                  <Text color={`${colorMode}.primaryText`} medium>
-                    {usdtWalletText.dollarWallet}
-                  </Text>
-                </Box>
-              </TouchableOpacity>
-            ) : null}
-          </Box>
-        )}
+        secondaryCallback={() => collaborativeHandoff.finishSession('new')}
+        buttonCallback={() => collaborativeHandoff.finishSession('continue')}
       />
     </Box>
   );
@@ -456,27 +296,5 @@ const styles = StyleSheet.create({
     gap: wp(16),
     borderRadius: 12,
     borderWidth: 1,
-  },
-  customStyle: {
-    marginBottom: hp(10),
-  },
-  DashedCtaStyle: {
-    width: windowWidth * 0.88,
-  },
-  walletTypeContainer: {
-    gap: wp(15),
-    marginBottom: hp(10),
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignContent: 'center',
-  },
-  typeCard: {
-    width: wp(148),
-    height: hp(104),
-    alignItems: 'center',
-    borderWidth: 1,
-    justifyContent: 'center',
-    borderRadius: 12,
-    gap: wp(10),
   },
 });

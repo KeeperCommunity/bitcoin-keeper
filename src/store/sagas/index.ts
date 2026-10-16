@@ -13,6 +13,7 @@ import {
   updateSignerDetails,
   updateKeyDetails,
   updateVaultDetailsWatcher,
+  updateRecoveryVisibilityWatcher,
   deleteVaultyWatcher,
   reinstateVaultWatcher,
   refillMobileKeyWatcher,
@@ -45,6 +46,7 @@ import {
   backupAllSignersAndVaultsWatcher,
   deleteBackupWatcher,
   validateSeverBackupWatcher,
+  backupFreshnessWatcher,
 } from './bhr';
 import {
   calculateCustomFeeWatcher,
@@ -64,7 +66,12 @@ import {
   setupKeeperAppWatcher,
 } from './storage';
 import { migrateLablesWatcher, updateVersionHistoryWatcher } from './upgrade';
-import { addLabelsWatcher, bulkUpdateLabelWatcher, importLabelsWatcher, markUTXOSpendabilityWatcher } from './utxos';
+import {
+  addLabelsWatcher,
+  bulkUpdateLabelWatcher,
+  importLabelsWatcher,
+  markUTXOSpendabilityWatcher,
+} from './utxos';
 import { connectToNodeWatcher } from './network';
 import {
   loadConciergeUserWatcher,
@@ -111,6 +118,7 @@ const rootSaga = function* () {
     deleteSigningDeviceWatcher,
     migrateVaultWatcher,
     updateVaultDetailsWatcher,
+    updateRecoveryVisibilityWatcher,
     updateSignerDetails,
     updateKeyDetails,
     deleteVaultyWatcher,
@@ -154,6 +162,7 @@ const rootSaga = function* () {
     backupAllSignersAndVaultsWatcher,
     deleteBackupWatcher,
     validateSeverBackupWatcher,
+    backupFreshnessWatcher,
 
     // upgrade
     updateVersionHistoryWatcher,

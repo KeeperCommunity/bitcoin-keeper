@@ -236,6 +236,7 @@ function ResetInheritanceKey({ route }) {
                   CommonActions.navigate({
                     name: 'ResetEmergencyKey',
                     params: {
+                      initialTimelockDuration,
                       inheritanceKeys: inheritanceSigners.map((signer) => ({
                         key: signer,
                         duration: selectedOptions[getKeyUID(signer)]?.label,
@@ -265,7 +266,7 @@ function ResetInheritanceKey({ route }) {
           key: signer,
           duration: selectedOptions[getKeyUID(signer)]?.label,
         }))}
-        initialTimelockDuration={initialTimelockDuration ?? 0}
+        initialTimelockDuration={initialTimelockDuration}
         currentBlockHeight={currentBlockHeight}
         miniscriptTypes={vault.scheme.miniscriptScheme.usedMiniscriptTypes}
       />
