@@ -1,5 +1,6 @@
 import {
   createCipherGcm,
+  createChannelRequestData,
   createDecipherGcm,
   InvalidChannelQRCodeError,
 } from '../../src/services/channel/crypto';
@@ -16,6 +17,25 @@ describe('Keeper Desktop AES-GCM wire contract', () => {
     expect(createCipherGcm(JSON.stringify(vectors.request.plaintext), vectors.key)).toEqual(
       vectors.request.ciphertext
     );
+  });
+
+  it.each([
+    'ADD_DEVICE',
+    'HEALTH_CHECK',
+    'REGISTER_MULTISIG',
+    'VERIFY_ADDRESS',
+    'SIGN_TX',
+    'PURCHASE_SUBS',
+  ])('authenticates the configured network for %s requests', (action) => {
+    for (const network of ['TESTNET', 'MAINNET']) {
+      const request = { action, signerType: 'LEDGER', network: 'untrusted-body-value' };
+      const encrypted = createChannelRequestData(request, network, vectors.key);
+      expect(createDecipherGcm(encrypted, vectors.key)).toEqual({ ...request, network });
+    }
+  });
+
+  it('rejects unsupported request networks before encryption', () => {
+    expect(() => createChannelRequestData({ action: 'SIGN_TX' }, 'SIGNET', vectors.key)).toThrow();
   });
 
   it('decrypts the Desktop event/data/responseData response shape', () => {

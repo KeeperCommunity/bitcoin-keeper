@@ -14,16 +14,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import useVault from 'src/hooks/useVault';
 import Text from 'src/components/KeeperText';
 import crypto from 'crypto';
-import {
-  createCipherGcm,
-  createDecipherGcm,
-  generateOutputDescriptors,
-} from 'src/utils/service-utilities/utils';
+import { createDecipherGcm, generateOutputDescriptors } from 'src/utils/service-utilities/utils';
 import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
 import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
-import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
+import { createChannelRequestData, InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { VaultType } from 'src/services/wallets/enums';
 import BackgroundTimer from 'react-native-background-timer';
 import { useAppSelector } from 'src/store/hooks';
@@ -94,7 +90,11 @@ function RegisterWithChannel() {
         walletName,
         firstExtAdd,
       };
-      const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
+      const requestData = createChannelRequestData(
+        requestBody,
+        bitcoinNetworkType,
+        decryptionKey.current
+      );
       channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
       return true;
     } catch (error) {

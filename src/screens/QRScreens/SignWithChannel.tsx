@@ -18,16 +18,12 @@ import { VaultType } from 'src/services/wallets/enums';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
 import Text from 'src/components/KeeperText';
 import crypto from 'crypto';
-import {
-  createCipherGcm,
-  createDecipherGcm,
-  generateOutputDescriptors,
-} from 'src/utils/service-utilities/utils';
+import { createDecipherGcm, generateOutputDescriptors } from 'src/utils/service-utilities/utils';
 import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { getPsbtForHwi } from 'src/hardware';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
-import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
+import { createChannelRequestData, InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { updateKeyDetails } from 'src/store/sagaActions/wallets';
 import BackgroundTimer from 'react-native-background-timer';
 import WalletHeader from 'src/components/WalletHeader';
@@ -116,7 +112,11 @@ function SignWithChannel() {
         walletName,
         hmac,
       };
-      const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
+      const requestData = createChannelRequestData(
+        requestBody,
+        bitcoinNetworkType,
+        decryptionKey.current
+      );
       channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
       return true;
     } catch (error) {
