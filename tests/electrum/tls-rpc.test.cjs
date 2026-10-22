@@ -10,15 +10,18 @@ const { certificates, server } = require('./fixtures.cjs');
 // loopback. Native verification is tested separately; this is not an RN run.
 function adapter(roots, calls) {
   const module = { exports: {} };
-  const source = fs.readFileSync(path.join(__dirname, '../../src/services/electrum/tls.js'), 'utf8')
-    .replace("import TcpSocket from 'react-native-tcp-socket';", 'const TcpSocket = bridge;');
-  vm.runInNewContext(source, { module, bridge: { connectTLS(options, callback) {
+  const source = fs.readFileSync(path.join(__dirname, '../../src/services/electrum/tls.js'), 'utf8');
+  const bridge = { connectTLS(options, callback) {
     calls.push(options);
     assert.equal(options.rejectUnauthorized, true); assert.equal(options.tlsCheckValidity, true);
     return tls.connect({ ...options, ca: options.ca || roots, lookup: (_host, _opts, done) => {
       done(null, [{address:'127.0.0.1',family:4}]);
     } }, callback);
-  } } });
+  } };
+  vm.runInNewContext(source, { module, require(name) {
+    assert.equal(name, 'react-native-tcp-socket');
+    return bridge;
+  } });
   return module.exports;
 }
 

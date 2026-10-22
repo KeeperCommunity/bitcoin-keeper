@@ -1,5 +1,4 @@
 /** Electrum TLS always verifies both the chain and the selected peer identity. */
-import TcpSocket from 'react-native-tcp-socket';
 
 const MAX_CA_LENGTH = 16384;
 const CERTIFICATE_PEM = /^-----BEGIN CERTIFICATE-----\s+[A-Za-z0-9+/=\s]+\s+-----END CERTIFICATE-----$/;
@@ -17,6 +16,9 @@ function validatedCa(node) {
 }
 
 function connect(config, callback, ca) {
+  // Load the native bridge only when a TLS socket is requested.
+  const socketModule = require('react-native-tcp-socket');
+  const TcpSocket = socketModule.__esModule ? socketModule.default : socketModule;
   return TcpSocket.connectTLS(
     {
       port: config.port,
