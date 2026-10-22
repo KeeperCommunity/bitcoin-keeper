@@ -34,16 +34,24 @@ export default class Node {
       return { saved: false, connectionError: 'Missing node host URL or port' };
     }
 
-    // test connection before saving
+    const node = { ...nodeDetail };
+    const savedEndpoint = this.getAllNodes().find((savedNode) =>
+      savedNode.host === node.host && savedNode.port === node.port &&
+      savedNode.networkType === node.networkType && (!node.id || savedNode.id === node.id));
+    if (!node.useSSL) node.tlsCa = null;
+    else if (!Object.prototype.hasOwnProperty.call(nodeDetail, 'tlsCa') && savedEndpoint) {
+      // Omitted trust keeps the saved endpoint's explicit choice; null explicitly clears it.
+      node.tlsCa = savedEndpoint.tlsCa || null;
+    }
+
+    // test the exact candidate transport before saving
     const { connected: isConnectable, error: connectionError } =
-      await ElectrumClient.testConnection(nodeDetail);
+      await ElectrumClient.testConnection(node);
     if (!isConnectable) {
       return { saved: false, connectionError };
     }
     if (!this.isAccountActive(originAppId) || accountSession !== currentBackupAccountSession())
       return { saved: false, connectionError: 'Account changed' };
-
-    const node = { ...nodeDetail };
 
     const predefinedNodes =
       bitcoinNetworkType === NetworkType.TESTNET ? predefinedTestnetNodes : predefinedMainnetNodes;
