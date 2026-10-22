@@ -27,7 +27,7 @@ const BACKEND_FILES = Object.freeze({
 function supportedNode(version) {
   const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version);
   return !!match && Number(match[1]) === 22 &&
-    (Number(match[2]) > 23 || (Number(match[2]) === 23 && Number(match[3]) >= 3));
+    (Number(match[2]) > 23 || (Number(match[2]) === 23 && Number(match[3]) >= 4));
 }
 
 function disposableMongoUrl(value) {
@@ -83,7 +83,7 @@ function nativeRealmPrerequisite() {
 }
 
 function main() {
-  assert.ok(supportedNode(process.versions.node), 'Use Node22.23.3 or a later22.x patch for the protected proof');
+  assert.ok(supportedNode(process.versions.node), 'Use Node22.23.4 or a later22.x patch for the protected proof');
   const checkout = checkedBackend(process.env.KEEPER_PROTECTED_RELAY_CHECKOUT);
   const mongo = disposableMongoUrl(process.env.BACKUP_TEST_MONGO_URL);
   nativeRealmPrerequisite();
