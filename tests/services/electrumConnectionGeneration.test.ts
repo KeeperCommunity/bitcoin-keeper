@@ -10,6 +10,9 @@ import { NetworkType } from '../../src/services/wallets/enums';
 import dbManager from '../../src/storage/realm/dbManager';
 import { RealmSchema } from '../../src/storage/realm/enum';
 import { store } from '../../src/store/store';
+import TcpSocket from 'react-native-tcp-socket';
+import RestClient from '../../src/services/rest/RestClient';
+import torrific from '../../src/services/electrum/torrific';
 
 const mockClients: any[] = [];
 const mockInitReplies: Array<() => Promise<any>> = [];
@@ -55,6 +58,9 @@ jest.mock('src/services/rest/RestClient', () => ({
   TorStatus: { CONNECTED: 'connected' },
 }));
 jest.mock('src/services/electrum/torrific', () => ({ __esModule: true, default: {} }));
+jest.mock('react-native-tcp-socket', () => ({
+  __esModule: true, default: { connectTLS: jest.fn() },
+}));
 
 const deferred = () => {
   let resolve: (value: any) => void;
@@ -79,6 +85,55 @@ describe('Electrum connection generation', () => {
   });
 
   afterEach(() => jest.useRealTimers());
+
+  it('binds private trust for reconnect and creates fresh trust for a newly selected public node', async () => {
+    jest.useFakeTimers();
+    const tlsCa = '-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----';
+    const selected = { ...testnetNode(), host: 'fixture.invalid', useKeeperNode: false, tlsCa };
+    ElectrumClient.setActivePeer([selected, testnetNode()], selected);
+    await ElectrumClient.connect();
+    const reconnect = mockClients[0].onError(new Error('socket closed'));
+    await jest.advanceTimersByTimeAsync(500); await reconnect;
+    const constructors = (jest.requireMock('electrum-client').default as jest.Mock).mock.calls;
+    for (const args of constructors) {
+      expect(args[3]).toBe(selected.host);
+      args[1].connect({ host: selected.host, port: selected.port, rejectUnauthorized: false }, () => {});
+      expect(TcpSocket.connectTLS).toHaveBeenLastCalledWith(expect.objectContaining({
+        ca: tlsCa, rejectUnauthorized: true, tlsCheckValidity: true, servername: selected.host,
+      }), expect.any(Function));
+    }
+    const next = testnetNode();
+    ElectrumClient.setActivePeer([next], next); await ElectrumClient.connect();
+    const adapter = constructors[2][1];
+    adapter.connect({ host: next.host, port: next.port }, () => {});
+    const calls = (TcpSocket.connectTLS as jest.Mock).mock.calls;
+    expect(calls[calls.length - 1][0].ca).toBeUndefined();
+  });
+
+  it('stops on private certificate failure without switching to a public or plaintext peer', async () => {
+    jest.useFakeTimers();
+    const selected = { ...testnetNode(), host: 'private.invalid', useKeeperNode: false };
+    mockInitReplies.push(...[0, 1].map(() => () => Promise.reject(new Error('certificate verify failed'))));
+    ElectrumClient.setActivePeer([selected, { ...testnetNode(), useSSL: false }], selected);
+    const result = ElectrumClient.connect(); await jest.advanceTimersByTimeAsync(500);
+    await expect(result).resolves.toMatchObject({ connected: false, errorType: 'tls-certificate' });
+    expect(mockClients).toHaveLength(2);
+    for (const args of (jest.requireMock('electrum-client').default as jest.Mock).mock.calls) {
+      expect(args.slice(2)).toEqual([selected.port, selected.host, 'tls']);
+    }
+    expect(ElectrumClient.getActivePeer()?.host).toBe(selected.host);
+  });
+
+  it('preserves the selected onion transport without rewriting it as clearnet TLS', async () => {
+    (RestClient.getTorStatus as jest.Mock).mockReturnValue('connected');
+    const selected = { ...testnetNode(), host: 'fixture.onion', useSSL: false, useKeeperNode: false };
+    ElectrumClient.setActivePeer([selected], selected); await ElectrumClient.connect();
+    const args = (jest.requireMock('electrum-client').default as jest.Mock).mock.calls[0];
+    expect(args[0]).toBe(torrific);
+    expect(args.slice(2)).toEqual([selected.port, selected.host, 'tcp']);
+    expect(TcpSocket.connectTLS).not.toHaveBeenCalled();
+    (RestClient.getTorStatus as jest.Mock).mockReset();
+  });
 
   it('ignores a late handshake and error callback from a replaced account connection', async () => {
     const firstHandshake = deferred();

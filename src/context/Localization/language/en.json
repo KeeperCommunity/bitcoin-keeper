@@ -1055,6 +1055,8 @@
     "addNewNode": "Add Server",
     "portNumberPlaceholder": "e.g 8080",
     "host": "Host",
+    "nodeCertificate": "Trusted certificate (optional PEM)",
+    "nodeCertificateHelp": "Leave blank for public CA verification. For a self-hosted node, paste its CA or certificate obtained through a separate trusted channel. Certificate dates and hostname are still checked.",
     "useSSL": "Use SSL for this node",
     "ManageWallets": "Manage\nWallets",
     "needHelp": "Need\nHelp?",

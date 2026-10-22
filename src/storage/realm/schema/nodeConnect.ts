@@ -10,6 +10,7 @@ const nodeProperties = {
   useKeeperNode: 'bool',
   isConnected: 'bool',
   useSSL: 'bool',
+  tlsCa: 'string?',
   networkType: 'string',
 };
 

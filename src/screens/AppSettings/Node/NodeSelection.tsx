@@ -35,13 +35,15 @@ import { beginBackupLocalOperation } from 'src/services/backup/automatic';
 import SelectableServerItem from './components/SelectableServerItem';
 import AddNode from './AddNode';
 
-function PrivateElectrum({ host, port, useSSL, setHost, setPort, setUseSSL, connectionError }) {
+function PrivateElectrum({ host, port, useSSL, tlsCa, setTlsCa, setHost, setPort, setUseSSL, connectionError }) {
   return (
     <Box>
       <AddNode
         port={port}
         host={host}
         useSSL={useSSL}
+        tlsCa={tlsCa}
+        setTlsCa={setTlsCa}
         setHost={setHost}
         setPort={setPort}
         setUseSSL={setUseSSL}
@@ -86,6 +88,7 @@ function NodeSelection() {
   const [host, setHost] = useState('');
   const [port, setPort] = useState('');
   const [useSSL, setUseSSL] = useState(true);
+  const [tlsCa, setTlsCa] = useState('');
   const [connectionError, setConnectionError] = useState('');
   const isDarkMode = colorMode === 'dark';
 
@@ -234,6 +237,7 @@ function NodeSelection() {
       useKeeperNode: false,
       isConnected: false,
       useSSL,
+      tlsCa: useSSL ? tlsCa.trim() || null : null,
       networkType: bitcoinNetworkType,
     };
     onSaveCallback(nodeDetails);
@@ -243,6 +247,7 @@ function NodeSelection() {
     try {
       const nodeDetails = Node.decodeQR(qrData);
       if (nodeDetails) {
+        setTlsCa(''); // QR content never establishes certificate trust.
         setHost(nodeDetails.host.toLowerCase());
         setPort(nodeDetails.port);
         setUseSSL(nodeDetails.useSSL);
@@ -282,9 +287,11 @@ function NodeSelection() {
             />
           ) : (
             <PrivateElectrum
-              setHost={setHost}
-              setPort={setPort}
-              setUseSSL={setUseSSL}
+              setHost={(value) => { setTlsCa(''); setHost(value); }}
+              setPort={(value) => { setTlsCa(''); setPort(value); }}
+              setUseSSL={(value) => { setTlsCa(''); setUseSSL(value); }}
+              tlsCa={tlsCa}
+              setTlsCa={setTlsCa}
               host={host}
               port={port}
               useSSL={useSSL}

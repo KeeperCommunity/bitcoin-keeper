@@ -1043,6 +1043,8 @@
     "addNewNode": "Add Server",
     "portNumberPlaceholder": "e.g 8080",
     "host": "Host",
+    "nodeCertificate": "Certificado de confianza (PEM opcional)",
+    "nodeCertificateHelp": "Déjelo vacío para verificar con las CA públicas. Para un nodo propio, pegue su CA o certificado obtenido mediante un canal de confianza independiente. Se siguen verificando las fechas y el nombre del servidor.",
     "useSSL": "Use SSL for this node",
     "ManageWallets": "Manage\nWallets",
     "needHelp": "Need\nHelp?",

@@ -38,7 +38,7 @@ export class RealmDatabase {
 
   public static file = REALM_FILE;
 
-  public static schemaVersion = 109;
+  public static schemaVersion = 110;
 
   private releaseStaleOpenResults = () => {
     // A later open of the same path may receive the same native Realm handle.

@@ -17,6 +17,8 @@ const AddNode = ({
   port,
   useSSL,
   connectionError,
+  tlsCa,
+  setTlsCa,
 }: {
   host: string;
   port: string;
@@ -25,6 +27,8 @@ const AddNode = ({
   setPort: (port: string) => void;
   setUseSSL: (useSSL: boolean) => void;
   connectionError?: string;
+  tlsCa: string;
+  setTlsCa: (ca: string) => void;
 }) => {
   const { colorMode } = useColorMode();
   const { translations } = useContext(LocalizationContext);
@@ -64,6 +68,26 @@ const AddNode = ({
                 inpuBackgroundColor={`${colorMode}.boxSecondaryBackground`}
               />
             </Box>
+            {useSSL && (
+              <Box>
+                <Text color={`${colorMode}.secondaryText`}>{settings.nodeCertificate}</Text>
+                <Text color={`${colorMode}.secondaryText`}>{settings.nodeCertificateHelp}</Text>
+                <KeeperTextInput
+                  testID="node-ca"
+                  placeholder="-----BEGIN CERTIFICATE-----"
+                  value={tlsCa}
+                  onChangeText={setTlsCa}
+                  multiline
+                  height={120}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  maxLength={16384}
+                  inpuBorderColor={`${colorMode}.secondaryGrey`}
+                  inpuBackgroundColor={`${colorMode}.boxSecondaryBackground`}
+                />
+              </Box>
+            )}
           </Box>
         </Box>
       </Box>

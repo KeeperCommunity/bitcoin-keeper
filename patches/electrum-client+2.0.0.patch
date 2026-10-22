@@ -1,0 +1,12 @@
+diff --git a/node_modules/electrum-client/lib/TlsSocketWrapper.js b/node_modules/electrum-client/lib/TlsSocketWrapper.js
+--- a/node_modules/electrum-client/lib/TlsSocketWrapper.js
++++ b/node_modules/electrum-client/lib/TlsSocketWrapper.js
+@@ -68,7 +68,7 @@
+ 
+   connect(port, host, callback) {
+     // resulting TLSSocket extends <net.Socket>
+-    this._socket = this._tls.connect({ port: port, host: host, rejectUnauthorized: false }, () => {
++    this._socket = this._tls.connect({ port: port, host: host, rejectUnauthorized: true }, () => {
+       console.log('TLS Connected to ', host, port);
+       return callback();
+     });

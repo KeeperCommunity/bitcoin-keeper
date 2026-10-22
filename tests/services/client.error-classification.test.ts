@@ -10,6 +10,12 @@ describe('classifyElectrumConnectionError', () => {
     assert.strictEqual(classifyElectrumConnectionError(error), 'tls-certificate');
   });
 
+  it.each(['TLS certificate validity check failed', 'Compromised TLS certificate key', 'Withdrawn TLS trust anchor'])(
+    'classifies native policy rejection as a TLS error: %s', (message) => {
+      expect(classifyElectrumConnectionError(new Error(message))).toBe('tls-certificate');
+    }
+  );
+
   it('classifies timeout/unreachable failures as network', () => {
     const error = new Error('Connection timed out while connecting to electrum host');
 
