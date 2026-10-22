@@ -107,8 +107,11 @@ SDK/target 36, Build Tools 35.0.0, NDK 27.1.12297006, and React Native
 tree is recorded in `yarn.lock` and checked-in `patch-package` patches. The
 successful diagnostic used Node
 22.23.3, Yarn 1.22.22, and JDK 17.0.19; these are measured diagnostic inputs,
-not a claim about the publisher's complete toolchain. A third-party recipe
-still needs a digest-pinned Linux container image, exact JDK/Node/Yarn and SDK
+not a claim about the publisher's complete toolchain. New builds must use
+the Node 22 security floor of 22.23.4 (OpenSSL 3.5.9 and the
+refreshed CA bundle); `android-inputs.json` pins that corrected toolchain.
+The historical 22.23.3 diagnostic above does not validate this new input.
+A third-party recipe still needs a digest-pinned Linux container image, exact JDK/Node/Yarn and SDK
 package checksums, a fixed checkout and dependency layout, and verified build
 commands. The Gradle wrapper now has a distribution checksum pin, but the
 Android project has no dependency lock or verification metadata. The published

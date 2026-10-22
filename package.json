@@ -214,6 +214,6 @@
     "stream": "stream-browserify"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.23.4 <23"
   }
 }
