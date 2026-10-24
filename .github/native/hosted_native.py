@@ -375,7 +375,7 @@ def record_startup_failure(report, device, startup_started_ms=None):
                 Path(__file__).with_name('ios_startup_command_observation.py'))
             observer = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(observer)
-            return observer.collect(PRIVATE, device)
+            return observer.collect(PRIVATE, device, startup_started_ms, startup_ended_ms)
         collect('command_observation', ios_command_observation)
         def ios_replacement_observation():
             spec = importlib.util.spec_from_file_location('ios_replacement_observation',

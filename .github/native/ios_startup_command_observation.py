@@ -3,7 +3,9 @@
 No launch, app-state mutation, raw error, identifier, PID or hierarchy is
 exported. These observations cannot establish launch cause or native acceptance.
 """
+from datetime import datetime
 import importlib.util
+import json
 from pathlib import Path
 import re
 import subprocess
@@ -34,6 +36,16 @@ ERROR_MARKERS = {
 ERROR_DOMAINS = frozenset(('FBSOpenApplicationServiceErrorDomain', 'FBSOpenApplicationErrorDomain',
     'RBSRequestErrorDomain', 'RBSErrorDomain', 'NSPOSIXErrorDomain', 'NSCocoaErrorDomain',
     'NSOSStatusErrorDomain', 'NSMachErrorDomain'))
+LAUNCH_SERVICES = frozenset(('SpringBoard', 'runningboardd', 'launchd', 'lsd'))
+LAUNCH_MARKERS = {
+    'CAPABILITY_TEXT': r'\b(?:UIRequiredDeviceCapabilities|capabilit(?:y|ies))\b',
+    'ARCHITECTURE_TEXT': r'\b(?:architecture|armv7|arm64|x86_64|EBADARCH)\b',
+    'SIGNATURE_TEXT': r'\b(?:signature|codesign|AMFI|entitlement|entitlements)\b',
+    'NOT_FOUND_TEXT': r'\b(?:not found|NotFound|unknown to FrontBoard|no such file)\b',
+    'PERMISSION_TEXT': r'\b(?:operation not permitted|permission denied|EPERM|EACCES)\b',
+    'SPAWN_FAILURE_TEXT': r'\b(?:failed to (?:launch|spawn)|spawn failed|launch failed)\b',
+    'DYLD_TEXT': r'\b(?:dyld|Library not loaded|Symbol not found)\b',
+}
 
 
 def launch_error_codes(error):
@@ -182,7 +194,100 @@ def process(private, device):
         return {**result, 'query': 'UNAVAILABLE'}
 
 
-def collect(private, device):
+def launch_services_unknown():
+    return {'state': 'UNKNOWN', 'query': 'NOT_RUN', 'matching_records': 0, 'rows': [],
+            'input_partial': False, 'scope': 'OWNED_TIME_BOUND_SYSTEM_LOG_MARKERS_NOT_CAUSE_OR_ACCEPTANCE'}
+
+
+def launch_window(started_ms, ended_ms):
+    return (type(started_ms) is int and type(ended_ms) is int and
+            0 <= started_ms < ended_ms <= 10 ** 14 and ended_ms - started_ms <= 900000)
+
+
+def launch_service_records(payload, started_ms, ended_ms):
+    result = launch_services_unknown()
+    if not launch_window(started_ms, ended_ms) or type(payload) is not bytes:
+        return result
+    if len(payload) > LIMIT:
+        return {**result, 'input_partial': True}
+    try:
+        def unique(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError('Duplicate log key.')
+                value[key] = item
+            return value
+        records = json.loads(payload.decode('utf-8'), object_pairs_hook=unique,
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Nonfinite log value.')))
+        if type(records) is not list:
+            return result
+        result['input_partial'] = len(records) > 512
+        for record in records[:512]:
+            if type(record) is not dict:
+                result['input_partial'] = True
+                continue
+            path, message, timestamp = (record.get(key) for key in
+                ('processImagePath', 'eventMessage', 'timestamp'))
+            if (type(path) is not str or not path.startswith('/') or
+                    Path(path).name not in LAUNCH_SERVICES or type(message) is not str or
+                    len(message) > 16384 or type(timestamp) is not str or
+                    not re.fullmatch(r'\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:?\d{2})', timestamp)):
+                continue
+            try:
+                instant = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp() * 1000
+            except (ValueError, OverflowError):
+                continue
+            if (not started_ms <= instant <= ended_ms or not re.search(
+                    r'(?<![A-Za-z0-9_.-])' + re.escape(APP) + r'(?![A-Za-z0-9_.-])', message)):
+                continue
+            result['matching_records'] += 1
+            pairs = []
+            for domain, code in re.findall(
+                    r'(?:Error Domain=|domain[=:]\s*)([A-Za-z][A-Za-z0-9.]{0,95})(?:;\s*|\s+|,\s*)[Cc]ode[=:]\s*(-?(?:0|[1-9][0-9]{0,9}))\b', message):
+                if domain in ERROR_DOMAINS | {'OSLaunchdErrorDomain'} and -(2 ** 31) <= int(code) < 2 ** 31:
+                    pair = {'domain': domain, 'code': int(code)}
+                    if pair not in pairs and len(pairs) < 8:
+                        pairs.append(pair)
+            markers = [name for name, pattern in LAUNCH_MARKERS.items()
+                if re.search(pattern, message, re.IGNORECASE)]
+            if (pairs or markers) and len(result['rows']) < 32:
+                result['rows'].append({'service': Path(path).name, 'codes': pairs, 'markers': markers})
+            elif pairs or markers:
+                result['input_partial'] = True
+        if result['matching_records']:
+            result['state'] = 'RECORDED'
+    except (ValueError, UnicodeDecodeError, RecursionError):
+        return launch_services_unknown()
+    return result
+
+
+def launch_services(private, device, started_ms, ended_ms):
+    result = launch_services_unknown()
+    if (not launch_window(started_ms, ended_ms) or type(device) is not str or
+            not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', device)):
+        return result
+    predicate = '(' + ' OR '.join('process == "%s"' % value for value in sorted(LAUNCH_SERVICES))
+    predicate += ') AND eventMessage CONTAINS "%s"' % APP
+    try:
+        args = ['xcrun', 'simctl', 'spawn', device, 'log', 'show', '--info', '--style', 'json',
+            '--start', datetime.fromtimestamp(started_ms / 1000).strftime('%Y-%m-%d %H:%M:%S'),
+            '--end', datetime.fromtimestamp((ended_ms + 999) // 1000).strftime('%Y-%m-%d %H:%M:%S'),
+            '--predicate', predicate]
+        with tempfile.TemporaryFile(dir=private) as output:
+            outcome = subprocess.run(args, stdout=output, stderr=subprocess.DEVNULL, timeout=20, check=False)
+            if outcome.returncode != 0:
+                return {**result, 'query': 'NONZERO_EXIT'}
+            output.seek(0)
+            return {**launch_service_records(output.read(LIMIT + 1), started_ms, ended_ms), 'query': 'EXIT_ZERO'}
+    except subprocess.TimeoutExpired:
+        return {**result, 'query': 'TIMEOUT'}
+    except (OSError, ValueError, OverflowError):
+        return {**result, 'query': 'UNAVAILABLE'}
+
+
+def collect(private, device, started_ms=None, ended_ms=None):
     return {'schema': 1, 'commands': commands(private / 'maestro-output'),
             'process': process(private, device),
+            'launch_services': launch_services(private, device, started_ms, ended_ms),
             'scope': 'FAILURE_ONLY_OBSERVATIONS_NOT_NATIVE_ACCEPTANCE_OR_CAUSE'}
