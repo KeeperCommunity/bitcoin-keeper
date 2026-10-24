@@ -20,11 +20,14 @@ function KeyCard({
   primaryIcon,
   secondaryIcon,
   dateAdded,
+  // eslint-disable-next-line react/prop-types -- Optional native selector; existing card props remain untyped.
+  testID = undefined,
 }) {
   const { colorMode } = useColorMode();
   const HexagonIconColor = ThemedColor({ name: 'HexagonIcon' });
   return (
     <Box
+      testID={testID}
       backgroundColor={`${colorMode}.seashellWhite`}
       style={styles.signerContainer}
       borderColor={`${colorMode}.separator`}

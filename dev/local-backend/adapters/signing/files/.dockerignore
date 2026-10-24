@@ -1,0 +1,9 @@
+.git
+.env*
+node_modules
+dist
+**/*.pem
+**/*.p12
+**/*.key
+logfile.log
+coverage

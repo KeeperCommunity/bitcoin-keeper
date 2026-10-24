@@ -1,26 +1,36 @@
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
-import React from 'react';
+import React, { useContext } from 'react';
 import { StyleSheet } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { hp, wp } from 'src/constants/responsive';
 import { GasFreeTransferStatus } from 'src/services/wallets/operations/dollars/GasFree';
 import Colors from 'src/theme/Colors';
+import { LocalizationContext } from 'src/context/Localization/LocContext';
 
-const StatusContent = ({ status }) => {
+const StatusContent = ({ status, unavailable = false }) => {
   const { colorMode } = useColorMode();
-  const containerbackgroundColor =
-    status === GasFreeTransferStatus.SUCCEED
-      ? Colors.PaleTropicalTeal
-      : status === GasFreeTransferStatus.CONFIRMING
-      ? Colors.lightOrange
-      : Colors.lightindigoblue;
+  const { translations } = useContext(LocalizationContext);
+  // A legacy SUCCEED value is not proof of a confirmed chain transaction.
+  const statusUnavailable =
+    unavailable ||
+    status === GasFreeTransferStatus.SUCCEED ||
+    status === GasFreeTransferStatus.UNVERIFIED;
+  const chainConfirmed = status === GasFreeTransferStatus.CHAIN_CONFIRMED;
+  const containerbackgroundColor = statusUnavailable
+    ? Colors.lightindigoblue
+    : chainConfirmed
+    ? Colors.PaleTropicalTeal
+    : status === GasFreeTransferStatus.CONFIRMING
+    ? Colors.lightOrange
+    : Colors.lightindigoblue;
 
-  const textColor =
-    status === GasFreeTransferStatus.SUCCEED
-      ? Colors.TropicalTeal
-      : status === GasFreeTransferStatus.CONFIRMING
-      ? Colors.darkOrange
-      : Colors.indigoblue;
+  const textColor = statusUnavailable
+    ? Colors.indigoblue
+    : chainConfirmed
+    ? Colors.TropicalTeal
+    : status === GasFreeTransferStatus.CONFIRMING
+    ? Colors.darkOrange
+    : Colors.indigoblue;
   return (
     <Box
       backgroundColor={containerbackgroundColor}
@@ -28,7 +38,11 @@ const StatusContent = ({ status }) => {
       style={styles.container}
     >
       <Text fontSize={12} color={textColor}>
-        {status === GasFreeTransferStatus.SUCCEED ? 'SUCCESS' : status}
+        {statusUnavailable
+          ? translations.usdtWalletText.statusUnavailable
+          : chainConfirmed
+          ? 'SUCCESS'
+          : status}
       </Text>
     </Box>
   );
@@ -40,7 +54,8 @@ const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
     borderRadius: 30,
-    width: wp(80),
+    minWidth: wp(80),
+    paddingHorizontal: wp(8),
     height: hp(20),
     justifyContent: 'center',
     alignItems: 'center',

@@ -155,6 +155,7 @@ export type AppStackParams = {
   };
   ConfirmWalletDetails: undefined;
   AppBackupSettings: undefined;
+  AssistedBackupStatus: undefined;
   BuyBitcoin: undefined;
   DeleteKeys: undefined;
   HandleFile: undefined;

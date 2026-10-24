@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import useWallets from 'src/hooks/useWallets';
@@ -268,7 +268,10 @@ function NewHomeScreen({ route }) {
           </Box>
         </TouchableOpacity>
       )}
-      <Box style={styles.content}>{content}</Box>
+      {/* Keep tab descendants (including elevated FABs) out of the footer's native parent. */}
+      <View key={selectedOption} collapsable={false} style={styles.content}>
+        {content}
+      </View>
       <MenuFooter
         selectedOption={selectedOption}
         onOptionChange={(option) => {

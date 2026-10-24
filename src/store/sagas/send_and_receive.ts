@@ -1,9 +1,9 @@
 import { AverageTxFeesByNetwork, SerializedPSBTEnvelop } from 'src/services/wallets/interfaces';
-import { EntityKind, LabelRefType, TxPriority } from 'src/services/wallets/enums';
-import { call, fork, put, select } from 'redux-saga/effects';
+import { EntityKind, TxPriority } from 'src/services/wallets/enums';
+import type { BackupWriteIntent } from 'src/services/backup/intent';
+import { call, put, select } from 'redux-saga/effects';
 
 import { RealmSchema } from 'src/storage/realm/enum';
-import Relay from 'src/services/backend/Relay';
 import { Signer } from 'src/services/wallets/interfaces/vault';
 import WalletOperations from 'src/services/wallets/operations';
 import _ from 'lodash';
@@ -39,7 +39,7 @@ import {
   SendPhaseThreeAction,
   SendPhaseTwoAction,
 } from '../sagaActions/send_and_receive';
-import { addLabelsWorker, bulkUpdateLabelsWorker } from './utxos';
+import { transactionLabelsWorker } from './utxos';
 import { setElectrumNotConnectedErr } from '../reducers/login';
 import { connectToNodeWorker } from './network';
 import { getKeyUID, getOutputsFromPsbt } from 'src/utils/utilities';
@@ -129,10 +129,13 @@ function* sendPhaseOneWorker({ payload }: SendPhaseOneAction) {
 
 export const sendPhaseOneWatcher = createWatcher(sendPhaseOneWorker, SEND_PHASE_ONE);
 
-function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
+function* sendPhaseTwoWorker({ payload, originAppId, originBackupAccountSession, originBackupWriteIntent }:
+  SendPhaseTwoAction & { originAppId?: string; originBackupAccountSession?: number; originBackupWriteIntent?: BackupWriteIntent }) {
   if (!ELECTRUM_CLIENT.isClientConnected) {
     ElectrumClient.resetCurrentPeerIndex();
-    yield call(connectToNodeWorker);
+    yield call(connectToNodeWorker, {
+      originAppId, originBackupAccountSession, originBackupWriteIntent,
+    });
   }
   const sendPhaseOneResults: SendPhaseOneExecutedPayload = yield select(
     (state) => state.sendAndReceive.sendPhaseOne
@@ -168,16 +171,6 @@ function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
     switch (wallet.entityKind) {
       case EntityKind.WALLET:
         if (!txid) throw new Error('Send failed: unable to generate txid');
-        if (note) {
-          yield call(addLabelsWorker, {
-            payload: {
-              txId: txid,
-              wallet,
-              labels: [{ name: note, isSystem: false }],
-              type: LabelRefType.TXN,
-            },
-          });
-        }
         yield put(
           sendPhaseTwoExecuted({
             successful: true,
@@ -204,8 +197,12 @@ function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
         throw new Error('Invalid Entity: not a vault/Wallet');
     }
 
-    if (finalOutputs) {
-      yield call(handleChangeOutputLabels, finalOutputs, inputs, wallet, txid);
+    if (finalOutputs || (wallet.entityKind === EntityKind.WALLET && note)) {
+      yield call(
+        handleChangeOutputLabels, finalOutputs, inputs, wallet, txid,
+        originAppId, originBackupAccountSession, originBackupWriteIntent,
+        wallet.entityKind === EntityKind.WALLET ? note : undefined
+      );
     }
   } catch (err) {
     if ([ELECTRUM_NOT_CONNECTED_ERR, ELECTRUM_NOT_CONNECTED_ERR_TOR].includes(err?.message)) {
@@ -223,10 +220,13 @@ function* sendPhaseTwoWorker({ payload }: SendPhaseTwoAction) {
 
 export const sendPhaseTwoWatcher = createWatcher(sendPhaseTwoWorker, SEND_PHASE_TWO);
 
-function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
+function* sendPhaseThreeWorker({ payload, originAppId, originBackupAccountSession, originBackupWriteIntent }:
+  SendPhaseThreeAction & { originAppId?: string; originBackupAccountSession?: number; originBackupWriteIntent?: BackupWriteIntent }) {
   if (!ELECTRUM_CLIENT.isClientConnected) {
     ElectrumClient.resetCurrentPeerIndex();
-    yield call(connectToNodeWorker);
+    yield call(connectToNodeWorker, {
+      originAppId, originBackupAccountSession, originBackupWriteIntent,
+    });
   }
 
   const sendPhaseOneResults: SendPhaseOneExecutedPayload = yield select(
@@ -274,19 +274,11 @@ function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
       })
     );
 
-    if (note) {
-      yield call(addLabelsWorker, {
-        payload: {
-          txId: txid,
-          wallet,
-          labels: [{ name: note, isSystem: false }],
-          type: LabelRefType.TXN,
-        },
-      });
-    }
-
-    if (finalOutputs) {
-      yield call(handleChangeOutputLabels, finalOutputs, inputs, wallet, txid);
+    if (note || finalOutputs) {
+      yield call(
+        handleChangeOutputLabels, finalOutputs, inputs, wallet, txid,
+        originAppId, originBackupAccountSession, originBackupWriteIntent, note
+      );
     }
   } catch (err) {
     if ([ELECTRUM_NOT_CONNECTED_ERR, ELECTRUM_NOT_CONNECTED_ERR_TOR].includes(err?.message)) {
@@ -304,49 +296,22 @@ function* sendPhaseThreeWorker({ payload }: SendPhaseThreeAction) {
 
 export const sendPhaseThreeWatcher = createWatcher(sendPhaseThreeWorker, SEND_PHASE_THREE);
 
-function* handleChangeOutputLabels(finalOutputs, inputs, wallet, txid) {
-  const changeOutputIndex = finalOutputs.findIndex((output) =>
-    Object.values(wallet.specs.addresses.internal).includes(output.address)
-  );
-
-  const changeOutput = changeOutputIndex !== -1 ? finalOutputs[changeOutputIndex] : null;
-
-  if (changeOutput) {
-    let labels: { ref: string; label: string; isSystem: boolean }[] = yield call(
-      dbManager.getCollection,
-      RealmSchema.Tags
-    );
-
-    const labelChanges = {
-      added: [],
-      deleted: [],
-    };
-
-    const prevUTXOsLabels = labels.filter((label) =>
-      inputs.map((input) => input.txId + ':' + input.vout).includes(label.ref)
-    );
-    labelChanges.added.push({
-      name: 'Change',
-      isSystem: false,
-    });
-
-    if (prevUTXOsLabels) {
-      labelChanges.added.push(
-        ...prevUTXOsLabels.map((label) => ({
-          name: label.label,
-          isSystem: label.isSystem,
-        }))
-      );
-    }
-
-    yield fork(bulkUpdateLabelsWorker, {
-      payload: {
-        labelChanges,
-        UTXO: { txId: txid, vout: changeOutputIndex },
-        wallet: wallet as any,
-      },
-    });
-  }
+function* handleChangeOutputLabels(
+  finalOutputs,
+  inputs,
+  wallet,
+  txid,
+  originAppId?: string,
+  originBackupAccountSession?: number,
+  originBackupWriteIntent?: BackupWriteIntent,
+  note?: string
+) {
+  yield call(transactionLabelsWorker, {
+    originAppId,
+    originBackupAccountSession,
+    originBackupWriteIntent,
+    payload: { txId: txid, wallet, note, finalOutputs, inputs },
+  });
 }
 
 function* calculateSendMaxFee({ payload }: CalculateSendMaxFeeAction) {
@@ -463,7 +428,7 @@ function* calculateCustomFee({ payload }: CalculateCustomFeeAction) {
 
 export const calculateCustomFeeWatcher = createWatcher(calculateCustomFee, CALCULATE_CUSTOM_FEE);
 
-function* discardBroadcastedTnxWorker({ payload }) {
+function* discardBroadcastedTnxWorker({ payload, originAppId, originBackupAccountSession, originBackupWriteIntent }) {
   const { cachedTxid, vault } = payload;
   const snapshots = yield select((state) => state.cachedTxn.snapshots);
   if (snapshots[cachedTxid]) {
@@ -476,17 +441,10 @@ function* discardBroadcastedTnxWorker({ payload }) {
     });
     const potentialTxId = snapshots[cachedTxid].potentialTxId;
     const note = snapshots[cachedTxid].routeParams.note;
-    yield call(handleChangeOutputLabels, finalOutputs, inputs, vault, potentialTxId);
-    if (note.length) {
-      yield call(addLabelsWorker, {
-        payload: {
-          txId: potentialTxId,
-          wallet: vault,
-          labels: [{ name: note, isSystem: false }],
-          type: LabelRefType.TXN,
-        },
-      });
-    }
+    yield call(
+      handleChangeOutputLabels, finalOutputs, inputs, vault, potentialTxId,
+      originAppId, originBackupAccountSession, originBackupWriteIntent, note
+    );
     yield put(dropTransactionSnapshot({ cachedTxid }));
   }
 }

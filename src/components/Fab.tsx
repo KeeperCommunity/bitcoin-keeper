@@ -7,11 +7,13 @@ interface FabProps {
   icon: React.ReactNode;
   onPress: () => void;
   containerStyle?: object;
+  // eslint-disable-next-line react/require-default-props -- Omitted test selectors must stay absent from the native view.
+  testID?: string;
 }
 
-const Fab = ({ icon, onPress, containerStyle }: FabProps) => {
+const Fab = ({ icon, onPress, containerStyle, testID }: FabProps) => {
   return (
-    <Pressable style={[styles.fab, containerStyle]} onPress={onPress}>
+    <Pressable testID={testID} style={[styles.fab, containerStyle]} onPress={onPress}>
       {icon}
     </Pressable>
   );

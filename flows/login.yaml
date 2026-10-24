@@ -1,32 +1,56 @@
+# Disposable English-language fixture only: PIN 1111, biometric login disabled,
+# no prior failed attempts, app already created. Never run against a real wallet.
 appId: io.hexawallet.keeper
 ---
 - extendedWaitUntil:
     visible: 'Enter your passcode'
     timeout: 20000
-- assertNotVisible: 'Proceed'
+- assertVisible:
+    id: 'btn_primaryText'
+    text: 'Proceed'
+    enabled: false
 - tapOn: '1'
 - tapOn: '2'
 - tapOn: '3'
+- assertVisible:
+    id: 'btn_primaryText'
+    text: 'Proceed'
+    enabled: false
 - tapOn: '7'
-- assertVisible: 'Proceed'
+- assertVisible:
+    id: 'btn_primaryText'
+    text: 'Proceed'
+    enabled: true
 - tapOn: 'Proceed'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible: 'Incorrect password'
-- assertNotVisible: 'Proceed'
-- assertVisible: 'Retry'
-- tapOn: 'Retry'
-- tapOn: '1'
-- tapOn: '1'
-- tapOn: '1'
-- tapOn: '1'
-- assertVisible: 'Proceed'
-- tapOn: 'Proceed'
-- waitForAnimationToEnd:
-    timeout: 5000
 - extendedWaitUntil:
-    visible: 'Next'
-    timeout: 30000
-- tapOn: 'Next'
+    visible: 'Incorrect Passcode, Try Again!'
+    timeout: 15000
+- assertVisible:
+    id: 'btn_primaryText'
+    text: 'Proceed'
+    enabled: false
+# A single incorrect PIN shows an inline error, not a Retry modal.
+- tapOn: '1'
+- tapOn: '1'
+- tapOn: '1'
+- tapOn: '1'
+- assertVisible:
+    id: 'btn_primaryText'
+    text: 'Proceed'
+    enabled: true
+- tapOn: 'Proceed'
 - waitForAnimationToEnd:
-    timeout: 2000
+    timeout: 5000
+# The older sprint login has a security-tip Next action; R4 advances directly.
+- extendedWaitUntil:
+    visible: 'Next|Wallets'
+    timeout: 30000
+- runFlow:
+    when:
+      visible: 'Next'
+    commands:
+      - tapOn: 'Next'
+- extendedWaitUntil:
+    visible:
+      id: 'text_home_current_plan'
+    timeout: 30000
