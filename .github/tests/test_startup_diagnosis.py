@@ -387,5 +387,140 @@ class StartupDiagnosisTests(unittest.TestCase):
 
 
 
+    @staticmethod
+    def runtime_fixture():
+        return {'time_ms': 150, 'kind': 'CONSOLE', 'event': 'unstable_server_log',
+                'level': 'error', 'error_type': 'Invariant Violation',
+                'categories': [], 'diagnostic_codes': ['NATIVE_REGISTRY_MODULE_MISSING'],
+                'native_modules': ['RNGetRandomValues'],
+                'source_frames': [{'path': 'App.tsx', 'line': 32, 'column': 5}],
+                'data_truncated': False, 'invalid_data': False,
+                'items_scanned': 1, 'unclassified_items': 0}
+
+    def test_runtime_producer_consumer_closed_vocabularies_match(self):
+        import ast
+        import re
+        source = (Path(__file__).resolve().parents[1] / 'native/startup_reporter.cjs').read_text()
+        modules = ast.literal_eval(source.split('const nativeModules = ', 1)[1].split(';', 1)[0])
+        self.assertEqual(set(modules), diagnosis.RUNTIME_MODULES)
+        codes = source.split('const runtimeCodes = [', 1)[1].split('\n];', 1)[0]
+        self.assertEqual(set(re.findall(r"^\s*\['([A-Z_]+)',", codes, re.MULTILINE)), diagnosis.RUNTIME_CODES)
+        helper = Path(__file__).resolve().parents[1] / 'native/startup_source_frames.cjs'
+        frames_source = helper.read_text() if helper.exists() else source
+        literal = frames_source.split('const startupPaths = ', 1)[1].split(';', 1)[0]
+        if literal.startswith('Object.freeze('):
+            literal = literal[len('Object.freeze('):-1]
+        paths = ast.literal_eval(literal)
+        self.assertEqual(set(paths), diagnosis.RUNTIME_SOURCE_PATHS)
+        root = Path(__file__).resolve().parents[2]
+        self.assertTrue(all((root / file).is_file() for file in paths))
+
+    def test_runtime_rows_keep_actionable_identity_and_temporal_scope_without_private_fields(self):
+        row = self.runtime_fixture()
+        row.update(raw='PRIVATE_SENTINEL', data=['PRIVATE_SENTINEL'], stack='PRIVATE_SENTINEL')
+        late = {**self.runtime_fixture(), 'time_ms': 201, 'event': 'client_log'}
+        (self.root / 'startup-observer.jsonl').write_text('\n'.join(json.dumps(r) for r in [row, late]))
+        native = SimpleNamespace(PRIVATE=self.root, PLATFORM='IOS')
+        device = '12345678-1234-1234-1234-123456789ABC'
+        with mock.patch.object(diagnosis.time, 'time', return_value=0.200):
+            facts = diagnosis.collect(native, device, SimpleNamespace(started_ms=150))['metro']
+        self.assertEqual(facts['invalid_rows'], 0)
+        self.assertEqual(facts['rows'][0]['stage'], 'APP_WINDOW')
+        self.assertEqual(facts['rows'][1]['stage'], 'UNKNOWN')
+        self.assertEqual(facts['rows'][0]['diagnostic_codes'], ['NATIVE_REGISTRY_MODULE_MISSING'])
+        self.assertEqual(facts['rows'][0]['native_modules'], ['RNGetRandomValues'])
+        self.assertEqual(facts['rows'][0]['source_frames'], [{'path': 'App.tsx', 'line': 32, 'column': 5}])
+        self.assertNotIn('PRIVATE_SENTINEL', json.dumps(facts))
+        self.assertNotIn('raw', facts['rows'][0])
+        self.assertNotIn('stack', facts['rows'][0])
+
+    def test_runtime_shapes_types_source_paths_and_coordinates_reject_without_raw_output(self):
+        changes = [('kind', 'ERROR'), ('event', 'PRIVATE_SENTINEL'), ('level', []),
+            ('error_type', 'PRIVATE_SENTINEL'), ('categories', ['PRIVATE_SENTINEL']),
+            ('diagnostic_codes', ['PRIVATE_SENTINEL']), ('native_modules', ['RNBiometrics']),
+            ('data_truncated', 0), ('invalid_data', None), ('items_scanned', True),
+            ('items_scanned', 17), ('unclassified_items', 2), ('unclassified_items', -1),
+            ('source_frames', [{'path': '../App.tsx', 'line': 1, 'column': 1}]),
+            ('source_frames', [{'path': '/private/App.tsx', 'line': 1, 'column': 1}]),
+            ('source_frames', [{'path': 'App.tsx', 'line': True, 'column': 1}]),
+            ('source_frames', [{'path': 'App.tsx', 'line': 1, 'column': True}]),
+            ('source_frames', [{'path': 'App.tsx', 'line': 999999, 'column': 1}]),
+            ('source_frames', [{'path': 'App.tsx', 'line': 1, 'column': 999999}]),
+            ('source_frames', [{'path': 'App.tsx', 'line': 1, 'column': 1, 'raw': 'PRIVATE_SENTINEL'}])]
+        for key, value in changes:
+            row = self.runtime_fixture()
+            row[key] = value
+            with self.subTest(key=key, value=value), self.assertRaises((ValueError, TypeError)):
+                diagnosis.runtime_row(row)
+        bad = self.runtime_fixture()
+        bad.update(invalid_data=True, items_scanned=1)
+        with self.assertRaises(ValueError):
+            diagnosis.runtime_row(bad)
+
+    def test_unknown_runtime_receipts_and_caps_cannot_establish_a_clean_startup(self):
+        row = self.runtime_fixture()
+        row.update(error_type='OTHER', categories=[], diagnostic_codes=[], native_modules=[],
+                   source_frames=[], unclassified_items=1)
+        result = diagnosis.runtime_row(row)
+        self.assertEqual(result['unclassified_items'], 1)
+        self.assertEqual(result['error_type'], 'OTHER')
+        (self.root / 'startup-observer.jsonl').write_text((json.dumps(row)+'\n') * 513)
+        native = SimpleNamespace(PRIVATE=self.root, PLATFORM='IOS')
+        device = '12345678-1234-1234-1234-123456789ABC'
+        facts = diagnosis.collect(native, device)['metro']
+        self.assertEqual(len(facts['rows']), 512)
+        self.assertTrue(facts['producer_limit_may_be_reached'])
+        self.assertEqual(facts['coverage'], 'PARTIAL_OR_CAPPED')
+        self.assertTrue(all(item['stage'] == 'UNKNOWN' for item in facts['rows']))
+        self.assertNotIn('cause', facts)
+
+
+    def test_symbolicated_rows_regenerate_only_public_identity_with_independent_time_scope(self):
+        row = {'time_ms': 150, 'kind': 'SYMBOLICATE_RESPONSE', 'capture_status': 'OBSERVED',
+               'source_frames': [{'path': 'App.tsx', 'line': 32, 'column': 5}],
+               'observed_frames': 2, 'rejected_frames': 1, 'truncated': False,
+               'codeFrame': {'content': 'PRIVATE_SENTINEL'}, 'stack': ['PRIVATE_SENTINEL'],
+               'methodName': 'PRIVATE_SENTINEL'}
+        (self.root / 'startup-observer.jsonl').write_text(json.dumps(row))
+        native = SimpleNamespace(PRIVATE=self.root, PLATFORM='IOS')
+        device = '12345678-1234-1234-1234-123456789ABC'
+        with mock.patch.object(diagnosis.time, 'time', return_value=0.200):
+            facts = diagnosis.collect(native, device, SimpleNamespace(started_ms=150))['metro']
+        self.assertEqual(facts['invalid_rows'], 0)
+        self.assertEqual(facts['rows'][0]['stage'], 'APP_WINDOW')
+        self.assertEqual(facts['rows'][0]['source_frames'], [{'path': 'App.tsx', 'line': 32, 'column': 5}])
+        self.assertEqual(facts['rows'][0]['capture_status'], 'OBSERVED')
+        self.assertNotIn('PRIVATE_SENTINEL', json.dumps(facts))
+        self.assertNotIn('stack', facts['rows'][0])
+        for status in diagnosis.SYMBOLICATION_STATUSES - {'OBSERVED', 'STACK_LIMIT_EXCEEDED'}:
+            gap = {'kind': 'SYMBOLICATE_RESPONSE', 'capture_status': status, 'source_frames': [],
+                   'observed_frames': 0, 'rejected_frames': 0,
+                   'truncated': status in ('OVERSIZED', 'DEPTH_LIMIT')}
+            self.assertEqual(diagnosis.symbolication_row(gap)['source_frames'], [])
+
+    def test_symbolication_shapes_caps_and_inconsistent_claims_reject(self):
+        valid = {'kind': 'SYMBOLICATE_RESPONSE', 'capture_status': 'OBSERVED',
+                 'source_frames': [{'path': 'App.tsx', 'line': 32, 'column': 5}],
+                 'observed_frames': 1, 'rejected_frames': 0, 'truncated': False}
+        for change in [{'kind': 'CONSOLE'}, {'capture_status': 'PRIVATE_SENTINEL'},
+                       {'observed_frames': True}, {'observed_frames': 65},
+                       {'rejected_frames': -1}, {'rejected_frames': 2}, {'truncated': 1},
+                       {'source_frames': []}, {'capture_status': 'HTTP_ERROR'},
+                       {'capture_status': 'NO_PUBLIC_SOURCE_FRAMES'},
+                       {'source_frames': [{'path': '/private/App.tsx', 'line': 32, 'column': 5}]},
+                       {'source_frames': [{'path': 'App.tsx', 'line': 32, 'column': 5, 'method': 'PRIVATE_SENTINEL'}]},
+                       {'capture_status': 'STACK_LIMIT_EXCEEDED', 'observed_frames': 63, 'truncated': True}]:
+            with self.subTest(change=change), self.assertRaises((ValueError, TypeError)):
+                diagnosis.symbolication_row({**valid, **change})
+        limited = {**valid, 'capture_status': 'STACK_LIMIT_EXCEEDED',
+                   'observed_frames': 64, 'truncated': True}
+        self.assertEqual(diagnosis.symbolication_row(limited)['observed_frames'], 64)
+        for status in ('OVERSIZED', 'DEPTH_LIMIT'):
+            invalid = {**valid, 'capture_status': status, 'source_frames': [],
+                       'observed_frames': 0, 'truncated': False}
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                diagnosis.symbolication_row(invalid)
+
+
 if __name__ == '__main__':
     unittest.main()
