@@ -1,0 +1,87 @@
+appId: ${APP_ID}
+---
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- assertVisible: Confirm your passcode
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: confirm_passcode_visible
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: confirmation_digits_tapped
+- tapOn: Create
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: create_tapped
+- extendedWaitUntil:
+    visible: Continue
+    timeout: 30000
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: continue_visible
+- tapOn: Continue
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: continue_tapped
+- extendedWaitUntil:
+    visible: Cancel
+    timeout: 30000
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: cancel_visible
+- tapOn: Cancel
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: cancel_tapped
+- extendedWaitUntil:
+    visible:
+      id: btn_skip
+    timeout: 30000
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: skip_visible
+# One intended Skip action on either platform. Android aims at the visible
+# label inside the same button rather than its full-width container center.
+# This is a diagnostic target hypothesis; the following assertions still decide.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          text: '^Skip[ \u00A0]*$'
+          childOf:
+            id: btn_skip
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: btn_skip
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: skip_tapped
+- extendedWaitUntil:
+    visible:
+      id: view_startNewTile
+    timeout: 30000
+- runScript:
+    file: product_pin_metric.js
+    env:
+      MARKER: start_new_visible

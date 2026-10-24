@@ -19,11 +19,11 @@ import useToastMessage from 'src/hooks/useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import AcquireCard from './AcquireCard';
 import BtcAcquireIcon from 'src/assets/images/bitcoin-acquire-icon.svg';
-import UsdtWalletLogo from 'src/assets/images/usdt-wallet-logo.svg';
-import { useUSDTWallets } from 'src/hooks/useUSDTWallets';
-import { fetchSellBtcLink, fetchSellUsdtLink } from 'src/services/thirdparty/ramp';
-import Buttons from 'src/components/Buttons';
+import { fetchSellBtcLink } from 'src/services/thirdparty/ramp';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import { useQuery } from '@realm/react';
+import { RealmSchema } from 'src/storage/realm/enum';
+import { SwapHistory } from './Swap/SwapHistory';
 
 const BuyBtc = () => {
   const { colorMode } = useColorMode();
@@ -35,21 +35,17 @@ const BuyBtc = () => {
   const { buyBTC: buyBTCText, common } = translations;
   const [visibleBuyBtc, setVisibleBuyBtc] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState(null);
-  const [selectedUsdtWallet, setSelectedUsdtWallet] = useState(null);
   const navigation = useNavigation();
   const [graphData, setGraphData] = useState([]);
   const [error, setError] = useState(false);
   const [stats, setStats] = useState(null);
   const [visibleSellBtc, setVisibleSellBtc] = useState(false);
-  const [visibleSellUsdt, setVisibleSellUsdt] = useState(false);
-  const [visibleBuyUsdt, setVisibleBuyUsdt] = useState(false);
 
   const { wallets } = useWallets();
   const { allVaults } = useVault({ getHiddenWallets: false });
   const { showToast } = useToastMessage();
   const allWallets = [...wallets, ...allVaults];
-  const { usdtWallets } = useUSDTWallets();
-  const [usdtPrice, setUsdtPrice] = useState(null);
+  const previousSwaps = useQuery(RealmSchema.SwapHistory);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,13 +54,9 @@ const BuyBtc = () => {
 
   const loadBtcPrice = async () => {
     try {
-      let [usdtData, btcPrice] = await Promise.all([
-        Relay.getUsdtPrice(currencyCode),
-        Relay.getBtcPrice(currencyCode),
-      ]);
+      const btcPrice = await Relay.getBtcPrice(currencyCode);
       const { dailyPrice, high24h, latestPrice, low24h, percentChange, valueChange } =
         manipulateBitcoinPrices(btcPrice?.prices);
-      setUsdtPrice(usdtData[0].current_price.toFixed(2));
       setGraphData(dailyPrice);
       setStats({ high24h, low24h, latestPrice, percentChange, valueChange });
     } catch (error) {
@@ -106,31 +98,8 @@ const BuyBtc = () => {
               }}
               graphContent={<BtcGraph dataSet={graphData} spacing={50} />}
             />
-            <AcquireCard
-              name={'USDT'}
-              circleBackground={Colors.DesaturatedTeal}
-              icon={<UsdtWalletLogo />}
-              amount={`${BtcPrice?.symbol}  ${usdtPrice ?? '--'} `}
-              buyCallback={() => {
-                if (usdtWallets.length) setVisibleBuyUsdt(true);
-                else showToast('Please create a USDT wallet to proceed.', <ToastErrorIcon />);
-              }}
-              sellCallback={() => {
-                if (usdtWallets.length > 0) {
-                  setVisibleSellUsdt(true);
-                } else showToast("You don't have USDT yet.", <ToastErrorIcon />);
-              }}
-            />
+            {previousSwaps.length > 0 && <SwapHistory navigation={navigation} />}
           </ScrollView>
-          <Box style={styles.button_container}>
-            <Buttons
-              primaryText={buyBTCText.swapButton}
-              primaryCallback={() => {
-                navigation.dispatch(CommonActions.navigate('Swaps'));
-              }}
-              fullWidth
-            />
-          </Box>
           <Box style={{ marginBottom: hp(12), paddingHorizontal: wp(12) }}>
             <Text fontSize={13}>{buyBTCText.transactionOnRamp}</Text>
           </Box>
@@ -165,30 +134,6 @@ const BuyBtc = () => {
         }}
       />
       <KeeperModal
-        visible={visibleBuyUsdt}
-        close={() => setVisibleBuyUsdt(false)}
-        title={buyBTCText.selectWallet}
-        subTitle={buyBTCText.selectWalletDesc}
-        modalBackground={`${colorMode}.modalWhiteBackground`}
-        textColor={`${colorMode}.textGreen`}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={() => (
-          <BuyBtcModalContent
-            allWallets={usdtWallets}
-            setSelectedWallet={setSelectedUsdtWallet}
-            selectedWallet={selectedUsdtWallet}
-          />
-        )}
-        buttonText={selectedUsdtWallet ? common.proceed : null}
-        buttonCallback={() => {
-          if (!selectedUsdtWallet) return;
-          setVisibleBuyUsdt(false);
-          navigation.dispatch(
-            CommonActions.navigate({ name: 'buyUstd', params: { usdtWallet: selectedUsdtWallet } })
-          );
-        }}
-      />
-      <KeeperModal
         visible={visibleSellBtc}
         close={() => setVisibleSellBtc(false)}
         title={buyBTCText.proceedToRamp}
@@ -210,36 +155,6 @@ const BuyBtc = () => {
             setLoading(true);
             setVisibleSellBtc(false);
             const url = await fetchSellBtcLink();
-            Linking.openURL(url.toString());
-          } catch (error) {
-            showToast('Error while fetching ramp url');
-          } finally {
-            setLoading(false);
-          }
-        }}
-      />
-      <KeeperModal
-        visible={visibleSellUsdt}
-        close={() => setVisibleSellUsdt(false)}
-        title={buyBTCText.proceedToRamp}
-        modalBackground={`${colorMode}.modalWhiteBackground`}
-        textColor={`${colorMode}.textGreen`}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={() => (
-          <Text
-            color={isDarkMode ? `${colorMode}.buttonText` : `${colorMode}.BrownNeedHelp`}
-            fontSize={14}
-            style={styles.sellBtcText}
-          >
-            {buyBTCText.rediredctToRampPage}
-          </Text>
-        )}
-        buttonText={common.confirm}
-        buttonCallback={async () => {
-          try {
-            setLoading(true);
-            setVisibleSellUsdt(false);
-            const url = await fetchSellUsdtLink();
             Linking.openURL(url.toString());
           } catch (error) {
             showToast('Error while fetching ramp url');
@@ -295,11 +210,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     width: wp(160),
     borderRadius: 8,
-  },
-  button_container: {
-    width: windowWidth,
-    marginVertical: hp(10),
-    paddingHorizontal: wp(12),
   },
   info_container: {
     maxWidth: windowWidth,

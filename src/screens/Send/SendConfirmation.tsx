@@ -2,7 +2,7 @@ import { StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { CommonActions, useIsFocused, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { sendPhaseTwo } from 'src/store/sagaActions/send_and_receive';
 import { hp, wp } from 'src/constants/responsive';
 import Share from 'react-native-share';
@@ -67,6 +67,7 @@ import WalletIcon from 'src/assets/images/daily_wallet.svg';
 import MultiSendSvg from 'src/assets/images/@.svg';
 import useExchangeRates from 'src/hooks/useExchangeRates';
 import Relay from 'src/services/backend/Relay';
+import { captureBackupWriteIntent, currentBackupAccountSession } from 'src/services/backup/transport';
 
 export interface SendConfirmationRouteParams {
   sender: Wallet | Vault;
@@ -100,6 +101,8 @@ function SendConfirmation({ route }) {
   const { colorMode } = useColorMode();
   const { showToast } = useToastMessage();
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   const isFocused = useIsFocused();
   const {
     sender,
@@ -312,12 +315,16 @@ function SendConfirmation({ route }) {
           }
         }
 
+        const originBackupAccountSession = currentBackupAccountSession();
+        const originBackupWriteIntent = originAppId
+          ? captureBackupWriteIntent(originAppId)
+          : undefined;
         WalletUtilities.fetchCurrentBlockHeight()
           .then(({ currentBlockHeight }) => {
             setTimeout(() => {
               dispatch(sendPhaseTwoReset());
-              dispatch(
-                sendPhaseTwo({
+              dispatch({
+                ...sendPhaseTwo({
                   wallet: sender,
                   currentBlockHeight,
                   txnPriority: transactionPriority,
@@ -328,8 +335,10 @@ function SendConfirmation({ route }) {
                     ),
                   },
                   note,
-                })
-              );
+                }, originAppId),
+                originBackupAccountSession,
+                originBackupWriteIntent,
+              });
             }, 200);
           })
           .catch(() => showToast(errorText.failedToFetchCurrentBlock, <ToastErrorIcon />));

@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unstable-nested-components */
 import Text from 'src/components/KeeperText';
 import { Box, StatusBar, useColorMode } from '@gluestack-ui/themed-native-base';
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { widthPercentageToDP } from 'react-native-responsive-screen';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
@@ -49,7 +49,11 @@ import BounceLoader from 'src/components/BounceLoader';
 import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
-import { setAutomaticCloudBackup, setBackupType } from 'src/store/reducers/bhr';
+import {
+  setAutomaticCloudBackup,
+  setBackupType,
+  isAutomaticCloudBackupEnabled,
+} from 'src/store/reducers/bhr';
 import Relay from 'src/services/backend/Relay';
 import { setAccountManagerDetails } from 'src/store/reducers/concierge';
 import Fonts from 'src/constants/Fonts';
@@ -57,6 +61,7 @@ import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { setInitialNodesSaved } from 'src/store/reducers/network';
 import { saveBackupMethodByAppId } from 'src/store/sagaActions/account';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
 
 const RNBiometrics = new ReactNativeBiometrics();
 
@@ -84,7 +89,9 @@ function LoginScreen({ navigation, route }) {
   //   useAppSelector((state) => state.settings.subscription) === SubscriptionTier.L4;
   const isOnPleb = false;
   const isKeeperPrivate = false;
-  const { automaticCloudBackup } = useAppSelector((state) => state.bhr);
+  const automaticCloudBackup = useAppSelector((state) =>
+    isAutomaticCloudBackupEnabled(state.bhr, appId)
+  );
 
   const login_button_backGround = ThemedColor({ name: 'login_button_backGround' });
   const slider_background = ThemedColor({ name: 'slider_background' });
@@ -104,6 +111,9 @@ function LoginScreen({ navigation, route }) {
   const { common } = translations;
   const { allAccounts, biometricEnabledAppId } = useAppSelector((state) => state.account);
   const [forgotModal, setForgotModal] = useState(false);
+  const completedLogin = useRef(false);
+  const biometricAttemptScope = useRef<string | null>(null);
+  const renderedAccountSession = currentBackupAccountSession();
 
   const onChangeTorStatus = (status: TorStatus) => {
     settorStatus(status);
@@ -160,8 +170,66 @@ function LoginScreen({ navigation, route }) {
   }, [failedAttempts, lastLoginFailedAt]);
 
   useEffect(() => {
-    biometricAuth();
-  }, [canLogin]);
+    const biometricEnabled =
+      (allAccounts.length === 0 && loginMethod === LoginMethod.BIOMETRIC) ||
+      (allAccounts.length > 0 && biometricEnabledAppId !== null);
+    if (!biometricEnabled || !canLogin) {
+      biometricAttemptScope.current = null;
+      return undefined;
+    }
+
+    const scope = JSON.stringify([
+      appId,
+      biometricEnabledAppId,
+      loginMethod,
+      allAccounts.length,
+      renderedAccountSession,
+    ]);
+    if (isAuthenticated || loggingIn) {
+      // An explicit PIN attempt owns this login; failure must keep its fallback
+      // available rather than reopening the biometric prompt automatically.
+      biometricAttemptScope.current = scope;
+      return undefined;
+    }
+    if (biometricAttemptScope.current === scope) return undefined;
+
+    const originAppId = biometricEnabledAppId ?? appId;
+    let active = true;
+    const timer = setTimeout(async () => {
+      if (!active || currentBackupAccountSession() !== renderedAccountSession) return;
+      biometricAttemptScope.current = scope;
+      try {
+        const { success, signature } = await RNBiometrics.createSignature({
+          promptMessage: 'Authenticate',
+          payload: originAppId,
+          cancelButtonText: common.usePin,
+        });
+        if (!active || !success || currentBackupAccountSession() !== renderedAccountSession) return;
+        setIsBiometric(true);
+        setLoginModal(true);
+        setLogging(true);
+        setLoginError(false);
+        dispatch(credsAuth(signature, LoginMethod.BIOMETRIC, false, originAppId));
+      } catch {
+        // A failed/cancelled native prompt leaves PIN login available.
+      }
+    }, 200);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [
+    allAccounts.length,
+    appId,
+    biometricEnabledAppId,
+    canLogin,
+    common.usePin,
+    dispatch,
+    isAuthenticated,
+    loggingIn,
+    loginMethod,
+    renderedAccountSession,
+  ]);
 
   useEffect(() => {
     requestUserPermission();
@@ -177,53 +245,17 @@ function LoginScreen({ navigation, route }) {
     }
   }, [recepitVerificationError]);
 
-  const biometricAuth = async () => {
-    if (
-      (allAccounts.length === 0 && loginMethod === LoginMethod.BIOMETRIC) ||
-      (allAccounts.length > 0 && biometricEnabledAppId !== null)
-    ) {
-      try {
-        setTimeout(async () => {
-          if (canLogin) {
-            const { success, signature } = await RNBiometrics.createSignature({
-              promptMessage: 'Authenticate',
-              payload: biometricEnabledAppId ?? appId,
-              cancelButtonText: common.usePin,
-            });
-            if (success) {
-              setIsBiometric(true);
-              setLoginModal(true);
-              setLogging(true);
-              setLoginError(false);
-              dispatch(
-                credsAuth(signature, LoginMethod.BIOMETRIC, false, biometricEnabledAppId ?? appId)
-              );
-            }
-          }
-        }, 200);
-      } catch (error) {
-        //
-        console.log(error);
-      }
-    }
-  };
-
   const onPressNumber = (text) => {
-    let tmpPasscode = passcode;
-    if (passcode.length < 4) {
-      if (text !== 'x') {
-        tmpPasscode += text;
-        setPasscode(tmpPasscode);
-      }
-    }
-    if (passcode && text === 'x') {
-      setPasscode(passcode.slice(0, -1));
+    if (text === 'x') {
+      setPasscode((current) => current.slice(0, -1));
       setLoginError(false);
+    } else {
+      setPasscode((current) => (current.length < 4 ? current + text : current));
     }
   };
 
-  const onDeletePressed = (text) => {
-    setPasscode(passcode.slice(0, passcode.length - 1));
+  const onDeletePressed = () => {
+    setPasscode((current) => current.slice(0, -1));
   };
 
   useEffect(() => {
@@ -267,8 +299,14 @@ function LoginScreen({ navigation, route }) {
     }
   }, [isAuthenticated, internalCheck]);
 
+  useEffect(() => {
+    if (isAuthenticated && !internalCheck) void loginModalAction();
+  }, [isAuthenticated, internalCheck]);
+
   const loginModalAction = async () => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !completedLogin.current) {
+      completedLogin.current = true;
+      setLogging(false);
       setLoginModal(false);
       if (relogin) {
         navigation.navigate({
@@ -283,9 +321,12 @@ function LoginScreen({ navigation, route }) {
         navigation.reset({ index: 0, routes: [{ name: 'NewKeeperApp' }] });
       }
       dispatch(credsAuthenticated(false));
-      const res = await Relay.getAccountManagerDetails(appId);
-      if (res) dispatch(setAccountManagerDetails(res));
-      else dispatch(setAccountManagerDetails(null));
+      try {
+        const res = await Relay.getAccountManagerDetails(appId);
+        dispatch(setAccountManagerDetails(res || null));
+      } catch {
+        dispatch(setAccountManagerDetails(null));
+      }
     }
   };
 
@@ -408,9 +449,9 @@ function LoginScreen({ navigation, route }) {
     dispatch(setSubscription(updatedSubscription.name));
     dispatch(setOfflineStatus(true));
     // disable assisted server backup for pleb
-    dispatch(setAutomaticCloudBackup(false));
+    dispatch(setAutomaticCloudBackup({ appId: app.id, enabled: false }));
     dispatch(setPlebDueToOffline(true));
-    dispatch(setAutoUpdateEnabledBeforeDowngrade(automaticCloudBackup));
+    dispatch(setAutoUpdateEnabledBeforeDowngrade({ appId: app.id, enabled: automaticCloudBackup }));
     navigation.replace('App');
   }
 

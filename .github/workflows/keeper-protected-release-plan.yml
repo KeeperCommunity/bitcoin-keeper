@@ -1,0 +1,100 @@
+name: Protected release preparation (no signing or upload)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full reviewed immutable candidate commit
+        required: true
+      release_ref:
+        description: Protected release/version branch at that exact commit
+        required: true
+      operation:
+        description: Operation to prepare; this workflow cannot execute it
+        type: choice
+        options: [ios-signed-build, android-signed-build, testflight-upload, play-internal-upload]
+        required: true
+      version:
+        description: Exact marketing version
+        required: true
+      build:
+        description: Exact platform build counter
+        required: true
+      artifact_sha256:
+        description: Artifact digest for upload preparation; pending for signed-build preparation
+        required: true
+        default: pending
+      approval_comment_id:
+        description: Existing owner approval comment ID with exact scope and expiry
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  statuses: read
+  issues: read
+
+concurrency:
+  group: keeper-protected-release-preparation
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      environment: ${{ steps.plan.outputs.environment }}
+    steps:
+      - name: Checkout installed trusted driver
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: driver
+          persist-credentials: false
+      - name: Use the reviewed Node runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22.23.3'
+      - name: Validate request before candidate checkout
+        env:
+          KEEPER_SOURCE_SHA: ${{ inputs.source_sha }}
+          KEEPER_RELEASE_REF: ${{ inputs.release_ref }}
+          KEEPER_OPERATION: ${{ inputs.operation }}
+          KEEPER_VERSION: ${{ inputs.version }}
+          KEEPER_BUILD: ${{ inputs.build }}
+          KEEPER_ARTIFACT_SHA256: ${{ inputs.artifact_sha256 }}
+          KEEPER_APPROVAL_COMMENT_ID: ${{ inputs.approval_comment_id }}
+        run: |
+          node -e "require('./driver/scripts/protected-release-plan.cjs').requestFromEnvironment(process.env)" 2>/dev/null || { echo 'Invalid preparation request'; exit 1; }
+      - name: Read candidate files without executing candidate scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Check exact source, owner receipt and protected setup
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEPER_CANDIDATE_PATH: candidate
+          KEEPER_SOURCE_SHA: ${{ inputs.source_sha }}
+          KEEPER_RELEASE_REF: ${{ inputs.release_ref }}
+          KEEPER_OPERATION: ${{ inputs.operation }}
+          KEEPER_VERSION: ${{ inputs.version }}
+          KEEPER_BUILD: ${{ inputs.build }}
+          KEEPER_ARTIFACT_SHA256: ${{ inputs.artifact_sha256 }}
+          KEEPER_APPROVAL_COMMENT_ID: ${{ inputs.approval_comment_id }}
+        run: node driver/scripts/protected-release-plan.cjs
+
+  protected-plan:
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: ${{ needs.authorize.outputs.environment }}
+    permissions: {}
+    steps:
+      - name: Record preparation boundary
+        run: |
+          echo 'Protected authorization plan prepared. Signing and upload workers are NOT IMPLEMENTED.'
+          echo 'Artifact bytes/signatures remain unverified. No release action is permitted or executed here.'

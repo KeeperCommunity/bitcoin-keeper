@@ -3,7 +3,7 @@ import Text from 'src/components/KeeperText';
 
 import { Box, useColorMode, Pressable, HStack } from '@gluestack-ui/themed-native-base';
 import { ScrollView, StyleSheet, Vibration, TouchableOpacity, TextInput } from 'react-native';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import Buttons from 'src/components/Buttons';
 
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -96,6 +96,8 @@ function ReceiveScreen({ route }: { route }) {
   const [addressUsed, setAddressUsed] = useState(false);
 
   const dispatch = useAppDispatch();
+  const selectedAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(selectedAppId).current;
 
   const { showToast } = useToastMessage();
 
@@ -111,7 +113,7 @@ function ReceiveScreen({ route }: { route }) {
   const [localCurrencyKind, setLocalCurrencyKind] = useState(currentCurrency);
 
   const generateNewReceiveAddress = () => {
-    dispatch(generateNewAddress(wallet));
+    dispatch(generateNewAddress(wallet, originAppId));
     Vibration.vibrate(50);
     const newTotalAddressesCount = totalAddressesCount + 1;
     setTotalAddressesCount(newTotalAddressesCount);

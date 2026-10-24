@@ -1,0 +1,67 @@
+name: Keeper release origin contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/keeper-release-origin-contracts.yml'
+      - '.github/native/public_software_receipts.cjs'
+      - '.github/native/strict_json.cjs'
+      - '.github/tests/strict-json.test.cjs'
+      - '.github/native/public_companion_receipts.cjs'
+      - '.github/tests/public-software-receipts.test.cjs'
+      - '.github/tests/public-companion-receipts.test.cjs'
+      - '.github/tests/fixtures/**'
+      - 'scripts/trusted-release-origin*'
+      - 'scripts/codeql-analysis-receipt*'
+      - '.github/workflows/codeql.yml'
+      - 'docs/r5-trusted-release-origin.md'
+      - '.github/scripts/verify-ci-source.cjs'
+      - '.github/tests/ci-source-identity.test.cjs'
+      - '.github/tests/contract-source-identity.test.cjs'
+  push:
+    paths:
+      - '.github/workflows/keeper-release-origin-contracts.yml'
+      - '.github/native/public_software_receipts.cjs'
+      - '.github/native/strict_json.cjs'
+      - '.github/tests/strict-json.test.cjs'
+      - '.github/native/public_companion_receipts.cjs'
+      - '.github/tests/public-software-receipts.test.cjs'
+      - '.github/tests/public-companion-receipts.test.cjs'
+      - '.github/tests/fixtures/**'
+      - 'scripts/trusted-release-origin*'
+      - 'scripts/codeql-analysis-receipt*'
+      - '.github/workflows/codeql.yml'
+      - 'docs/r5-trusted-release-origin.md'
+      - '.github/scripts/verify-ci-source.cjs'
+      - '.github/tests/ci-source-identity.test.cjs'
+      - '.github/tests/contract-source-identity.test.cjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-origin-contracts-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contracts:
+    name: Mocked read-only provenance contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out contract source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.23.3'
+      - name: Verify exact event source before checks
+        run: node .github/scripts/verify-ci-source.cjs
+      - name: Test fake API and bounded artifact evidence
+        run: node --test scripts/trusted-release-origin.test.cjs scripts/codeql-analysis-receipt.test.cjs scripts/protected-release-plan.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs
+      - name: Verify exact source after checks
+        if: always()
+        run: node .github/scripts/verify-ci-source.cjs

@@ -2,7 +2,7 @@ import { Box, Modal, useColorMode } from '@gluestack-ui/themed-native-base';
 import { ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
 import CloseGreen from 'src/assets/images/dark-close-icon.svg';
-import React from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Text from 'src/components/KeeperText';
 import { useKeyboard } from 'src/hooks/useKeyboard';
@@ -17,6 +17,8 @@ import { default as RNModal } from 'react-native-modal';
 type ModalProps = {
   visible: boolean;
   close: any;
+  // eslint-disable-next-line react/require-default-props -- Omitted lifecycle callback has no side effect.
+  onModalHide?: () => void;
   title?: string;
   subTitle?: string;
   subTitleWidth?: number;
@@ -52,6 +54,7 @@ function KeeperModal(props: ModalProps) {
   const {
     visible,
     close,
+    onModalHide,
     title = '',
     subTitle = null,
     subTitleWidth = windowWidth * 0.7,
@@ -87,8 +90,23 @@ function KeeperModal(props: ModalProps) {
   const maxModalHeight = Math.min(availableHeight, screenHeight * 0.85);
   const { colorMode } = useColorMode();
   const isDarKMode = colorMode === 'dark';
+  const [keepMountedForHide, setKeepMountedForHide] = useState(visible);
+  const hidePending = useRef(false);
 
-  if (!visible) {
+  useLayoutEffect(() => {
+    if (visible) {
+      hidePending.current = true;
+      setKeepMountedForHide(true);
+    }
+  }, [visible]);
+
+  useEffect(() => () => {
+    hidePending.current = false;
+  }, []);
+
+  // Existing callers still unmount immediately. Opted-in callers need RNModal to
+  // receive isVisible=false and finish its native close before the next screen.
+  if (!visible && (!onModalHide || !keepMountedForHide)) {
     return null;
   }
   const getCloseIcon = () => (DarkCloseIcon ? <CloseGreen /> : <ThemedSvg name={'close_icon'} />);
@@ -98,10 +116,19 @@ function KeeperModal(props: ModalProps) {
     <RNModal
       isVisible={visible}
       onSwipeComplete={close}
+      onModalHide={() => {
+        if (visible || !hidePending.current) return;
+        hidePending.current = false;
+        setKeepMountedForHide(false);
+        onModalHide?.();
+      }}
       style={styles.modalContainer}
       avoidKeyboard
     >
       <Box
+        pointerEvents={visible ? 'auto' : 'none'}
+        accessibilityElementsHidden={!visible}
+        importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
         backgroundColor={
           modalBackground === 'primaryBackground'
             ? `${colorMode}.modalWhiteBackground`

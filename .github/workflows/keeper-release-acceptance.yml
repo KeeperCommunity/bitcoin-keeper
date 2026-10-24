@@ -1,0 +1,85 @@
+name: Keeper release acceptance
+
+on:
+  pull_request:
+    branches: [sprint]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+  checks: read
+
+concurrency:
+  group: keeper-release-acceptance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  provenance:
+    name: Reviewed CI bootstrap and exact-head provenance
+    # Freeze the existing R4 release and its gate, even after future CI installation.
+    if: github.event.pull_request.number != 7045
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      trusted: ${{ steps.check.outputs.trusted }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - id: check
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { preflight } = require('./.github/native/release_preflight.cjs');
+            const result = await preflight(github, context);
+            core.setOutput('trusted', String(result.trusted));
+            await core.summary.addHeading('Phase A provenance').addRaw(result.reason).write();
+
+  ios:
+    needs: provenance
+    if: toJSON(github.event.pull_request.draft) == 'false' && !contains(github.event.pull_request.labels.*.name, 'keeper/legacy-native') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && needs.provenance.outputs.trusted == 'true'
+    uses: ./.github/workflows/keeper-native-platform.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha }}
+      platform: IOS
+
+  android:
+    needs: [provenance, ios]
+    if: toJSON(github.event.pull_request.draft) == 'false' && !contains(github.event.pull_request.labels.*.name, 'keeper/legacy-native') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && needs.provenance.outputs.trusted == 'true'
+    uses: ./.github/workflows/keeper-native-platform.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha }}
+      platform: ANDROID
+
+  acceptance:
+    name: Phase A release acceptance (incomplete matrix blocks)
+    needs: [provenance, ios, android]
+    if: always() && github.event.pull_request.number != 7045
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          IOS_RESULT: ${{ needs.ios.result }}
+          ANDROID_RESULT: ${{ needs.android.result }}
+        with:
+          script: |
+            const { preflight } = require('./.github/native/release_preflight.cjs');
+            const { acceptance, markdown } = require('./.github/native/release_acceptance.cjs');
+            const { softwareEvidence } = require('./.github/native/release_evidence.cjs');
+            const verified = await preflight(github, context);
+            const publicSoftware = verified.trusted ? await softwareEvidence(github, context, {
+              ios: process.env.IOS_RESULT, android: process.env.ANDROID_RESULT,
+              attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+              workflowSha: process.env.GITHUB_WORKFLOW_SHA, workflowRef: process.env.GITHUB_WORKFLOW_REF }) : null;
+            const result = acceptance({ publicSoftware,
+              ios: process.env.IOS_RESULT, android: process.env.ANDROID_RESULT });
+            await core.summary.addRaw(markdown(result)).write();
+            if (!result.software_complete) core.setFailed('BLOCKED: full raw software composition is NOT VERIFIED; no release approval');

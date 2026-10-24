@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Enter your passcode
+    timeout: 60000
+- runFlow: product_vault_pin.yaml
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_${WALLET_COUNT}
+    timeout: 60000
+- assertVisible: Mobile Wallet

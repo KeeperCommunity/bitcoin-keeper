@@ -6,6 +6,7 @@ import {
   FlatList,
   Dimensions,
   BackHandler,
+  Platform,
 } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
@@ -18,6 +19,7 @@ import { KEEPER_KNOWLEDGEBASE } from 'src/utils/service-utilities/config';
 import useIsSmallDevices from 'src/hooks/useSmallDevices';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { observeOnboardingBoundary } from 'src/utils/onboarding-boundary-observer';
 
 const { width } = Dimensions.get('window');
 
@@ -50,6 +52,7 @@ function OnBoardingSlides({ navigation }) {
   ]);
 
   useEffect(() => {
+    observeOnboardingBoundary('ONBOARDING_EFFECT');
     const backAction = () => true;
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => backHandler.remove();
@@ -70,7 +73,23 @@ function OnBoardingSlides({ navigation }) {
         <Box justifyContent="center" mr={4} mt={windowHeight > 715 ? 5 : 2} height={10}>
           {currentPosition !== 2 && (
             <TouchableOpacity
-              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'NewKeeperApp' }] })}
+              {...(typeof __DEV__ !== 'undefined' && __DEV__ && Platform.OS === 'android'
+                ? {
+                    onPressIn: () => observeOnboardingBoundary('SKIP_PRESS_IN'),
+                    onPressOut: () => observeOnboardingBoundary('SKIP_PRESS_OUT'),
+                  }
+                : {})}
+              onPress={() => {
+                observeOnboardingBoundary('SKIP_PRESS');
+                try {
+                  const result = navigation.reset({ index: 0, routes: [{ name: 'NewKeeperApp' }] });
+                  observeOnboardingBoundary('SKIP_RESET_RETURNED');
+                  return result;
+                } catch (error) {
+                  observeOnboardingBoundary('SKIP_RESET_THROWN');
+                  throw error;
+                }
+              }}
               style={styles.skipTextWrapper}
               testID="btn_skip"
             >

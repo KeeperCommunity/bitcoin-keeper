@@ -117,7 +117,7 @@ function RemoteSharing({ route }: ScreenProps) {
       if (res?.id) {
         const result = await Share.share({
           title: RemoteShareText[mode].msgTitle,
-          message: `${RemoteShareText[mode].msgDesc}\nhttps://bitcoinkeeper.app/${
+          message: `${RemoteShareText[mode].msgDesc}\nhttps://www.bitcoinkeeper.app/${
             DeepLinkIdentifier[config.ENVIRONMENT]
           }/remote/${encryptionKey}`,
         });

@@ -1,0 +1,35 @@
+# Loaded from a disposable directory with no legacy Appfile or callbacks.
+# This adapter uploads only already verified bytes; it never builds/signs.
+default_platform(:ios)
+
+def verified_artifact!(operation, suffix)
+  UI.user_error!("Wrong approved operation") unless ENV['KEEPER_RELEASE_OPERATION'] == operation
+  path = ENV['KEEPER_VERIFIED_ARTIFACT'].to_s
+  UI.user_error!("Missing verified artifact") unless File.file?(path) && File.extname(path) == suffix
+  path
+end
+
+platform :ios do
+  lane :approved_upload do
+    artifact = verified_artifact!('testflight-upload', '.ipa')
+    %w[KEEPER_ASC_KEY_ID KEEPER_ASC_ISSUER_ID KEEPER_ASC_KEY_BASE64].each do |name|
+      UI.user_error!("Missing approved App Store Connect credential") if ENV[name].to_s.empty?
+    end
+    key = app_store_connect_api_key(key_id: ENV['KEEPER_ASC_KEY_ID'], issuer_id: ENV['KEEPER_ASC_ISSUER_ID'],
+                                   key_content: ENV['KEEPER_ASC_KEY_BASE64'], is_key_content_base64: true, in_house: false)
+    upload_to_testflight(ipa: artifact, app_identifier: 'io.hexawallet.keeper', api_key: key,
+                         skip_submission: true, distribute_external: false, notify_external_testers: false,
+                         skip_waiting_for_build_processing: true)
+  end
+end
+
+platform :android do
+  lane :approved_upload do
+    artifact = verified_artifact!('play-internal-upload', '.aab')
+    UI.user_error!("Missing approved Play credential") if ENV['KEEPER_PLAY_SERVICE_ACCOUNT'].to_s.empty?
+    upload_to_play_store(aab: artifact, package_name: 'io.hexawallet.bitcoinkeeper',
+                         json_key_data: ENV['KEEPER_PLAY_SERVICE_ACCOUNT'], track: 'internal', release_status: 'draft',
+                         skip_upload_metadata: true, skip_upload_images: true, skip_upload_screenshots: true,
+                         changes_not_sent_for_review: true)
+  end
+end
