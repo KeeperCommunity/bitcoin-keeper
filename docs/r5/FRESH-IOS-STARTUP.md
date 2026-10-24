@@ -1,5 +1,23 @@
 # First launch on a fresh iOS simulator
 
+## Pinned upstream driver CI budget
+
+The dc4239 diagnostic built and verified the app, then failed before any app
+launch or UI command because Maestro's XCUITest driver never answered its
+status check within the default120s. This proves a driver-readiness timeout,
+not an app fault or that a longer budget is the sole remedy.
+
+[Pinned Maestro2.11 CI](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/.github/workflows/test-e2e-ios-intel.yaml)
+uses macos-15-intel, iPhone16/iOS18.5 and
+MAESTRO_DRIVER_STARTUP_TIMEOUT=240000, while its SDK default is120000ms.
+The harness applies that documented setting only to its verified Maestro child
+on iOS and adds exactly120s to the outer process setup allowance. Metadata
+records the configured SDK/setup budget separately from actual command
+exit/duration and observed driver-status markers. App UI waits, product
+metrics/performance thresholds, test counts, canonical authority and Android
+timeouts remain unchanged. This is one bounded CI configuration alignment,
+not an app pass, identical-source retry or release acceptance.
+
 This source proposal starts from frozen dependency-diagnostic commit
 `18329359f8e7e56a03dfd28834c114102e245ded`. The active dependency-only run
 and its source are unchanged. Native execution on this proposal is **NOT RUN**.

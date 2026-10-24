@@ -458,7 +458,24 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
     """Record exact nonsecret argv and status; keep all process output private."""
     PRIVATE.mkdir(parents=True, exist_ok=True)
     data = read()
+    child_env = None
+    maestro = data.get('maestro', {})
+    if PLATFORM == 'IOS' and args and args[0] == maestro.get('binary'):
+        if maestro.get('version') != MAESTRO_VERSION or maestro.get('sha256') != MAESTRO_SHA256:
+            raise ValueError('Expected the verified pinned Maestro.')
+        # cli-2.11.0's own macos-15-intel CI uses 240000ms, while its SDK
+        # defaults to 120000ms. Budget only the extra driver setup time;
+        # flow waits, product metrics and Android remain unchanged.
+        child_env = os.environ.copy()
+        child_env['MAESTRO_DRIVER_STARTUP_TIMEOUT'] = '240000'
+        driver_setup = {'configured_timeout_ms': 240000, 'sdk_default_timeout_ms': 120000,
+            'outer_setup_margin_seconds': 120, 'base_process_timeout_seconds': timeout,
+            'scope': 'IOS_DRIVER_SETUP_ONLY_NOT_UI_WAIT_OR_PERFORMANCE'}
+        timeout += 120
     entry = {'label': label, 'command': args, 'timeout_seconds': timeout}
+    if child_env is not None:
+        entry['maestro_driver_setup'] = driver_setup
+        print('IOS_MAESTRO_DRIVER_SETUP_BUDGET_MS=240000;OUTER_SETUP_MARGIN_SECONDS=120', flush=True)
     data['commands'].append(entry)
     save(data)
     started = time.monotonic()
@@ -467,7 +484,7 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
     try:
         with output_file.open('wb') as output:
             proc = subprocess.Popen(args, cwd=cwd, stdout=output, stderr=subprocess.STDOUT,
-                                    start_new_session=True)
+                                    start_new_session=True, env=child_env)
             try:
                 code = proc.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
