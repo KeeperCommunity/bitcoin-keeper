@@ -75,6 +75,11 @@ class PodDiagnostics(unittest.TestCase):
             ('[!] CocoaPods could not find compatible versions PRIVATE_SENTINEL', 'POD_LOCK_CONFLICT'),
             ('[!] Unable to find a specification PRIVATE_SENTINEL', 'POD_SPEC_UNAVAILABLE'),
             ('[!] Invalid Podfile: NoMethodError PRIVATE_SENTINEL', 'RUBY_TOOL_FAILURE'),
+            ('Bundler::GemNotFound PRIVATE_SENTINEL', 'RUBY_BUNDLE_RESOLUTION_FAILURE'),
+            ('Bundler::VersionConflict PRIVATE_SENTINEL', 'RUBY_BUNDLE_RESOLUTION_FAILURE'),
+            ('Bundler::GemfileNotFound PRIVATE_SENTINEL', 'RUBY_BUNDLE_RESOLUTION_FAILURE'),
+            ('ROOT_BUNDLE_CONTEXT_MISMATCH PRIVATE_SENTINEL', 'RUBY_BUNDLE_CONTEXT_MISMATCH'),
+            ('ROOT_BUNDLE_VERSION_MISMATCH PRIVATE_SENTINEL', 'RUBY_BUNDLE_VERSION_MISMATCH'),
             ('HTTP/2 404 PRIVATE_SENTINEL', 'DEPENDENCY_HTTP_CLIENT_FAILURE'),
             ('CDN: trunk URL couldn\'t be downloaded PRIVATE_SENTINEL', 'DEPENDENCY_DOWNLOAD_FAILURE'),
         ]:
@@ -147,10 +152,14 @@ class PodDiagnostics(unittest.TestCase):
 
     def test_prepare_reuses_frozen_bundle_and_dependency_only_stops_before_native_tools(self):
         (self.root / 'package.json').write_text('{}')
+        # A real conflicting nested Gemfile must never become the selected
+        # bundle merely because the subsequent command changes working dir.
+        (self.root / 'ios/Gemfile').write_text("source 'https://rubygems.org'\ngem 'fastlane', '~> 2.238.0'\n")
+        (self.root / 'ios/Gemfile.lock').write_text('unrelated-nested-lock')
         for only in (False, True):
             calls = []
             def command(args, label, *unused, **kwargs):
-                calls.append((args, label))
+                calls.append((args, label, kwargs.get('cwd'), os.environ.get('BUNDLE_GEMFILE')))
             with self.native_context(), mock.patch.dict(os.environ, {
                     'KEEPER_DIAGNOSTIC': 'true', 'KEEPER_DEPENDENCIES_ONLY': str(only).lower(),
                     'KEEPER_POD_LOCK_REPAIR': ''}), \
@@ -164,10 +173,19 @@ class PodDiagnostics(unittest.TestCase):
                 result = native.read()
                 self.assertEqual(os.environ['BUNDLE_FROZEN'], 'true')
                 self.assertEqual(os.environ['BUNDLE_PATH'], str(native.PRIVATE / 'ruby-gems'))
+                self.assertEqual(os.environ['BUNDLE_GEMFILE'], str(self.root / 'Gemfile'))
             args = [call[0] for call in calls]
             self.assertIn(['bundle', 'install', '--jobs', '4', '--retry', '1'], args)
             self.assertIn(['bundle', 'check'], args)
             self.assertIn(['bundle', 'exec', 'pod', 'install', '--deployment'], args)
+            context = next(call for call in calls if call[1] == 'Verify actual root Ruby bundle context')
+            pod = next(call for call in calls if call[1] == 'Install immutable CocoaPods dependencies')
+            self.assertEqual(context[2:], (self.root / 'ios', str(self.root / 'Gemfile')))
+            self.assertEqual(pod[2:], (self.root / 'ios', str(self.root / 'Gemfile')))
+            self.assertEqual(context[0], ['bundle', 'exec', 'ruby',
+                str(self.root / '.github/native/verify_ruby_context.rb'),
+                str(self.root / 'Gemfile'), str(self.root / 'Gemfile.lock')])
+            self.assertEqual(result['frozen_ruby_context']['status'], 'PASS')
             self.assertFalse(any(arg[0] == 'gem' or arg[0] == 'pod' for arg in args))
             self.assertEqual(maestro.call_count, 0 if only else 1)
             self.assertEqual(any(arg[0] == 'sudo' for arg in args), not only)

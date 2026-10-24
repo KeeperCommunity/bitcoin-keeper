@@ -503,7 +503,7 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
 
 def dependency_command(args, label, stage, timeout=900, cwd=ROOT):
     """Observe the existing private output before it disappears with the runner."""
-    if stage not in ('RUBY_BUNDLE', 'PODS_DEPLOYMENT'):
+    if stage not in ('RUBY_BUNDLE', 'RUBY_CONTEXT', 'PODS_DEPLOYMENT'):
         raise ValueError('Unsupported dependency observation stage.')
     spec = importlib.util.spec_from_file_location('pod_diagnostics',
         Path(__file__).with_name('pod_diagnostics.py'))
@@ -686,10 +686,20 @@ def prepare():
     if PLATFORM == 'IOS':
         # Reuse the repository's frozen Ruby route, including transitive pins.
         # Bare gem install/pod bypassed Gemfile.lock even with a pinned top-level gem.
-        os.environ.update({'BUNDLE_FROZEN': 'true', 'BUNDLE_PATH': str(PRIVATE / 'ruby-gems')})
+        os.environ.update({'BUNDLE_FROZEN': 'true', 'BUNDLE_PATH': str(PRIVATE / 'ruby-gems'),
+                           'BUNDLE_GEMFILE': str(ROOT / 'Gemfile')})
         dependency_command(['bundle', 'install', '--jobs', '4', '--retry', '1'],
                 'Install frozen Ruby dependencies', 'RUBY_BUNDLE')
         command(['bundle', 'check'], 'Verify frozen Ruby dependencies', timeout=120)
+        # This repository also has ios/Gemfile. Check the actual runtime from
+        # the pod command's cwd so Bundler cannot silently select that bundle.
+        dependency_command(['bundle', 'exec', 'ruby', str(ROOT / '.github/native/verify_ruby_context.rb'),
+                str(ROOT / 'Gemfile'), str(ROOT / 'Gemfile.lock')],
+                'Verify actual root Ruby bundle context', 'RUBY_CONTEXT', timeout=120, cwd=ROOT / 'ios')
+        data = read()
+        data['frozen_ruby_context'] = {'status': 'PASS', 'gemfile': 'ROOT_GEMFILE',
+            'lockfile': 'ROOT_GEMFILE_LOCK', 'cocoapods': '1.16.2', 'xcodeproj': '1.27.0'}
+        save(data)
         if os.environ.get('KEEPER_POD_LOCK_REPAIR') == '1':
             # Diagnostic bootstrap only. A candidate lock is reviewed/committed,
             # then a separate strict deployment run must build and test the app.
@@ -718,7 +728,8 @@ def prepare():
         save(data)
     if (ROOT / 'package.json').read_bytes() != installed_manifest:
         raise RuntimeError('Native installation unexpectedly rewrote the installed manifest.')
-    command(['git', 'diff', '--exit-code', 'HEAD', '--', 'yarn.lock', 'ios/Podfile.lock'],
+    command(['git', 'diff', '--exit-code', 'HEAD', '--', '.github/native', '.github/workflows',
+             'Gemfile', 'Gemfile.lock', 'ios/Gemfile', 'ios/Gemfile.lock', 'yarn.lock', 'ios/Podfile.lock'],
             'Verify native installation did not rewrite locks')
     if dependencies_only:
         data = read()
