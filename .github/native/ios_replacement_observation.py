@@ -64,6 +64,24 @@ def unknown(stage='NOT_RUN'):
             'scope': 'POST_FAILURE_CURRENT_INSTANCE_NOT_LAUNCH_CAUSE_OR_ACCEPTANCE'}
 
 
+def owned_observation_bundle_path(native, value, device, built):
+    """Admit the pinned producer's name without changing acceptance policy.
+
+    Maestro 2.11 LocalSimulatorUtils.kt:260 copies clearState's replacement to
+    "$bundleId-${System.currentTimeMillis()}.app". Only the validation
+    descriptor's basename differs; all existing owned-device/container/realpath
+    checks are reused. The actual built path/inventory is never substituted.
+    """
+    installed = Path(value)
+    descriptor = built
+    if installed.name != built.name:
+        if (getattr(native, 'MAESTRO_VERSION', None) != 'cli-2.11.0' or
+                not re.fullmatch(re.escape(APP) + r'-[1-9][0-9]{12}\.app', installed.name)):
+            raise ValueError('Unsupported replacement bundle name.')
+        descriptor = built.with_name(installed.name)
+    return native.owned_ios_bundle_path(value, device, descriptor)
+
+
 def collect(native, device):
     result = unknown()
     stage = 'DEVICE_POLICY'
@@ -85,7 +103,7 @@ def collect(native, device):
         if status != 'EXIT_ZERO':
             return {**result, 'stage': stage}
         stage = 'INSTALLED_CONTAINER_POLICY'
-        installed = native.owned_ios_bundle_path(payload.decode('utf-8').strip(), device, built)
+        installed = owned_observation_bundle_path(native, payload.decode('utf-8').strip(), device, built)
         stage = 'INSTALLED_INVENTORY'
         actual, actual_executable = native._bundle_inventory(installed)
         result['bytes'] = 'MATCH' if (original, executable) == (actual, actual_executable) else 'MISMATCH'
@@ -112,7 +130,7 @@ def collect(native, device):
         result['queries']['final_container'] = status
         if status != 'EXIT_ZERO':
             return unknown(stage)
-        final = native.owned_ios_bundle_path(payload.decode('utf-8').strip(), device, built)
+        final = owned_observation_bundle_path(native, payload.decode('utf-8').strip(), device, built)
         stage = 'INSTALLED_STABILITY'
         if final != installed or native._bundle_inventory(final) != (actual, actual_executable):
             return unknown(stage)

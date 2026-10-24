@@ -48,7 +48,7 @@ class ReplacementObservation(unittest.TestCase):
         self.state = {'smoke': 'FAIL', 'installed_artifact_verified': True,
             'built_artifact': {'PRIVATE_SENTINEL': 'immutable'}}
         self.original = copy.deepcopy(self.state)
-        self.native = SimpleNamespace(PLATFORM='IOS', PRIVATE=self.private,
+        self.native = SimpleNamespace(PLATFORM='IOS', PRIVATE=self.private, MAESTRO_VERSION=hosted.MAESTRO_VERSION,
             read=lambda: self.state, artifact_identity=mock.Mock(return_value=self.state['built_artifact']),
             _bundle_inventory=hosted._bundle_inventory, owned_ios_bundle_path=hosted.owned_ios_bundle_path)
 
@@ -91,6 +91,63 @@ class ReplacementObservation(unittest.TestCase):
         result = self.collect()
         self.assertEqual(result['bytes'], 'MISMATCH')
         self.assertEqual((result['built_internal_links'], result['installed_internal_links']), (1, 0))
+
+    def test_pinned_maestro_timestamped_name_is_observed_but_canonical_acceptance_stays_strict(self):
+        replacement = self.installed.with_name(observe.APP + '-1792838180000.app')
+        self.installed.rename(replacement)
+        self.installed = replacement
+        result = self.collect()
+        self.assertEqual((result['state'], result['bytes'], result['signature'], result['entitlements']),
+                         ('OBSERVED', 'MATCH', 'VERIFIED', 'MATCH'))
+        with mock.patch.object(hosted.Path, 'home', return_value=self.home), self.assertRaises(ValueError):
+            hosted.owned_ios_bundle_path(str(self.installed), DEVICE, self.built)
+
+    def test_timestamped_name_requires_exact_owned_id_ascii_milliseconds_and_pinned_tool(self):
+        original = self.installed
+        for name in ('Foreign-1792838180000.app', observe.APP + '-179283818000.app',
+                observe.APP + '-17928381800000.app', observe.APP + '-0000000000000.app',
+                observe.APP + '-1792838180000.app.extra', observe.APP + '-1792838180000.app\n',
+                observe.APP + '-１７９２８３８１８００００.app'):
+            target = original.with_name(name)
+            self.installed.rename(target); self.installed = target
+            self.assertEqual(self.collect()['stage'], 'INSTALLED_CONTAINER_POLICY')
+            self.installed.rename(original); self.installed = original
+        target = original.with_name(observe.APP + '-1792838180000.app')
+        self.installed.rename(target); self.installed = target
+        self.native.MAESTRO_VERSION = 'cli-future'
+        self.assertEqual(self.collect()['stage'], 'INSTALLED_CONTAINER_POLICY')
+
+    def test_timestamped_name_does_not_admit_foreign_devices_or_symlink_escape(self):
+        original = self.installed
+        alias = original.with_name(observe.APP + '-1792838180000.app')
+        outside = self.private / 'outside.app'
+        shutil.copytree(self.built, outside, symlinks=True)
+        alias.symlink_to(outside, target_is_directory=True)
+        self.installed = alias
+        self.assertEqual(self.collect()['stage'], 'INSTALLED_CONTAINER_POLICY')
+        alias.unlink()
+        self.installed = original
+        foreign = self.home / 'Library/Developer/CoreSimulator/Devices' / CONTAINER / 'data/Containers/Bundle/Application' / CONTAINER / alias.name
+        shutil.copytree(self.built, foreign, symlinks=True)
+        self.installed = foreign
+        self.assertEqual(self.collect()['stage'], 'INSTALLED_CONTAINER_POLICY')
+
+    def test_late_timestamped_name_change_discards_all_conclusions(self):
+        first = self.installed.with_name(observe.APP + '-1792838180000.app')
+        self.installed.rename(first); self.installed = first
+        second = first.with_name(observe.APP + '-1792838180001.app')
+        shutil.copytree(self.built, second, symlinks=True)
+        calls = 0
+        def changing(private, args):
+            nonlocal calls
+            if args[0] == 'xcrun':
+                calls += 1
+                if calls == 2:
+                    return 'EXIT_ZERO', str(second).encode()
+            return self.tool(private, args)
+        result = self.collect(changing)
+        self.assertEqual((result['state'], result['stage'], result['bytes'], result['signature']),
+                         ('UNKNOWN', 'INSTALLED_STABILITY', 'UNKNOWN', 'UNKNOWN'))
 
     def test_missing_foreign_and_aliased_containers_are_unknown_and_not_inspected(self):
         for target in (self.private / self.built.name, self.installed.parent / 'Foreign.app'):

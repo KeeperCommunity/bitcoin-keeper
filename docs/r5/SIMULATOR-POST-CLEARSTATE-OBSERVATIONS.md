@@ -14,8 +14,10 @@ built app. It checks the current instance with `codesign --verify --deep
 --strict`, observes ad-hoc identity, and compares complete typed effective
 entitlements to the unchanged simulator signing policy. It also counts internal
 links without exporting their targets. No bundle transformation is accepted as
-equivalent. The existing container admission policy is extracted unchanged and
-used by both the original acceptance comparison and this observer.
+equivalent. The canonical initial-install acceptance policy remains unchanged.
+The observer reuses its owned-device/container/realpath checks with the exact
+producer-admitted basename described below; actual inventories always use the
+original built app and the queried installed app.
 
 The final container path and inventory must still match the inspected instance,
 and the built artifact must still match the recorded input. A changed container,
@@ -40,6 +42,29 @@ does not change signing, app code, the startup flow or timeouts; it performs no
 retry or extra launch. The original failed smoke remains failed even if every
 new observation succeeds or the observer itself fails. Initial installed-byte
 metadata is not promoted or overwritten by this collector.
+
+## Timestamped replacement name
+
+The frozen `7c00dc22937f94111298350a767466354f239ba9` iOS-only run
+`40084560886/attempt1`, job `120844708599`, failed at `LAUNCH_APP` and
+returned `UNKNOWN / INSTALLED_CONTAINER_POLICY` from the post-failure observer.
+No replacement byte, signature or entitlement result was obtained. Its sole
+parsed code pair, `FBSOpenApplicationServiceErrorDomain / 1`, does not establish
+the underlying launch-denial cause.
+
+This exposed a diagnostic admission mismatch. Pinned Maestro 2.11
+[`LocalSimulatorUtils.kt:260`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-ios-driver/src/main/kotlin/util/LocalSimulatorUtils.kt#L260)
+copies the replacement to `$bundleId-${System.currentTimeMillis()}.app` before
+installing it. The original observer required the built app's basename and
+therefore rejected the producer's timestamped replacement before measuring it.
+
+The failure-only observer now admits the original basename or the fixed owned
+app ID followed by exactly 13 ASCII millisecond digits and `.app`, and requires
+the pinned `cli-2.11.0` producer for the latter. It retains the same owned device,
+container UUID, namespace and resolved-path checks. Foreign IDs, unsupported
+producer versions, other names, symlink escapes and late path/inventory changes
+remain unknown. This changes no canonical acceptance caller, normalizes no
+bundle content, performs no repair and supplies no app-cause or native pass.
 
 Host-side controls use real temporary trees and fake read-only tools. Native
 execution on this continuation is **NOT RUN**. The coordinator owns candidate
