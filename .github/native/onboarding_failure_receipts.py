@@ -6,7 +6,8 @@ LIMIT = 512 * 1024
 MAX_RECORDS = 10000
 MAX_MARKERS = 64
 PREFIX = 'KEEPER_ONBOARDING_BOUNDARY|'
-STAGES = ('ONBOARDING_EFFECT', 'SKIP_PRESS', 'SKIP_RESET_RETURNED',
+STAGES = ('ONBOARDING_EFFECT', 'SKIP_PRESS_IN', 'SKIP_PRESS_OUT',
+          'SKIP_PRESS', 'SKIP_RESET_RETURNED',
           'SKIP_RESET_THROWN', 'NEW_KEEPER_EFFECT')
 _FRAME = re.compile(
     r'(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01]) '
@@ -72,11 +73,12 @@ def parse(payload, owned_pids, *, usable=True, full_input=True):
         'state': 'UNKNOWN', 'cause': 'UNDETERMINED',
         'freshness': 'GUEST_CLOCK_UNVERIFIED',
         'coverage': 'POSITIVE_ONLY_MISSING_STAGES_UNKNOWN',
-        'producer_per_stage_limit': 4, 'producer_total_limit': 20,
+        'producer_per_stage_limit': 4, 'producer_total_limit': 28,
         'consumer_marker_limit': MAX_MARKERS, 'input_byte_limit': LIMIT,
         'scan_record_limit': MAX_RECORDS,
         'input_usable': usable is True, 'full_input': full_input is True,
         'ownership_usable': False, 'stages': {stage: None for stage in STAGES},
+        'ordered_stages': [],
         'scanned_records': 0, 'marker_records': 0, 'owned_marker_records': 0,
         'foreign_pid_records': 0, 'duplicate_records': 0,
         'malformed_marker_records': 0, 'unsupported_marker_records': 0,
@@ -138,6 +140,7 @@ def parse(payload, owned_pids, *, usable=True, full_input=True):
             continue
         result['owned_marker_records'] += 1
         stage = form[2]
+        result['ordered_stages'].append(stage)
         if result['stages'][stage] is True:
             result['duplicate_records'] += 1
         result['stages'][stage] = True

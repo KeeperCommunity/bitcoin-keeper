@@ -6,6 +6,7 @@ import {
   FlatList,
   Dimensions,
   BackHandler,
+  Platform,
 } from 'react-native';
 import Text from 'src/components/KeeperText';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
@@ -72,6 +73,12 @@ function OnBoardingSlides({ navigation }) {
         <Box justifyContent="center" mr={4} mt={windowHeight > 715 ? 5 : 2} height={10}>
           {currentPosition !== 2 && (
             <TouchableOpacity
+              {...(typeof __DEV__ !== 'undefined' && __DEV__ && Platform.OS === 'android'
+                ? {
+                    onPressIn: () => observeOnboardingBoundary('SKIP_PRESS_IN'),
+                    onPressOut: () => observeOnboardingBoundary('SKIP_PRESS_OUT'),
+                  }
+                : {})}
               onPress={() => {
                 observeOnboardingBoundary('SKIP_PRESS');
                 try {

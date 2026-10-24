@@ -2,6 +2,8 @@ import { Platform } from 'react-native';
 
 type OnboardingBoundaryStage =
   | 'ONBOARDING_EFFECT'
+  | 'SKIP_PRESS_IN'
+  | 'SKIP_PRESS_OUT'
   | 'SKIP_PRESS'
   | 'SKIP_RESET_RETURNED'
   | 'SKIP_RESET_THROWN'
@@ -9,6 +11,8 @@ type OnboardingBoundaryStage =
 
 const STAGES = [
   'ONBOARDING_EFFECT',
+  'SKIP_PRESS_IN',
+  'SKIP_PRESS_OUT',
   'SKIP_PRESS',
   'SKIP_RESET_RETURNED',
   'SKIP_RESET_THROWN',

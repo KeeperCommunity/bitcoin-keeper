@@ -29,3 +29,43 @@ All sixteen combinations including the driver-preflight label are covered by sel
 ## Source validation
 
 The targeted product receipt/PIN flow suite passed33Python controls, including one selected Skip command per supported platform, exact preservation of the remaining actions/markers/assertions and rejection of unrelated Skip labels. Diagnostic/draft/source-identity policy controls passed29Node tests, including all sixteen label combinations and a live preflight conflict rejection. Both diagnostic and unchanged reusable worker workflows passed actionlint1.7.12; shellcheck/pyflakes are unavailable locally. Diff checks and unchanged app/native/dependency/shared-worker/product-runner/full-flow fences passed. Independent review and native execution are pending.
+
+## Actual result and Skip delivery proposal
+
+Run [40105347015](https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/40105347015)
+on exact `9ffe2f417b31440c738e48c1d8eecdae2a0b9e28` passed build, startup,
+native persistence and scoped workers. Full-product sample 1 failed waiting for
+`start_new_tile` after `skip_tapped`; later samples and companions did not run.
+The post-assertion Skip bounds are not the actual resolved tap target. Original
+private logs were purged, so the old metadata cannot answer tap delivery.
+
+The isolated successor retains the existing tap, selector, deadlines, flow and
+navigation. It projects the pinned Maestro's already-written private per-flow
+debug log into one bounded initial Skip target/bounds and later intended driver point. It
+requires a unique matching completed Skip command before the failed Start New
+assertion and a unique source-defined selected-element/point log pair. Binding
+uses semantic log order; it does not join the log's timezone-free clock to
+command epoch timestamps. No PIN action, unrelated coordinate, raw element,
+message, hierarchy or log is exported. Invalid or ambiguous input stays unknown.
+The original private-output purge and original failure remain intact. Maestro
+may re-resolve the element between those two records; refreshed element bounds
+are not logged. A point outside the initial bounds is therefore an observation,
+not proof of a targeting defect. This proposal changes no engine option or
+physical-touch count.
+
+Two Android-development-only Skip callbacks emit fixed `SKIP_PRESS_IN` and
+`SKIP_PRESS_OUT` stages through the existing native marker hook. The consumer
+retains bounded fixed stage order alongside the original positive-only fields.
+No event payload is read. Release and iOS omit both callbacks. The original
+opacity callbacks, responder policy and navigation are unchanged. `onTouchStart`
+is omitted because pinned TouchableOpacity does not forward that prop. Seven
+stages retain four emissions each, at most 28 per JS process; the existing
+64-marker consumer limit is unchanged. Missing stages still cannot prove absence.
+
+The one-run question is: **For the existing single Skip action, what element and
+point did Maestro intend to tap, and which owned press/reset boundaries actually
+emitted?** A completed press, a terminated activation and a selector/point mismatch
+have different observable records. Driver intent alone does not prove Android
+delivered a touch; press release alone does not prove navigation committed. A
+missing receipt or another unknown result does not authorize a guessed fix.
+This proposal has no native result and grants no release acceptance.
