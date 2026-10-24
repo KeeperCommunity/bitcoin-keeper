@@ -31,7 +31,7 @@ async function run({ github, context, core }) {
       STEPS.every((_, index) => CONCLUSIONS.includes(STEP_CONCLUSIONS[index])));
     assert.equal(context.repo.owner, OWNER); assert.equal(context.repo.repo, REPO);
     assert.equal(context.eventName, 'push');
-    assert.equal(context.ref, 'refs/heads/codex/r5-7158-android-startup-readout-20261024');
+    assert.equal(context.ref, 'refs/heads/codex/r5-7158-android-startup-readout-r2-20261024');
     const args = { owner: OWNER, repo: REPO, request: { timeout: 30000 } };
     const admit = async () => {
     stage = 'API_LOOKUP';

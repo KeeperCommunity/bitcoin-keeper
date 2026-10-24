@@ -2,7 +2,7 @@ name: Read fixed 7158 Android startup observations
 
 on:
   push:
-    branches: [codex/r5-7158-android-startup-readout-20261024]
+    branches: [codex/r5-7158-android-startup-readout-r2-20261024]
     paths:
       - .github/workflows/r5-7158-android-startup-readout.yml
       - .github/scripts/read-7158-android-startup-artifact.cjs
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   readout:
-    if: github.repository == 'KeeperCommunity/bitcoin-keeper' && github.event_name == 'push' && github.ref == 'refs/heads/codex/r5-7158-android-startup-readout-20261024'
+    if: github.repository == 'KeeperCommunity/bitcoin-keeper' && github.event_name == 'push' && github.ref == 'refs/heads/codex/r5-7158-android-startup-readout-r2-20261024'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

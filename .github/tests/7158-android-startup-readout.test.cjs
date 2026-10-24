@@ -18,7 +18,7 @@ const OUTCOME = "const NATIVE_CONCLUSION = 'failure', STEP_CONCLUSIONS = ['succe
 function fixture(options = {}) {
   const observedWorkflow = options.production ? 'f83a9a8b182dd8276a732ee2b6338fb6f845640a' : WORKFLOW;
   const context = { repo: { owner: 'KeeperCommunity', repo: 'bitcoin-keeper' },
-    eventName: 'push', ref: 'refs/heads/codex/r5-7158-android-startup-readout-20261024' };
+    eventName: 'push', ref: 'refs/heads/codex/r5-7158-android-startup-readout-r2-20261024' };
   const runData = { id: 40085793409, run_attempt: 1, repository: { id: 470904030 },
     head_repository: { id: 470904030 }, head_sha: SOURCE, event: 'pull_request',
     head_branch: options.production ? 'codex/r5-android-skip-target-20261024' : 'codex/fixed-native-fixture',

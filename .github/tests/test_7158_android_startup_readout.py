@@ -1,11 +1,13 @@
 """Synthetic exact-artifact and private startup projection controls."""
 from contextlib import redirect_stdout
+import ast
 import hashlib
 import importlib.util
 import io
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -17,13 +19,29 @@ reader = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(reader)
 
 
+def producer_failures():
+    # This unchanged function's segment hash is independently bound to the
+    # actual 3f4 producer. Execute only that fixed pure parser, not the runner.
+    source = (Path(__file__).resolve().parents[1] / 'native/hosted_native.py').read_text()
+    definition = next(node for node in ast.parse(source).body
+        if isinstance(node, ast.FunctionDef) and node.name == 'maestro_failure_details')
+    segment = ast.get_source_segment(source, definition)
+    assert hashlib.sha256(segment.encode()).hexdigest() == (
+        '4e89c67a3503e4004d013a6845433e10a03f1e62793441d6e9b99a261e18e0c1')
+    scope = {'re': re, 'APP_IDS': {'ANDROID': 'io.hexawallet.keeper.development'}}
+    exec(compile(ast.Module(body=[definition], type_ignores=[]), '<pinned-pure-producer>', 'exec'), scope)
+    return scope['maestro_failure_details']('Assertion is false: Create a passcode PRIVATE_SENTINEL')
+
+
 def fixture():
     return {'schema': 1, 'source_sha': reader.SOURCE, 'workflow_sha': reader.WORKFLOW,
         'workflow_ref': reader.WORKFLOW_REF, 'run_id': reader.RUN, 'run_attempt': reader.ATTEMPT,
         'platform': 'ANDROID', 'diagnostic_only': True, 'build': 'PASS', 'smoke': 'FAIL',
         'native_probe': 'NOT RUN', 'r5_features': 'NOT RUN',
         'hardware': 'NOT RUN', 'signing': 'NOT RUN',
-        'startup_diagnostics': {'metro_errors': ['METRO_ERROR']},
+        'startup_diagnostics': {'metro_errors': ['METRO_ERROR'], 'maestro': {
+            'failed_commands': [], 'testcase_failures': producer_failures(),
+            'report': 'PRESENT', 'testcase_statuses': ['ERROR']}},
         'startup_observation': {'scope': 'Owned emulator launch window; fixed facts only.',
             'collection_errors': [], 'metro': {'rows': [
                 {'stage': 'APP_WINDOW', 'kind': 'ERROR', 'event': 'bundling_error',
@@ -77,6 +95,51 @@ class Startup7158ReadoutTests(unittest.TestCase):
                     reader.project(blob)
                 reading.assert_not_called()
                 archive_open.assert_not_called()
+
+    def test_pinned_producer_failure_is_fixed_and_preserved_at_exact_path_only(self):
+        self.assertEqual(producer_failures(), ['Maestro assertion failed: Create a passcode'])
+        result = self.project()
+        self.assertEqual(result['observations']['startup_diagnostics']['maestro']['testcase_failures'],
+                         producer_failures())
+        self.assertNotIn('PRIVATE_SENTINEL', json.dumps(result))
+        for path in [('startup_diagnostics', 'metro_errors'),
+                     ('startup_diagnostics', 'maestro', 'failed_commands'),
+                     ('startup_observation', 'collection_errors')]:
+            data = fixture()
+            parent = data
+            for key in path[:-1]:
+                parent = parent[key]
+            parent[path[-1]] = producer_failures()
+            with self.subTest(path=path), self.assertRaises(Exception):
+                self.project(data)
+
+    def test_failure_receipt_requires_bounded_direct_string_list(self):
+        for failures in [None, False, 1, 'Maestro assertion failed: Create a passcode', {},
+                         [None], [False], [1], [[]], [producer_failures()],
+                         producer_failures() * 11, ['PRIVATE_SENTINEL'], ['PASS'], ['123'],
+                         ['Maestro assertion failed: Create a passcode PRIVATE_SENTINEL'],
+                         ['Maestro assertion failed: Create a passcode\n']]:
+            data = fixture()
+            data['startup_diagnostics']['maestro']['testcase_failures'] = failures
+            with self.subTest(failures=failures), self.assertRaises(Exception):
+                self.project(data)
+        for maestro in (None, [], 'Maestro assertion failed: Create a passcode'):
+            data = fixture()
+            data['startup_diagnostics']['maestro'] = maestro
+            with self.subTest(maestro=maestro), self.assertRaises(Exception):
+                self.project(data)
+
+    def test_absent_failure_receipt_stays_absent_without_becoming_a_pass(self):
+        for failures in ([], None):
+            data = fixture()
+            if failures is None:
+                del data['startup_diagnostics']['maestro']['testcase_failures']
+            else:
+                data['startup_diagnostics']['maestro']['testcase_failures'] = failures
+            result = self.project(data)
+            self.assertEqual(result['observations']['smoke'], 'FAIL')
+            maestro = result['observations']['startup_diagnostics']['maestro']
+            self.assertEqual('testcase_failures' in maestro, failures is not None)
 
     def test_wrong_source_platform_attempt_workflow_or_unknown_root_reject(self):
         for key, value in [('source_sha', '0' * 40), ('platform', 'IOS'), ('run_attempt', '2'),

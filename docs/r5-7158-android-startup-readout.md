@@ -45,3 +45,26 @@ merge, signing, upload, distribution and deployment are not performed here.
 Local controls use fabricated API responses and synthetic metadata only. Actual
 artifact bytes and current observer rows remain unread until the coordinator
 reviews this exact source and runs the isolated reader.
+
+## Preserved failed reader and finite correction
+
+Reader `a9c540b855e6808923e2d1b9ab35a386c15a91a8`, run `40097537355`,
+attempt 1, failed closed at `DECODE_PROJECTED_METADATA`. Both source guards
+passed and no observations were released. That source and failed run remain
+unchanged. Source-only comparison against previously retained safe facts found
+that the old vocabulary omitted the fixed `Maestro assertion failed: Create a
+passcode` receipt. This is a reader admission defect; it does not establish the
+cause of the Android failure or prove there are no other rejected observations.
+
+This isolated follow-up admits that exact literal only as a direct string item
+of `startup_diagnostics.maestro.testcase_failures`. The member must be a list of
+at most ten strings equal to that literal, matching the producer's first-line/ten-failure bound;
+alternate types, nested arrays, other paths and arbitrary text reject. The
+unchanged source-generated parser is executed by the new test fixture, with its
+function segment pinned to the actual Android producer by SHA-256
+`4e89c67a3503e4004d013a6845433e10a03f1e62793441d6e9b99a261e18e0c1`.
+Missing or empty receipts stay missing or empty and never turn startup into a
+pass. The kernel, policy, original artifact identity and privacy checks remain
+unchanged. The read-only workflow now selects only the isolated `-r2-` branch.
+The actual observer projection has not yet been accepted; application cause is
+still unknown and the Skip experiment remains unexercised.

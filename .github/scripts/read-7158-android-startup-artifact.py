@@ -26,6 +26,8 @@ FIELDS = frozenset(('schema', 'source_sha', 'workflow_sha', 'workflow_ref', 'run
     'startup_observation_cleanup'))
 OBSERVER_FIELDS = frozenset(('scope', 'collection_errors', 'logcat', 'metro', 'process', 'foreground'))
 METRO_BOOLEAN_FIELDS = frozenset(('row_limit_reached', 'emitter_cap_observed'))
+MAESTRO_TESTCASE_FAILURE = 'Maestro assertion failed: Create a passcode'
+MAESTRO_FAILURE_PATH = ('startup_diagnostics', 'maestro', 'testcase_failures')
 
 
 def require_binding():
@@ -53,7 +55,7 @@ def project(blob):
     kernel.SOURCE, kernel.WORKFLOW, kernel.WORKFLOW_REF = SOURCE, WORKFLOW, WORKFLOW_REF
     kernel.RUN, kernel.ATTEMPT = RUN, ATTEMPT
     kernel.public_literals = lambda: literals | {'onboarding-markers', 'row_limit_reached',
-        'emitter_cap_observed', SOURCE, WORKFLOW, WORKFLOW_REF, RUN, ATTEMPT}
+        'emitter_cap_observed', MAESTRO_TESTCASE_FAILURE, SOURCE, WORKFLOW, WORKFLOW_REF, RUN, ATTEMPT}
     PHASE = 'ZIP_IDENTITY'
     if type(blob) is not bytes or len(blob) != ZIP_SIZE or hashlib.sha256(blob).hexdigest() != DIGEST:
         kernel.rejected()
@@ -84,6 +86,15 @@ def project(blob):
         kernel.rejected()
     projected['startup_observation'] = {key: value for key, value in
         data['startup_observation'].items() if key in OBSERVER_FIELDS}
+    if 'maestro' in projected['startup_diagnostics']:
+        maestro = projected['startup_diagnostics']['maestro']
+        if type(maestro) is not dict:
+            kernel.rejected()
+        if 'testcase_failures' in maestro:
+            failures = maestro['testcase_failures']
+            if (type(failures) is not list or len(failures) > 10 or
+                    any(type(item) is not str or item != MAESTRO_TESTCASE_FAILURE for item in failures)):
+                kernel.rejected()
     pending = [(projected, ())]
     nodes = 0
     while pending:
@@ -99,6 +110,8 @@ def project(blob):
                 pending.append((item, (*path, key)))
         elif type(value) is list:
             pending.extend((item, path) for item in value)
+        elif value == MAESTRO_TESTCASE_FAILURE and path != MAESTRO_FAILURE_PATH:
+            kernel.rejected()
     if 'metro' in projected['startup_observation'] and type(
             projected['startup_observation']['metro']) is not dict:
         kernel.rejected()
