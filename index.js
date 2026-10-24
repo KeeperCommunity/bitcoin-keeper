@@ -7,6 +7,7 @@ global.atob = decode;
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import './shim';
+import './src/services/backup/encoding';
 import { AppRegistry, Text as NativeText } from 'react-native';
 import 'react-native-get-random-values';
 import { Text, Input } from '@gluestack-ui/themed-native-base';

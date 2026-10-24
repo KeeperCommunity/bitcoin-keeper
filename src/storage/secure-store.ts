@@ -65,7 +65,9 @@ export const fetch = async (hash_current: string) => {
   }
 };
 
-export const hasPin = async () => {
+// Startup must distinguish an unreadable Keychain from a successfully empty
+// one. Preserve legacy behavior unless the caller explicitly requests errors.
+export const hasPin = async ({ throwOnError = false }: { throwOnError?: boolean } = {}) => {
   try {
     let allAccounts = reduxStore.getState().account.allAccounts;
     // if allAccounts is empty | upgraded app with old passcode configuration
@@ -89,6 +91,7 @@ export const hasPin = async () => {
     }
     return false;
   } catch (err) {
+    if (throwOnError) throw err;
     return false;
   }
 };

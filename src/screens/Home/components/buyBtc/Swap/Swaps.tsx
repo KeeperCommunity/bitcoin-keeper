@@ -14,8 +14,6 @@ import { useAppSelector } from 'src/store/hooks';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import Checked from 'src/assets/images/tick_icon.svg';
 import { createSwapTnx, getSwapQuote, loadCoinDetails } from 'src/store/sagaActions/swap';
-import BtcAcquireIcon from 'src/assets/images/bitcoin-acquire-icon.svg';
-import UsdtWalletLogo from 'src/assets/images/usdt-wallet-logo.svg';
 import Colors from 'src/theme/Colors';
 import { useUSDTWallets } from 'src/hooks/useUSDTWallets';
 import useVault from 'src/hooks/useVault';
@@ -23,41 +21,11 @@ import useWallets from 'src/hooks/useWallets';
 import KeeperModal from 'src/components/KeeperModal';
 import BuyBtcModalContent from '../BuyBtcModalContent';
 import { SwapHistory } from './SwapHistory';
-import CircleIconWrapper from 'src/components/CircleIconWrapper';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { EntityKind } from 'src/services/wallets/enums';
+import { CoinLogo } from './component/CoinLogo';
 
-export const CoinLogo = ({
-  code,
-  CircleWidth,
-  logoWidth,
-  logoHeight,
-}: {
-  code: string;
-  isLarge?: boolean;
-  CircleWidth?: number;
-  logoWidth?: number;
-  logoHeight?: number;
-}) => {
-  const isBtc = code === 'BTC';
-
-  return (
-    <Box>
-      <CircleIconWrapper
-        icon={
-          isBtc ? (
-            <BtcAcquireIcon width={logoWidth} height={logoHeight} />
-          ) : (
-            <UsdtWalletLogo width={logoWidth} height={logoHeight} />
-          )
-        }
-        backgroundColor={isBtc ? Colors.BrightOrange : Colors.DesaturatedTeal}
-        width={CircleWidth}
-      />
-    </Box>
-  );
-};
 export const SwitchButton = ({ onPress, coinData }) => {
   const { colorMode } = useColorMode();
 

@@ -1,14 +1,13 @@
 import { FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import TransactionElement from 'src/components/TransactionElement';
 import { Vault } from 'src/services/wallets/interfaces/vault';
 import { Box, HStack, VStack } from '@gluestack-ui/themed-native-base';
-import { refreshWallets } from 'src/store/sagaActions/wallets';
+import { useWalletRefresh } from 'src/hooks/useWalletRefresh';
 import EmptyStateView from 'src/components/EmptyView/EmptyStateView';
 import NoVaultTransactionIcon from 'src/assets/images/emptystate.svg';
 import IconArrowBlack from 'src/assets/images/icon_arrow_black.svg';
-import { useDispatch } from 'react-redux';
 import Text from 'src/components/KeeperText';
 import { windowHeight, wp } from 'src/constants/responsive';
 import { EntityKind } from 'src/services/wallets/enums';
@@ -24,14 +23,11 @@ function TransactionsAndUTXOs({
   autoRefresh: boolean;
 }) {
   const { colorMode } = useColorMode();
-  const [pullRefresh, setPullRefresh] = useState(false);
+  const { refreshing: pullRefresh, refresh } = useWalletRefresh();
   const { translations } = useContext(LocalizationContext);
   const { home } = translations;
-  const dispatch = useDispatch();
   const syncVault = () => {
-    setPullRefresh(true);
-    dispatch(refreshWallets([vault], { hardRefresh: true }));
-    setPullRefresh(false);
+    refresh([vault], { hardRefresh: true });
   };
 
   const navigation = useNavigation();
@@ -71,6 +67,7 @@ function TransactionsAndUTXOs({
                         title: home.vaultTransactions,
                         subtitle: home.incommingAndOutgoing,
                         entityKind: EntityKind.VAULT,
+                        vaultId: vault.id,
                       })
                     );
                   }}

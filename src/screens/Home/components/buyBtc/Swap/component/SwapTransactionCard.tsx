@@ -15,7 +15,7 @@ import SwapConfirmingIcon from '../../../../../../assets/images/swap-confirmint.
 import SwapProcessingIcon from '../../../../../../assets/images/swap-processing.svg';
 import SwapSuccessIcon from '../../../../../../assets/images/swap-success.svg';
 import SwapOverDueIcon from '../../../../../../assets/images/swap-overDue.svg';
-import { CoinLogo } from '../Swaps';
+import { CoinLogo } from './CoinLogo';
 import SwapPriceArrow from 'src/assets/images/swap-price-arrow.svg';
 import SwapPriceArrowWhite from 'src/assets/images/swap-price-arrow-white.svg';
 

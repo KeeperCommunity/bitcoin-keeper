@@ -22,8 +22,15 @@ import { SubscriptionTier } from 'src/models/enums/SubscriptionTier';
 import { AppIconWrapper } from 'src/utils/AppIconWrapper';
 import ThemeMode from 'src/models/enums/ThemeMode';
 import { updateDefaultWalletCreatedByAppId } from '../reducers/account';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
+import type { BackupWriteIntent } from 'src/services/backup/intent';
 
-function* changeBitcoinNetworkWorker({ payload }) {
+function* changeBitcoinNetworkWorker({ payload, originAppId, originBackupAccountSession, originBackupWriteIntent }: {
+  payload: { network: NetworkType; callback?: (success: boolean) => void };
+  originAppId?: string;
+  originBackupAccountSession?: number;
+  originBackupWriteIntent?: BackupWriteIntent;
+}) {
   let activeNode;
   const { network, callback } = payload;
   try {
@@ -54,6 +61,10 @@ function* changeBitcoinNetworkWorker({ payload }) {
     yield call(ElectrumClient.connect);
 
     const { primaryMnemonic, id } = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+    if ((originAppId && originAppId !== id) ||
+        (originBackupAccountSession !== undefined &&
+          originBackupAccountSession !== currentBackupAccountSession()))
+      throw new Error('Backup account changed during network switch');
 
     // Create default wallet and signer if not created already
     const { defaultWalletCreatedByAppId } = yield select((state: RootState) => state.account);
@@ -62,7 +73,12 @@ function* changeBitcoinNetworkWorker({ payload }) {
       const cosigner = yield call(getCosignerDetails, primaryMnemonic, 0);
       const hw = setupKeeperSigner(cosigner);
       if (hw) {
-        yield put(addSigningDevice([hw.signer]));
+        yield put({
+          ...addSigningDevice([hw.signer]),
+          originAppId: id,
+          originBackupAccountSession,
+          originBackupWriteIntent,
+        });
       }
       const defaultWallet: NewWalletInfo = {
         walletType: WalletType.DEFAULT,
@@ -78,7 +94,12 @@ function* changeBitcoinNetworkWorker({ payload }) {
           ),
         },
       };
-      yield call(addNewWalletsWorker, { payload: [defaultWallet] });
+      yield call(addNewWalletsWorker, {
+        payload: [defaultWallet],
+        originAppId: id,
+        originBackupAccountSession,
+        originBackupWriteIntent,
+      });
       yield put(updateDefaultWalletCreatedByAppId({ appId: id, networkType: bitcoinNetworkType }));
     }
     if (callback) callback(true);

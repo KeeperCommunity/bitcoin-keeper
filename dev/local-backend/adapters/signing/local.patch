@@ -1,0 +1,132 @@
+diff --git a/src/databases/dbV2.ts b/src/databases/dbV2.ts
+index dc661dc..31b47a9 100644
+--- a/src/databases/dbV2.ts
++++ b/src/databases/dbV2.ts
+@@ -269,6 +269,13 @@ class DatabaseV2 {
+   }
+ 
+   public initializeConnection = async () => {
++    if (config.LOCAL_DEV) {
++      this.connection = mongoose.createConnection(process.env.LOCAL_DATABASE_URL, {
++        dbName: "keeper_signing_local", autoIndex: true,
++      });
++      await this.connection.asPromise();
++      return;
++    }
+     const [response] = await fetchSecrets(
+       [config.DATABASE_SECRET_IDENTIFIER_V2],
+       true
+@@ -288,6 +295,8 @@ class DatabaseV2 {
+     });
+   };
+ 
++  public isReady = () => this.connection?.readyState === 1;
++
+   public getSignerV2Model = (): mongoose.Model<mongoose.Document, {}> => {
+     return this.connection.model("Signer", this.signerV2);
+   };
+diff --git a/src/index.ts b/src/index.ts
+index 7e3a325..bee0b07 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -3,6 +3,7 @@ import express, { Express } from "express";
+ import morgan from "morgan";
+ 
+ import config from "./config";
++import dbV2 from "./databases/dbV2";
+ import { logger, unhandledLogger} from "./utilities/logger"
+ import { initializeCrons } from "./utilities/crons";
+ import { initializeRoutes } from "./routes/router";
+@@ -14,7 +15,7 @@ class SigningServer {
+     this.app = express();
+     this.configure();
+     this.invoke();
+-    initializeCrons();
++    if (!config.LOCAL_DEV) initializeCrons();
+     config.initRSAKeys();
+   }
+ 
+@@ -24,6 +25,13 @@ class SigningServer {
+     this.app.use(morgan("combined", { stream: { write: message => logger.info(message.trim()) } }));
+     this.app.use(bodyParser.json());
+     this.app.use(bodyParser.urlencoded({ extended: true }));
++    if (config.LOCAL_DEV) {
++      this.app.get("/health", (_req, res) => {
++        const ready = dbV2.isReady() && !!config.RSA_PUB_KEY;
++        res.status(ready ? 200 : 503).json({ ready, mode: "local", network: "TESTNET",
++          capabilities: { signing: ready, emailDelivery: false, pushDelivery: false, scheduledJobs: false } });
++      });
++    }
+     this.app.use(initializeRoutes(this.app));
+   }
+ 
+diff --git a/src/services/mailing/mailer.ts b/src/services/mailing/mailer.ts
+index 9ab6b1d..3995234 100644
+--- a/src/services/mailing/mailer.ts
++++ b/src/services/mailing/mailer.ts
+@@ -1,5 +1,6 @@
+ import config from "../../config";
+ import moment from "moment";
++import { appendFileSync } from "fs";
+ import AWS from "aws-sdk";
+ import { EMAIL_TEMPLATES } from "./templates";
+ 
+@@ -65,7 +66,7 @@ const fetchEmailContentByType = (
+         )
+           .replace(
+             "{{server_url}}",
+-            config.ENVIRONMENT === "MAIN"
++            config.LOCAL_DEV ? "http://localhost:3003" : config.ENVIRONMENT === "MAIN"
+               ? "https://sign.bithyve.com"
+               : "https://dev-sign.bithyve.com"
+           )
+@@ -109,5 +110,9 @@ export const sendEmails = (
+       },
+     },
+   };
++  if (config.LOCAL_DEV) {
++    appendFileSync("/local-data/outbox.jsonl", JSON.stringify({ capturedAt: new Date().toISOString(), ...params }) + "\n", { mode: 0o600 });
++    return Promise.resolve({ MessageId: "local-captured-not-delivered" });
++  }
+   return AWS_SES.sendEmail(params).promise();
+ };
+diff --git a/src/services/notifications/pushNotification.ts b/src/services/notifications/pushNotification.ts
+index 87e9d5c..477681d 100644
+--- a/src/services/notifications/pushNotification.ts
++++ b/src/services/notifications/pushNotification.ts
+@@ -85,6 +85,7 @@ export const pushIKNotification = async (
+     requestAutoApprovesIn?: number;
+   }
+ ) => {
++  if (config.LOCAL_DEV) { logger.info("Local mode: push delivery disabled"); return; }
+   try {
+     const requestData = {
+       FCMs,
+@@ -118,6 +119,7 @@ export const pushServerKeyNotification = async (
+     signedTx?: string;
+   }
+ ) => {
++  if (config.LOCAL_DEV) { logger.info("Local mode: push delivery disabled"); return; }
+   try {
+     let title;
+     let body;
+diff --git a/src/utilities/secretManager.ts b/src/utilities/secretManager.ts
+index e6bfd49..3b3b732 100644
+--- a/src/utilities/secretManager.ts
++++ b/src/utilities/secretManager.ts
+@@ -1,7 +1,15 @@
+ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+ import config from '../config';
++import { readFileSync } from 'fs';
+ 
+ export const fetchSecrets = async (secretIdentifiers: string[], shouldParse: Boolean = false) => {
++  if (config.LOCAL_DEV) {
++    const secrets = JSON.parse(readFileSync("/local-data/secrets.json", "utf8"));
++    return secretIdentifiers.map(identifier => {
++      if (!Object.prototype.hasOwnProperty.call(secrets, identifier)) throw new Error("Unknown local secret identifier");
++      return { [identifier]: shouldParse ? JSON.parse(secrets[identifier]) : secrets[identifier] };
++    });
++  }
+   const client = new SecretManagerServiceClient();
+   const projectId = config.PROJECT_ID; 
+ 

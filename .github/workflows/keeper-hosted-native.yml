@@ -1,0 +1,151 @@
+name: Keeper hosted native validation
+
+on:
+  pull_request:
+    branches: [sprint]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
+
+# PR code runs only in disposable, unprivileged jobs. No signing or service secrets.
+permissions:
+  contents: read
+
+concurrency:
+  group: keeper-hosted-native-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  HUSKY: '0'
+  KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+  MAESTRO_CLI_NO_ANALYTICS: '1'
+
+jobs:
+  ios:
+    name: Hosted iOS simulator
+    # Skip before allocating a runner; missing/non-boolean draft state fails closed.
+    if: github.event_name == 'pull_request' && toJSON(github.event.pull_request.draft) == 'false' && contains(github.event.pull_request.labels.*.name, 'keeper/legacy-native') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    runs-on: macos-15
+    timeout-minutes: 65
+    env:
+      KEEPER_NATIVE_PLATFORM: IOS
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out exact app source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.22.0'
+          cache: yarn
+      - name: Set up Java for Maestro
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - name: Record runner and toolchain
+        run: python3 .github/native/hosted_native.py record
+      - name: Install immutable native dependencies
+        run: python3 .github/native/hosted_native.py prepare
+      - name: Check disposable iOS driver readiness
+        run: |
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git diff --exit-code HEAD -- .github/native .github/workflows/keeper-hosted-native.yml
+          python3 .github/native/hosted_native.py driver
+      - name: Build development app
+        run: |
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git diff --exit-code HEAD -- .github/native .github/workflows/keeper-hosted-native.yml
+          python3 .github/native/hosted_native.py build
+      - name: Run disposable startup smoke
+        run: |
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git diff --exit-code HEAD -- .github/native .github/workflows/keeper-hosted-native.yml
+          python3 .github/native/hosted_native.py smoke
+      - name: Retain safe native evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-native-ios-${{ github.event.pull_request.head.sha }}
+          path: |
+            artifacts/native/ios/metadata.json
+            artifacts/native/ios/Podfile.lock.candidate
+          if-no-files-found: warn
+          retention-days: 7
+
+  android:
+    needs: ios
+    name: Hosted Android emulator
+    if: always() && github.event_name == 'pull_request' && toJSON(github.event.pull_request.draft) == 'false' && contains(github.event.pull_request.labels.*.name, 'keeper/legacy-native') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      KEEPER_NATIVE_PLATFORM: ANDROID
+    steps:
+      - name: Check out exact app source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.22.0'
+          cache: yarn
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Set up Android command-line tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Record runner and toolchain
+        run: python3 .github/native/hosted_native.py record
+      - name: Install immutable native dependencies
+        run: python3 .github/native/hosted_native.py prepare
+      - name: Build development app
+        run: |
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git diff --exit-code HEAD -- .github/native .github/workflows/keeper-hosted-native.yml
+          python3 .github/native/hosted_native.py build
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-keeper-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run disposable startup smoke
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0 (peeled commit)
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          cores: 2
+          ram-size: 3072M
+          force-avd-creation: true
+          disable-animations: true
+          emulator-boot-timeout: 240
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+          script: |
+            test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+            git diff --exit-code HEAD -- .github/native .github/workflows/keeper-hosted-native.yml
+            python3 .github/native/hosted_native.py smoke
+      - name: Retain safe native evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-native-android-${{ github.event.pull_request.head.sha }}
+          path: artifacts/native/android/metadata.json
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,43 @@
+{
+  "environment": "darwin/arm64 Node v25.9.0",
+  "samples": "one warm-up and three measured repetitions per case",
+  "networkTiming": "theoretical payload transfer only; no measured network or protocol latency",
+  "results": [
+    {
+      "records": 10,
+      "recordKiB": 50,
+      "plaintextMiB": 0.49,
+      "ciphertextMiB": 0.65,
+      "encryptMs": 19.3,
+      "decryptAndParseMs": 13.5,
+      "uploadPlusReadbackSecondsAt1Mbps": 10.9
+    },
+    {
+      "records": 100,
+      "recordKiB": 50,
+      "plaintextMiB": 4.89,
+      "ciphertextMiB": 6.52,
+      "encryptMs": 175.5,
+      "decryptAndParseMs": 136.2,
+      "uploadPlusReadbackSecondsAt1Mbps": 109.4
+    },
+    {
+      "records": 100,
+      "recordKiB": 200,
+      "plaintextMiB": 19.54,
+      "ciphertextMiB": 26.05,
+      "encryptMs": 718,
+      "decryptAndParseMs": 498.4,
+      "uploadPlusReadbackSecondsAt1Mbps": 437.1
+    },
+    {
+      "records": 1,
+      "recordKiB": 20000,
+      "plaintextMiB": 19.53,
+      "ciphertextMiB": 26.04,
+      "encryptMs": 916.6,
+      "decryptAndParseMs": 503.8,
+      "uploadPlusReadbackSecondsAt1Mbps": 436.9
+    }
+  ]
+}

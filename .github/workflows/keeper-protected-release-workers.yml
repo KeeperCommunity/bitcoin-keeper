@@ -1,0 +1,182 @@
+name: Protected release workers (explicit approval only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_json:
+        description: Exact reviewed non-secret request JSON; see release/cloud/README.md
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  statuses: read
+  issues: read
+
+concurrency:
+  group: keeper-protected-release-workers
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.request.outputs.source_sha }}
+      operation: ${{ steps.request.outputs.operation }}
+      platform: ${{ steps.request.outputs.platform }}
+      environment: ${{ steps.plan.outputs.environment }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: driver
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22.23.3'
+      - name: Reject untrusted/malformed requests before candidate checkout
+        id: request
+        env:
+          KEEPER_RELEASE_REQUEST_JSON: ${{ inputs.request_json }}
+        run: node driver/scripts/protected-release-worker.cjs request
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.request.outputs.source_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Verify exact source, approval and protected environment exist
+        id: plan
+        env:
+          KEEPER_RELEASE_REQUEST_JSON: ${{ inputs.request_json }}
+          KEEPER_CANDIDATE_PATH: candidate
+          GH_TOKEN: ${{ github.token }}
+        run: node driver/scripts/protected-release-worker.cjs plan
+
+  approved-operation:
+    needs: plan
+    runs-on: ${{ needs.plan.outputs.platform == 'ios' && 'macos-15' || 'ubuntu-24.04' }}
+    timeout-minutes: 100
+    environment: ${{ needs.plan.outputs.environment }}
+    env:
+      KEEPER_RELEASE_REQUEST_JSON: ${{ inputs.request_json }}
+      KEEPER_CANDIDATE_PATH: ${{ github.workspace }}/candidate
+      KEEPER_EXPECTED_CERT_SHA256: ${{ vars.KEEPER_RELEASE_CERT_SHA256 }}
+      KEEPER_EXPECTED_CONFIG_SHA256: ${{ vars.KEEPER_PRODUCTION_CONFIG_SHA256 }}
+      KEEPER_IOS_TEAM_ID: ${{ vars.KEEPER_IOS_TEAM_ID }}
+      KEEPER_IOS_PROFILE_UUID: ${{ vars.KEEPER_IOS_PROFILE_UUID }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_OPT_OUT_USAGE: '1'
+      LANG: en_US.UTF-8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: driver
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22.23.3'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Revalidate AFTER protected environment approval, before credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node driver/scripts/protected-release-worker.cjs revalidate
+      - uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install frozen trusted uploader/Pod dependencies without credentials
+        working-directory: driver
+        env:
+          BUNDLE_DEPLOYMENT: 'true'
+          BUNDLE_FROZEN: 'true'
+          BUNDLE_PATH: ${{ runner.temp }}/keeper-gems
+        run: |
+          bundle install --jobs 4
+          echo "BUNDLE_GEMFILE=$GITHUB_WORKSPACE/driver/Gemfile" >> "$GITHUB_ENV"
+          echo "BUNDLE_PATH=$RUNNER_TEMP/keeper-gems" >> "$GITHUB_ENV"
+          echo "KEEPER_PACKAGE_OVERLAY_PATH=$RUNNER_TEMP/keeper-nodeify-overlay.json" >> "$GITHUB_ENV"
+      - name: Reject incompatible frozen iOS toolchain without credentials
+        if: needs.plan.outputs.operation == 'ios-signed-build'
+        run: python3 driver/scripts/cloud_release_worker.py ruby-lock-check candidate unused
+      - name: Install pinned bundletool without credentials
+        if: needs.plan.outputs.platform == 'android'
+        run: |
+          curl --fail --location --silent --show-error https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar --output "$RUNNER_TEMP/keeper-bundletool.jar"
+          echo "675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c  $RUNNER_TEMP/keeper-bundletool.jar" | sha256sum --check --status
+          echo "BUNDLETOOL_JAR=$RUNNER_TEMP/keeper-bundletool.jar" >> "$GITHUB_ENV"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        if: needs.plan.outputs.operation == 'android-signed-build'
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install reviewed Android build inputs without credentials
+        if: needs.plan.outputs.operation == 'android-signed-build'
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Prepare canonical native dependencies without credentials
+        if: endsWith(needs.plan.outputs.operation, '-signed-build')
+        working-directory: candidate
+        run: |
+          python3 -c "import shutil; assert shutil.disk_usage('.').free >= 16 * 1024**3, 'Insufficient native build disk reserve'"
+          npm install --global yarn@1.22.22 --ignore-scripts
+          yarn install --frozen-lockfile --ignore-scripts --non-interactive
+          node_modules/.bin/patch-package --error-on-fail
+          node .github/native/nodeify.cjs
+          git diff --exit-code HEAD -- yarn.lock ios/Podfile.lock
+          python3 ../driver/scripts/cloud_release_worker.py overlay . "$KEEPER_PACKAGE_OVERLAY_PATH"
+      - name: Prepare frozen iOS dependencies without credentials
+        if: needs.plan.outputs.operation == 'ios-signed-build'
+        working-directory: candidate/ios
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+        run: |
+          test -d "$DEVELOPER_DIR"
+          bundle exec pod install --deployment
+          git diff --exit-code HEAD -- Podfile.lock
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+      - name: Refresh authorization immediately before loading operation credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node driver/scripts/protected-release-worker.cjs revalidate
+      - name: Execute only the approved signed build, with no upload credentials
+        if: endsWith(needs.plan.outputs.operation, '-signed-build')
+        id: sign
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEPER_PRODUCTION_CONFIG_BASE64: ${{ secrets.KEEPER_PRODUCTION_CONFIG_BASE64 }}
+          KEEPER_IOS_P12_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_IOS_P12_BASE64 || '' }}
+          KEEPER_IOS_P12_PASSWORD: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_IOS_P12_PASSWORD || '' }}
+          KEEPER_IOS_PROFILE_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_IOS_PROFILE_BASE64 || '' }}
+          KEEPER_ANDROID_KEYSTORE_BASE64: ${{ needs.plan.outputs.platform == 'android' && secrets.KEEPER_ANDROID_KEYSTORE_BASE64 || '' }}
+          STORE_PASSWORD: ${{ needs.plan.outputs.platform == 'android' && secrets.STORE_PASSWORD || '' }}
+          KEY_PASSWORD: ${{ needs.plan.outputs.platform == 'android' && secrets.KEY_PASSWORD || '' }}
+          KEY_ALIAS: ${{ needs.plan.outputs.platform == 'android' && secrets.KEY_ALIAS || '' }}
+        run: node driver/scripts/protected-release-worker.cjs execute
+      - name: Execute only the approved immutable upload, with no signing credentials
+        if: endsWith(needs.plan.outputs.operation, '-upload')
+        id: upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEPER_ASC_KEY_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_ID || '' }}
+          KEEPER_ASC_ISSUER_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_ISSUER_ID || '' }}
+          KEEPER_ASC_KEY_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_BASE64 || '' }}
+          KEEPER_PLAY_SERVICE_ACCOUNT: ${{ needs.plan.outputs.platform == 'android' && secrets.KEEPER_PLAY_SERVICE_ACCOUNT || '' }}
+        run: node driver/scripts/protected-release-worker.cjs execute
+      - name: Retain only the explicitly approved signed artifact or upload receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: keeper-approved-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.sign.outputs.artifact_dir || steps.upload.outputs.artifact_dir }}
+          if-no-files-found: error
+          retention-days: 14
