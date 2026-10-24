@@ -72,11 +72,12 @@ jobs:
       source_sha: ${{ github.event.pull_request.head.sha }}
       platform: IOS
       diagnostic: true
+      prepare_only: ${{ contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only') }}
 
   android:
     needs: ios
     # Optional scheduling modifier only; required Android acceptance is unchanged.
-    if: always() && github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only')
+    if: always() && github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only')
     uses: ./.github/workflows/keeper-native-platform.yml
     with:
       source_sha: ${{ github.event.pull_request.head.sha }}

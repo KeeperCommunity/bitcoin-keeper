@@ -14,8 +14,9 @@ assert.equal(parsed.status, 0, parsed.stderr);
 const workflows = JSON.parse(parsed.stdout);
 const diagnostic = workflows['keeper-native-diagnostic.yml'];
 const worker = workflows['keeper-native-platform.yml'];
-function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true } = {}) {
+function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, dependenciesOnly = false, prepareOnly = false, platform = 'IOS', sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true } = {}) {
   const expression = condition
+    .replace(/^\$\{\{\s*|\s*\}\}$/g, '')
     .replaceAll('github.event_name', 'eventName')
     .replaceAll('github.event.pull_request.number', 'number')
     .replaceAll('github.event.pull_request.head.repo.full_name == github.repository', 'sameRepo')
@@ -23,11 +24,41 @@ function enabled(condition, { draft = null, labeled = false, preflightLabeled = 
     .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')", 'labeled')
     .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/ios-driver-preflight')", 'preflightLabeled')
     .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only')", 'iosOnly')
+    .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only')", 'dependenciesOnly')
     .replaceAll('inputs.source_sha == github.event.pull_request.head.sha', 'sameSha')
     .replaceAll('inputs.diagnostic', 'diagnostic')
+    .replaceAll('inputs.prepare_only', 'prepareOnly')
+    .replaceAll('inputs.platform', 'platform')
     .replaceAll('always()', 'true');
-  return new Function('draft', 'labeled', 'preflightLabeled', 'iosOnly', 'sameRepo', 'number', 'eventName', 'diagnostic', 'sameSha', 'toJSON', `return (${expression});`)(draft, labeled, preflightLabeled, iosOnly, sameRepo, number, eventName, diagnostic, sameSha, JSON.stringify);
+  return new Function('draft', 'labeled', 'preflightLabeled', 'iosOnly', 'dependenciesOnly', 'prepareOnly', 'platform', 'sameRepo', 'number', 'eventName', 'diagnostic', 'sameSha', 'toJSON', `return (${expression});`)(draft, labeled, preflightLabeled, iosOnly, dependenciesOnly, prepareOnly, platform, sameRepo, number, eventName, diagnostic, sameSha, JSON.stringify);
 }
+test('dependency-only modifier is explicit, defaults off and stops all native phases', () => {
+  assert.equal(worker.on.workflow_call.inputs.prepare_only.default, 'false');
+  assert.equal(worker.on.workflow_call.inputs.prepare_only.type, 'boolean');
+  assert.equal(diagnostic.jobs.ios.with.prepare_only,
+    "${{ contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only') }}");
+  for (const labeled of [false, true]) for (const dependenciesOnly of [false, true])
+    for (const iosOnly of [false, true]) for (const preflightLabeled of [false, true]) {
+      const options = { draft: true, labeled, dependenciesOnly, iosOnly, preflightLabeled };
+      assert.deepEqual(['driver-preflight', 'ios', 'android'].map(name => enabled(diagnostic.jobs[name].if, options)),
+        [preflightLabeled && !labeled, labeled, labeled && !iosOnly && !dependenciesOnly]);
+      for (const override of [{ number: 7045 }, { sameRepo: false }])
+        assert.deepEqual(['driver-preflight', 'ios', 'android'].map(name =>
+          enabled(diagnostic.jobs[name].if, { ...options, ...override })), [false, false, false]);
+    }
+  assert.equal(enabled(worker.jobs.native.if, { draft: true, labeled: true, diagnostic: true, prepareOnly: true }), true);
+  for (const override of [{ diagnostic: false }, { platform: 'ANDROID' }, { labeled: false }])
+    assert.equal(enabled(worker.jobs.native.if, { draft: true, labeled: true, diagnostic: true, prepareOnly: true, ...override }), false);
+  const names = ['Check disposable iOS driver readiness', 'Build development app',
+    'Run disposable startup smoke', 'Run disposable native persistence probe',
+    'Run R5 production worker native scenarios', 'Measure five full-product startup and first-wallet runs',
+    'Enable emulator acceleration', 'Run Android startup and native persistence probes'];
+  for (const name of names) {
+    const step = worker.jobs.native.steps.find(value => value.name === name);
+    assert.equal(enabled(step.if, { prepareOnly: true }), false, name);
+    assert.equal(enabled(step.if, { prepareOnly: false, platform: name.startsWith('Enable') || name.startsWith('Run Android') ? 'ANDROID' : 'IOS' }), true, name);
+  }
+});
 test('candidate diagnostics require explicit same-repository opt-in and serialize platforms', () => {
   for (const name of ['ios', 'android']) {
     const condition = diagnostic.jobs[name].if;

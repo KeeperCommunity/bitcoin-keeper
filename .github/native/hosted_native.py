@@ -501,6 +501,39 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
     return output_file.read_text(errors='replace').strip() if capture else None
 
 
+def dependency_command(args, label, stage, timeout=900, cwd=ROOT):
+    """Observe the existing private output before it disappears with the runner."""
+    if stage not in ('RUBY_BUNDLE', 'PODS_DEPLOYMENT'):
+        raise ValueError('Unsupported dependency observation stage.')
+    spec = importlib.util.spec_from_file_location('pod_diagnostics',
+        Path(__file__).with_name('pod_diagnostics.py'))
+    observer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(observer)
+    before = observer.lock_state(ROOT)
+    pods = observer.locked_pods(ROOT)
+    index = len(read()['commands']) + 1
+    original = None
+    try:
+        command(args, label, timeout=timeout, cwd=cwd)
+    except Exception as error:
+        original = error
+        raise
+    finally:
+        try:
+            observation = observer.observe(PRIVATE / ('command-%03d.log' % index),
+                pods, before, observer.lock_state(ROOT))
+            data = read()
+            data.setdefault('dependency_install_observations', {})[stage] = observation
+            save(data)
+            print('DEPENDENCY_INSTALL_OBSERVATION ' + json.dumps(
+                {'stage': stage, 'observation': observation}, sort_keys=True), flush=True)
+            if not observation['locks_unchanged'] and original is None:
+                raise RuntimeError('Locked dependency input changed during preparation.')
+        except Exception:
+            if original is None:
+                raise
+
+
 def record():
     source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     if source != os.environ.get('KEEPER_SOURCE_SHA'):
@@ -611,6 +644,16 @@ def android_sdk_metadata(sdk, component):
 
 
 def prepare():
+    dependencies_only = os.environ.get('KEEPER_DEPENDENCIES_ONLY') == 'true'
+    if dependencies_only and (PLATFORM != 'IOS' or os.environ.get('KEEPER_DIAGNOSTIC') != 'true'):
+        raise RuntimeError('Dependency-only execution requires an iOS diagnostic.')
+    if dependencies_only and os.environ.get('KEEPER_POD_LOCK_REPAIR') == '1':
+        raise RuntimeError('Dependency-only execution cannot repair locks.')
+    if dependencies_only:
+        data = read()
+        data['dependency_preparation'] = {'scope': 'DEPENDENCIES_ONLY_NOT_NATIVE_ACCEPTANCE',
+            'status': 'RUNNING', 'native_credit': False}
+        save(data)
     disk_preflight('before_dependencies')
     command(['npm', 'install', '--global', 'yarn@1.22.22', '--ignore-scripts'], 'Install pinned Yarn', timeout=180)
     command(['yarn', 'install', '--frozen-lockfile', '--ignore-scripts', '--non-interactive'],
@@ -638,25 +681,31 @@ def prepare():
     command(['git', 'diff', '--exit-code', 'HEAD', '--', 'yarn.lock', 'ios/Podfile.lock'],
             'Verify dependency locks remain immutable')
     fixtures()
-    install_maestro()
+    if not dependencies_only:
+        install_maestro()
     if PLATFORM == 'IOS':
-        command(['gem', 'install', 'cocoapods', '--version', '1.16.2', '--no-document'],
-                'Install pinned CocoaPods', timeout=300)
+        # Reuse the repository's frozen Ruby route, including transitive pins.
+        # Bare gem install/pod bypassed Gemfile.lock even with a pinned top-level gem.
+        os.environ.update({'BUNDLE_FROZEN': 'true', 'BUNDLE_PATH': str(PRIVATE / 'ruby-gems')})
+        dependency_command(['bundle', 'install', '--jobs', '4', '--retry', '1'],
+                'Install frozen Ruby dependencies', 'RUBY_BUNDLE')
+        command(['bundle', 'check'], 'Verify frozen Ruby dependencies', timeout=120)
         if os.environ.get('KEEPER_POD_LOCK_REPAIR') == '1':
             # Diagnostic bootstrap only. A candidate lock is reviewed/committed,
             # then a separate strict deployment run must build and test the app.
-            command(['pod', 'update', 'NitroIap', 'NitroModules', 'openiap', '--no-repo-update'],
+            command(['bundle', 'exec', 'pod', 'update', 'NitroIap', 'NitroModules', 'openiap', '--no-repo-update'],
                     'Generate targeted CocoaPods lock candidate (not validation)',
                     timeout=900, cwd=ROOT / 'ios')
             shutil.copyfile(ROOT / 'ios/Podfile.lock', EVIDENCE.parent / 'Podfile.lock.candidate')
             raise RuntimeError('Pod lock candidate generated for review; no native validation performed.')
-        command(['pod', 'install', '--deployment'], 'Install immutable CocoaPods dependencies',
-                timeout=900, cwd=ROOT / 'ios')
+        dependency_command(['bundle', 'exec', 'pod', 'install', '--deployment'],
+                'Install immutable CocoaPods dependencies', 'PODS_DEPLOYMENT', cwd=ROOT / 'ios')
         # Existing PBX build phases hardcode this path. Adapt the disposable host,
         # preserving the app project and the source commit being tested.
-        command(['sudo', 'mkdir', '-p', '/opt/homebrew/bin'], 'Prepare existing Xcode Node path')
-        command(['sudo', 'ln', '-sf', shutil.which('node'), '/opt/homebrew/bin/node'],
-                'Connect existing Xcode Node path to pinned Node')
+        if not dependencies_only:
+            command(['sudo', 'mkdir', '-p', '/opt/homebrew/bin'], 'Prepare existing Xcode Node path')
+            command(['sudo', 'ln', '-sf', shutil.which('node'), '/opt/homebrew/bin/node'],
+                    'Connect existing Xcode Node path to pinned Node')
     else:
         command(['sdkmanager', 'platforms;android-36', 'build-tools;35.0.0', 'ndk;27.1.12297006'],
                 'Install pinned Android build SDK and NDK', timeout=600)
@@ -671,6 +720,10 @@ def prepare():
         raise RuntimeError('Native installation unexpectedly rewrote the installed manifest.')
     command(['git', 'diff', '--exit-code', 'HEAD', '--', 'yarn.lock', 'ios/Podfile.lock'],
             'Verify native installation did not rewrite locks')
+    if dependencies_only:
+        data = read()
+        data['dependency_preparation']['status'] = 'PASS'
+        save(data)
 
 
 def artifact_identity():
@@ -1315,6 +1368,8 @@ def run_phase(phase):
             if EVIDENCE.exists():
                 evidence = read()
                 evidence['failed_phase'] = phase
+                if phase == 'prepare' and 'dependency_preparation' in evidence:
+                    evidence['dependency_preparation']['status'] = 'FAIL'
                 if phase in ['build', 'smoke', 'probe', 'features']:
                     evidence['r5_features' if phase == 'features' else 'native_probe' if phase == 'probe' else phase] = 'FAIL'
                 save(evidence)
