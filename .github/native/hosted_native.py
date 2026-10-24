@@ -1174,12 +1174,13 @@ def smoke(suite='startup'):
             raise RuntimeError('Metro did not become ready within 60 attempts.')
         warm_metro_bundle(suite)
         if PLATFORM == 'IOS':
-            device = command(['xcrun', 'simctl', 'create', 'Keeper-disposable-ci',
+            created = command(['xcrun', 'simctl', 'create', 'Keeper-disposable-ci',
                               'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
                               'com.apple.CoreSimulator.SimRuntime.iOS-18-5'],
                              'Create fresh iPhone 16 iOS 18.5 simulator', capture=True)
-            if not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', device):
+            if not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', created):
                 raise ValueError('Expected owned simulator UUID before installation.')
+            device = created
             command(['xcrun', 'simctl', 'boot', device], 'Boot disposable simulator')
             command(['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for simulator boot', timeout=240)
             wait_for_simulator_app_services(device)

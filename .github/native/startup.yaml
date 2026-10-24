@@ -2,10 +2,24 @@
 appId: ${APP_ID}
 name: Disposable startup and passcode input
 ---
-- launchApp:
-    clearState: true
-    permissions:
-      all: deny
+# iOS is already freshly installed and byte-verified on a newly created UUID
+# simulator. Preserve that install; Maestro clearState would reinstall it.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          clearState: false
+          permissions:
+            all: deny
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: true
+          permissions:
+            all: deny
 - extendedWaitUntil:
     visible: Create a passcode
     timeout: 180000

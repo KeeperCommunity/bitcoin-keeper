@@ -3,6 +3,7 @@
 from contextlib import ExitStack
 import importlib.util
 from pathlib import Path
+import re
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -57,7 +58,8 @@ class StartupIntegrationTest(unittest.TestCase):
                  collect_fails=False, stop_fails=False, platform='ANDROID',
                  import_fails=False, popen_fails=False, receipt_fails=None,
                  cleanup_fails=(), diagnostics_fail=False, install_timeout=False,
-                 install_fails=False, readiness_fails=False):
+                 install_fails=False, readiness_fails=False, create_result=None,
+                 installed_proof_fails=False):
         captured = {}
         self.expected_platform = platform
         self.device = '12345678-1234-1234-1234-123456789ABC' if platform == 'IOS' else 'emulator-5554'
@@ -82,6 +84,8 @@ class StartupIntegrationTest(unittest.TestCase):
             return original_unlink(path, *args, **kwargs)
 
         def command(args, label, **kwargs):
+            captured.setdefault('command_calls', []).append((args, label, kwargs))
+            self.events.append('command-' + label)
             if label == 'Install unsigned development app':
                 captured['install_command_count'] = captured.get('install_command_count', 0) + 1
                 captured['install_args'], captured['install_options'] = args, kwargs
@@ -96,7 +100,7 @@ class StartupIntegrationTest(unittest.TestCase):
             if label == 'Record Android emulator image':
                 return 'fixed-disposable-image'
             if label == 'Create fresh iPhone 16 iOS 18.5 simulator':
-                return '12345678-1234-1234-1234-123456789ABC'
+                return self.device if create_result is None else create_result
             if label.startswith('Assert '):
                 self.events.append('maestro')
                 captured['flow'] = args[-1]
@@ -152,6 +156,11 @@ class StartupIntegrationTest(unittest.TestCase):
             if readiness_fails:
                 raise self.original_error
 
+        def installed_proof(device):
+            self.events.append('installed-proof')
+            if installed_proof_fails:
+                raise self.original_error
+
         def dispose(args, **kwargs):
             event = 'device-' + args[2] if args[0] == 'xcrun' else 'device-uninstall'
             self.events.append(event)
@@ -203,7 +212,7 @@ class StartupIntegrationTest(unittest.TestCase):
             patches = [
                 (native, 'command', command),
                 (native, 'artifact_identity', lambda: self.artifact),
-                (native, 'verify_installed_artifact', lambda device: self.events.append('installed-proof')),
+                (native, 'verify_installed_artifact', installed_proof),
                 (native, 'android_sdk_metadata', lambda *args: {'version': 'fixed'}),
                 (native, 'warm_metro_bundle', lambda suite: self.events.append('warm-' + suite)),
                 (native, 'wait_for_simulator_app_services', ready),
@@ -348,6 +357,63 @@ class StartupIntegrationTest(unittest.TestCase):
         self.assertEqual(value['metro_args'][-4:], [
             '--config', str(self.root / '.github/native/startup_observer.cjs'),
             '--custom-log-reporter-path', str(self.root / '.github/native/startup_reporter.cjs')])
+
+    def test_first_ios_launch_uses_the_original_install_on_its_new_owned_simulator(self):
+        value = self.exercise(platform='IOS')
+        self.assertNotIn('error', value)
+        commands = value['command_calls']
+        created = [args for args, _, _ in commands if args[:3] == ['xcrun', 'simctl', 'create']]
+        self.assertEqual(len(created), 1)
+        self.assertEqual(created[0][3:], ['Keeper-disposable-ci',
+            'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
+            'com.apple.CoreSimulator.SimRuntime.iOS-18-5'])
+        for action in ['boot', 'bootstatus', 'install']:
+            calls = [args for args, _, _ in commands if args[:3] == ['xcrun', 'simctl', action]]
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0][3], self.device)
+        self.assertEqual(value['metadata']['device']['id'], self.device)
+        self.assertIs(value['metadata']['device']['fresh_disposable_state'], True)
+        for before, after in [
+                ('command-Create fresh iPhone 16 iOS 18.5 simulator', 'command-Boot disposable simulator'),
+                ('command-Boot disposable simulator', 'command-Wait for simulator boot'),
+                ('command-Wait for simulator boot', 'app-services-ready'),
+                ('app-services-ready', 'install-observe'), ('install-observe', 'installed-proof'),
+                ('installed-proof', 'maestro'), ('maestro', 'device-shutdown'),
+                ('device-shutdown', 'device-delete')]:
+            self.assertLess(self.events.index(before), self.events.index(after))
+        flow = Path(__file__).resolve().parents[1] / 'native/startup.yaml'
+        text = flow.read_text()
+        # This bounded source contract covers only the two launch branches;
+        # actual simctl/install/attestation order is executed above.
+        branches = re.findall(r'- runFlow:\n    when:\n      platform: (iOS|Android)\n'
+            r'    commands:\n      - launchApp:\n          clearState: (false|true)\n'
+            r'          permissions:\n            all: deny\n', text)
+        self.assertEqual(branches, [('iOS', 'false'), ('Android', 'true')])
+        self.assertEqual(text.count('launchApp:'), 2)
+        self.assertEqual(text.count('clearState:'), 2)
+        self.assertNotIn('optional:', text)
+        self.assertEqual(value['maestro_options'], {'timeout': 420, 'error_details': True})
+
+    def test_invalid_creation_cannot_reuse_or_dispose_an_existing_simulator(self):
+        for created in ['booted', 'existing-device', '', '12345678-1234-1234-1234-123456789ABC\n']:
+            with self.subTest(created=created):
+                self.events.clear()
+                value = self.exercise(platform='IOS', create_result=created)
+                self.assertIsInstance(value['error'], ValueError)
+                self.assertNotIn('maestro', self.events)
+                self.assertNotIn('install-observe', self.events)
+                self.assertNotIn('installed-proof', self.events)
+                self.assertNotIn('device-shutdown', self.events)
+                self.assertNotIn('device-delete', self.events)
+
+    def test_original_installed_byte_failure_blocks_the_no_clear_ios_launch(self):
+        value = self.exercise(platform='IOS', installed_proof_fails=True)
+        self.assertIs(value['error'], self.original_error)
+        self.assertNotIn('maestro', self.events)
+        self.assertNotIn('smoke_test_cases', value['metadata'])
+        self.assertEqual(value['metadata']['smoke'], 'FAIL')
+        self.assertIn('device-shutdown', self.events)
+        self.assertIn('device-delete', self.events)
 
     def test_ios_install_observation_delegates_once_after_readiness_before_proof_and_ui(self):
         value = self.exercise(platform='IOS')
