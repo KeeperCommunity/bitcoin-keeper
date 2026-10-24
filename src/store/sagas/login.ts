@@ -1,4 +1,4 @@
-import { call, delay, put, race, select } from 'redux-saga/effects';
+import { call, put, select } from 'redux-saga/effects';
 import {
   decrypt,
   encrypt,
@@ -51,14 +51,18 @@ import { createWatcher } from '../utilities';
 import { fetchExchangeRates } from '../sagaActions/send_and_receive';
 import { setLoginMethod } from '../reducers/settings';
 import { setSubscription } from 'src/store/sagaActions/settings';
-import { backupAllSignersAndVaults } from '../sagaActions/bhr';
 import { uaiChecks } from '../sagaActions/uai';
-import { applyUpgradeSequence } from './upgrade';
+import { applyUpgradeSequence, observeCurrentVersionHistory } from './upgrade';
+import { captureBackupWriteIntent, currentBackupAccountSession } from 'src/services/backup/transport';
 import { resetSyncing } from '../reducers/wallets';
+import { autoSyncWallets } from '../sagaActions/wallets';
 import { connectToNode } from '../sagaActions/network';
 import { fetchDelayedPolicyUpdate, fetchSignedDelayedTransaction } from '../sagaActions/storage';
-import { setAutomaticCloudBackup, setBackupType } from '../reducers/bhr';
-import { autoWalletsSyncWorker } from './wallets';
+import {
+  setAutomaticCloudBackup,
+  setBackupType,
+  migrateLegacyAutomaticCloudBackup,
+} from '../reducers/bhr';
 import {
   addAccount,
   saveDefaultWalletState,
@@ -141,7 +145,12 @@ export const credentialStorageWatcher = createWatcher(credentialsStorageWorker, 
 
 function* credentialsAuthWorker({ payload }) {
   let key;
+  // An older authentication can finish after the selected account cycles
+  // A -> B -> A. Preserve its original session before the first async effect.
+  const originSession = currentBackupAccountSession();
+  let loginSession = originSession;
   const appId = yield select((state: RootState) => state.storage.appId);
+  if (originSession !== currentBackupAccountSession()) return;
   yield put(credsAuthenticatedError(''));
   try {
     yield put(setRecepitVerificationError(false));
@@ -164,6 +173,7 @@ function* credentialsAuthWorker({ payload }) {
       encryptedKey = res.encryptedKey;
     }
     key = yield call(decrypt, hash, encryptedKey);
+    if (originSession !== currentBackupAccountSession()) return;
     yield put(setKey(key));
     yield put(setPinHash(hash));
 
@@ -175,46 +185,94 @@ function* credentialsAuthWorker({ payload }) {
       );
       const currentAccount = allAccounts.find((account) => account.hash === hash);
       const uint8array = yield call(stringToArrayBuffer, key);
+      if (originSession !== currentBackupAccountSession()) return;
       const { success, error } = yield call(
         dbManager.initializeRealm,
         uint8array,
         currentAccount?.realmId
       );
+      if (originSession !== currentBackupAccountSession()) return;
 
       if (!success) {
         throw Error(`Failed to load the database: ${error}`);
       }
 
-      const previousVersion = yield select((state) => state.storage.appVersion);
-      const { plebDueToOffline, wasAutoUpdateEnabledBeforeDowngrade, defaultWalletCreated } =
-        yield select((state) => state.storage);
+      const persistedVersion = yield select((state) => state.storage.appVersion);
+      const { defaultWalletCreated } = yield select((state) => state.storage);
 
       // setting correct app id from realm at login
       const keeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+      if (originSession !== currentBackupAccountSession()) return;
+      if (currentAccount && !keeperApp?.id)
+        throw new Error('Saved account has no KeeperApp record');
+      if (keeperApp?.id) {
+        const onlyKnownAccount =
+          allAccounts.length <= 1 &&
+          (!allAccounts.length || allAccounts[0].appId === keeperApp.id);
+        yield put(
+          migrateLegacyAutomaticCloudBackup({
+            appId: keeperApp.id,
+            canAttributeConsent: onlyKnownAccount && appId === keeperApp.id,
+          })
+        );
+      }
+      if (originSession !== currentBackupAccountSession()) return;
       if (keeperApp?.id) yield put(setAppId(keeperApp.id));
+      const loginAccountSession = currentBackupAccountSession();
+      // Account selection establishes a new session. Preserve only a verified
+      // base for that session before the remaining login/upgrade awaits.
+      const loginBackupWriteIntent = keeperApp?.id
+        ? captureBackupWriteIntent(keeperApp.id)
+        : undefined;
+      loginSession = loginAccountSession;
+      const expectedAppId = keeperApp?.id ?? '';
+      if (store.getState().storage.appId !== expectedAppId) return;
 
       // Store temporary account details
       if (!allAccounts.length) {
+        if (currentBackupAccountSession() !== loginAccountSession) return;
         yield put(setTempDetails({ hash, realmId: REALM_FILE, accountIdentifier: '' }));
       }
 
       const newVersion = DeviceInfo.getVersion();
-      const versionCollection = yield call(dbManager.getCollection, RealmSchema.VersionHistory);
-      const lastElement = versionCollection[versionCollection.length - 1];
-      const lastVersionCode = lastElement.version.split(/[()]/);
       const currentVersionCode = DeviceInfo.getBuildNumber();
-      if (semver.lt(previousVersion, newVersion)) {
-        yield call(applyUpgradeSequence, { previousVersion, newVersion });
-      } else if (currentVersionCode !== lastVersionCode[1]) {
-        yield call(dbManager.createObject, RealmSchema.VersionHistory, {
-          version: `${newVersion}(${currentVersionCode})`,
-          date: new Date().toString(),
-          title: `Upgraded from ${lastVersionCode[1]} to ${currentVersionCode}`,
-        });
+      if (
+        currentBackupAccountSession() !== loginAccountSession ||
+        store.getState().storage.appId !== expectedAppId
+      )
+        return;
+      if (keeperApp?.id) {
+        // Redux's version is shared by accounts. A different account may have
+        // upgraded already; migrations must follow this selected Realm account.
+        const previousVersion = keeperApp.version ?? persistedVersion;
+        if (!semver.valid(previousVersion)) throw new Error('Account version unavailable');
+        let current = keeperApp.version === newVersion;
+        if (semver.lt(previousVersion, newVersion)) {
+          current =
+            (yield call(applyUpgradeSequence, {
+              previousVersion,
+              newVersion,
+              originBackupAccountSession: loginAccountSession,
+              originBackupWriteIntent: loginBackupWriteIntent,
+            })) === true;
+        }
+        if (current)
+          yield call(
+            observeCurrentVersionHistory,
+            keeperApp.id,
+            newVersion,
+            currentVersionCode,
+            loginAccountSession
+          );
       }
+      if (
+        currentBackupAccountSession() !== loginAccountSession ||
+        store.getState().storage.appId !== expectedAppId
+      )
+        return;
       if (appId) {
         try {
-          const { id, publicId, subscription }: KeeperApp = yield call(
+          const { id }: KeeperApp = yield call(
             dbManager.getObjectByIndex,
             RealmSchema.KeeperApp
           );
@@ -225,16 +283,10 @@ function* credentialsAuthWorker({ payload }) {
           yield put(fetchExchangeRates());
           yield put(fetchSignedDelayedTransaction());
           yield put(fetchDelayedPolicyUpdate());
-          yield race({
-            sync: call(autoWalletsSyncWorker, {
-              payload: {
-                syncAll: false,
-                hardRefresh: false,
-                addNotifications: true,
-              },
-            }),
-            timeout: delay(15000),
-          });
+          // Wallet/node refresh runs through its watcher after local unlock.
+          // Waiting for network work here can hold the success modal for 15s.
+          yield put(resetSyncing());
+          yield put(autoSyncWallets(false, false, true, id));
 
           yield put(
             uaiChecks([
@@ -247,12 +299,6 @@ function* credentialsAuthWorker({ payload }) {
             ])
           );
 
-          yield put(resetSyncing());
-
-          const { pendingAllBackup, automaticCloudBackup } = yield select(
-            (state: RootState) => state.bhr
-          );
-          if (pendingAllBackup && automaticCloudBackup) yield put(backupAllSignersAndVaults());
           if (!allAccounts.length) {
             // upgraded app
             yield put(addAccount(appId));
@@ -285,8 +331,12 @@ function* credentialsAuthWorker({ payload }) {
         }
         yield put(credsAuthenticated(true));
       } else yield put(credsAuthenticated(true)); // TODO: Should remove and throw an error if not needed in any scenario
-    } else yield put(credsAuthenticated(true));
+    } else {
+      if (originSession !== currentBackupAccountSession()) return;
+      yield put(credsAuthenticated(true));
+    }
   } catch (err) {
+    if (loginSession !== currentBackupAccountSession()) return;
     yield put(credsAuthenticatedError(err));
     yield put(credsAuthenticated(false));
   }
@@ -305,14 +355,16 @@ async function downgradeToPleb() {
     subscription: updatedSubscription,
   });
   store.dispatch(setSubscription(updatedSubscription.name));
-  store.dispatch(setAutomaticCloudBackup(false));
+  store.dispatch(setAutomaticCloudBackup({ appId: app.id, enabled: false }));
   await Relay.updateSubscription(app.id, app.publicId, {
     productId: SubscriptionTier.L1.toLowerCase(),
   });
 }
 
-async function updateSubscriptionFromRelayData(data, wasAutoUpdateEnabledBeforeDowngrade) {
+async function updateSubscriptionFromRelayData(data) {
   const app: KeeperApp = await dbManager.getObjectByIndex(RealmSchema.KeeperApp);
+  const wasAutoUpdateEnabledBeforeDowngrade =
+    store.getState().storage.wasAutoUpdateEnabledBeforeDowngradeByAppId?.[app.id] === true;
   const isBtcPayment = data?.paymentType == 'btc_payment';
   let updatedSubscription: SubScription;
   if (isBtcPayment) {
@@ -335,9 +387,11 @@ async function updateSubscriptionFromRelayData(data, wasAutoUpdateEnabledBeforeD
     subscription: updatedSubscription,
   });
   store.dispatch(setSubscription(updatedSubscription.name));
-  store.dispatch(setAutomaticCloudBackup(wasAutoUpdateEnabledBeforeDowngrade));
+  store.dispatch(
+    setAutomaticCloudBackup({ appId: app.id, enabled: wasAutoUpdateEnabledBeforeDowngrade })
+  );
   store.dispatch(setPlebDueToOffline(false));
-  store.dispatch(setAutoUpdateEnabledBeforeDowngrade(false));
+  store.dispatch(setAutoUpdateEnabledBeforeDowngrade({ appId: app.id, enabled: false }));
 }
 
 export const credentialsAuthWatcher = createWatcher(credentialsAuthWorker, CREDS_AUTH);

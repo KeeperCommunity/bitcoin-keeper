@@ -1,0 +1,58 @@
+name: Protected release preparation contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/keeper-protected-release-plan.yml'
+      - '.github/workflows/keeper-release-preparation-contracts.yml'
+      - '.github/workflows/keeper-protected-release-workers.yml'
+      - 'scripts/protected-release-plan*'
+      - 'scripts/protected-release-worker*'
+      - 'scripts/cloud_release_inventory.py'
+      - 'scripts/test_cloud_release_inventory.py'
+      - 'scripts/cloud_release_worker.py'
+      - 'scripts/test_cloud_release_worker.py'
+      - 'scripts/release-version.cjs'
+      - 'scripts/test_cloud_upload_adapters.rb'
+      - 'release/cloud/**'
+      - '.github/scripts/verify-ci-source.cjs'
+      - '.github/tests/ci-source-identity.test.cjs'
+      - '.github/tests/contract-source-identity.test.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keeper-release-preparation-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22.23.3'
+      - name: Verify exact event source before setup
+        run: node .github/scripts/verify-ci-source.cjs --contract-dispatch
+      - uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - name: Verify exact source after setup
+        run: node .github/scripts/verify-ci-source.cjs --contract-dispatch
+      - name: Offline gate and inventory contracts
+        run: |
+          node --test scripts/protected-release-plan.test.cjs scripts/protected-release-worker.test.cjs scripts/release-version.test.cjs scripts/verify-channel-config.test.cjs
+          python3 -B -m unittest discover -s scripts -p 'test_cloud_release_inventory.py'
+          python3 -B -m unittest discover -s scripts -p 'test_release_artifact.py'
+          python3 -B -m unittest discover -s scripts -p 'test_cloud_release_worker.py'
+          ruby scripts/test_cloud_upload_adapters.rb
+      - name: Verify exact source after checks
+        if: always()
+        run: node .github/scripts/verify-ci-source.cjs --contract-dispatch

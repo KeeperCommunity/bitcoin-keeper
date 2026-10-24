@@ -1,0 +1,35 @@
+appId: ${APP_ID}
+name: Production R5 workers over disposable native storage across six processes
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: r5-features-next
+    timeout: 90000
+- assertNotVisible:
+    id: r5-features-failed
+- repeat:
+    times: 4
+    commands:
+      - stopApp
+      - launchApp:
+          clearState: false
+      - extendedWaitUntil:
+          visible:
+            id: r5-features-next
+          timeout: 90000
+      - assertNotVisible:
+          id: r5-features-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: r5-features-pass
+    timeout: 90000
+- assertNotVisible:
+    id: r5-features-failed
+- stopApp

@@ -107,11 +107,10 @@ const updateInputsForFeeCalculation = (
         // Match only top-level placeholders that aren't signatures
         let witnessKeyCount = (asm.replace(/<sig\([^)]+\)>/g, '').match(/<[^>]+>/g) || []).length;
 
-        const cleanAsm = asm
-          .replace(/<[^>]+>/g, '')
-          .replace(/[()>]/g, '')
-          .trim();
-        const addedElements = cleanAsm.split(' ').filter((x) => x).length;
+        // The satisfier emits literal 0/1 selectors as complete space-separated tokens.
+        const addedElements = asm
+          .split(' ')
+          .filter((element) => element === '0' || element === '1').length;
 
         if (isTaproot || isNativeSegwit) {
           const miniscript = (wallet as Vault).scheme?.miniscriptScheme.miniscript;
@@ -382,7 +381,8 @@ export default class WalletOperations {
     addresses: string[],
     externalAddresses: { [address: string]: number },
     internalAddresses: { [address: string]: number },
-    network: bitcoinJS.Network
+    network: bitcoinJS.Network,
+    assertCurrentScope?: () => void
   ) => {
     let transactions = wallet.specs.transactions;
     let lastUsedAddressIndex = wallet.specs.nextFreeAddressIndex - 1;
@@ -395,6 +395,7 @@ export default class WalletOperations {
       txidToIndex[transaction.txid] = index;
     }
 
+    assertCurrentScope?.();
     const { txids, txidToAddress } = await ElectrumClient.syncHistoryByAddress(addresses, network);
 
     let newTxids = txids.filter((txid) => {
@@ -409,6 +410,7 @@ export default class WalletOperations {
         )
     );
 
+    assertCurrentScope?.();
     const txs = await ElectrumClient.getTransactionsById(newTxids);
 
     // fetch input transactions(for new ones), in order to construct the inputs
@@ -417,6 +419,7 @@ export default class WalletOperations {
       if (txidToIndex[txid] !== undefined) continue; // transaction is already present(don't need to reconstruct using inputTxids)
       for (const vin of txs[txid].vin) inputTxIds.push(vin.txid);
     }
+    assertCurrentScope?.();
     const inputTxs = await ElectrumClient.getTransactionsById(inputTxIds);
 
     let hasNewUpdates = false;
@@ -483,7 +486,8 @@ export default class WalletOperations {
   static syncWalletsViaElectrumClient = async (
     wallets: (Wallet | Vault)[],
     network: bitcoinJS.networks.Network,
-    hardRefresh?: boolean
+    hardRefresh?: boolean,
+    assertCurrentScope?: () => void
   ): Promise<{
     synchedWallets: SyncedWallet[];
   }> => {
@@ -630,6 +634,7 @@ export default class WalletOperations {
         currentRecheckInternal = wallet.specs.nextFreeChangeAddressIndex + gapLimit;
 
         // sync utxos & balances
+        assertCurrentScope?.();
         const utxosByAddress = await ElectrumClient.syncUTXOByAddress(
           addresses.concat(
             !hardRefresh && !walletHasNewUpdates
@@ -762,7 +767,8 @@ export default class WalletOperations {
           addresses,
           externalAddresses,
           internalAddresses,
-          network
+          network,
+          assertCurrentScope
         );
 
         walletHasNewUpdates =

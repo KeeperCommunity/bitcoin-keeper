@@ -6,11 +6,19 @@ on:
       - sprint
       - dev
       - main
+      - release/2.6.3
+      - release/2.6.4
+      # Isolated ownership package: actual disposable CI only, no native/release route.
+      - codex/r5-public-ci-mongo-owner-20261022
   pull_request:
     branches:
       - sprint
+      - codex/r3-release-baseline-to-sprint
       - dev
       - main
+      - release/2.6.3
+      - release/2.6.4
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -22,19 +30,41 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '22'
+          node-version: '22.23.3'
 
+      - name: Verify exact event source before setup
+        run: node .github/scripts/verify-ci-source.cjs
+
+      # Root prepare invokes CocoaPods and writes a Mac SDK path; setup.sh can
+      # mask the pod failure. Keep JavaScript CI installation explicit on Linux.
       - name: Install dependencies
-        run: yarn install --ignore-scripts
+        run: |
+          npm install --global yarn@1.22.22 --ignore-scripts
+          yarn install --frozen-lockfile --ignore-scripts --non-interactive
+
+      - name: Apply repository dependency patches
+        run: node_modules/.bin/patch-package --error-on-fail
+
+      - name: Verify dependency inputs remain unchanged
+        run: |
+          git diff --exit-code HEAD -- package.json yarn.lock ios/Podfile.lock
+          node .github/scripts/verify-ci-source.cjs
 
       - name: Run lint
         run: npm run lint
         continue-on-error: true
+
+      - name: Verify exact source after checks
+        if: always()
+        run: node .github/scripts/verify-ci-source.cjs
 
   test:
     name: Tests
@@ -42,15 +72,131 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '22'
+          node-version: '22.23.3'
 
+      - name: Verify exact event source before setup
+        run: node .github/scripts/verify-ci-source.cjs
+
+      # Match the explicit JavaScript setup used by the lint job.
       - name: Install dependencies
-        run: yarn install
+        run: |
+          npm install --global yarn@1.22.22 --ignore-scripts
+          yarn install --frozen-lockfile --ignore-scripts --non-interactive
+
+      - name: Apply repository dependency patches
+        run: node_modules/.bin/patch-package --error-on-fail
+
+      - name: Verify dependency inputs remain unchanged
+        run: |
+          git diff --exit-code HEAD -- package.json yarn.lock ios/Podfile.lock
+          node .github/scripts/verify-ci-source.cjs
+
+      - name: Set up Ruby for build-only release lane regressions
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.8'
+
+      - name: Check USDT pause and retired build inputs
+        run: |
+          node --test tests/services/usdtPause.test.cjs tests/recovery/usdtBackup.test.cjs \
+            scripts/verify-channel-config.test.cjs ios/scripts/verify-retired-env.test.cjs
 
       - name: Run tests
         run: npm run test
+
+      # Frozen installation intentionally skips lifecycle scripts. The released
+      # recovery suite includes genuine encrypted Realm transaction tests.
+      - name: Install the Realm N-API binding for recovery tests
+        working-directory: node_modules/realm
+        run: ../.bin/prebuild-install --runtime napi --target 6
+
+      - name: Run recovery regression tests
+        run: npm run test:recovery
+
+      - name: Verify checked-out release version consistency
+        run: npm run version:check
+
+      - name: Run release and packaged-artifact tests
+        run: npm run test:release
+
+      - name: Test Android 16 KB static inspection
+        run: python3 -B -m unittest scripts/test_check_android_16kb.py
+
+      - name: Test Android reproducibility tools
+        run: python3 -B -m unittest scripts/test_compare_android_apks.py reproducibility/test_verify_android_inputs.py
+
+      - name: Verify exact source after checks
+        if: always()
+        run: node .github/scripts/verify-ci-source.cjs
+
+  automatic-backup-genuine:
+    name: Automatic backup native Realm and Relay
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      KEEPER_RELAY_FIXTURE_MODULE: ${{ github.workspace }}/.ci-relay/tests/support/automaticBackupHttpFixture.cjs
+      BACKUP_TEST_MONGO_URL: mongodb://127.0.0.1:27058
+      REALM_DISABLE_ANALYTICS: '1'
+
+    steps:
+      - name: Checkout Keeper source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Checkout pinned paired Relay fixture
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: KeeperCommunity/Relay
+          ref: 838049e537e07eb646a2a0393eb969fba43d0739
+          path: .ci-relay
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Verify exact event source before setup
+        run: node .github/scripts/verify-ci-source.cjs --paired-relay
+
+      - name: Install Keeper dependencies without native app setup
+        run: |
+          yarn install --frozen-lockfile --ignore-scripts
+          yarn patch-package
+
+      - name: Install the real Realm N-API binding
+        working-directory: node_modules/realm
+        run: ../.bin/prebuild-install --runtime napi --target 6
+
+      - name: Install paired Relay dependencies
+        working-directory: .ci-relay
+        run: yarn install --frozen-lockfile --non-interactive --ignore-scripts
+
+      - name: Verify exact Keeper source after setup
+        run: node .github/scripts/verify-ci-source.cjs --paired-relay
+
+      - name: Start disposable loopback Mongo replica set
+        run: |
+          python3 -B .github/ci/test_public_ci_mongo.py
+          python3 -B .github/ci/public_ci_mongo.py start
+
+      - name: Run genuine automatic backup source matrix
+        run: npm run test:automatic-backup-genuine
+
+      - name: Verify exact source after checks
+        if: always()
+        run: node .github/scripts/verify-ci-source.cjs --paired-relay
+
+      - name: Remove disposable Mongo container
+        if: always()
+        run: python3 -B .github/ci/public_ci_mongo.py cleanup

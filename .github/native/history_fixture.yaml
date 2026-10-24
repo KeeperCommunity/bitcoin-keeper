@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+name: Controlled native history fixture stage
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: ${EXPECTED_FIXTURE_ID}
+    timeout: 60000
+- stopApp

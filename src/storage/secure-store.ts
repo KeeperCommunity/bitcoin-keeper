@@ -2,6 +2,11 @@ import * as Keychain from 'react-native-keychain';
 import NodeRSA from 'node-rsa';
 import config from '../utils/service-utilities/config';
 import { store as reduxStore } from 'src/store/store';
+import {
+  reportStartupFailure,
+  StartupFailureObserver,
+  StartupFailurePhase,
+} from './startup-failure-observer';
 
 export const store = async (hash: string, enc_key: string, identifier: string) => {
   try {
@@ -65,7 +70,14 @@ export const fetch = async (hash_current: string) => {
   }
 };
 
-export const hasPin = async () => {
+// Startup must distinguish an unreadable Keychain from a successfully empty
+// one. Preserve legacy behavior unless the caller explicitly requests errors.
+export const hasPin = async (
+  { throwOnError = false }: { throwOnError?: boolean } = {},
+  onFailure: StartupFailureObserver | undefined = undefined
+) => {
+  let phase: StartupFailurePhase = 'ACCOUNT_STATE';
+  let reported = false;
   try {
     let allAccounts = reduxStore.getState().account.allAccounts;
     // if allAccounts is empty | upgraded app with old passcode configuration
@@ -73,13 +85,29 @@ export const hasPin = async () => {
       allAccounts = [{ accountIdentifier: undefined }];
     }
     for (const index in allAccounts) {
+      phase = 'ACCOUNT_STATE';
       const identifier =
         allAccounts[index].accountIdentifier == ''
           ? undefined
           : allAccounts[index].accountIdentifier;
-      const credentials = await Keychain.getGenericPassword({
-        service: identifier,
-      });
+      phase = 'NATIVE_CREDENTIAL_READ';
+      let pending;
+      try {
+        pending = Keychain.getGenericPassword({ service: identifier });
+      } catch (err) {
+        reported = true;
+        reportStartupFailure(onFailure, phase, 'THREW', err);
+        throw err;
+      }
+      let credentials;
+      try {
+        credentials = await pending;
+      } catch (err) {
+        reported = true;
+        reportStartupFailure(onFailure, phase, 'REJECTED', err);
+        throw err;
+      }
+      phase = 'CREDENTIAL_JSON';
       if (credentials) {
         const password = JSON.parse(credentials.password);
         if (password) {
@@ -89,6 +117,8 @@ export const hasPin = async () => {
     }
     return false;
   } catch (err) {
+    if (!reported) reportStartupFailure(onFailure, phase, 'THREW', err);
+    if (throwOnError) throw err;
     return false;
   }
 };

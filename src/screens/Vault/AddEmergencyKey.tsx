@@ -92,7 +92,7 @@ function AddEmergencyKey({ route }) {
   const isDarkMode = colorMode === 'dark';
 
   useEffect(() => {
-    if (selectedSigner || keyToRotate) return;
+    if (selectedSigner) return;
 
     if (
       !activeVault?.id ||
@@ -110,7 +110,7 @@ function AddEmergencyKey({ route }) {
       (key) => key.masterFingerprint === emergencyKeyFingerprint
     );
 
-    if (emergencyKey) {
+    if (emergencyKey && (!keyToRotate || getKeyUID(emergencyKey) !== getKeyUID(keyToRotate))) {
       setSelectedSigner([emergencyKey]);
     }
   }, [activeVault?.id, keyToRotate, selectedSigner]);
@@ -149,6 +149,7 @@ function AddEmergencyKey({ route }) {
       isAddInheritanceKey,
       isAddEmergencyKey,
       hasInitialTimelock,
+      initialTimelockDuration,
       currentBlockHeight,
       onGoBack: (signer) => setSelectedSigner(signer),
     });
@@ -161,6 +162,7 @@ function AddEmergencyKey({ route }) {
     isAddInheritanceKey,
     isAddEmergencyKey,
     hasInitialTimelock,
+    initialTimelockDuration,
     currentBlockHeight,
   ]);
 
@@ -302,7 +304,7 @@ function AddEmergencyKey({ route }) {
         emergencyKeys={
           selectedSigner ? [{ key: selectedSigner[0], duration: selectedOption.label }] : []
         }
-        initialTimelockDuration={initialTimelockDuration ?? 0}
+        initialTimelockDuration={initialTimelockDuration}
         currentBlockHeight={currentBlockHeight}
         miniscriptTypes={[
           ...(hasInitialTimelock ? [MiniscriptTypes.TIMELOCKED] : []),

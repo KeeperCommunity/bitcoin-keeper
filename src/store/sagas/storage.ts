@@ -10,12 +10,14 @@ import { DerivationPurpose, SignerType, WalletType } from 'src/services/wallets/
 import WalletUtilities from 'src/services/wallets/operations/utils';
 import crypto from 'crypto';
 import dbManager from 'src/storage/realm/dbManager';
+import realm from 'src/storage/realm/realm';
 import Relay from 'src/services/backend/Relay';
 import config from 'src/utils/service-utilities/config';
 import { setupRecoveryKeySigningKey } from 'src/hardware/signerSetup';
 import { DelayedPolicyUpdate, DelayedTransaction } from 'src/models/interfaces/AssistedKeys';
 import SigningServer from 'src/services/backend/SigningServer';
 import { Signer } from 'src/services/wallets/interfaces/vault';
+import { Wallet } from 'src/services/wallets/interfaces/wallet';
 import { uaiType } from 'src/models/interfaces/Uai';
 import { createWatcher } from '../utilities';
 import {
@@ -33,7 +35,7 @@ import {
 import { setAppCreationError } from '../reducers/login';
 import { resetRealyWalletState } from '../reducers/bhr';
 import { addToUaiStack } from '../sagaActions/uai';
-import { RootState } from '../store';
+import { RootState, store } from '../store';
 import {
   addAccount,
   setBiometricEnabledAppId,
@@ -41,10 +43,21 @@ import {
 } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import LoginMethod from 'src/models/enums/LoginMethod';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
+import type { BackupWriteIntent } from 'src/services/backup/intent';
 
-export function* setupKeeperAppWorker({ payload }) {
+export function* setupKeeperAppWorker({ payload, originBackupWriteIntent }: {
+  payload: { appName: string; fcmToken: string };
+  originBackupWriteIntent?: BackupWriteIntent;
+}) {
+  let isCurrentSetupScope = () => true;
   try {
-    const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
+    const { bitcoinNetworkType, selectedAppId } = yield select((state: RootState) => ({
+      bitcoinNetworkType: state.settings.bitcoinNetworkType,
+      selectedAppId: state.storage.appId,
+    }));
+    const sourceRealm = realm.getDatabase();
+    let expectedAppId = selectedAppId;
     const { appName, fcmToken }: { appName: string; fcmToken: string } = payload;
     let primaryMnemonic;
     let primarySeed;
@@ -52,6 +65,28 @@ export function* setupKeeperAppWorker({ payload }) {
     let publicId;
     let imageEncryptionKey;
     const app: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+    let expectedRealmAppId = app?.id;
+    isCurrentSetupScope = () => {
+      try {
+        const state = store.getState();
+        const currentApp = dbManager.getObjectByIndex(RealmSchema.KeeperApp) as unknown as KeeperApp;
+        return (
+          realm.getDatabase() === sourceRealm &&
+          state.storage.appId === expectedAppId &&
+          state.settings.bitcoinNetworkType === bitcoinNetworkType &&
+          currentApp?.id === expectedRealmAppId
+        );
+      } catch {
+        return false;
+      }
+    };
+    const assertCurrentSetupScope = () => {
+      if (!isCurrentSetupScope()) throw new Error('Account changed during app setup');
+    };
+    const dispatchForSetup = (action) => {
+      assertCurrentSetupScope();
+      store.dispatch(action);
+    };
     if (app) {
       primaryMnemonic = app.primaryMnemonic;
       primarySeed = app.primarySeed;
@@ -70,7 +105,9 @@ export function* setupKeeperAppWorker({ payload }) {
       );
       imageEncryptionKey = generateEncryptionKey(entropy.toString('hex'));
     }
+    assertCurrentSetupScope();
     const response = yield call(Relay.createNewApp, publicId, appID, fcmToken);
+    assertCurrentSetupScope();
 
     if (response && response.created) {
       const newAPP: KeeperApp = {
@@ -91,9 +128,21 @@ export function* setupKeeperAppWorker({ payload }) {
         networkType: bitcoinNetworkType,
         enableAnalytics: false,
       };
-      yield call(dbManager.createObject, RealmSchema.KeeperApp, newAPP);
-
-      yield put(addAccount(appID));
+      const appPersisted = yield call(() => {
+        assertCurrentSetupScope();
+        return dbManager.createObject(RealmSchema.KeeperApp, newAPP);
+      });
+      if (!appPersisted) throw new Error('Failed to persist new app');
+      expectedRealmAppId = appID;
+      // Scoped wallet/key creation requires Redux and the new Realm to name the
+      // same account before setup can be marked ready.
+      yield call(() => {
+        // Check the original selection again at the publication boundary.
+        assertCurrentSetupScope();
+        expectedAppId = appID;
+        store.dispatch(setAppId(appID));
+      });
+      assertCurrentSetupScope();
 
       const defaultWallet: NewWalletInfo = {
         walletType: WalletType.DEFAULT,
@@ -111,28 +160,60 @@ export function* setupKeeperAppWorker({ payload }) {
       };
 
       const recoveryKeySigner = setupRecoveryKeySigningKey(primaryMnemonic);
-      yield call(addNewWalletsWorker, { payload: [defaultWallet] });
-      yield call(addSigningDeviceWorker, { payload: { signers: [recoveryKeySigner] } });
-      yield put(
+      const existingWallets: Wallet[] = yield call(dbManager.getCollection, RealmSchema.Wallet);
+      assertCurrentSetupScope();
+      // A retry after key setup failed must retain the already-created wallet.
+      const isDefaultWallet = (wallet: Wallet) =>
+        wallet.type === WalletType.DEFAULT &&
+        wallet.networkType === bitcoinNetworkType &&
+        wallet.derivationDetails.instanceNum === 0;
+      const hasDefaultWallet = existingWallets.some(isDefaultWallet);
+      const walletCreated = hasDefaultWallet || (yield call(addNewWalletsWorker, {
+        originAppId: appID,
+        originBackupAccountSession: currentBackupAccountSession(),
+        originBackupWriteIntent,
+        payload: [defaultWallet],
+      }));
+      assertCurrentSetupScope();
+      const createdWallets: Wallet[] = yield call(dbManager.getCollection, RealmSchema.Wallet);
+      assertCurrentSetupScope();
+      if (!walletCreated || !createdWallets.some(isDefaultWallet))
+        throw new Error('Failed to create default wallet');
+      yield call(addSigningDeviceWorker, {
+        originAppId: appID,
+        originBackupAccountSession: currentBackupAccountSession(),
+        originBackupWriteIntent,
+        payload: { signers: [recoveryKeySigner] },
+      });
+      assertCurrentSetupScope();
+      const recoveryKeys: Signer[] = yield call(dbManager.getCollection, RealmSchema.Signer);
+      assertCurrentSetupScope();
+      if (!recoveryKeys.some((signer) =>
+        signer.masterFingerprint === recoveryKeySigner.masterFingerprint &&
+        signer.networkType === recoveryKeySigner.networkType
+      )) throw new Error('Failed to create Recovery Key');
+      yield call(dispatchForSetup, addAccount(appID));
+      yield call(dispatchForSetup,
         updateDefaultWalletCreatedByAppId({ appId: appID, networkType: bitcoinNetworkType })
       );
-      yield put(setAppId(appID));
-      yield put(setAppCreated(true));
-      yield put(resetRealyWalletState());
-      yield put(loadConciergeUser(null));
-      yield put(loadConciergeTickets([]));
+      yield call(dispatchForSetup, setAppCreated(true));
+      yield call(dispatchForSetup, resetRealyWalletState());
+      yield call(dispatchForSetup, loadConciergeUser(null));
+      yield call(dispatchForSetup, loadConciergeTickets([]));
       const { loginMethod } = yield select((state: RootState) => state.settings);
       if (loginMethod === LoginMethod.BIOMETRIC) {
         const { allAccounts } = yield select((state: RootState) => state.account);
-        if (allAccounts.length == 1) yield put(setBiometricEnabledAppId(appID));
+        if (allAccounts.length == 1)
+          yield call(dispatchForSetup, setBiometricEnabledAppId(appID));
       }
     } else {
-      yield put(setAppCreationError(true));
+      yield call(dispatchForSetup, setAppCreationError(true));
     }
   } catch (error) {
-    yield put(setAppCreationError(true));
     console.log({ error });
-    yield put(setAppCreationError(true));
+    yield call(() => {
+      if (isCurrentSetupScope()) store.dispatch(setAppCreationError(true));
+    });
   }
 }
 

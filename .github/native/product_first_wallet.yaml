@@ -1,0 +1,166 @@
+# Full packaged app, ordinary index.js/production reducers/sagas/Realm. PIN1111
+# belongs only to the runner-created disposable installation. Never reveal seeds.
+appId: ${APP_ID}
+name: Full app startup first wallet and cold persistence
+---
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: startup_start
+- launchApp:
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible: Create a passcode
+    timeout: 180000
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: startup_ready
+- runFlow: product_prepare_pin.yaml
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: wallet_start
+- tapOn:
+    id: view_startNewTile
+- extendedWaitUntil:
+    visible: Next
+    timeout: 180000
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: wallet_ready
+- tapOn: Next
+- extendedWaitUntil:
+    visible: Protect Your Recovery Key
+    timeout: 30000
+- tapOn: Skip for Now
+- extendedWaitUntil:
+    visible: Continue Without Backup?
+    timeout: 30000
+- tapOn: Skip Backup
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: home_ready
+- stopApp
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: relaunch_start
+- launchApp
+- extendedWaitUntil:
+    visible: Enter your passcode
+    timeout: 60000
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: relaunch_login
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 60000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: relaunch_home
+- tapOn:
+    id: home_tab_more
+- tapOn:
+    id: home_tab_wallets
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- tapOn:
+    id: home_tab_more
+- scrollUntilVisible:
+    element:
+      id: btn_setting_App Settings
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_setting_App Settings
+- extendedWaitUntil:
+    visible:
+      id: btn_setting_Version History
+    timeout: 30000
+- tapOn:
+    id: btn_setting_Version History
+- extendedWaitUntil:
+    visible:
+      id: text_installedAppVersionLabel
+      text: Installed app version
+    timeout: 30000
+- assertVisible:
+    id: text_installedAppVersion
+    text: ${EXPECTED_INSTALLED_REGEX}
+- assertVisible:
+    id: view_VersionHistoryList
+- assertVisible: Initially installed
+- assertVisible:
+    text: ${EXPECTED_HISTORY_REGEX}
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: version_history_verified
+- tapOn:
+    id: btn_back
+- extendedWaitUntil:
+    visible:
+      id: btn_setting_Version History
+    timeout: 30000
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: home_tab_keys
+- extendedWaitUntil:
+    visible:
+      id: manage_keys_actions
+    timeout: 30000
+- tapOn:
+    id: manage_keys_actions
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Manage Keys
+    timeout: 30000
+# The only fresh signer is Recovery Key, excluded by DeleteKeys' production
+# filters. Check safe discovery/back navigation; never create a deletion intent.
+- assertNotVisible: Delete
+- tapOn:
+    id: btn_back
+- extendedWaitUntil:
+    visible:
+      id: manage_keys_actions
+    timeout: 30000
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: key_management_entry_verified
+- tapOn:
+    id: home_tab_wallets
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: navigation_verified
+- stopApp

@@ -1,0 +1,246 @@
+# Ordinary app entrypoint, current native credentials/reducers/sagas/Realm.
+# Runs only on the task-owned disposable one-wallet account from retry fixture6.
+# Do not open seed/QR/export screens, opt into backup, fund or sign anything.
+appId: ${APP_ID}
+name: Normal app unused key deletion PIN rejection and cold persistence
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Enter your passcode
+    timeout: 60000
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 60000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: existing_disposable_home_verified
+- tapOn:
+    id: home_tab_keys
+- extendedWaitUntil:
+    visible:
+      id: manage_keys_actions
+    timeout: 30000
+- tapOn:
+    id: manage_keys_actions
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Manage Keys
+    timeout: 30000
+- assertVisible: All the keys are hidden
+- assertNotVisible: Delete
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: empty_deletion_entry_verified
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: keys_add_key
+- extendedWaitUntil:
+    visible: Add a software key
+    timeout: 30000
+- tapOn: Add a software key
+- extendedWaitUntil:
+    visible:
+      id: btn_MY_KEEPER
+    timeout: 30000
+- tapOn:
+    id: btn_MY_KEEPER
+- extendedWaitUntil:
+    visible: Setting up Mobile Key \(Hot\)
+    timeout: 30000
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Confirm passcode to generate key
+    timeout: 30000
+- assertVisible:
+    id: modal_passcode_verify
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Mobile Key Added Successfully!
+    timeout: 60000
+- assertNotVisible:
+    id: seed_item_0
+- tapOn: Cancel
+- extendedWaitUntil:
+    visible:
+      id: manage_keys_actions
+    timeout: 30000
+- tapOn:
+    id: manage_keys_actions
+- extendedWaitUntil:
+    visible:
+      id: btnDelete
+    timeout: 30000
+- assertVisible: Mobile Key
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: unused_mobile_key_created
+- tapOn:
+    id: btnDelete
+- extendedWaitUntil:
+    visible: Confirm passcode to delete key
+    timeout: 30000
+- assertVisible:
+    id: modal_passcode_verify
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: delete_confirmation_scoped
+# A cancelled partially entered confirmation must preserve the eligible key.
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn:
+    id: btn_close_modal
+- extendedWaitUntil:
+    visible:
+      id: btnDelete
+    timeout: 30000
+- assertVisible: Mobile Key
+- assertNotVisible: Key Deleted Successfully
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: cancelled_confirmation_preserved_key
+- tapOn:
+    id: btnDelete
+- extendedWaitUntil:
+    visible:
+      id: modal_passcode_verify
+    timeout: 30000
+# The only created account uses PIN1111. PIN0000 must be rejected natively.
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_0
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Incorrect Passcode, Try Again!
+    timeout: 30000
+- assertVisible:
+    id: modal_passcode_verify
+- assertNotVisible: Key Deleted Successfully
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: wrong_deletion_pin_rejected
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- extendedWaitUntil:
+    visible:
+      id: btn_primaryText
+      enabled: true
+    timeout: 10000
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Key Deleted Successfully
+    timeout: 60000
+- assertVisible: Your Key has been deleted successfully. You will have to add the Key again
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: unused_mobile_key_deleted
+- tapOn: Continue
+- extendedWaitUntil:
+    visible: All the keys are hidden
+    timeout: 30000
+- assertNotVisible: Delete
+- assertNotVisible: Mobile Key
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: home_tab_wallets
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: unrelated_wallet_preserved
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Enter your passcode
+    timeout: 60000
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_0
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Incorrect Passcode, Try Again!
+    timeout: 30000
+- assertNotVisible:
+    id: home_visible_wallet_count_1
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: cold_wrong_login_pin_rejected
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 60000
+- assertVisible: Mobile Wallet
+- tapOn:
+    id: home_tab_keys
+- extendedWaitUntil:
+    visible:
+      id: manage_keys_actions
+    timeout: 30000
+- tapOn:
+    id: manage_keys_actions
+- extendedWaitUntil:
+    visible: All the keys are hidden
+    timeout: 30000
+- assertNotVisible: Delete
+- assertNotVisible: Mobile Key
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: deletion_persisted_after_relaunch
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: home_tab_wallets
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_key_metric.js
+    env:
+      STAGE: final_wallet_verified
+- stopApp

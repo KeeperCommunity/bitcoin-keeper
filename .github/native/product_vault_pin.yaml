@@ -1,0 +1,9 @@
+# Only the runner-owned disposable account uses PIN1111.
+appId: ${APP_ID}
+---
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed

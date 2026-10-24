@@ -1,0 +1,64 @@
+name: Frozen cloud Ruby toolchain
+
+on:
+  pull_request:
+    paths:
+      - 'Gemfile'
+      - 'Gemfile.lock'
+      - 'ios/Podfile.lock'
+      - 'package.json'
+      - 'yarn.lock'
+      - 'scripts/check_cloud_release_inputs.py'
+      - 'scripts/cloud_release_worker.py'
+      - 'scripts/test_cloud_release_worker.py'
+      - '.github/workflows/keeper-ruby-lock-contracts.yml'
+      - 'release/cloud/Fastfile'
+      - 'scripts/test_cloud_upload_adapters.rb'
+      - 'scripts/test_cloud_upload_fastlane.rb'
+      - '.github/scripts/verify-ci-source.cjs'
+      - '.github/tests/ci-source-identity.test.cjs'
+      - '.github/tests/contract-source-identity.test.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keeper-ruby-lock-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  frozen-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.3'
+      - name: Verify exact event source before setup
+        run: node .github/scripts/verify-ci-source.cjs --contract-dispatch
+      - uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - name: Install/load only the frozen toolchain; no native build or provider access
+        env:
+          BUNDLE_PATH: ${{ runner.temp }}/keeper-ruby-gems
+          BUNDLE_FROZEN: 'true'
+        run: |
+          python3 -B scripts/check_cloud_release_inputs.py --root .
+          python3 -B -m unittest discover -s scripts -p 'test_cloud_release_worker.py'
+          bundle install --jobs 4 --retry 1
+          bundle check
+          node .github/scripts/verify-ci-source.cjs --contract-dispatch
+          bundle exec ruby -e 'require "cocoapods"; require "xcodeproj"; require "rexml/document"; abort unless Pod::VERSION == "1.16.2" && Xcodeproj::VERSION == "1.27.0"; puts "Frozen CocoaPods/Xcodeproj load PASS"'
+          bundle exec ruby -rxcodeproj -e 'p = Xcodeproj::Project.open("ios/hexa_keeper.xcodeproj"); abort unless p.targets.any? { |t| t.name == "hexa_keeper" }; puts "Existing Xcode project parse PASS"'
+          ruby scripts/test_fastlane_build_only.rb
+          bundle exec ruby scripts/test_cloud_upload_fastlane.rb
+          git diff --exit-code HEAD -- Gemfile Gemfile.lock package.json yarn.lock ios/Podfile.lock
+      - name: Verify exact source after checks
+        if: always()
+        run: node .github/scripts/verify-ci-source.cjs --contract-dispatch

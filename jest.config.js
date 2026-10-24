@@ -4,7 +4,7 @@ module.exports = {
   setupFiles: ['./node_modules/react-native-gesture-handler/jestSetup.js'],
   setupFilesAfterEnv: ['./test-setup.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?@?react-native|@react-navigation|@react-native-community|redux-persist|@realm)',
+    'node_modules/(?!(jest-)?@?react-native|@react-navigation|@react-native-community|redux-persist|@realm|@noble/(curves|hashes)|@scure/(bip32|bip39|base)|@exodus/bytes)',
   ],
   collectCoverage: true,
   coverageDirectory: 'coverage',

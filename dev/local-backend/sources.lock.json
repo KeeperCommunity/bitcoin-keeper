@@ -1,0 +1,20 @@
+{
+  "relay": {
+    "url": "https://github.com/KeeperCommunity/Relay.git",
+    "revision": "ee935359f22ff7932ea0a62e9084d4b49801f4aa",
+    "assets": {
+      "files/Dockerfile.local": "6dde6c692430b1a91a10cdd82e6f1562023cc5974ffd4d4f58fe57fa1994407a"
+    }
+  },
+  "signing": {
+    "url": "https://github.com/KeeperCommunity/SigningServer.git",
+    "revision": "3cc7728c27328e7b0358d1f91a32d8d13feba90a",
+    "assets": {
+      "files/.dockerignore": "78d9a1e03c57cfc1c7fb79ff2335aa2393bb075d0ac4a23feae81371728190be",
+      "files/Dockerfile.local": "04a0bfca3903eb1363f8804b7c181424747c949aed543a89fe7a02316ccafa3d",
+      "files/scripts/local-entry.cjs": "7e0d39965fd8d4a880ab68b5ff9e7b75595c33cbdb106bb5ec0b42d505b1827b",
+      "files/src/config.ts": "606fdeb4717e98ab95e5a6918a0c8a8b9b3427697d27bba263b9ec566a91438e",
+      "local.patch": "a592f37900215a5f013a0d349983f7a1d937206fbf1670c07fc9a37e457d743f"
+    }
+  }
+}

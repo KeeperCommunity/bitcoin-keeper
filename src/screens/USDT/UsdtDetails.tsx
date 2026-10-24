@@ -13,10 +13,8 @@ import { getAvailableBalanceUSDTWallet } from 'src/services/wallets/factories/US
 import WalletDetailHeader from '../WalletDetails/components/WalletDetailHeader';
 import DetailCards from '../WalletDetails/components/DetailCards';
 import ThemedColor from 'src/components/ThemedColor/ThemedColor';
-import MoreCard from '../WalletDetails/components/MoreCard';
-import KeeperModal from 'src/components/KeeperModal';
-import SwapSvg from 'src/assets/images/swap.svg';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import KeeperModal from 'src/components/KeeperModal';
 
 function TransactionsAndUTXOs({ transactions, setPullRefresh, pullRefresh, wallet }) {
   const [initialLoading, setInitialLoading] = useState(false);
@@ -39,14 +37,14 @@ const UsdtDetails = ({ route }) => {
   const { colorMode } = useColorMode();
   const navigation = useNavigation();
   const { translations } = useContext(LocalizationContext);
-  const { common } = translations;
+  const { common, usdtWalletText } = translations;
   const { getWalletCardGradient, getWalletTags } = useWalletAsset();
   const [pullRefresh, setPullRefresh] = useState(false);
   const { usdtWalletId } = route.params || {};
   const { getWalletById } = useUSDTWallets();
   const usdtWallet = getWalletById(usdtWalletId);
-  const [showmore, setShowMore] = useState(false);
   const viewAll_color = ThemedColor({ name: 'viewAll_color' });
+  const [showSendPaused, setShowSendPaused] = useState(false);
 
   return (
     <Box style={styles.wrapper}>
@@ -64,20 +62,25 @@ const UsdtDetails = ({ route }) => {
       <Box style={styles.detailCardsContainer}>
         <Box style={styles.detailCards}>
           <DetailCards
-            // setShowMore={setShowMore}
-            disabled={false}
-            sendCallback={() =>
-              navigation.dispatch(CommonActions.navigate('sendUsdt', { usdtWallet }))
-            }
+            sendCallback={() => setShowSendPaused(true)}
             receiveCallback={() =>
               navigation.dispatch(CommonActions.navigate('usdtReceive', { usdtWallet }))
-            }
-            buyCallback={() =>
-              navigation.dispatch(CommonActions.navigate('buyUstd', { usdtWallet }))
             }
             wallet={usdtWallet}
           />
         </Box>
+      </Box>
+      <Box
+        style={styles.pausedNotice}
+        backgroundColor={`${colorMode}.thirdBackground`}
+        borderColor={`${colorMode}.separator`}
+      >
+        <Text medium color={`${colorMode}.primaryText`} style={styles.pausedTitle}>
+          {usdtWalletText.pausedTitle}
+        </Text>
+        <Text color={`${colorMode}.primaryText`} style={styles.pausedBody}>
+          {usdtWalletText.pausedBody}
+        </Text>
       </Box>
       <VStack backgroundColor={`${colorMode}.primaryBackground`} style={styles.walletContainer}>
         {usdtWallet ? (
@@ -134,25 +137,15 @@ const UsdtDetails = ({ route }) => {
         )}
       </VStack>
       <KeeperModal
-        visible={showmore}
-        close={() => setShowMore(false)}
-        title={common.moreOptions}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        textColor={`${colorMode}.textGreen`}
+        visible={showSendPaused}
+        close={() => setShowSendPaused(false)}
+        title={usdtWalletText.sendingPausedTitle}
+        subTitle={usdtWalletText.sendingPausedBody}
         modalBackground={`${colorMode}.modalWhiteBackground`}
-        Content={() => {
-          return (
-            <Box>
-              <MoreCard
-                title={common.swapBtc}
-                callBack={() => {
-                  setShowMore(false);
-                }}
-                Icon={<SwapSvg />}
-              />
-            </Box>
-          );
-        }}
+        textColor={`${colorMode}.textGreen`}
+        subTitleColor={`${colorMode}.modalSubtitleBlack`}
+        buttonText={common.ok}
+        buttonCallback={() => setShowSendPaused(false)}
       />
     </Box>
   );
@@ -168,7 +161,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   walletContainer: {
-    paddingTop: wp(30),
+    paddingTop: hp(8),
     paddingBottom: 20,
     flex: 1,
     justifyContent: 'space-between',
@@ -226,6 +219,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: hp(20),
+  },
+  pausedNotice: {
+    marginHorizontal: wp(22),
+    marginTop: hp(65),
+    paddingHorizontal: wp(16),
+    paddingVertical: hp(12),
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  pausedTitle: {
+    fontSize: wp(14),
+  },
+  pausedBody: {
+    fontSize: wp(12),
+    marginTop: hp(6),
   },
   detailCardsContainer: {
     zIndex: 1000,

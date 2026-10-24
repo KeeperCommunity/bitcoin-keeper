@@ -1,0 +1,290 @@
+{
+  "state": "SOURCE_VECTORS_METRO_VM_AND_HERMES_COMPILE_ONLY_NOT_NATIVE_ACCEPTANCE",
+  "date_utc": "2026-10-16",
+  "packages": {
+    "@scure/bip32": {
+      "version": "2.4.0",
+      "registry": "https://registry.npmjs.org/@scure%2Fbip32/2.4.0",
+      "registry_integrity": "sha512-i3DS0CptAocyvqE4n3SUkpzeQK4vJMFwWLofTwRiiKo2aWojBOfyMCgfKw9HVpO6fSY5AK86sHS/Uzn8kK9Few==",
+      "registry_shasum": "4b13d0e5f60f776f17cbf5528893ee03839acb6a",
+      "engines": null,
+      "dependencies": {
+        "@scure/base": "2.4.0",
+        "@noble/curves": "2.4.0",
+        "@noble/hashes": "2.4.0"
+      },
+      "policy_url": "https://raw.githubusercontent.com/paulmillr/scure-bip32/main/SECURITY.md",
+      "policy_sha256": "0b2bc315d26fce709fc99643603c50d97aa26e969b3d9b7f11ca15d3e045196d",
+      "policy_supports_at_least_2_4_0": true,
+      "advisory_query": "https://api.github.com/advisories?ecosystem=npm&affects=%40scure%2Fbip32&per_page=100",
+      "returned_advisory_ids": [],
+      "root_installed_package_version": "2.4.0"
+    },
+    "@scure/bip39": {
+      "version": "2.4.0",
+      "registry": "https://registry.npmjs.org/@scure%2Fbip39/2.4.0",
+      "registry_integrity": "sha512-82dxFbZUYboyOf0AXiydsQrFQ5Q4h9mX+O2UkE91ROYmsc0BKMGZLwDmy96Jpa2+vrtoxomjUhy1RPIgH/r2nA==",
+      "registry_shasum": "7b19a76d4dd2f4591c07b446a0f9695f9b1d9545",
+      "engines": null,
+      "dependencies": {
+        "@noble/hashes": "2.4.0"
+      },
+      "policy_url": "https://raw.githubusercontent.com/paulmillr/scure-bip39/main/SECURITY.md",
+      "policy_sha256": "0b2bc315d26fce709fc99643603c50d97aa26e969b3d9b7f11ca15d3e045196d",
+      "policy_supports_at_least_2_4_0": true,
+      "advisory_query": "https://api.github.com/advisories?ecosystem=npm&affects=%40scure%2Fbip39&per_page=100",
+      "returned_advisory_ids": [],
+      "root_installed_package_version": "2.4.0"
+    },
+    "@noble/curves": {
+      "version": "2.4.0",
+      "registry": "https://registry.npmjs.org/@noble%2Fcurves/2.4.0",
+      "registry_integrity": "sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==",
+      "registry_shasum": "367c869bfd790c3a2248152562f255b5f8898b74",
+      "engines": {
+        "node": ">= 20.19.0"
+      },
+      "dependencies": {
+        "@noble/hashes": "2.4.0"
+      },
+      "policy_url": "https://raw.githubusercontent.com/paulmillr/noble-curves/main/SECURITY.md",
+      "policy_sha256": "d29d5589c25baaf86f521f6a4ef7193d4bcb5b643c3be8e16415ca3fb88b8d44",
+      "policy_supports_at_least_2_4_0": true,
+      "advisory_query": "https://api.github.com/advisories?ecosystem=npm&affects=%40noble%2Fcurves&per_page=100",
+      "returned_advisory_ids": [],
+      "root_installed_package_version": "2.4.0"
+    },
+    "@noble/hashes": {
+      "version": "2.4.0",
+      "registry": "https://registry.npmjs.org/@noble%2Fhashes/2.4.0",
+      "registry_integrity": "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==",
+      "registry_shasum": "e6a3e98edbed3c8659b28bb8f9b18ca02ec8ea4b",
+      "engines": {
+        "node": ">= 20.19.0"
+      },
+      "dependencies": null,
+      "policy_url": "https://raw.githubusercontent.com/paulmillr/noble-hashes/main/SECURITY.md",
+      "policy_sha256": "0b2bc315d26fce709fc99643603c50d97aa26e969b3d9b7f11ca15d3e045196d",
+      "policy_supports_at_least_2_4_0": true,
+      "advisory_query": "https://api.github.com/advisories?ecosystem=npm&affects=%40noble%2Fhashes&per_page=100",
+      "returned_advisory_ids": [],
+      "root_installed_package_version": "2.4.0"
+    },
+    "@scure/base": {
+      "version": "2.4.0",
+      "registry": "https://registry.npmjs.org/@scure%2Fbase/2.4.0",
+      "registry_integrity": "sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==",
+      "registry_shasum": "61e4ed7d4447afc247f2bff9aeb8fca53267db86",
+      "engines": null,
+      "dependencies": null,
+      "policy_url": "https://raw.githubusercontent.com/paulmillr/scure-base/main/SECURITY.md",
+      "policy_sha256": "0b2bc315d26fce709fc99643603c50d97aa26e969b3d9b7f11ca15d3e045196d",
+      "policy_supports_at_least_2_4_0": true,
+      "advisory_query": "https://api.github.com/advisories?ecosystem=npm&affects=%40scure%2Fbase&per_page=100",
+      "returned_advisory_ids": [],
+      "root_installed_package_version": "1.1.9",
+      "authority_resolution": "node_modules/@scure/bip32/node_modules/@scure/base@2.4.0; root1.1.9 retained for existing QR callers"
+    },
+    "@exodus/bytes": {
+      "version": "1.16.0",
+      "registry": "https://registry.npmjs.org/@exodus%2Fbytes/1.16.0",
+      "registry_integrity": "sha512-IcpW84uEn3N7ETtNZMlxKhfl6Pec8rUNGOTBtWbK1FKhJxIFAptZyVrvVRVBimAJxJCgc3PxepxkdWWG4DVzfA==",
+      "registry_tarball_integrity_verified": true,
+      "primary_repository": "https://github.com/ExodusOSS/bytes",
+      "published_utc": "2026-09-22T13:26:14.694Z",
+      "engines": {
+        "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+      },
+      "dependencies": null,
+      "public_subpath_used": "@exodus/bytes/encoding-lite.js",
+      "purpose": "Install standard TextEncoder only when absent; never installs TextDecoder or replaces an existing encoder",
+      "primary_readme": "https://github.com/ExodusOSS/bytes/blob/main/README.md",
+      "support_observation": "Repository active/nonarchived; README documents React Native/Hermes and encoding-lite. No SECURITY.md at the checked primary path (HTTP404); no security-support policy or audit is claimed.",
+      "advisory_query": "https://api.github.com/advisories?ecosystem=npm&affects=%40exodus%2Fbytes&per_page=100",
+      "returned_advisory_ids": []
+    }
+  },
+  "package_install_owner": "root; no package/yarn/install mutation by authority agent",
+  "source_files": {
+    "src/services/backup/authority.ts": {
+      "bytes": 8146,
+      "sha256": "7745c6d3766eb5b0d57b415b846561fd8cc08e9b6934d92f128ad9f76327b121"
+    },
+    "src/services/backup/encoding.ts": {
+      "bytes": 433,
+      "sha256": "399df9301a181ece2636df9f8a1b597ccc5de73808ca591d9a51f2c8385deafa"
+    },
+    "index.js": {
+      "bytes": 1062,
+      "sha256": "779fc43c38677a00a1da4eaeb66856833276003a736266f505e6dc989f763088"
+    },
+    "tests/recovery/protected-authority.test.mjs": {
+      "bytes": 12516,
+      "sha256": "78a7225ad5c95a2af4553635c3e76e9719754028c4bd804f2c5a84707bb3f509"
+    },
+    "tests/recovery/protected-authority.metro.cjs": {
+      "bytes": 9267,
+      "sha256": "257f5e3e8030c0cf6230b6f9991478f1ab97853b67c3b7403474f20e521c5b0a"
+    },
+    "tests/recovery/support/protected-authority-esm-loader.mjs": {
+      "bytes": 2076,
+      "sha256": "be1d84fbde89f5a753876298179416ac8c377b3079df2ff21df95cccee998494"
+    },
+    "tests/recovery/support/react-native-encoding-loader.mjs": {
+      "bytes": 531,
+      "sha256": "80c6abf2a0ea27f148e90a53fe37a4d4526007bff88e8965bcce930bb9f4d829"
+    },
+    "tests/recovery/protected-authority.md": {
+      "bytes": 2455,
+      "sha256": "cb05cb83ebd6cfa66f1fc791d2629a136d3ffa615f9993f77f8131ff058242eb"
+    }
+  },
+  "actual_checks": {
+    "authority_vectors": {
+      "command": "node --test tests/recovery/protected-authority.test.mjs",
+      "pass": 13,
+      "fail": 0,
+      "skipped": 0,
+      "node": "22.23.3",
+      "openssl": "3.5.8",
+      "log": {
+        "bytes": 3212,
+        "sha256": "a306603456f1e496bc30dc25a8e245624cb10153cb8f86175b6772d3c2fe20df"
+      },
+      "module_mode": "actual production TS transpiled ES2022 ESM; actual installed crypto imports; no algorithm substitution",
+      "absent_globals": "test-only ESM resolver removes Node condition for @exodus/bytes so actual mobile/default implementation is used; independently checked by actual Metro graph"
+    },
+    "focused_eslint": {
+      "command": "node node_modules/eslint/bin/eslint.js src/services/backup/authority.ts src/services/backup/encoding.ts",
+      "exit_code": 0,
+      "errors": 0,
+      "warnings": 0,
+      "log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "focused_metro": {
+      "command": "node tests/recovery/protected-authority.metro.cjs",
+      "node": "22.23.3",
+      "metro_version": "0.83.6",
+      "platform": "android",
+      "modules": 83,
+      "pass": true,
+      "app_index_order": "Actual index.js import order checked; focused entry imports real shim, encoding and authority; full index/App startup NOT RUN",
+      "native_boundaries": "shim net/tls/crypto imports replaced by throwing traps; native InitializeCore excluded",
+      "js_execution": "actual Android Metro bundle executed in Node V8 VM without TextEncoder/TextDecoder; encoder-only installation, UTF8/encodeInto boundaries, fixed namespace, raw digest and OpenSSL signature verified",
+      "hermes_compile": "PASS, installed compiler reports release0.12.0/HBC96; not execution",
+      "hermes_runtime_execution": "NOT RUN (compiler rejected -exec)",
+      "log": {
+        "bytes": 269,
+        "sha256": "c522086668239d63ef2d008d788052cf1f1d6bdd3f5fd0e35f3e7c3e9c6b0882"
+      },
+      "receipt": {
+        "bytes": 9869,
+        "sha256": "8c81d21c14b851a97b9b2ccc9fe9ef9ef164da65095169997f198e01e45cad44"
+      },
+      "bundle": {
+        "bytes": 785652,
+        "sha256": "25bb56d581d47f48caf0fc25a510fdf2497f7d5e864601caac57ceb6c3ae7f34"
+      },
+      "hbc": {
+        "bytes": 504455,
+        "sha256": "c633bf481c26dc206682f6b896c48d44ad6e0aa240abe7f2bbc512c27d818d16"
+      }
+    }
+  },
+  "standard_vectors": [
+    "RFC5869 SHA256 case1",
+    "Trezor python-mnemonic first English vector with TREZOR passphrase (primitive-only); production authority explicitly no passphrase",
+    "BIP32 official vector1 master and hardened-zero xpub",
+    "Full production no-passphrase namespace matches backend158 fixed fixture bk3_7SolLs5PrxK2ybpJGsah8spJqewmCskdDW_L9gnI2FY"
+  ],
+  "limits": [
+    "Dated primary metadata/advisory observations are not security certification; no SECURITY.md support policy was found for @exodus/bytes.",
+    "ESM child uses a disclosed mobile-resolution test hook; real Metro independently selects actual default/mobile encoding sources.",
+    "Metro proof executes in Node V8 and compiles Hermes bytecode; neither Hermes runtime execution nor full native App startup was run.",
+    "IOS / ANDROID_NATIVE / HARDWARE NOT RUN. Native performance, RNG initialization, real Hermes and recovery acceptance remain Local obligations.",
+    "No production/provider/real wallet calls; no native install, release build, signing, upload, gate activation or dependency installer executed by authority agent.",
+    "Existing wallet crypto and root @scure/base1.1.9 remain separate; supported new authority uses actual2.4.0 family and nested base2.4.0.",
+    "Public descriptor only; HDKey/private material never escapes closure. Disposal and wiping are best effort in JavaScript."
+  ],
+  "rejected_encoder_input": {
+    "name": "text-encoding",
+    "version": "0.7.0",
+    "registry": "https://registry.npmjs.org/text-encoding/0.7.0",
+    "primary_repository": "https://github.com/inexorabletash/text-encoding",
+    "observation": "Registry deprecated as no longer maintained; upstream archived. Existing transitive install was not adopted for new authority."
+  },
+  "initial_observations": [
+    {
+      "stage": "Initial isolated ESM vector lane",
+      "result": "11/11 PASS before original-account binding and encoder checks were added"
+    },
+    {
+      "stage": "First absent-text-globals child",
+      "result": "12/13 PASS,1FAIL: Node selected its own utf8.node.js exports branch, which requires native TextDecoder; not a demonstrated mobile-runtime defect. Harness now selects actual mobile/default package exports, without installing a Decoder."
+    },
+    {
+      "stage": "First Metro harness",
+      "result": "Metro emitted authority.android.bundle.js; harness attempted a different filename and failed ENOENT before VM execution. Harness now writes the returned Metro code explicitly."
+    },
+    {
+      "stage": "Hermes runtime attempt",
+      "result": "Installed hermesc rejected -exec; no Hermes runtime execution claimed."
+    },
+    {
+      "stage": "Final source binding guard",
+      "result": "Independent review found uppercase stored seed text would encrypt differently from lowercase clean restore. Authority now rejects it; no normalization/rewrite of existing state."
+    }
+  ],
+  "dependency_size": {
+    "scope": "Six installed package directories, each excluding nested node_modules to avoid duplication; not full install growth or APK/AAB delta",
+    "packages": [
+      {
+        "path": "node_modules/@scure/bip32",
+        "version": "2.4.0",
+        "files_excluding_nested_node_modules": 6,
+        "logical_bytes": 38750,
+        "allocated_bytes": 53248
+      },
+      {
+        "path": "node_modules/@scure/bip39",
+        "version": "2.4.0",
+        "files_excluding_nested_node_modules": 26,
+        "logical_bytes": 212981,
+        "allocated_bytes": 286720
+      },
+      {
+        "path": "node_modules/@noble/curves",
+        "version": "2.4.0",
+        "files_excluding_nested_node_modules": 72,
+        "logical_bytes": 1590210,
+        "allocated_bytes": 1736704
+      },
+      {
+        "path": "node_modules/@noble/hashes",
+        "version": "2.4.0",
+        "files_excluding_nested_node_modules": 60,
+        "logical_bytes": 691646,
+        "allocated_bytes": 823296
+      },
+      {
+        "path": "node_modules/@scure/bip32/node_modules/@scure/base",
+        "version": "2.4.0",
+        "files_excluding_nested_node_modules": 6,
+        "logical_bytes": 145274,
+        "allocated_bytes": 159744
+      },
+      {
+        "path": "node_modules/@exodus/bytes",
+        "version": "1.16.0",
+        "files_excluding_nested_node_modules": 79,
+        "logical_bytes": 435337,
+        "allocated_bytes": 634880
+      }
+    ],
+    "total_logical_bytes": 3114198,
+    "total_allocated_bytes": 3694592
+  }
+}

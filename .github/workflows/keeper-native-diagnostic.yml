@@ -1,0 +1,84 @@
+name: Keeper native candidate diagnostics
+
+on:
+  pull_request:
+    branches: [sprint]
+    types: [labeled, synchronize, reopened]
+
+# This explicit opt-in never writes status or supplies trusted native acceptance.
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: keeper-native-diagnostic-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  driver-preflight:
+    # Diagnosis only. This label never opts into either app build or Android.
+    if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/ios-driver-preflight') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_NATIVE_PLATFORM: IOS
+      KEEPER_DIAGNOSTIC: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out exact diagnostic source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify current preflight source and isolated opt-in
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
+            const labels = pr.labels.map(label => label.name);
+            if (pr.head.sha !== process.env.KEEPER_SOURCE_SHA || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !labels.includes('keeper/ios-driver-preflight') || labels.includes('keeper/native-diagnostic')) {
+              core.setFailed('Preflight source moved or isolated opt-in is absent; no native credit');
+            }
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.3'
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Diagnose unchanged Maestro driver before app build
+        run: |
+          test "$(git rev-parse HEAD)" = "$KEEPER_SOURCE_SHA"
+          git diff --exit-code HEAD -- .github/native .github/workflows
+          python3 .github/native/driver_diagnosis.py
+      - name: Retain bounded driver diagnosis
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-ios-driver-diagnosis-${{ github.event.pull_request.head.sha }}
+          path: artifacts/native/ios/metadata.json
+          if-no-files-found: error
+          retention-days: 7
+
+  ios:
+    if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    uses: ./.github/workflows/keeper-native-platform.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha }}
+      platform: IOS
+      diagnostic: true
+
+  android:
+    needs: ios
+    # Optional scheduling modifier only; required Android acceptance is unchanged.
+    if: always() && github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only')
+    uses: ./.github/workflows/keeper-native-platform.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha }}
+      platform: ANDROID
+      diagnostic: true

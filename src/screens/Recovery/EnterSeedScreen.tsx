@@ -1,5 +1,12 @@
 import * as bip39 from 'bip39';
-import { Box, Input, Pressable, ScrollView, View, useColorMode } from '@gluestack-ui/themed-native-base';
+import {
+  Box,
+  Input,
+  Pressable,
+  ScrollView,
+  View,
+  useColorMode,
+} from '@gluestack-ui/themed-native-base';
 import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { hp, wp } from 'src/constants/responsive';
@@ -27,7 +34,13 @@ import Dropdown from 'src/components/Dropdown';
 import { SIGNTRANSACTION } from 'src/navigation/contants';
 import { hcStatusType } from 'src/models/interfaces/HeathCheckTypes';
 import RecoverySuccessModalContent from './RecoverySuccessModalContent';
-import { resetSeedWords, setAppImageError, setSeedWord } from 'src/store/reducers/bhr';
+import {
+  resetRecoveryDiscovery,
+  resetSeedWords,
+  setAppImageError,
+  setSeedWord,
+} from 'src/store/reducers/bhr';
+import type { BackupRecoverySource } from 'src/services/backup/restore';
 import Fonts from 'src/constants/Fonts';
 import { SEED_WORDS_12, SEED_WORDS_18, SEED_WORDS_24, seedWordItem } from './constants';
 import Colors from 'src/theme/Colors';
@@ -66,9 +79,8 @@ function EnterSeedScreen({ route, navigation }) {
     selectedNumberOfWordsFromParams,
     isForgot = false,
   } = route.params || {};
-  const { appImageError } = useAppSelector((state) => state.bhr);
-
-  const { appCreated } = useAppSelector((state) => state.storage);
+  const { appImageError, recoveryDiscovery } = useAppSelector((state) => state.bhr);
+  const activeAppId = useAppSelector((state) => state.storage.appId);
   const { colorMode } = useColorMode();
   const { showToast } = useToastMessage();
   const dispatch = useDispatch();
@@ -77,6 +89,10 @@ function EnterSeedScreen({ route, navigation }) {
   const [seedData, setSeedData] = useState<seedWordItem[]>();
   const [invalidSeedsModal, setInvalidSeedsModal] = useState(false);
   const [recoverySuccessModal, setRecoverySuccessModal] = useState(false);
+  const [recoverySuccessSource, setRecoverySuccessSource] =
+    useState<BackupRecoverySource>('protected');
+  const [showRecoveryDiscovery, setShowRecoveryDiscovery] = useState(false);
+  const pendingRecoverySource = useRef<BackupRecoverySource>('protected');
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [hcLoading, setHcLoading] = useState(false);
   const [suggestedWords, setSuggestedWords] = useState([]);
@@ -100,6 +116,7 @@ function EnterSeedScreen({ route, navigation }) {
   const isHealthCheck = mode === InteracationMode.HEALTH_CHECK;
   const isSignTransaction = parentScreen === SIGNTRANSACTION;
   const isIdentification = mode === InteracationMode.IDENTIFICATION;
+  const isRecovery = !isHealthCheck && !isImport && !isSignTransaction && !isIdentification;
 
   const green_modal_text_color = ThemedColor({ name: 'green_modal_text_color' });
   const green_modal_background = ThemedColor({ name: 'green_modal_background' });
@@ -116,23 +133,57 @@ function EnterSeedScreen({ route, navigation }) {
   };
 
   useEffect(() => {
-    if (appCreated && recoveryLoading) {
+    if (!isRecovery) return undefined;
+    dispatch(resetRecoveryDiscovery());
+    return () => {
+      dispatch(resetRecoveryDiscovery());
+    };
+  }, [dispatch, isRecovery]);
+
+  useEffect(() => {
+    if (!isRecovery || !recoveryLoading) return;
+    if (recoveryDiscovery.status === 'restored') {
+      const { provenance } = recoveryDiscovery;
       setRecoveryLoading(false);
+      if (
+        !provenance ||
+        provenance.source !== pendingRecoverySource.current ||
+        provenance.keeperAppId !== activeAppId
+      ) {
+        showToast(seed.recoveryIncomplete, <ToastErrorIcon />);
+        return;
+      }
+      setRecoverySuccessSource(provenance.source);
       setRecoverySuccessModal(true);
       dispatch(resetSeedWords());
       dispatch(resetPasscodeTimeout());
+    } else if (
+      ['protected-absent', 'protected-empty', 'protected-deleted', 'read-error'].includes(
+        recoveryDiscovery.status
+      )
+    ) {
+      setRecoveryLoading(false);
+      if (recoveryDiscovery.error !== 'Invalid mnemonic') setShowRecoveryDiscovery(true);
     }
-  }, [appCreated]);
+  }, [recoveryDiscovery, recoveryLoading, isRecovery, activeAppId]);
 
   useEffect(() => {
-    if (appImageError) {
-      if (appImageError === 'Network Error') {
+    if (appImageError && isRecovery) {
+      if (recoveryDiscovery.status === 'read-error' && appImageError !== 'Invalid mnemonic') {
+        dispatch(setAppImageError(''));
+      } else if (appImageError === 'Network Error') {
         dispatch(setAppImageError(''));
         setRecoveryLoading(false);
         setShowNetworkModal(true);
-      } else openInvalidSeedsModal();
+      } else if (appImageError === 'Invalid mnemonic') {
+        openInvalidSeedsModal();
+      } else {
+        setRecoveryLoading(false);
+        showToast(seed.recoveryIncomplete, <ToastErrorIcon />);
+        dispatch(setAppImageError(''));
+      }
     }
-  }, [appImageError]);
+  }, [appImageError, isRecovery, recoveryDiscovery.status]);
 
   const generateSeedWordsArray = useCallback(() => {
     const seedArray = [];
@@ -315,10 +366,12 @@ function EnterSeedScreen({ route, navigation }) {
     };
 
     const handleGetAppImage = async () => {
+      dispatch(resetRecoveryDiscovery());
+      pendingRecoverySource.current = 'protected';
       setRecoveryLoading(true);
       try {
         const seedWord = seedWords.map((word) => word.name).join(' ');
-        dispatch(getAppImage(seedWord, isForgot));
+        dispatch(getAppImage(seedWord, isForgot, { source: 'protected' }));
       } catch (err) {
         console.error('getAppImage error:', err);
         showToast(seed.SeedErrorToast, <ToastErrorIcon />);
@@ -588,7 +641,6 @@ function EnterSeedScreen({ route, navigation }) {
       </ScrollView>
     );
   };
-  const isRecovery = !isHealthCheck && !isImport && !isSignTransaction && !isIdentification;
 
   const rememberModalContent = () => {
     return (
@@ -626,6 +678,47 @@ function EnterSeedScreen({ route, navigation }) {
       </View>
     );
   }
+
+  const olderCopyAvailable = ['protected-absent', 'protected-empty', 'protected-deleted'].includes(
+    recoveryDiscovery.status
+  );
+  const recoveryDiscoveryTitle =
+    recoveryDiscovery.status === 'protected-deleted'
+      ? seed.protectedRecoveryDeletedTitle
+      : recoveryDiscovery.status === 'protected-empty'
+      ? seed.protectedRecoveryEmptyTitle
+      : recoveryDiscovery.status === 'protected-absent'
+      ? seed.protectedRecoveryAbsentTitle
+      : recoveryDiscovery.source === 'legacy-older'
+      ? seed.olderRecoveryErrorTitle
+      : seed.protectedRecoveryErrorTitle;
+  const recoveryDiscoveryBody =
+    recoveryDiscovery.status === 'protected-deleted'
+      ? seed.protectedRecoveryDeletedBody
+      : recoveryDiscovery.status === 'protected-empty'
+      ? seed.protectedRecoveryEmptyBody
+      : recoveryDiscovery.status === 'protected-absent'
+      ? seed.protectedRecoveryAbsentBody
+      : recoveryDiscovery.source === 'legacy-older'
+      ? seed.olderRecoveryErrorBody
+      : seed.protectedRecoveryErrorBody;
+  const closeRecoveryDiscovery = () => {
+    setShowRecoveryDiscovery(false);
+    dispatch(resetRecoveryDiscovery());
+  };
+  const recoverOlderCopy = () => {
+    setShowRecoveryDiscovery(false);
+    dispatch(resetRecoveryDiscovery());
+    pendingRecoverySource.current = 'legacy-older';
+    setRecoveryLoading(true);
+    const mnemonic = seedWords.map((word) => word.name).join(' ');
+    dispatch(
+      getAppImage(mnemonic, isForgot, {
+        source: 'legacy-older',
+        olderCopyConfirmed: true,
+      })
+    );
+  };
 
   return (
     <ScreenWrapper barStyle="dark-content" backgroundcolor={`${colorMode}.primaryBackground`}>
@@ -739,8 +832,16 @@ function EnterSeedScreen({ route, navigation }) {
         />
         <KeeperModal
           visible={recoverySuccessModal}
-          title={seed.appRecoveredSuccessfulTitle}
-          subTitle={seed.appRecoveredSuccessfulSubTitle}
+          title={
+            recoverySuccessSource === 'legacy-older'
+              ? seed.olderRecoverySuccessfulTitle
+              : seed.protectedRecoverySuccessfulTitle
+          }
+          subTitle={
+            recoverySuccessSource === 'legacy-older'
+              ? seed.olderRecoverySuccessfulSubTitle
+              : seed.protectedRecoverySuccessfulSubTitle
+          }
           buttonText={common.continue}
           modalBackground={`${colorMode}.modalWhiteBackground`}
           textColor={`${colorMode}.textGreen`}
@@ -759,17 +860,37 @@ function EnterSeedScreen({ route, navigation }) {
           }}
         />
         <KeeperModal
+          visible={isRecovery && showRecoveryDiscovery}
+          close={closeRecoveryDiscovery}
+          closeOnOverlayClick={false}
+          title={recoveryDiscoveryTitle}
+          subTitle={
+            olderCopyAvailable
+              ? `${recoveryDiscoveryBody}\n\n${seed.recoverOlderCopyBody}`
+              : recoveryDiscoveryBody
+          }
+          modalBackground={`${colorMode}.modalWhiteBackground`}
+          textColor={`${colorMode}.textGreen`}
+          subTitleColor={`${colorMode}.modalSubtitleBlack`}
+          buttonText={olderCopyAvailable ? seed.recoverOlderCopy : common.ok}
+          buttonCallback={olderCopyAvailable ? recoverOlderCopy : closeRecoveryDiscovery}
+          secondaryButtonText={olderCopyAvailable ? common.cancel : undefined}
+          secondaryCallback={closeRecoveryDiscovery}
+          buttonTextColor={`${colorMode}.buttonText`}
+          buttonBackground={`${colorMode}.pantoneGreen`}
+        />
+        <KeeperModal
           dismissible={false}
           close={() => setShowNetworkModal(false)}
           visible={showNetworkModal}
-          title="Something went wrong"
-          subTitle="Please check your internet connection and try again."
+          title={seed.protectedRecoveryErrorTitle}
+          subTitle={seed.protectedRecoveryErrorBody}
           modalBackground={`${colorMode}.modalWhiteBackground`}
           textColor={`${colorMode}.textGreen`}
           subTitleColor={`${colorMode}.modalSubtitleBlack`}
           subTitleWidth={wp(230)}
           showCloseIcon={false}
-          buttonText={'Try again'}
+          buttonText={common.ok}
           buttonCallback={() => setShowNetworkModal(false)}
         />
         <KeeperModal
