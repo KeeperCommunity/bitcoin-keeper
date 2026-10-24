@@ -1,10 +1,23 @@
 appId: ${APP_ID}
 name: Production R5 workers over disposable native storage across six processes
 ---
-- launchApp:
-    clearState: true
-    permissions:
-      all: deny
+# The iOS harness already installed and verified this app on a new UUID device.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          clearState: false
+          permissions:
+            all: deny
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: true
+          permissions:
+            all: deny
 - extendedWaitUntil:
     visible:
       id: r5-features-next

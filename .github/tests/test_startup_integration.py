@@ -467,6 +467,51 @@ class StartupIntegrationTest(unittest.TestCase):
                 self.assertEqual(value['install_options'], {'timeout': 120})
                 self.assertLess(self.events.index('app-services-ready'), self.events.index('installed-proof'))
 
+    def test_ios_companions_preserve_the_original_install_on_their_own_new_simulator(self):
+        for suite, flow in [('probe', 'release_probe.yaml'), ('features', 'r5_features.yaml')]:
+            with self.subTest(suite=suite):
+                self.events.clear()
+                value = self.exercise(platform='IOS', suite=suite)
+                self.assertNotIn('error', value)
+                self.assertEqual(value['flow'], '.github/native/' + flow)
+                commands = value['command_calls']
+                self.assertEqual(sum(args[:3] == ['xcrun', 'simctl', 'create']
+                                     for args, _, _ in commands), 1)
+                self.assertEqual(value['install_command_count'], 1)
+                self.assertEqual(value['install_args'][3], self.device)
+                self.assertEqual(value['metadata']['device']['id'], self.device)
+                self.assertIs(value['metadata']['device']['fresh_disposable_state'], True)
+                for before, after in [
+                        ('command-Create fresh iPhone 16 iOS 18.5 simulator', 'command-Boot disposable simulator'),
+                        ('command-Boot disposable simulator', 'command-Wait for simulator boot'),
+                        ('command-Wait for simulator boot', 'app-services-ready'),
+                        ('app-services-ready', 'command-Install unsigned development app'),
+                        ('command-Install unsigned development app', 'installed-proof'),
+                        ('installed-proof', 'maestro'), ('maestro', 'device-shutdown'),
+                        ('device-shutdown', 'device-delete')]:
+                    self.assertLess(self.events.index(before), self.events.index(after))
+                self.assertEqual(self.events.count('installed-proof'), 2)
+                text = (Path(__file__).resolve().parents[1] / 'native' / flow).read_text()
+                branches = re.findall(r'- runFlow:\n    when:\n      platform: (iOS|Android)\n'
+                    r'    commands:\n      - launchApp:\n          clearState: (false|true)\n'
+                    r'          permissions:\n            all: deny\n', text)
+                self.assertEqual(branches, [('iOS', 'false'), ('Android', 'true')])
+                tail = text[text.index('- extendedWaitUntil:'):]
+                self.assertNotIn('clearState: true', tail)
+                self.assertNotIn('optional:', text)
+                self.assertEqual(value['maestro_options'], {
+                    'timeout': 300 if suite == 'probe' else 660, 'error_details': False})
+
+    def test_ios_companions_reject_a_reused_device_alias_before_installation(self):
+        for suite in ['probe', 'features']:
+            with self.subTest(suite=suite):
+                self.events.clear()
+                value = self.exercise(platform='IOS', suite=suite, create_result='booted')
+                self.assertIsInstance(value['error'], ValueError)
+                for event in ['installed-proof', 'maestro', 'device-shutdown', 'device-delete']:
+                    self.assertNotIn(event, self.events)
+                self.assertNotIn('install_command_count', value)
+
     def test_receipt_failures_preserve_primary_and_do_not_skip_any_disposal(self):
         for boundary in ['read', 'save']:
             for primary in [True, False]:

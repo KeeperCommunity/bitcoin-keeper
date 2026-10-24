@@ -1,10 +1,23 @@
 appId: ${APP_ID}
 name: Disposable native module persistence across process relaunch
 ---
-- launchApp:
-    clearState: true
-    permissions:
-      all: deny
+# The iOS harness already installed and verified this app on a new UUID device.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          clearState: false
+          permissions:
+            all: deny
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: true
+          permissions:
+            all: deny
 - extendedWaitUntil:
     visible:
       id: native-probe-seeded
