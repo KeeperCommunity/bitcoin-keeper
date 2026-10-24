@@ -236,6 +236,7 @@ class StartupIntegrationTest(unittest.TestCase):
         self.assertEqual(value['metadata']['smoke'], 'PASS')
         self.assertEqual(value['metadata']['startup_observation']['scope'], 'startup only')
         self.assertEqual(value['flow'], '.github/native/startup.yaml')
+        self.assertIn('--client-logs', value['metro_args'])
         self.assertEqual(value['metro_args'][-4:], [
             '--config', str(self.root / '.github/native/startup_observer.cjs'),
             '--custom-log-reporter-path', str(self.root / '.github/native/startup_reporter.cjs'),
@@ -470,6 +471,7 @@ class StartupIntegrationTest(unittest.TestCase):
                 self.assertNotIn('capture-start', self.events)
                 self.assertNotIn('startup_observation', value['metadata'])
                 if config:
+                    self.assertNotIn('--client-logs', value['metro_args'])
                     self.assertEqual(value['metro_args'][-2:], ['--config', str(self.root / '.github/native' / config)])
                 else:
                     self.assertNotIn('--config', value['metro_args'])
@@ -479,7 +481,7 @@ class StartupIntegrationTest(unittest.TestCase):
         self.assertNotIn('error', value)
         self.assertEqual(value['metro_args'], [
             'node', 'node_modules/react-native/cli.js', 'start', '--port', '8081',
-            '--config', str(self.root / '.github/native/startup_observer.cjs'),
+            '--client-logs', '--config', str(self.root / '.github/native/startup_observer.cjs'),
             '--custom-log-reporter-path', str(self.root / '.github/native/startup_reporter.cjs')])
         self.assertEqual(value['metro_options']['env'], {
             'KEEPER_PUBLIC_TEST_ENV': 'fixture',

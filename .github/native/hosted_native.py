@@ -1083,7 +1083,8 @@ def smoke(suite='startup'):
             observer_path = PRIVATE / 'startup-observer.jsonl'
             observer_path.unlink(missing_ok=True)
             metro_env['KEEPER_STARTUP_OBSERVER_PATH'] = str(observer_path)
-            metro_args += ['--config', str(ROOT / '.github/native/startup_observer.cjs'),
+            # Standard CLI log forwarding only; no resolver, bundle or app changes.
+            metro_args += ['--client-logs', '--config', str(ROOT / '.github/native/startup_observer.cjs'),
                            '--custom-log-reporter-path', str(ROOT / '.github/native/startup_reporter.cjs')]
         metro = subprocess.Popen(metro_args,
                                  cwd=ROOT, stdout=metro_output, stderr=subprocess.STDOUT, start_new_session=True,

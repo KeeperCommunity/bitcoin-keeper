@@ -2,6 +2,7 @@
 import json
 from itertools import islice
 import os
+from pathlib import Path
 import re
 import subprocess
 import time
@@ -21,6 +22,109 @@ CATEGORIES = {
     'FATAL_EXCEPTION': r'FATAL EXCEPTION|Fatal signal',
     'APP_ANR': r'ANR in ' + re.escape(APP),
 }
+
+
+RUNTIME_CODES = frozenset((
+    'NATIVE_REGISTRY_MODULE_MISSING', 'NATIVE_EVENT_EMITTER_NULL', 'APP_NOT_REGISTERED',
+    'REACT_INVALID_HOOK_CALL', 'REACT_INVALID_ELEMENT', 'REDUX_PROVIDER_MISSING',
+    'GLOBAL_BUFFER_MISSING', 'GLOBAL_PROCESS_MISSING', 'GLOBAL_CRYPTO_MISSING',
+    'REALM_NATIVE_BINDING_MISSING', 'FIREBASE_DEFAULT_APP_MISSING',
+    'MMKV_INITIALIZATION_FAILED', 'IAP_INITIALIZATION_FAILED', 'NITRO_BINDING_MISSING'))
+RUNTIME_MODULES = frozenset(('RNKeychainManager', 'ReactNativeConfigModule', 'RNGetRandomValues',
+    'ReanimatedModule', 'RNGestureHandlerModule', 'RNCSafeAreaContext', 'RNFBAppModule',
+    'RNFBMessagingModule', 'RNDeviceInfo', 'ReactNativeBiometrics', 'RNFSManager', 'Hce', 'NitroModules'))
+RUNTIME_SOURCE_PATHS = frozenset(('index.js', 'App.tsx', 'shim.js', 'src/navigation/Navigator.tsx',
+    'src/screens/Splash/SplashScreen.tsx', 'src/store/store.ts', 'src/store/sagas/login.ts',
+    'src/storage/secure-store.ts', 'src/storage/realm/realm.ts', 'src/storage/realm/dbManager.ts',
+    'src/context/AppContext.tsx', 'src/context/TorContext.tsx', 'src/context/ThemeContext.tsx',
+    'src/context/Localization/LocContext.tsx', 'src/services/sentry/index.ts',
+    'src/storage/index.ts', 'src/hooks/useNotificationHandler.tsx'))
+RUNTIME_ERROR_TYPES = frozenset(('Invariant Violation', 'Error', 'SyntaxError', 'TypeError', 'ReferenceError', 'RangeError',
+    'EvalError', 'URIError', 'AggregateError', 'TransformError', 'UnableToResolveError',
+    'ResolutionError', 'AmbiguousModuleResolutionError', 'NotFoundError', 'ResourceNotFoundError',
+    'GraphNotFoundError', 'RevisionNotFoundError', 'OTHER', None))
+RUNTIME_CATEGORIES = frozenset(('MODULE_RESOLUTION', 'SYNTAX', 'TYPE', 'REFERENCE',
+    'MEMORY', 'TRANSFORM', 'CONNECTION'))
+RUNTIME_LEVELS = frozenset(('trace', 'info', 'warn', 'error', 'log', 'group', 'groupCollapsed',
+    'groupEnd', 'debug', 'OTHER', None))
+
+
+def runtime_row(row):
+    """Regenerate bounded console identity; never trust producer text or stacks."""
+    if row.get('kind') != 'CONSOLE' or row.get('event') not in ('client_log', 'unstable_server_log'):
+        raise ValueError('Invalid runtime event.')
+    if row.get('level') not in RUNTIME_LEVELS or row.get('error_type') not in RUNTIME_ERROR_TYPES:
+        raise ValueError('Invalid runtime enums.')
+    result = {'kind': 'CONSOLE', 'event': row['event'], 'level': row['level'],
+              'error_type': row['error_type']}
+    for key, allowed in (('categories', RUNTIME_CATEGORIES), ('diagnostic_codes', RUNTIME_CODES),
+                         ('native_modules', RUNTIME_MODULES)):
+        values = row.get(key)
+        if (type(values) is not list or len(values) > len(allowed) or
+                any(type(value) is not str or value not in allowed for value in values)):
+            raise ValueError('Invalid runtime identities.')
+        result[key] = list(dict.fromkeys(values))
+    for key in ('data_truncated', 'invalid_data'):
+        if type(row.get(key)) is not bool:
+            raise ValueError('Invalid runtime coverage.')
+        result[key] = row[key]
+    scanned, unknown = row.get('items_scanned'), row.get('unclassified_items')
+    if (type(scanned) is not int or not 0 <= scanned <= 16 or
+            type(unknown) is not int or not 0 <= unknown <= scanned or
+            (row['invalid_data'] and scanned != 0)):
+        raise ValueError('Invalid runtime item counts.')
+    result.update(items_scanned=scanned, unclassified_items=unknown)
+    result['source_frames'] = public_source_frames(row.get('source_frames'))
+    return result
+
+
+SYMBOLICATION_STATUSES = frozenset(('OBSERVED', 'NO_PUBLIC_SOURCE_FRAMES', 'INVALID_STACK',
+    'STACK_LIMIT_EXCEEDED', 'HTTP_ERROR', 'UNSUPPORTED_ENCODING', 'OVERSIZED', 'INVALID_JSON',
+    'INVALID_RESPONSE', 'DEPTH_LIMIT', 'INCOMPLETE_RESPONSE', 'UNSUPPORTED_CHUNK', 'UNAVAILABLE'))
+
+
+def public_source_frames(frames):
+    if type(frames) is not list or len(frames) > 8:
+        raise ValueError('Invalid runtime frames.')
+    result = []
+    root = Path(__file__).resolve().parents[2]
+    for frame in frames:
+        if type(frame) is not dict or set(frame) != {'path', 'line', 'column'}:
+            raise ValueError('Invalid runtime source coordinates.')
+        file, line, column = frame['path'], frame['line'], frame['column']
+        if (type(file) is not str or file not in RUNTIME_SOURCE_PATHS or
+                type(line) is not int or type(column) is not int):
+            raise ValueError('Invalid public source frame.')
+        lines = (root / file).read_text().split('\n')
+        if (not 1 <= line <= len(lines) or
+                not 1 <= column <= len(lines[line - 1].encode('utf-16-le')) // 2 + 1):
+            raise ValueError('Invalid public source coordinates.')
+        result.append({'path': file, 'line': line, 'column': column})
+    return result
+
+
+def symbolication_row(row):
+    """Only finite status/coverage and public source coordinates can leave."""
+    status = row.get('capture_status')
+    if row.get('kind') != 'SYMBOLICATE_RESPONSE' or status not in SYMBOLICATION_STATUSES:
+        raise ValueError('Invalid symbolication status.')
+    observed, rejected, truncated = (row.get('observed_frames'), row.get('rejected_frames'),
+                                     row.get('truncated'))
+    if (type(observed) is not int or not 0 <= observed <= 64 or
+            type(rejected) is not int or not 0 <= rejected <= observed or
+            type(truncated) is not bool):
+        raise ValueError('Invalid symbolication coverage.')
+    frames = public_source_frames(row.get('source_frames'))
+    if (len(frames) > observed - rejected or
+            (status == 'OBSERVED' and not frames) or
+            (status == 'NO_PUBLIC_SOURCE_FRAMES' and frames) or
+            (status == 'STACK_LIMIT_EXCEEDED' and (observed != 64 or not truncated)) or
+            (status not in ('OBSERVED', 'NO_PUBLIC_SOURCE_FRAMES', 'STACK_LIMIT_EXCEEDED') and
+             (frames or observed or rejected)) or
+            (status in ('OVERSIZED', 'DEPTH_LIMIT') and not truncated)):
+        raise ValueError('Inconsistent symbolication facts.')
+    return {'kind': 'SYMBOLICATE_RESPONSE', 'capture_status': status, 'source_frames': frames,
+            'observed_frames': observed, 'rejected_frames': rejected, 'truncated': truncated}
 
 
 def categories(text):
@@ -192,6 +296,10 @@ def collect(native, device, handle=None):
                             any(type(item) is not str for item in categories))):
                         raise ValueError('Invalid fixed category shape.')
                     result['categories'] = [item for item in ['MODULE_RESOLUTION', 'SYNTAX', 'TYPE', 'REFERENCE', 'MEMORY', 'TRANSFORM', 'CONNECTION'] if item in categories]
+                elif kind == 'CONSOLE' and row.get('event') in ['client_log', 'unstable_server_log']:
+                    result.update(runtime_row(row))
+                elif kind == 'SYMBOLICATE_RESPONSE':
+                    result.update(symbolication_row(row))
                 elif kind in ['REQUEST', 'RESPONSE'] and row.get('request') in ['ENTRY_BUNDLE', 'SPLIT_BUNDLE', 'SYMBOLICATE']:
                     result.update(kind=kind, request=row['request'])
                     if kind == 'REQUEST':
