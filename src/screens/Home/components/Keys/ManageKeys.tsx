@@ -1,12 +1,13 @@
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
+import Text from 'src/components/KeeperText';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 
 import KeeperModal from 'src/components/KeeperModal';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import SignerContent from './SignerContent';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { CommonActions, useFocusEffect, useNavigation } from '@react-navigation/native';
 import SignerList from './SignerList';
 import KeyAddedModal from 'src/components/KeyAddedModal';
 
@@ -102,10 +103,19 @@ const ManageKeys = ({ addedSigner }) => {
     <>
       <Box style={styles.containerWrapper}>
         <Fab
+          testID="keys_add_key"
           icon={<AddIcon height={hp(22)} width={wp(22)} />}
           onPress={handleModalOpen}
           containerStyle={{ right: wp(22.5) }}
         />
+        <Pressable
+          accessibilityRole="button"
+          testID="manage_keys_actions"
+          onPress={() => navigation.dispatch(CommonActions.navigate('DeleteKeys'))}
+          style={{ paddingVertical: hp(12) }}
+        >
+          <Text color={`${colorMode}.textGreen`}>{translations.signer.manageKeys}</Text>
+        </Pressable>
         <Box style={styles.contentContainer}>
           <SignerList navigation={navigation} />
         </Box>

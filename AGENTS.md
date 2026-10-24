@@ -1,8 +1,51 @@
 # Bitcoin Keeper: Codex workflow
 
-This repository uses a **ChatGPT → Codex Cloud → Codex Local (Mac)** workflow for coding tasks. The GitHub pull request is the durable handoff between stages. Do **not** rely on one agent having access to another agent's conversation, unpushed changes, machine, or installed tools.
+## Current R5 owner direction (22 October 2026)
+
+R5 and subsequent ordinary development/native validation run in Cloud. Use hosted macOS/Xcode for iOS and hosted Android development/emulator runners; the owner's personal Mac is not a prerequisite. Preserve genuine phone/signer checks separately. The older Local handoff format below remains a compatibility record for the existing gate, not a request for the owner's Mac.
+
+Candidate diagnostics are explicit read-only runs on the exact PR head. Add `keeper/native-diagnostic` only when scheduling the isolated integration candidate; the new workflow serializes iOS then Android and does not cancel active native work. Pre-merge diagnostic success never grants protected-base native acceptance. After approved installation, `Keeper release acceptance` is the default reusable worker route; `keeper/legacy-native` selects the serialized legacy startup fallback instead. New commits invalidate previous source evidence. Missing app feature/UI/backend/physical checks stay explicit and blocking where required.
+
+Never merge, promote a shared branch, release-sign, upload, distribute, deploy or publish without the owner's explicit approval. Draft PR creation and isolated branch pushes are preparation, not release approval. See `docs/r5-cloud-native-reconciliation.md` for source identities and outstanding acceptance.
+
+
+The default workflow is **Cloud code complete → hosted native validation → authorized physical checks → release review**. Before protected-base installation, run exact-candidate diagnostics and keep trusted acceptance fail-closed. The Local format below remains a compatibility fallback for an available authorized tester; the owner's personal Mac is not a prerequisite. Signing remains a separate approved action. Follow the [bootstrap adoption order](docs/cloud-bootstrap-preparation.md), including the later restacking of Phase A #7062. The GitHub pull request is the durable handoff between stages. Do **not** rely on one agent having access to another agent's conversation, unpushed changes, machine, or installed tools.
 
 Repository: `KeeperCommunity/bitcoin-keeper`. Use `sprint` as the PR base unless the task explicitly specifies another base.
+
+## R5 and future releases: permanent cloud-first default
+
+Follow [the cloud release pipeline](docs/cloud-release-pipeline.md) for R5 and every
+subsequent release. Complete code and representative native acceptance on hosted
+iOS simulators/Android emulators, then assign remaining real-device checks to a
+named authorized tester. The release owner's personal Mac is not the default
+handoff destination. Keep the existing Local path below as the safe fallback
+until each hosted capability is reviewed, installed and verified; its current
+`Codex local handoff` / `State: NEEDS_LOCAL` syntax remains the gate protocol, not
+a claim that a Mac session is always required. In that handoff, put hosted work
+and run URLs in `Cloud checks`, and set `Local checks requested: NONE` only when
+trusted hosted evidence satisfies all requested native checks and no physical
+checks remain. Otherwise name the actual remaining checks and who can run them.
+
+Bootstrap depends on reviewed [PR #7060](https://github.com/KeeperCommunity/bitcoin-keeper/pull/7060);
+check its current state. The initial Phase A candidate is stacked on that PR.
+Its reusable `keeper-native-platform.yml` workflow is called by
+`keeper-release-acceptance.yml` automatically for future PRs targeting `sprint`;
+there is no R5-only release selector or manual copying step. The active R4 PR
+#7045 is excluded. Do not change R4 source, refs, private fixtures, Mac work,
+required gate or approval process. Installing #7060 and this infrastructure on
+`sprint` requires independent review and owner approval. Diagnostic candidate
+runs are not trusted acceptance for R5 or another source SHA.
+
+Record the exact source SHA, workflow run/attempt, both platforms' actual
+build/UI outcomes, safe artifact hashes and unresolved feature acceptance.
+A startup smoke or representative probe does not prove R5's deletion, recovery,
+upgrade or security matrix. Released R4 is already reconciled. Product checks must run on the exact combined
+R5 candidate; unresolved high-risk cases remain blocking. Phase B protected
+signing and distribution are **NOT IMPLEMENTED / NOT VERIFIED** until their
+separate reviewed workflow and exact-artifact controls are proven. Do not merge,
+sign, upload a beta, submit to a store or publish without explicit owner approval
+for that action and artifact. Passing CI provides none of these approvals.
 
 ## Codex Cloud: implement and prepare handoff
 
@@ -25,11 +68,11 @@ Repository: `KeeperCommunity/bitcoin-keeper`. Use `sprint` as the PR base unless
    Risks / known gaps: <known limitations or 'none known'>
    ```
 
-4. For app/code changes, `Required local checks` must list one or more of `IOS`, `ANDROID`, `HARDWARE` (comma-separated). Use both iOS and Android for cross-platform changes; add hardware for signer/device interactions. If no Mac tests are necessary, explain why, but the GitHub gate exempts only documentation and `.github/` changes. The handoff must name the actual PR head commit SHA after the final cloud push.
-5. Return the PR URL/number and state `NEEDS_LOCAL` to the user so ChatGPT can generate the exact local handoff prompt. Continue unrelated cloud tasks while waiting for a Mac.
+4. For app/code changes, `Required local checks` must list one or more of `IOS`, `ANDROID`, `HARDWARE` (comma-separated). Use both iOS and Android for cross-platform changes; add hardware for signer/device interactions. If a reported native or physical check is unnecessary, explain why, but the GitHub gate exempts only documentation and `.github/` changes. The handoff must name the actual PR head commit SHA after the final cloud push.
+5. Return the PR URL/number and actual platform `PASS`/`FAIL`/`NOT RUN` results for the current head. Use `NEEDS_LOCAL` for remaining native or physical requirements; successful trusted hosted evidence may satisfy `IOS`/`ANDROID` without a Mac login. Continue unrelated cloud tasks while remaining native or physical checks are scheduled. Follow [hosted native validation](docs/hosted-native-validation.md) for trust, bootstrap, scope and artifact limitations.
 6. If a task needs only code review, explicitly state why local testing is not required rather than silently skipping it.
 
-## Codex Local (Mac): validate the PR
+## Legacy Local validation format (available authorized testers)
 
 When given **"Validate Keeper PR #<number>"**, first read the newest **Codex local handoff** section and inspect the PR head SHA.
 
@@ -80,10 +123,10 @@ A known critical defect is not eligible for post-release deferral. In particular
 - `LOCAL_PASSED` means only the reported checks passed on the reported commit. It is **not** approval to merge, sign, distribute, upload to TestFlight/Play Store, or publish a release.
 - Release operations require **explicit user approval** for the intended build, environment, and distribution channel.
 - ChatGPT is the coordinator: when the user shares a PR or asks for a handoff/status, inspect the latest PR details and comments; then provide the next exact copy-and-paste prompt for Cloud or Local Codex. ChatGPT should not claim to know Codex's private session state or that the Mac is currently available.
-- If the Mac is offline, the state remains `NEEDS_LOCAL`; cloud work does not have to stop.
+- `NEEDS_LOCAL` is the legacy status label for outstanding checks; it does not require the owner's personal Mac. Continue hosted native work and name genuine physical-device dependencies explicitly.
 
 ## GitHub merge gate
 
-The `.github/workflows/keeper-local-validation.yml` workflow posts commit status `keeper/local-validation` for the current PR head SHA. For code changes, it remains failing until a repository collaborator posts a `Codex local validation` comment with `State: LOCAL_PASSED`, the **exact current commit SHA**, and `pass` for every platform named by `Required local checks`, except `HARDWARE` when the exact-SHA owner decision above defers unrun physical checks. New commits invalidate previous local sign-off and deferral. Documentation and `.github/`-only PRs are exempt from Mac tests.
+The `.github/workflows/keeper-local-validation.yml` workflow posts commit status `keeper/local-validation` for the current PR head SHA. For code changes, it requires a trusted exact-head Cloud handoff. Each required `IOS`/`ANDROID` platform needs either a genuine successful hosted native build **and** disposable UI smoke from the selected reviewed reusable or legacy hosted route, or a repository collaborator's exact-head `LOCAL_PASSED` report. A hosted run is trusted only when its workflow and complete `.github/native/` harness match the protected current base and the run's original base; PR-authored check names, comments and artifacts alone are not CI evidence. New or changed CI infrastructure must first be reviewed and merged before it can provide authoritative native evidence. The latest run/attempt must contain successful build and smoke steps for that platform; stale, skipped, cancelled, pending, build-only or untrusted evidence supplies no hosted pass. A latest explicit local failure remains blocking. `HARDWARE` still requires the existing local physical result or exact-SHA owner decision and subsequent honest local report above. New commits invalidate previous native evidence, local sign-off and deferral. Documentation and `.github/`-only PRs are exempt from native tests.
 
 This workflow **reports** a status; to **enforce** it, repository administrators must require the `keeper/local-validation` commit status for merges to `sprint` in GitHub Rulesets or branch protection. Require the existing `Tests` CI check as well. This is a review/test gate, not a guarantee that tests were actually executed; agents must report actual results truthfully. Release signing, TestFlight, Play Store, and production deployment remain separate and require explicit user approval.

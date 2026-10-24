@@ -2,7 +2,7 @@
 /* eslint-disable react/no-unstable-nested-components */
 import { ActivityIndicator, StyleSheet, BackHandler , TouchableOpacity} from 'react-native';
 import Text from 'src/components/KeeperText';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { hp, windowWidth, wp } from 'src/constants/responsive';
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
 import AppIcon from 'src/assets/images/new-app-icon.svg';
@@ -14,6 +14,7 @@ import ScreenWrapper from 'src/components/ScreenWrapper';
 import { getApp } from '@react-native-firebase/app';
 import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import { setupKeeperApp } from 'src/store/sagaActions/storage';
+import { setAppCreationError } from 'src/store/reducers/login';
 import useToastMessage from 'src/hooks/useToastMessage';
 import { Box, Pressable, useColorMode } from '@gluestack-ui/themed-native-base';
 import LoadingAnimation from 'src/components/Loader';
@@ -28,6 +29,7 @@ import Colors from 'src/theme/Colors';
 import { useIsFocused } from '@react-navigation/native';
 import Fonts from 'src/constants/Fonts';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
 
 export function Tile({ title, subTitle, onPress, Icon = null, loading = false }) {
   const { colorMode } = useColorMode();
@@ -113,24 +115,32 @@ function NewKeeperApp({ navigation }: { navigation }) {
   const { translations } = useContext(LocalizationContext);
   const { login, common, error: errorText, home } = translations;
   const isFocused = useIsFocused();
+  const nextNavigation = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigationActive = useRef(true);
+  const renderedAccountSession = currentBackupAccountSession();
   const isMultiAccountFlow = !!useAppSelector((state) => state.account).allAccounts.length;
 
   useEffect(() => {
+    let active = true;
+    const accountSession = currentBackupAccountSession();
     if (appCreated) {
       setInitiating(false);
-      updateFCM();
+      updateFCM(() => active && accountSession === currentBackupAccountSession());
     }
     if (appCreationError) {
       setModalVisible(false);
       setInitiating(false);
     }
+    return () => {
+      active = false;
+    };
   }, [appCreated, appCreationError]);
 
-  async function updateFCM() {
+  async function updateFCM(isCurrent: () => boolean) {
     try {
       const app = getApp();
       const token = await getToken(getMessaging(app));
-      dispatch(updateFCMTokens([token]));
+      if (isCurrent()) dispatch(updateFCMTokens([token]));
     } catch (error) {
       //
     }
@@ -144,11 +154,24 @@ function NewKeeperApp({ navigation }: { navigation }) {
 
   useEffect(() => {
     if (appRecreated) {
-      setTimeout(() => {
-        navigation.replace('App', { screen: 'Home' });
+      const accountSession = currentBackupAccountSession();
+      const timer = setTimeout(() => {
+        if (accountSession === currentBackupAccountSession()) {
+          navigation.replace('App', { screen: 'Home' });
+        }
       }, 3000);
+      return () => clearTimeout(timer);
     }
+    return undefined;
   }, [appRecreated]);
+
+  useEffect(() => {
+    navigationActive.current = true;
+    return () => {
+      navigationActive.current = false;
+      if (nextNavigation.current !== null) clearTimeout(nextNavigation.current);
+    };
+  }, []);
 
   useEffect(() => {
     const backAction = () => true;
@@ -157,19 +180,24 @@ function NewKeeperApp({ navigation }: { navigation }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const accountSession = currentBackupAccountSession();
     if (keeperInitiating) {
       setModalVisible(true);
-      createNewApp();
+      createNewApp(() => active && accountSession === currentBackupAccountSession());
     }
+    return () => {
+      active = false;
+    };
   }, [keeperInitiating]);
 
-  async function createNewApp() {
+  async function createNewApp(isCurrent: () => boolean) {
     try {
       const app = getApp();
       const fcmToken = await getToken(getMessaging(app));
-      dispatch(setupKeeperApp(fcmToken));
+      if (isCurrent()) dispatch(setupKeeperApp(fcmToken));
     } catch (error) {
-      dispatch(setupKeeperApp());
+      if (isCurrent()) dispatch(setupKeeperApp());
     }
   }
 
@@ -321,23 +349,6 @@ function NewKeeperApp({ navigation }: { navigation }) {
       <KeeperModal
         dismissible={false}
         close={() => {}}
-        visible={appCreationError}
-        title={common.somethingWrong}
-        subTitle={login.checkinternetConnection}
-        modalBackground={`${colorMode}.modalWhiteBackground`}
-        textColor={`${colorMode}.textGreen`}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={Box}
-        buttonText={common.retry}
-        buttonCallback={() => {
-          setInitiating(true);
-        }}
-        subTitleWidth={wp(250)}
-        showCloseIcon={false}
-      />
-      <KeeperModal
-        dismissible={false}
-        close={() => {}}
         visible={modalVisible}
         title={getSignUpModalContent().title}
         subTitle={getSignUpModalContent().subTitle}
@@ -347,9 +358,16 @@ function NewKeeperApp({ navigation }: { navigation }) {
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonText={appCreated ? common.next : null}
         buttonCallback={() => {
+          if (
+            !navigationActive.current ||
+            nextNavigation.current !== null ||
+            renderedAccountSession !== currentBackupAccountSession()
+          ) return;
           setModalVisible(false);
-          setTimeout(() => {
-            navigation.replace('App', { screen: 'Home' });
+          nextNavigation.current = setTimeout(() => {
+            if (renderedAccountSession === currentBackupAccountSession()) {
+              navigation.replace('App', { screen: 'Home' });
+            }
           }, 500);
         }}
         subTitleWidth={wp(300)}
@@ -364,6 +382,7 @@ function NewKeeperApp({ navigation }: { navigation }) {
         Content={Box}
         buttonText={common.retry}
         buttonCallback={() => {
+          dispatch(setAppCreationError(false));
           setInitiating(true);
         }}
         modalBackground={`${colorMode}.modalWhiteBackground`}

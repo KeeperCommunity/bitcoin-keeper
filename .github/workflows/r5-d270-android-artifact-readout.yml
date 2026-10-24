@@ -1,0 +1,36 @@
+name: Read fixed d270 Android observations
+
+on:
+  push:
+    branches: [codex/r5-d270-android-artifact-readout-20261024]
+    paths:
+      - .github/workflows/r5-d270-android-artifact-readout.yml
+      - .github/scripts/read-d270-android-artifact.cjs
+      - .github/scripts/read-d270-android-artifact.py
+      - .github/tests/d270-android-artifact-readout.test.cjs
+      - .github/tests/test_d270_android_artifact_readout.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r5-fixed-d270-android-observation-readout
+  cancel-in-progress: false
+
+jobs:
+  readout:
+    if: github.repository == 'KeeperCommunity/bitcoin-keeper' && github.event_name == 'push' && github.ref == 'refs/heads/codex/r5-d270-android-artifact-readout-20261024'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: node .github/scripts/verify-ci-source.cjs
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: await require('./.github/scripts/read-d270-android-artifact.cjs').run({ github, context, core })
+      - if: always()
+        run: node .github/scripts/verify-ci-source.cjs

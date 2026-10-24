@@ -16,7 +16,6 @@ import BiometricIcon from 'src/assets/images/biometric-icon.svg';
 import { changeLoginMethod, storeCreds, switchCredsChanged } from 'src/store/sagaActions/login';
 import KeeperModal from 'src/components/KeeperModal';
 import { setIsInitialLogin } from 'src/store/reducers/login';
-import { throttle } from 'src/utils/utilities';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
 import ReactNativeBiometrics from 'react-native-biometrics';
@@ -83,7 +82,7 @@ export default function CreatePin(props) {
     }
   }, [credsChanged]);
 
-  const onPressNumber = throttle((text) => {
+  const onPressNumber = (text) => {
     setPinState((currentState) => {
       const currentLength = currentState.value.length;
 
@@ -104,9 +103,9 @@ export default function CreatePin(props) {
 
       return currentState;
     });
-  }, 300);
+  };
 
-  const onDeletePressed = throttle(() => {
+  const onDeletePressed = () => {
     setPinState((currentState) => {
       const currentLength = currentState.value.length;
 
@@ -123,7 +122,7 @@ export default function CreatePin(props) {
         stage: currentLength <= 5 ? PasscodeStages.CREATE : PasscodeStages.CONFIRM,
       };
     });
-  }, 300);
+  };
 
   const handleNext = () => {
     dispatch(setIsInitialLogin(true));

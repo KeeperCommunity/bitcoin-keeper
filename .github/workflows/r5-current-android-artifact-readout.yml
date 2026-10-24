@@ -1,0 +1,37 @@
+name: Read exact completed current Android metadata bytes
+
+on:
+  push:
+    branches: [codex/r5-current-android-artifact-byte-readout-20261022]
+    paths:
+      - .github/workflows/r5-current-android-artifact-readout.yml
+      - .github/scripts/read-current-android-artifact.cjs
+      - .github/scripts/read-current-android-artifact.py
+      - .github/scripts/current-android-metadata-policy.json
+      - .github/tests/current-android-artifact-readout.test.cjs
+      - .github/tests/test_current_android_artifact_readout.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r5-fixed-completed-1bc-android-artifact-readout
+  cancel-in-progress: false
+
+jobs:
+  readout:
+    if: ${{ github.repository == 'KeeperCommunity/bitcoin-keeper' && github.event_name == 'push' && github.ref == 'refs/heads/codex/r5-current-android-artifact-byte-readout-20261022' }}
+    runs-on: macos-15
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: node .github/scripts/verify-ci-source.cjs
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: await require('./.github/scripts/read-current-android-artifact.cjs').run({ github, context, core })
+      - if: always()
+        run: node .github/scripts/verify-ci-source.cjs

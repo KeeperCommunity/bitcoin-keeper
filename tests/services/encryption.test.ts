@@ -82,7 +82,13 @@ describe('Testing cryptographic primitives', () => {
 
   test('Decryption::Incorrect key', () => {
     const incorrectKey = 'a'.repeat(64);
-    const decrypted = decrypt(incorrectKey, encrypted);
+    let decrypted: string;
+    try {
+      decrypted = decrypt(incorrectKey, encrypt(key, message));
+    } catch (error) {
+      expect(error).toEqual(new Error('Malformed UTF-8 data'));
+      return;
+    }
     expect(decrypted).not.toBe(message);
   });
 });

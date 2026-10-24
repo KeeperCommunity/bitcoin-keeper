@@ -1,0 +1,51 @@
+# Run on an unlocked disposable app with an existing Ask conversation.
+appId: ${APP_ID}
+---
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: home_tab_ask
+      - assertVisible:
+          id: chat_thread_0
+      - tapOn:
+          id: chat_thread_0
+      - tapOn:
+          id: btn_learn_more
+      - assertVisible: Before you use Ask Keeper
+      - tapOn: Got it
+      - tapOn:
+          id: btn_learn_more
+      - tapOn: Learn more about Ask Keeper.*
+      - assertVisible: About Ask Keeper
+      - tapOn:
+          id: btn_back
+      - tapOn:
+          id: input_message
+      - assertVisible:
+          id: btn_back
+      - tapOn:
+          id: btn_back
+      - assertVisible:
+          id: chat_thread_0
+      - assertVisible:
+          id: home_tab_wallets
+      - assertVisible:
+          id: home_tab_keys
+      - assertVisible:
+          id: home_tab_ask
+      - assertVisible:
+          id: home_tab_more
+      - tapOn:
+          id: home_tab_more
+      - assertVisible: More Options
+      - assertNotVisible:
+          id: chat_thread_0
+      - tapOn:
+          id: home_tab_wallets
+      - assertVisible:
+          id: wallet_item_.*
+- tapOn:
+    id: home_tab_ask
+- assertVisible:
+    id: chat_thread_0

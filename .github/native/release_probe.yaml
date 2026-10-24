@@ -1,0 +1,32 @@
+appId: ${APP_ID}
+name: Disposable native module persistence across process relaunch
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: native-probe-seeded
+    timeout: 60000
+- assertNotVisible:
+    id: native-probe-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: native-probe-mutated
+    timeout: 60000
+- assertNotVisible:
+    id: native-probe-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: native-probe-pass
+    timeout: 60000
+- assertNotVisible:
+    id: native-probe-failed
+- stopApp

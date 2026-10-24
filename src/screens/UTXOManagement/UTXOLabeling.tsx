@@ -54,6 +54,8 @@ function UTXOLabeling() {
   const { transactions: txTranslations, wallet: walletTranslations, common } = translations;
 
   const dispatch = useDispatch();
+  const activeAppId = useAppSelector((state) => state.storage.appId);
+  const originAppId = useRef(activeAppId).current;
   // Live reactive wallet from Realm so spendability updates immediately after saga writes
   const liveWalletResult = useWallets({ walletIds: [wallet.id] }).wallets[0];
   const liveVaultResult = useVault({ vaultId: wallet.id }).activeVault;
@@ -127,7 +129,7 @@ function UTXOLabeling() {
         const finalLabels = [{ name: noteRef.current, isSystem: false }];
         if (txNoteLabels[utxo.txId][0]?.name) {
           const labelChanges = getLabelChanges(txNoteLabels[utxo.txId], finalLabels);
-          dispatch(bulkUpdateLabels({ labelChanges, txId: utxo.txId, wallet }));
+          dispatch(bulkUpdateLabels({ labelChanges, txId: utxo.txId, wallet }, originAppId));
         } else {
           dispatch(
             addLabels({
@@ -135,13 +137,13 @@ function UTXOLabeling() {
               txId: utxo.txId,
               wallet,
               type: LabelRefType.TXN,
-            })
+            }, originAppId)
           );
         }
       } else {
         if (txNoteLabels[utxo.txId][0]?.name) {
           const labelChanges = getLabelChanges(txNoteLabels[utxo.txId], []);
-          dispatch(bulkUpdateLabels({ labelChanges, txId: utxo.txId, wallet }));
+          dispatch(bulkUpdateLabels({ labelChanges, txId: utxo.txId, wallet }, originAppId));
         }
       }
     }
@@ -251,7 +253,7 @@ function UTXOLabeling() {
                 <TouchableOpacity
                   style={[styles.spendabilityCta, { backgroundColor: Colors.CyanGreen }]}
                   onPress={() => {
-                    dispatch(markUTXOSpendability({ wallet, txId: utxo.txId, vout: utxo.vout, spendability: 'spendable' }));
+                    dispatch(markUTXOSpendability({ wallet, txId: utxo.txId, vout: utxo.vout, spendability: 'spendable' }, originAppId));
                     showToast('Coin marked spendable', <TickIcon />);
                   }}
                 >
@@ -264,7 +266,7 @@ function UTXOLabeling() {
               <TouchableOpacity
                 style={[styles.spendabilityCta, { backgroundColor: Colors.CrimsonRed }]}
                 onPress={() => {
-                  dispatch(markUTXOSpendability({ wallet, txId: utxo.txId, vout: utxo.vout, spendability: 'doNotSpend' }));
+                  dispatch(markUTXOSpendability({ wallet, txId: utxo.txId, vout: utxo.vout, spendability: 'doNotSpend' }, originAppId));
                   showToast('Coin marked Do Not Spend', <TickIcon />);
                 }}
               >

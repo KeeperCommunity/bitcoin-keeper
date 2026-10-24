@@ -1,7 +1,8 @@
 import React, { useContext, useState } from 'react';
 import Text from 'src/components/KeeperText';
-import { ScrollView, useColorMode } from '@gluestack-ui/themed-native-base';
+import { Box, ScrollView, useColorMode } from '@gluestack-ui/themed-native-base';
 import { Pressable, StyleSheet } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 import VersionHistoryList from 'src/components/SettingComponent/VersionHistoryList';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import { RealmSchema } from 'src/storage/realm/enum';
@@ -35,6 +36,14 @@ function AppVersionHistory({ navigation }: any) {
         subTitle={settings.versionHistorySubTitle}
       />
       <ScrollView style={styles.versionHistory} testID="view_VersionHistoryList">
+        <Box style={styles.installedVersion}>
+          <Text allowFontScaling medium testID="text_installedAppVersionLabel">
+            {settings.installedAppVersion}
+          </Text>
+          <Text allowFontScaling style={styles.version} testID="text_installedAppVersion">
+            {`${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`}
+          </Text>
+        </Box>
         <VersionHistoryList />
       </ScrollView>
       <Pressable onPress={onAppIdPress}>
@@ -44,6 +53,13 @@ function AppVersionHistory({ navigation }: any) {
   );
 }
 const styles = StyleSheet.create({
+  installedVersion: {
+    marginBottom: hp(24),
+  },
+  version: {
+    fontSize: 16,
+    marginTop: hp(8),
+  },
   textAppId: {
     textAlign: 'center',
     fontSize: 10,

@@ -1,0 +1,116 @@
+name: Keeper canonical native acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact reviewed canonical sprint HEAD; must equal the installed driver pin
+        required: true
+        type: string
+
+# Read-only native testing. The separate Variables:read credential is available
+# only to provenance scripts; no environments, status writes or release operations.
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+env:
+  KEEPER_SOURCE_SHA: ${{ inputs.source_sha }}
+  KEEPER_CANONICAL_NATIVE_DRIVER_SHA: ${{ vars.KEEPER_CANONICAL_NATIVE_DRIVER_SHA }}
+
+jobs:
+  provenance:
+    name: Canonical installed driver and capacity admission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      trusted: ${{ steps.check.outputs.trusted }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: check
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+        with:
+          script: |
+            try {
+              const driver = require('./.github/native/canonical_native.cjs');
+              const pinReader = driver.pinReaderFromEnvironment(github, process.env);
+              const request = driver.requestFromEnvironment(context, process.env);
+              await driver.origin(github, context, request, { admission: true, pinReader });
+              core.setOutput('trusted', 'true');
+            } catch {
+              core.setOutput('trusted', 'false');
+              core.setFailed('Canonical workflow, live pin read identity, source/attempt or native capacity is unverified. No native credit.');
+            }
+
+  ios:
+    needs: provenance
+    if: needs.provenance.outputs.trusted == 'true'
+    uses: ./.github/workflows/keeper-canonical-native-platform.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+      platform: IOS
+    secrets:
+      canonical_pin_read_token: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+
+  android:
+    needs: [provenance, ios]
+    if: needs.provenance.outputs.trusted == 'true' && needs.ios.result == 'success'
+    uses: ./.github/workflows/keeper-canonical-native-platform.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+      platform: ANDROID
+    secrets:
+      canonical_pin_read_token: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+
+  attestation:
+    name: Canonical native attestation
+    needs: [provenance, ios, android]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify canonical receipts and required matrix
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+          IOS_RESULT: ${{ needs.ios.result }}
+          ANDROID_RESULT: ${{ needs.android.result }}
+        with:
+          script: |
+            try {
+              if (process.env.IOS_RESULT !== 'success' || process.env.ANDROID_RESULT !== 'success') {
+                throw new Error('Required platform did not execute successfully');
+              }
+              const driver = require('./.github/native/canonical_native.cjs');
+              const pinReader = driver.pinReaderFromEnvironment(github, process.env);
+              const request = driver.requestFromEnvironment(context, process.env);
+              await driver.collect(github, context, request, 'artifacts/canonical-native', driver.readMetadataZip, { pinReader });
+            } catch {
+              core.setFailed('Canonical software matrix incomplete or exact Actions/receipt provenance invalid. No release authorization.');
+            }
+      - name: Retain bounded canonical readiness
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-canonical-native-readiness-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/canonical-native/keeper-canonical-native-readiness.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain complete canonical attestation
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-canonical-native-attestation-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/canonical-native/keeper-canonical-native-attestation.json
+          if-no-files-found: error
+          retention-days: 7

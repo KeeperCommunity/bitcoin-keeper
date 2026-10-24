@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { useColorMode } from '@gluestack-ui/themed-native-base';
 import RestClient from 'src/services/rest/RestClient';
@@ -6,7 +6,7 @@ import { useAppSelector } from 'src/store/hooks';
 import * as SecureStore from 'src/storage/secure-store';
 import Animated, {
   interpolate,
-  runOnJS,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -19,19 +19,20 @@ import { NetworkType } from 'src/services/wallets/enums';
 import { changeBitcoinNetwork } from 'src/store/sagaActions/settings';
 import { setDefaultWalletCreated } from 'src/store/reducers/storage';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
+import KeeperModal from 'src/components/KeeperModal';
+import { LocalizationContext } from 'src/context/Localization/LocContext';
 
 function SplashScreen({ navigation }) {
   const { torEnbled, themeMode, bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const dispatch = useDispatch();
   const { toggleColorMode, colorMode } = useColorMode();
 
-  const animate = () => {
-    progress.value = withTiming(4, { duration: 3000 }, (finished) => {
-      if (finished) {
-        runOnJS(navigateToApp)();
-      }
-    });
-  };
+  const { translations } = useContext(LocalizationContext);
+  const [startupError, setStartupError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const readPending = useRef(true);
+  const mounted = useRef(false);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     if (!bitcoinNetworkType) {
@@ -48,27 +49,52 @@ function SplashScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    animate();
+    mounted.current = true;
+    // The animation is decorative. Credential availability, rather than its
+    // duration, determines when startup can advance.
+    progress.value = withTiming(4, { duration: 3000 });
     if (themeMode === 'DARK' || themeMode === 'PRIVATE') {
       toggleColorMode();
     }
     RestClient.setUseTor(torEnbled);
+    return () => {
+      mounted.current = false;
+      cancelAnimation(progress);
+    };
   }, []);
 
-  const navigateToApp = async () => {
-    try {
-      const hasCreds = await SecureStore.hasPin();
-      if (hasCreds) {
-        navigation.replace('Login', { relogin: false });
-      } else {
-        navigation.replace('CreatePin');
+  useEffect(() => {
+    let current = true;
+    readPending.current = true;
+    const navigateToApp = async () => {
+      try {
+        const hasCreds = await SecureStore.hasPin({ throwOnError: true });
+        if (!current) return;
+        if (hasCreds) {
+          navigation.replace('Login', { relogin: false });
+        } else {
+          navigation.replace('CreatePin');
+        }
+      } catch {
+        if (current) {
+          readPending.current = false;
+          setStartupError(true);
+        }
       }
-    } catch (err) {
-      console.log(err);
-    }
+    };
+    navigateToApp();
+    return () => {
+      current = false;
+    };
+  }, [attempt, navigation]);
+
+  const retryStartup = () => {
+    if (!mounted.current || readPending.current) return;
+    readPending.current = true;
+    setStartupError(false);
+    setAttempt((previous) => previous + 1);
   };
 
-  const progress = useSharedValue(0);
   const inputRange = [0, 1, 2, 3, 4];
   const heightRange = [0, windowHeight * 2, windowHeight * 2, windowHeight, windowHeight];
   const widthRange = [0, windowHeight * 2, windowHeight * 2, windowHeight, windowWidth];
@@ -115,6 +141,18 @@ function SplashScreen({ navigation }) {
       <Animated.View style={animatedLogo}>
         <ThemedSvg name={'keeperLogo'} />
       </Animated.View>
+      <KeeperModal
+        visible={startupError}
+        close={() => {}}
+        showCloseIcon={false}
+        dismissible={false}
+        title={translations.common.somethingWrong}
+        subTitle={translations.login.startupCredentialError}
+        buttonText={translations.common.retry}
+        buttonCallback={retryStartup}
+        modalBackground={`${colorMode}.modalWhiteBackground`}
+        textColor={`${colorMode}.textGreen`}
+      />
     </Animated.View>
   );
 }
