@@ -142,7 +142,7 @@ def android_log(payload, owned):
         # an unavailable observer cannot turn its own markers into app faults.
         if re.fullmatch(r'[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}'
                         r' +[1-9][0-9]{0,9} +[1-9][0-9]{0,9} +E +ReactNativeJS: '
-                        r'KEEPER_ONBOARDING_BOUNDARY\|[^\n]*', line):
+                        r'KEEPER_(?:ONBOARDING|STARTUP)_BOUNDARY\|[^\n]*', line):
             result['diagnostic_marker_records'] += 1
             continue
         match = re.match(pattern, line)
@@ -166,6 +166,18 @@ def onboarding_receipt(payload, owned, *, usable, full_input):
     try:
         spec = importlib.util.spec_from_file_location('onboarding_failure_receipts',
             Path(__file__).with_name('onboarding_failure_receipts.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.parse(payload, owned, usable=usable, full_input=full_input)
+    except Exception:
+        return {'state': 'UNKNOWN', 'scope': 'OPTIONAL_DEV_MARKER_PARSER_UNAVAILABLE',
+                'cause': 'UNDETERMINED', 'freshness': 'GUEST_CLOCK_UNVERIFIED'}
+
+
+def startup_boundary_receipt(payload, owned, *, usable, full_input):
+    try:
+        spec = importlib.util.spec_from_file_location('startup_boundary_receipts',
+            Path(__file__).with_name('startup_boundary_receipts.py'))
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module.parse(payload, owned, usable=usable, full_input=full_input)
@@ -293,6 +305,13 @@ def collect(private, device):
             '--regex', r'^KEEPER_ONBOARDING_BOUNDARY\|', '--max-count', '65',
             'ReactNativeJS:E', '*:S'])
         result['onboarding_boundary_observation'] = onboarding_receipt(marker_payload, owned,
+            usable=result['commands'][-1]['lookup_status'] == 'SUCCESS',
+            full_input=result['commands'][-1]['input_truncated'] is False)
+        startup_payload, _ = capture('startup-markers', [
+            'logcat', '-d', '-b', 'main', '-v', 'threadtime',
+            '--regex', r'^KEEPER_STARTUP_BOUNDARY\|', '--max-count', '41',
+            'ReactNativeJS:V', '*:S'])
+        result['startup_boundary_observation'] = startup_boundary_receipt(startup_payload, owned,
             usable=result['commands'][-1]['lookup_status'] == 'SUCCESS',
             full_input=result['commands'][-1]['input_truncated'] is False)
         try:

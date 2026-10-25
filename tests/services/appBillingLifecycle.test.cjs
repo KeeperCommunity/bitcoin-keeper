@@ -44,6 +44,7 @@ async function scenario(kind) {
   const logs = [], unhandled = [], calls = [];
   const context = vm.createContext({
     Promise, Error, process: { env: {} }, global: {},
+    observeStartupBoundary: () => {},
     console: { error: (...args) => logs.push(args) },
     isVegaOS: () => false,
     getVegaIapModule: () => { throw Error('Unexpected controlled boundary'); },

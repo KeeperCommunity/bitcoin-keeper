@@ -1,6 +1,7 @@
 import AssistedBackupStatus from 'src/screens/AppSettings/AssistedBackupStatus';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
-import React, { useContext, useRef } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
+import { observeStartupBoundary } from 'src/utils/startup-boundary-observer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AddSendAmount from 'src/screens/Send/AddSendAmount';
 import AddSigningDevice from 'src/screens/Vault/AddSigningDevice';
@@ -385,6 +386,9 @@ function AppStack() {
 }
 
 function Navigator() {
+  useEffect(() => {
+    observeStartupBoundary('NAVIGATOR_COMMITTED');
+  }, []);
   const Stack = createNativeStackNavigator();
   const navigation = useRef();
   const { appLoading, loadingContent } = useContext(AppContext);

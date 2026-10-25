@@ -26,6 +26,7 @@ import {
   reportStartupFailure,
   StartupFailureReceipt,
 } from 'src/storage/startup-failure-observer';
+import { observeStartupBoundary } from 'src/utils/startup-boundary-observer';
 
 function SplashScreen({ navigation }) {
   const { torEnbled, themeMode, bitcoinNetworkType } = useAppSelector((state) => state.settings);
@@ -55,6 +56,7 @@ function SplashScreen({ navigation }) {
 
   useEffect(() => {
     mounted.current = true;
+    observeStartupBoundary('SPLASH_COMMITTED');
     // The animation is decorative. Credential availability, rather than its
     // duration, determines when startup can advance.
     progress.value = withTiming(4, { duration: 3000 });
@@ -64,6 +66,7 @@ function SplashScreen({ navigation }) {
     RestClient.setUseTor(torEnbled);
     return () => {
       mounted.current = false;
+      observeStartupBoundary('SPLASH_UNMOUNTED');
       cancelAnimation(progress);
     };
   }, []);
@@ -80,8 +83,11 @@ function SplashScreen({ navigation }) {
     const navigateToApp = async () => {
       let hasCreds;
       try {
+        observeStartupBoundary('CREDENTIAL_PROBE_ENTERED');
         hasCreds = await SecureStore.hasPin({ throwOnError: true }, startupFailureObserver);
+        observeStartupBoundary('CREDENTIAL_PROBE_RESOLVED');
       } catch {
+        observeStartupBoundary('CREDENTIAL_PROBE_REJECTED');
         if (current) {
           readPending.current = false;
           setStartupError(true);
@@ -90,12 +96,15 @@ function SplashScreen({ navigation }) {
       }
       if (!current) return;
       try {
+        observeStartupBoundary('ROUTE_REPLACE_ENTERED');
         if (hasCreds) {
           navigation.replace('Login', { relogin: false });
         } else {
           navigation.replace('CreatePin');
         }
+        observeStartupBoundary('ROUTE_REPLACE_RETURNED');
       } catch (error) {
+        observeStartupBoundary('ROUTE_REPLACE_THROWN');
         reportStartupFailure(startupFailureObserver, 'NAVIGATION', 'THREW', error);
         if (current) {
           readPending.current = false;

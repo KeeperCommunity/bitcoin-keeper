@@ -17,6 +17,9 @@ import { name as appName } from './app.json';
 import { enableAndroidFontFix } from './AndroidFontFix';
 import { initSentrySDK } from 'src/services/sentry';
 
+const { observeStartupBoundary } = require('src/utils/startup-boundary-observer');
+
+observeStartupBoundary('ENTRYPOINT_READY');
 initSentrySDK();
 enableAndroidFontFix();
 
@@ -30,3 +33,4 @@ Svg.defaultProps = Svg.defaultProps || {};
 Svg.defaultProps.pointerEvents = 'none';
 
 AppRegistry.registerComponent(appName, () => App);
+observeStartupBoundary('ENTRYPOINT_REGISTERED');

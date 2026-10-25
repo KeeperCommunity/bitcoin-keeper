@@ -106,7 +106,7 @@ jobs:
 
       - name: Check startup billing, USDT pause and retired build inputs
         run: |
-          node --test tests/services/appBillingLifecycle.test.cjs \
+          node --test tests/services/appBillingLifecycle.test.cjs tests/services/startupBoundaryObserver.test.cjs \
             tests/services/usdtPause.test.cjs tests/recovery/usdtBackup.test.cjs \
             scripts/verify-channel-config.test.cjs ios/scripts/verify-retired-env.test.cjs
 

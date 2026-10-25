@@ -34,7 +34,7 @@ function failure(error) {
 // the observer; console data, messages and stacks never do.
 const runtimeCodes = [
   ['NATIVE_REGISTRY_MODULE_MISSING', /TurboModuleRegistry(?:\.getEnforcing)?[\s\S]{0,240}(?:could not be found|not found)/i],
-  ['NATIVE_EVENT_EMITTER_NULL', /NativeEventEmitter[\s\S]{0,120}(?:non-null|non null|cannot be null)/i],
+  ['NATIVE_EVENT_EMITTER_NULL', /NativeEventEmitter[\s\S]{0,40}(?:requires a non-null argument|cannot be null)/i],
   ['APP_NOT_REGISTERED', /(?:hexa_keeper|Application)[\s\S]{0,80}(?:has not been registered|not registered)/i],
   ['REACT_INVALID_HOOK_CALL', /Invalid hook call/i],
   ['REACT_INVALID_ELEMENT', /Element type is invalid/i],
