@@ -190,7 +190,7 @@ test('canonical pin credential stays in explicit provenance steps with read-only
           assert.ok(step.with.script.indexOf('delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;') >= 0 &&
             step.with.script.indexOf('delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;') <
             step.with.script.indexOf('guard.exports.verifyRawCheckout(root, context.sha);'));
-          assert.match(step.with.script, /(?:admission: true, pinReader|\{ pinReader \})/);
+          assert.match(step.with.script, /(?:admission: true, pinReader|\{ pinReader(?:, privateGithub)? \})/);
         } else {
           assert.doesNotMatch(JSON.stringify(step), /secrets\./, 'build/tooling steps receive no pin credential');
         }
