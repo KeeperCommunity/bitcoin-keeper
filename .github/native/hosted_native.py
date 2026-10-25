@@ -1110,8 +1110,13 @@ def build():
         data['toolchain']['gradle'] = observed
         save(data)
         try:
+            # The app's shipping ABI filters list four targets. Give AGP the
+            # emulator target too, preserving the existing APK path/manifest.
             command(['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon', '--max-workers=2',
-                     '-PreactNativeArchitectures=x86_64', '--info', '--console=plain'],
+                     '-PreactNativeArchitectures=x86_64', '-Pandroid.buildOnlyTargetAbi=true',
+                     '-Pandroid.injected.build.abi=x86_64', '-Pandroid.injected.testOnly=false',
+                     '-Pandroid.injected.apk.location=' + str(ROOT / 'android/app/build/outputs/apk'),
+                     '--info', '--console=plain'],
                     'Build debug-key-only development APK', timeout=2100, cwd=ROOT / 'android')
         except Exception:
             try:

@@ -144,7 +144,10 @@ class AndroidBuildFailureTest(unittest.TestCase):
             if label == 'Record actual Gradle and JVM version':
                 return 'Gradle8.14.3'
             self.assertEqual(args, ['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon',
-                '--max-workers=2', '-PreactNativeArchitectures=x86_64', '--info', '--console=plain'])
+                '--max-workers=2', '-PreactNativeArchitectures=x86_64', '-Pandroid.buildOnlyTargetAbi=true',
+                '-Pandroid.injected.build.abi=x86_64', '-Pandroid.injected.testOnly=false',
+                '-Pandroid.injected.apk.location=' + str(self.root / 'android/app/build/outputs/apk'),
+                '--info', '--console=plain'])
             self.assertEqual(kwargs, {'timeout': 2100, 'cwd': self.root / 'android'})
             (self.private / 'command-002.log').write_text('> Task :app:compileDevelopmentDebugKotlin\n')
             raise RuntimeError('ORIGINAL_BUILD_TIMEOUT')
