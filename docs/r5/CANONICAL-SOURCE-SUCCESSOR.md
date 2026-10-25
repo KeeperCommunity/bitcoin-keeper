@@ -67,8 +67,12 @@ The canonical caller removes both read-token environment variables before the
 pinned raw-source Git bootstrap or Python subprocess. Only its attestation step
 can reference the optional `KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN` secret.
 Its proposed identity is finite-expiry, selected-private-repository-only
-`bitcoin-keeper-relay`, Actions read and Contents read plus automatic Metadata
-read. It has no signing, upload, dispatch, write or administration scope. Missing
+`bitcoin-keeper-relay`, Actions read, Contents read and Checks read plus automatic Metadata
+read. Checks read is required for the independent check-run/check-suite ownership
+endpoints; Actions read alone does not grant it. See GitHub's
+[check-run permissions](https://docs.github.com/en/rest/checks/runs#get-a-check-run)
+and [check-suite permissions](https://docs.github.com/en/rest/checks/suites#get-a-check-suite).
+It has no signing, upload, dispatch, write or administration scope. Missing
 private identity leaves the five parent obligations incomplete; the public
 Actions token is never reused as a fallback. This candidate provisions no token.
 
