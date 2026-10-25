@@ -20,8 +20,20 @@ class ReplicaError(Exception):
 
 
 def identity(env):
+    # This private PR runs the same pinned public legacy fixture. Admission is
+    # limited to its exact repository identity and existing test workflow;
+    # no other repository or private workflow inherits the public-CI route.
+    selected_private = (
+        env.get('GITHUB_REPOSITORY') == 'KeeperCommunity/bitcoin-keeper-private' and
+        env.get('GITHUB_REPOSITORY_ID') == '839671816' and
+        env.get('GITHUB_EVENT_NAME') == 'pull_request' and
+        env.get('GITHUB_BASE_REF') == 'sprint' and
+        env.get('GITHUB_JOB') == 'automatic-backup-genuine' and
+        isinstance(env.get('GITHUB_WORKFLOW_REF'), str) and
+        re.fullmatch(r'KeeperCommunity/bitcoin-keeper-private/\.github/workflows/test\.yml'
+                     r'@refs/pull/[1-9][0-9]*/merge', env['GITHUB_WORKFLOW_REF']) is not None)
     if (env.get('GITHUB_ACTIONS') != 'true' or env.get('RUNNER_ENVIRONMENT') != 'github-hosted' or
-            env.get('GITHUB_REPOSITORY') != 'KeeperCommunity/bitcoin-keeper'):
+            (env.get('GITHUB_REPOSITORY') != 'KeeperCommunity/bitcoin-keeper' and not selected_private)):
         raise ReplicaError('HOSTED_PUBLIC_CI_REQUIRED')
     values = [env.get(key, '') for key in ('GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')]
     if not all(isinstance(value, str) and re.fullmatch(r'[1-9][0-9]{0,19}', value) for value in values):

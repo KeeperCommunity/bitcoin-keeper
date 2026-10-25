@@ -93,6 +93,28 @@ class MongoFaults(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertEqual(len(calls), 1)
 
+    def test_exact_private_legacy_pr_keeps_same_owned_resource_contract(self):
+        private = {**ENV, 'GITHUB_REPOSITORY': 'KeeperCommunity/bitcoin-keeper-private',
+                   'GITHUB_REPOSITORY_ID': '839671816', 'GITHUB_EVENT_NAME': 'pull_request',
+                   'GITHUB_JOB': 'automatic-backup-genuine',
+                   'GITHUB_BASE_REF': 'sprint', 'GITHUB_WORKFLOW_REF':
+                   'KeeperCommunity/bitcoin-keeper-private/.github/workflows/test.yml@refs/pull/73/merge'}
+        self.assertEqual(mongo.identity(private), (NAME, TOKEN))
+        self.assertEqual(self.exercise('cleanup', [(0, '')], env=private)[0], 0)
+        self.assertEqual(self.exercise('cleanup', [(0, NAME), (0, OWNER), (0, NAME), (0, '')],
+                                       env=private)[0], 0)
+        for key, value in [('GITHUB_ACTIONS', 'false'), ('RUNNER_ENVIRONMENT', 'self-hosted'),
+                           ('GITHUB_REPOSITORY_ID', ''), ('GITHUB_REPOSITORY_ID', '470904030'),
+                           ('GITHUB_REPOSITORY', 'KeeperCommunity/Relay'),
+                           ('GITHUB_EVENT_NAME', 'push'), ('GITHUB_BASE_REF', 'main'),
+                           ('GITHUB_JOB', 'test'),
+                           ('GITHUB_WORKFLOW_REF', ''), ('GITHUB_WORKFLOW_REF',
+                            'KeeperCommunity/bitcoin-keeper-private/.github/workflows/other.yml@refs/pull/73/merge'),
+                           ('GITHUB_WORKFLOW_REF',
+                            'KeeperCommunity/bitcoin-keeper-private/.github/workflows/test.yml@refs/heads/sprint')]:
+            with self.subTest(key=key, value=value):
+                self.assertEqual(self.exercise('cleanup', env={**private, key: value})[2], [])
+
     def test_start_retains_existing_image_replica_port_and_verified_writable_probe(self):
         status, value, calls = self.exercise('start', [(0, ''), (0, 'id'), (0, OWNER), (0, ''), (0, OWNER)])
         self.assertEqual(status, 0)
