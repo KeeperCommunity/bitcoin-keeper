@@ -15,6 +15,7 @@ import platform
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -152,6 +153,72 @@ def metro_startup_progress(log):
     prebundles = sum(bool(re.match(r'^PREBUNDLE\s', line)) for line in lines)
     return {'bundle_marker_observed': bundles > 0, 'bundle_marker_count': bundles,
             'prebundle_marker_count': prebundles}
+
+
+def ios_build_progress(log_path: Path) -> dict:
+    """Observe bounded failure output; unknown markers prove no absence or rate."""
+    phases = {
+        b'CompileC': 'C_COMPILE', b'SwiftCompile': 'SWIFT_COMPILE',
+        b'SwiftEmitModule': 'SWIFT_MODULE', b'Ld': 'LINK', b'Libtool': 'ARCHIVE',
+        b'PhaseScriptExecution': 'SCRIPT', b'CompileAssetCatalog': 'RESOURCE',
+        b'CompileAssetCatalogVariant': 'RESOURCE', b'CompileStoryboard': 'RESOURCE',
+        b'CompileXIB': 'RESOURCE', b'CompileXCStrings': 'RESOURCE',
+        b'Copy': 'COPY', b'CopyPlistFile': 'COPY', b'CopyStringsFile': 'COPY',
+        b'CopySwiftLibs': 'COPY', b'CpResource': 'COPY', b'PBXCp': 'COPY',
+        b'CodeSign': 'SIGN',
+    }
+    result = {'schema': 1, 'status': 'UNAVAILABLE', 'log_bytes': None, 'tail_bytes': 0,
+              'input_truncated': False, 'line_scan_truncated': False, 'lines_scanned': 0,
+              'terminal_record_incomplete': False,
+              'phase_counts': dict.fromkeys(phases.values(), 0),
+              'last_phase': 'UNKNOWN',
+              'scope': 'FAILURE_ONLY_BOUNDED_XCODE_TAIL_NOT_PROGRESS_RATE_CAUSE_OR_ACCEPTANCE'}
+    try:
+        log_path = Path(log_path)
+        if log_path.parent != PRIVATE:
+            return result
+        # Descriptor-relative no-follow opens reject links and keep a replaced
+        # PRIVATE path from redirecting the read. Nonblocking rejects FIFOs safely.
+        directory = os.open(PRIVATE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            if os.fstat(directory).st_uid != os.getuid():
+                return result
+            descriptor = os.open(log_path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                 dir_fd=directory)
+        finally:
+            os.close(directory)
+        with os.fdopen(descriptor, 'rb', buffering=0) as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+                return result
+            source.seek(max(0, info.st_size - 65536))
+            payload = source.read(65536)
+        tail_bytes = len(payload)
+        truncated = info.st_size > 65536
+        terminal_incomplete = bool(payload) and not payload.endswith(b'\n')
+        if truncated:
+            # The bounded read may start mid-record; discard that first record.
+            payload = payload.partition(b'\n')[2]
+        if terminal_incomplete:
+            payload = payload.rpartition(b'\n')[0]
+        lines = payload.splitlines()
+        line_truncated = len(lines) > 1024
+        lines = lines[-1024:]
+        counts = result['phase_counts'].copy()
+        last = 'UNKNOWN'
+        for line in lines:
+            match = re.match(rb'^([A-Za-z][A-Za-z0-9]*)(?:[ \t]|$)', line)
+            phase = phases.get(match[1]) if match else None
+            if phase:
+                counts[phase] += 1
+                last = phase
+        result.update(status='OBSERVED', log_bytes=info.st_size, tail_bytes=tail_bytes,
+                      input_truncated=truncated, line_scan_truncated=line_truncated,
+                      terminal_record_incomplete=terminal_incomplete,
+                      lines_scanned=len(lines), phase_counts=counts, last_phase=last)
+    except Exception:
+        pass
+    return result
 
 
 def private_log_prefix(path):
@@ -1016,11 +1083,22 @@ def build():
         data = read()
         data.setdefault('toolchain', {})['ios_simulator_architecture'] = architecture
         save(data)
-        command(['xcodebuild', '-workspace', 'ios/hexa_keeper.xcworkspace', '-scheme', 'hexa_keeper_dev',
-                 '-configuration', 'Debug', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
-                 '-derivedDataPath', str(PRIVATE / 'DerivedData'), 'CODE_SIGNING_ALLOWED=NO',
-                 'CODE_SIGNING_REQUIRED=NO', 'ARCHS=' + architecture, 'ONLY_ACTIVE_ARCH=YES', 'build'],
-                'Build unsigned development simulator app', timeout=2400)
+        try:
+            command(['xcodebuild', '-workspace', 'ios/hexa_keeper.xcworkspace', '-scheme', 'hexa_keeper_dev',
+                     '-configuration', 'Debug', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
+                     '-derivedDataPath', str(PRIVATE / 'DerivedData'), 'CODE_SIGNING_ALLOWED=NO',
+                     'CODE_SIGNING_REQUIRED=NO', 'ARCHS=' + architecture, 'ONLY_ACTIVE_ARCH=YES', 'build'],
+                    'Build unsigned development simulator app', timeout=3600 if architecture == 'x86_64' else 2400)
+        except Exception:
+            try:
+                data = read()
+                index = len(data['commands'])
+                if index and data['commands'][-1].get('label') == 'Build unsigned development simulator app':
+                    data['ios_build_progress'] = ios_build_progress(PRIVATE / ('command-%03d.log' % index))
+                    save(data)
+            except Exception:
+                pass
+            raise
         # Keychain rejects unsigned simulator executables with
         # errSecMissingEntitlement. This uses no certificate or release key;
         # record built/installed identities only after the ad-hoc signature.
