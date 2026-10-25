@@ -464,7 +464,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/zsh;
-			shellScript = "set -e\n# Make sure system tools like awk, grep, cut are available\nexport PATH=\"/usr/bin:/bin:/usr/sbin:/sbin:$PATH\"\nexport NODE_BINARY=/opt/homebrew/bin/node\n../node_modules/react-native/scripts/react-native-xcode.sh\n";
+			shellScript = "set -e\nWITH_ENVIRONMENT=\"$SRCROOT/../node_modules/react-native/scripts/xcode/with-environment.sh\"\n\"$WITH_ENVIRONMENT\" \"$SRCROOT/scripts/bundle-react-native.sh\"\n";
 		};
 		3B72837E09FDCE8AE9B64260 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -635,7 +635,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/zsh;
-			shellScript = "set -e\n# Make sure system tools like awk, grep, cut are available\nexport PATH=\"/usr/bin:/bin:/usr/sbin:/sbin:$PATH\"\nexport NODE_BINARY=/opt/homebrew/bin/node\n../node_modules/react-native/scripts/react-native-xcode.sh\n";
+			shellScript = "set -e\nWITH_ENVIRONMENT=\"$SRCROOT/../node_modules/react-native/scripts/xcode/with-environment.sh\"\n\"$WITH_ENVIRONMENT\" \"$SRCROOT/scripts/bundle-react-native.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
