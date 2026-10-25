@@ -7,13 +7,21 @@ on:
       - '.github/native/installed_parent_window.cjs'
       - '.github/native/installed_parent_software.cjs'
       - '.github/native/private_actions*'
+      - '.github/native/private_integration_receipts.cjs'
+      - '.github/native/parent_software_evidence.cjs'
       - '.github/native/private_software_artifact_zip.py'
       - '.github/tests/private-actions*'
+      - '.github/tests/private-integration-receipts.test.cjs'
+      - '.github/tests/parent-software-evidence.test.cjs'
+      - '.github/tests/private-source-proof-scopes.test.cjs'
       - '.github/tests/private-artifact-stream.test.cjs'
       - '.github/tests/installed-parent-software.test.cjs'
       - '.github/tests/test_private_software_artifact_zip.py'
       - '.github/tests/fixtures/private-actions.cjs'
       - '.github/tests/fixtures/private-software.cjs'
+      - '.github/tests/fixtures/private-integration.cjs'
+      - '.github/tests/fixtures/parent-software.cjs'
+      - '.github/tests/fixtures/producer-source-proofs.json'
       - '.github/tests/fixtures/private-artifact-real-sdk.cjs'
       - '.github/tests/installed-parent-window.test.cjs'
       - '.github/tests/installed-parent-bootstrap.test.cjs'
@@ -46,6 +54,7 @@ jobs:
         run: |
           node --test .github/tests/canonical-native.test.cjs .github/tests/installed-parent-window.test.cjs .github/tests/installed-parent-bootstrap.test.cjs
           node --test .github/tests/private-actions-origin.test.cjs .github/tests/private-actions-pagination.test.cjs .github/tests/private-actions-software.test.cjs .github/tests/private-artifact-stream.test.cjs .github/tests/installed-parent-software.test.cjs
+          node --test .github/tests/private-integration-receipts.test.cjs .github/tests/parent-software-evidence.test.cjs .github/tests/private-source-proof-scopes.test.cjs
           python3 -B -m unittest discover -s .github/tests -p test_canonical_metadata.py
           python3 -B -m unittest discover -s .github/tests -p test_private_software_artifact_zip.py
       - name: Test actual pinned SDK with disposable private transport boundaries

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "scope": "ACTUAL_NODE_SOURCE_VERIFIERS_ON_DISPOSABLE_LOCAL_GIT_CLONES_NOT_NATIVE_OR_ACTIONS",
+  "producer_preparation": "adf81b2f377de6e698da2f53292b274072fc7219",
+  "expected": {
+    "app": {
+      "sha": "5bb116a530a4f6ebabd85bb3cbed62947c5c028d",
+      "tree": "538974beb448a6d64058fdda384e8c225fc0e42e"
+    },
+    "control": {
+      "sha": "1f56598f31286833d53d6670fe64136fce9cf862",
+      "tree": "eabeef3d0d96a3c97e0f8a487d225cc3f6d8bf9b"
+    },
+    "backend": {
+      "sha": "29597b27eeeb299205bf7d0555db0a90c38cc4be"
+    }
+  },
+  "scripts": {
+    "protected": {
+      "path": "scripts/verify-r5-native-protected.cjs",
+      "sha256": "63256bf4d1e1eee6bf7de6f60e44a99a712540a6aa7f19cd5e8af668d8cbfde4"
+    },
+    "recovery": {
+      "path": "scripts/verify-r5-native-recovery.cjs",
+      "sha256": "796e19c1e76d068b3a9bed2af639de275d2741200d0e6afdfde4cc5598b3f47e"
+    },
+    "account": {
+      "path": "scripts/verify-r5-native-account.cjs",
+      "sha256": "9e1d8303bc53e0fffb7a89cf1fd21abb5623aad0d8be236083e175183226deea"
+    }
+  },
+  "outputs": {
+    "protected": {
+      "sourceVerification": "PASS",
+      "rawSources": {
+        "app": {
+          "files": 2479,
+          "sha256": "684220cdff18fcf208d90a9174879475da25afd0e2be2a76bcaf34ddbe6fc4a4"
+        },
+        "control": {
+          "files": 218,
+          "sha256": "35fe722a1f15700d041a58d88697f00306c6bc5405b0ccd9928ec253298530f9"
+        }
+      },
+      "app": "5bb116a530a4f6ebabd85bb3cbed62947c5c028d",
+      "backendBase": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+      "control": "1f56598f31286833d53d6670fe64136fce9cf862",
+      "scope": "BOUNDED_PRIVATE_NATIVE_ACCEPTANCE_TOOLING",
+      "nativeAcceptance": "NOT_ESTABLISHED_BY_SOURCE_CHECK"
+    },
+    "recovery": {
+      "sourceVerification": "PASS",
+      "rawSources": {
+        "app": {
+          "files": 2479,
+          "sha256": "684220cdff18fcf208d90a9174879475da25afd0e2be2a76bcaf34ddbe6fc4a4"
+        },
+        "control": {
+          "files": 218,
+          "sha256": "35fe722a1f15700d041a58d88697f00306c6bc5405b0ccd9928ec253298530f9"
+        }
+      },
+      "app": "5bb116a530a4f6ebabd85bb3cbed62947c5c028d",
+      "backendBase": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+      "control": "1f56598f31286833d53d6670fe64136fce9cf862",
+      "scope": "BOUNDED_PRIVATE_FRESH_RECOVERY_TOOLING",
+      "nativeAcceptance": "NOT_ESTABLISHED_BY_SOURCE_CHECK"
+    },
+    "account": {
+      "sourceVerification": "PASS",
+      "rawSources": {
+        "app": {
+          "files": 2479,
+          "sha256": "684220cdff18fcf208d90a9174879475da25afd0e2be2a76bcaf34ddbe6fc4a4"
+        },
+        "control": {
+          "files": 218,
+          "sha256": "35fe722a1f15700d041a58d88697f00306c6bc5405b0ccd9928ec253298530f9"
+        }
+      },
+      "app": "5bb116a530a4f6ebabd85bb3cbed62947c5c028d",
+      "backendBase": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+      "control": "1f56598f31286833d53d6670fe64136fce9cf862",
+      "scope": "BOUNDED_PRIVATE_NORMAL_ACCOUNT_READ_ISOLATION_TOOLING",
+      "nativeAcceptance": "NOT_ESTABLISHED_BY_SOURCE_CHECK"
+    }
+  },
+  "native_execution": false,
+  "github_actions_execution": false
+}

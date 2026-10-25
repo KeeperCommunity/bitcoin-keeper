@@ -63,6 +63,16 @@ public proof cannot borrow its parent facts. These are bounded repeated readback
 of GitHub. A concurrent service change after the final observation remains
 outside that observation window.
 
+The shared C2/D source-proof validator binds each suite to its actual verifier's
+distinct fixed scope. Protected, recovery and account scopes are not a union or
+a default taken from the receipt. A subsequent producer/consumer comparison
+found that the old all-protected synthetic model rejected real recovery/account
+output and accepted a counterfeit all-protected packet. The correction retains
+both profiles' member/schema/barrier counts, fingerprints and identity checks.
+Its bounded fixture records original JSON from all three real Node verifiers on
+disposable local Git clones, with independently recorded app/control identities.
+It contains source metadata only and grants no Actions, native or release credit.
+
 The canonical caller removes both read-token environment variables before the
 pinned raw-source Git bootstrap or Python subprocess. Only its attestation step
 can reference the optional `KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN` secret.
