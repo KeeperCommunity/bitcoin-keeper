@@ -27,6 +27,8 @@ const TEST_POLICIES = new Set([
   '6521e99c0ad5890a2d534c6b4efa9c190315c6ae4ccf273e8a89b0e1ec302278',
   // Existing required Tests plus the reviewed development startup observer controls.
   '422bb269e9b345cbf937faaa9e4f0ee42d13398229933812291cccc675eab140',
+  // Reviewed union keeps the existing tests and adds the Node22.23.4 runtime guard.
+  'f1bcced79e60159b105efa93c63f88d31349bf00f459c22b03fa3e24abd404ca',
 ]);
 const CODEQL_POLICY = '213c6a2f87e769853797992879cfb5230df6d97531501795c0d783b524c50641';
 const TEST_JOBS = ['Lint', 'Tests', 'Automatic backup native Realm and Relay'];

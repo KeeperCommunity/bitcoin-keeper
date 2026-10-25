@@ -127,8 +127,11 @@ for (const [name, mutate, error] of [
 ]) test(`real collection rejects ${name}`, async () => {
   const f = fixture(); mutate(f); await assert.rejects(f.collect(), error);
 });
-test('official source policy rejects edited workflow bytes even with correct Git blob metadata', async () => {
+test('reviewed Node22.23.4 Tests union is recognized while any byte edit remains unreviewed', async () => {
   const crypto = require('node:crypto'), f = fixture(), item = f.content['test.yml'];
+  assert.equal(crypto.createHash('sha256').update(Buffer.from(item.content, 'base64')).digest('hex'),
+    'f1bcced79e60159b105efa93c63f88d31349bf00f459c22b03fa3e24abd404ca');
+  await f.collect();
   const bytes = Buffer.from(Buffer.from(item.content, 'base64').toString() + '\n# unreviewed');
   item.content = bytes.toString('base64'); item.size = bytes.length;
   item.sha = crypto.createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex');
