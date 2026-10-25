@@ -5,8 +5,12 @@ Maestro.kt gitblob1f850dce7dda23de26c7ea2a4108f29ce8a00462;
 ScopedLogCapture.kt gitblob911e7584868a34bf65c5cdd8f1b9d66a6d19c66a;
 UiElement.kt gitblob36b148d62b10777270f822836f248390ca71bf74;
 Bounds.kt gitblob52df318be6acd31faeae872fbdfa1e0c1e336ccc.
-Fixtures generate actual source formats, rather than inventing a new tap API.
-They do not claim to execute the Kotlin driver or verify app press delivery.
+The three compiled method names were additionally captured from released
+cli-2.11.0 classes (archive SHA-256
+5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a)
+using its actual ScopedLogCapture, Maestro and Orchestra with a synthetic Driver.
+That offline execution covers hierarchy/screenshot taps and nested runFlow/repeat;
+it does not verify native driver transport or app press delivery.
 """
 import copy
 import importlib.util
@@ -25,6 +29,8 @@ LOG_PATTERN = '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
 SELECTED_SOURCE = 'LOGGER.info("Tapping on element: ${tapRepeat ?: ""} $element")'
 POINT_SOURCE = 'LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")'
 SCREENSHOT_SOURCE = 'LOGGER.info("Try tapping at ($x, $y) using hierarchy based logic for wait")'
+COMPILED_METHODS = {'tap': 'tap-HgV9Ck0', 'hierarchyBasedTap': 'hierarchyBasedTap-ogj28Uc',
+                    'screenshotBasedTap': 'screenshotBasedTap-ogj28Uc'}
 
 
 def message(source, **values):
@@ -37,7 +43,7 @@ def message(source, **values):
 
 def log(method, text, when='12:00:00.123'):
     return (LOG_PATTERN.replace('%d{HH:mm:ss.SSS}', when).replace('%5level', ' INFO')
-            .replace('%logger', 'maestro.Maestro').replace('%method', method)
+            .replace('%logger', 'maestro.Maestro').replace('%method', COMPILED_METHODS[method])
             .replace('%msg', text).replace('%n', '\n'))
 
 
@@ -118,6 +124,34 @@ class SkipTapTests(unittest.TestCase):
         self.assertEqual(result['target_identity'], 'SKIP_LABEL')
         self.assertEqual(result['driver_point'], {'x': 979, 'y': 106})
         self.assertEqual(result['driver_path'], 'SCREENSHOT_BASED')
+
+    def test_exact_released_compiled_names_bind_without_accepting_other_manglings(self):
+        good = produced_log()
+        self.assertEqual(self.collect()['state'], 'OBSERVED')
+        for name in COMPILED_METHODS.values():
+            source = good if name != COMPILED_METHODS['screenshotBasedTap'] else produced_log(driver='screenshotBasedTap')
+            self.write(text=source.replace(name, name + 'Unknown'))
+            self.assertEqual(self.collect()['state'], 'UNKNOWN')
+        # Existing source-name fixtures remain bounded to the same operations.
+        for source_name, compiled_name in COMPILED_METHODS.items():
+            good = good.replace(compiled_name, source_name)
+        self.write(text=good)
+        self.assertEqual(self.collect()['state'], 'OBSERVED')
+
+    def test_captured_released_jvm_records_project_only_the_synthetic_skip(self):
+        captured = json.loads((Path(__file__).parent / 'fixtures' /
+                               'maestro-2.11.0-compiled-taps.json').read_text())
+        self.assertEqual(captured['archive_sha256'],
+                         '5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a')
+        for kind, expected_path in [('hierarchy', 'HIERARCHY_BASED'),
+                                    ('screenshot', 'SCREENSHOT_BASED')]:
+            self.write(text=''.join(captured[kind]))
+            result = self.collect()
+            self.assertEqual(result['state'], 'OBSERVED')
+            self.assertEqual(result['driver_point'], {'x': 979, 'y': 106})
+            self.assertEqual(result['selected_bounds'],
+                             {'left': 920, 'top': 78, 'right': 1038, 'bottom': 134})
+            self.assertEqual(result['driver_path'], expected_path)
 
     def test_refreshed_driver_point_outside_initial_bounds_is_an_observation_not_a_bad_tap_claim(self):
         self.write(text=produced_log(point=(1, 200)))

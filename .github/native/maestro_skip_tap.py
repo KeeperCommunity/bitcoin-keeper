@@ -2,7 +2,10 @@
 
 Producer: Maestro c8c361be1cc89b2e742f185466a302a22778be6b,
 Maestro.kt:227/408/448, ScopedLogCapture.kt FILE_LOG_PATTERN, and
-ArtifactsGenerator.kt:74. The existing per-flow log stays private.
+ArtifactsGenerator.kt:74. The exact compiled aliases below were observed by
+executing cli-2.11.0's released JVM classes with a synthetic Driver. Kotlin's
+ViewHierarchy value class mangles these JVM method names. The existing per-flow
+log stays private.
 """
 import importlib.util
 import os
@@ -15,8 +18,17 @@ BINDING = 'LOG_SEMANTIC_ORDER_NOT_EPOCH_CORRELATED'
 LIMIT = 1024 * 1024
 SKIP_REGEX = r'^Skip[ \u00A0]*$'
 NUMBER = r'(0|-?[1-9][0-9]{0,4})'
+METHODS = {
+    'tap': 'tap',
+    'hierarchyBasedTap': 'hierarchyBasedTap',
+    'screenshotBasedTap': 'screenshotBasedTap',
+    'tap-HgV9Ck0': 'tap',
+    'hierarchyBasedTap-ogj28Uc': 'hierarchyBasedTap',
+    'screenshotBasedTap-ogj28Uc': 'screenshotBasedTap',
+}
 HEADER = re.compile(r'^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\.[0-9]{3} '
-                    r'\[ *INFO\] maestro\.Maestro\.(tap|hierarchyBasedTap|screenshotBasedTap): (.*)$')
+                    r'\[ *INFO\] maestro\.Maestro\.(' +
+                    '|'.join(re.escape(method) for method in METHODS) + r'): (.*)$')
 START = 'Tapping on element:  '
 ELEMENT = 'UiElement(treeNode=TreeNode(attributes={'
 SELECTOR_FIELDS = frozenset(('textRegex', 'idRegex', 'size', 'below', 'above', 'leftOf', 'rightOf',
@@ -172,6 +184,7 @@ def project(lines, count, ordinal):
         if not parsed:
             continue
         method, message = parsed.groups()
+        method = METHODS[method]
         if any(ord(value) < 32 or 127 <= ord(value) <= 159 for value in line):
             reject()
         if method == 'tap' and message.startswith('Tapping on element:'):
