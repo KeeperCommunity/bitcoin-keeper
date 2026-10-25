@@ -18,7 +18,8 @@ jobs:
   driver-preflight:
     # Diagnosis only. This label never opts into either app build or Android.
     if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/ios-driver-preflight') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !(contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only') && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only'))
-    runs-on: macos-15
+    # Keep this setup-only route on the same reviewed host as the iOS worker.
+    runs-on: macos-15-intel
     timeout-minutes: 15
     env:
       CI: 'true'

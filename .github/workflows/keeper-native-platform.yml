@@ -28,7 +28,8 @@ jobs:
   native:
     name: Native ${{ inputs.platform }} build and probes
     if: github.event_name == 'pull_request' && github.event.pull_request.number != 7045 && inputs.source_sha == github.event.pull_request.head.sha && (!inputs.prepare_only || (inputs.diagnostic && inputs.platform == 'IOS')) && (toJSON(github.event.pull_request.draft) == 'false' || (inputs.diagnostic && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')))
-    runs-on: ${{ inputs.platform == 'IOS' && 'macos-15' || 'ubuntu-24.04' }}
+    # Preserve the explicit Intel host used by pinned Maestro's iOS18.5 CI.
+    runs-on: ${{ inputs.platform == 'IOS' && 'macos-15-intel' || 'ubuntu-24.04' }}
     # One build/device per platform includes all scoped companion UI phases.
     # Standard hosted runners only; this is a global fail-closed runtime ceiling.
     timeout-minutes: 240

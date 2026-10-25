@@ -14,6 +14,19 @@ assert.equal(parsed.status, 0, parsed.stderr);
 const workflows = JSON.parse(parsed.stdout);
 const diagnostic = workflows['keeper-native-diagnostic.yml'];
 const worker = workflows['keeper-native-platform.yml'];
+test('pinned Maestro iOS routes select its explicit Intel host while Android keeps its own runner', () => {
+  // cli-2.11.0's own iOS18.5 CI selects macos-15-intel. The unsuffixed
+  // macos-15 label now selects ARM64, so it cannot preserve that host contract.
+  // Evaluate the real reusable selector instead of accepting a label in a comment.
+  const selector = worker.jobs.native['runs-on'];
+  assert.match(selector, /^\$\{\{[\s\S]*\}\}$/);
+  const select = new Function('inputs', `return (${selector.replace(/^\$\{\{\s*|\s*\}\}$/g, '')});`);
+  assert.equal(select({ platform: 'IOS' }), 'macos-15-intel');
+  assert.equal(select({ platform: 'ANDROID' }), 'ubuntu-24.04');
+  assert.equal(diagnostic.jobs['driver-preflight']['runs-on'], select({ platform: 'IOS' }));
+  assert.equal(diagnostic.jobs.ios.with.platform, 'IOS');
+  assert.equal(diagnostic.jobs.android.with.platform, 'ANDROID');
+});
 function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, androidOnly = false, dependenciesOnly = false, prepareOnly = false, platform = 'IOS', sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true } = {}) {
   const expression = condition
     .replace(/^\$\{\{\s*|\s*\}\}$/g, '')
@@ -153,7 +166,7 @@ test('isolated driver label cannot schedule an app platform or overlap full diag
   for (const override of [{ sameRepo: false }, { number: 7045 }]) {
     assert.equal(enabled(preflight.if, { preflightLabeled: true, ...override }), false);
   }
-  assert.equal(preflight['runs-on'], 'macos-15');
+  assert.equal(preflight['runs-on'], 'macos-15-intel');
   assert.equal(preflight['timeout-minutes'], '15');
   assert.equal(preflight.env.KEEPER_NATIVE_PLATFORM, 'IOS');
   assert.equal(preflight.env.KEEPER_DIAGNOSTIC, 'true');
