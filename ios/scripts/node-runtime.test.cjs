@@ -37,7 +37,7 @@ function fixture(t) {
   const tool = (relative, name) => write(relative,
     `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(path.join(root, 'log.cjs'))} ${quote(name)} "$@"\n`, 0o700);
   for (const name of ['yarn', 'bundle', 'git']) tool(`bin/${name}`, name);
-  for (const name of ['patch-package', 'rn-nodeify']) tool(`node_modules/.bin/${name}`, name);
+  tool('node_modules/.bin/patch-package', 'patch-package');
   tool('node_modules/react-native/scripts/react-native-xcode.sh', 'bundle-phase');
   fs.mkdirSync(path.join(root, 'ios/Pods'), { recursive: true });
   const env = { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
@@ -73,6 +73,8 @@ test('native builds reject vulnerable Node patches, other majors and prereleases
 
 test('CI verifies its executable, uses frozen installs and preserves patch failure gates', (t) => {
   const f = fixture(t);
+  assert.ok(fs.statSync(path.join(app, 'ios/ci_scripts/ci_post_clone.sh')).mode & 0o111,
+    'Xcode Cloud must be able to execute the existing post-clone hook');
   const result = f.run('ios/ci_scripts/ci_post_clone.sh');
   assert.equal(result.status, 0, result.stderr);
   const attestation = JSON.parse(result.stdout.trim());
@@ -80,13 +82,13 @@ test('CI verifies its executable, uses frozen installs and preserves patch failu
   assert.equal(attestation.sha256, crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex'));
   const calls = f.calls();
   assert.deepEqual(calls.map(({ tool }) => tool),
-    ['yarn', 'yarn', 'patch-package', 'rn-nodeify', 'git', 'bundle', 'bundle', 'git']);
-  assert.deepEqual(calls[1].args, ['install', '--frozen-lockfile', '--ignore-scripts', '--non-interactive']);
+    ['yarn', 'yarn', 'patch-package', 'git', 'bundle', 'bundle', 'git']);
+  assert.deepEqual(calls[1].args, ['install', '--frozen-lockfile', '--non-interactive']);
   assert.deepEqual(calls[2].args, ['--error-on-fail']);
-  assert.deepEqual(calls[6].args, ['exec', 'pod', 'install', '--deployment']);
-  assert.equal(calls[6].cwd, path.join(f.root, 'ios'));
-  assert.equal(calls[6].gemfile, path.join(f.root, 'Gemfile'));
-  assert.equal(calls[6].frozen, 'true');
+  assert.deepEqual(calls[5].args, ['exec', 'pod', 'install', '--deployment']);
+  assert.equal(calls[5].cwd, path.join(f.root, 'ios'));
+  assert.equal(calls[5].gemfile, path.join(f.root, 'Gemfile'));
+  assert.equal(calls[5].frozen, 'true');
   assert.ok(calls.every(({ selected }) => selected === process.execPath));
 });
 

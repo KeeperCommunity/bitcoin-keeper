@@ -14,9 +14,8 @@ PATH="$(dirname -- "$NODE_BINARY"):$PATH"
 export PATH
 test "$(yarn --version)" = '1.22.22'
 
-yarn install --frozen-lockfile --ignore-scripts --non-interactive
+yarn install --frozen-lockfile --non-interactive
 ./node_modules/.bin/patch-package --error-on-fail
-./node_modules/.bin/rn-nodeify --install buffer,events,process,stream,inherits,path,assert,crypto --hack --yarn
 git diff --exit-code HEAD -- package.json yarn.lock Gemfile.lock ios/Podfile.lock
 
 export BUNDLE_GEMFILE="$keeper_app_root/Gemfile"
