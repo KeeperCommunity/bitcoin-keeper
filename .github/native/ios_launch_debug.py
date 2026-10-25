@@ -8,6 +8,7 @@ import re
 import select
 import shutil
 import signal
+import stat
 import subprocess
 import tarfile
 import threading
@@ -293,6 +294,81 @@ class Session:
             raise RuntimeError('Private launch stream capture or cleanup failed.')
 
 
+def private_compiler_text(raw):
+    credential = r'TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTH|KEY|SEED|MNEMONIC|COOKIE|PROXY'
+    exports = re.compile(r'^\s*(?:\+\s*)?(?:export|declare\s+-x|setenv)\b')
+    bindings = re.compile(r'\b[A-Z0-9_]*(?:' + credential + r')[A-Z0-9_]*\s*[=:]', re.I)
+    text = ''.join(line for line in raw.decode(errors='replace').splitlines(keepends=True)
+                   if not exports.search(line) and not bindings.search(line))
+    values = {part for name, value in os.environ.items() if re.search(credential, name, re.I)
+              for part in [value, *value.splitlines()] if part}
+    if values:
+        # One substitution pass never reprocesses a replacement marker.
+        text = re.sub('|'.join(re.escape(value) for value in sorted(values, key=len, reverse=True)),
+                      '[REDACTED]', text)
+    return text.encode()[-65536:].decode(errors='ignore')
+
+
+def retain_build_failure(native, data, output):
+    """Private compiler evidence only; never retry or change the build result."""
+    architecture = data.get('toolchain', {}).get('ios_simulator_architecture')
+    expected = ['xcodebuild', '-workspace', 'ios/hexa_keeper.xcworkspace', '-scheme', 'hexa_keeper_dev',
+        '-configuration', 'Debug', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
+        '-derivedDataPath', str(native.PRIVATE / 'DerivedData'), 'CODE_SIGNING_ALLOWED=NO',
+        'CODE_SIGNING_REQUIRED=NO', 'ARCHS=' + str(architecture), 'ONLY_ACTIVE_ARCH=YES', 'build']
+    selected = [(index, row) for index, row in enumerate(data.get('commands', []), 1)
+        if row.get('command') == expected and row.get('label') == 'Build unsigned development simulator app'
+        and type(row.get('exit_code')) is int and row['exit_code'] != 0]
+    if architecture not in ('arm64', 'x86_64') or len(selected) != 1:
+        return
+    index, command = selected[0]
+    value = {'state': 'BUILD_FAILED_BEFORE_RUNTIME', 'native_acceptance': False,
+        'scope': 'PRIVATE_EXACT_OWNED_COMPILER_OUTPUT_NO_APP_EXECUTION_OR_ACCEPTANCE',
+        'architecture': architecture, 'logical_cpus': os.cpu_count(),
+        'command': {key: command[key] for key in ('label', 'exit_code', 'timeout_seconds',
+                                                'duration_seconds') if key in command}}
+    directory = None
+    try:
+        directory = os.open(native.PRIVATE, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        if os.fstat(directory).st_uid != os.getuid():
+            raise ValueError('Owned private directory required.')
+        descriptor = os.open('command-%03d.log' % index,
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        with os.fdopen(descriptor, 'rb') as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+                raise ValueError('Single-link owned regular compiler output required.')
+            source.seek(max(0, info.st_size - 65536))
+            raw = source.read(65536)
+            after = os.fstat(source.fileno())
+            fields = ('st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_nlink', 'st_size',
+                      'st_mtime_ns', 'st_ctime_ns')
+            if any(getattr(info, key) != getattr(after, key) for key in fields):
+                raise ValueError('Compiler output changed during retention.')
+            # Omit the first partial line, including a possible partial export.
+            if info.st_size > 65536:
+                raw = raw.split(b'\n', 1)[1] if b'\n' in raw else b''
+            value.update(compiler_tail=private_compiler_text(raw),
+                compiler_tail_privacy='ENV_EXPORTS_CREDENTIAL_BINDINGS_AND_KNOWN_RUNTIME_VALUES_REMOVED',
+                compiler_log_bytes=info.st_size, compiler_tail_truncated=info.st_size > 65536,
+                seconds_since_last_log_write=round(max(0, time.time() - info.st_mtime), 3))
+    except (OSError, ValueError) as error:
+        value['compiler_output_unavailable'] = type(error).__name__
+    finally:
+        if directory is not None:
+            os.close(directory)
+    try:
+        memory = subprocess.check_output(['/usr/sbin/sysctl', '-n', 'hw.memsize'],
+            stderr=subprocess.DEVNULL, text=True, timeout=2).strip()
+        if not memory.isdecimal() or not 1024 ** 3 <= int(memory) <= 2 ** 50:
+            raise ValueError('Expected bounded host memory capacity.')
+        value['host_memory_bytes'] = int(memory)
+    except Exception as error:
+        value['host_memory_unavailable'] = type(error).__name__
+    value['resource_scope'] = 'RETENTION_TIME_CAPACITY_NOT_COMPILE_LOAD_RATE_OR_CAUSE'
+    write_json(output / 'summary.json', value)
+
+
 def retain(native):
     output = native.ROOT / 'artifacts/private-ios-launch-debug'
     output.mkdir(parents=True, mode=0o700)
@@ -307,6 +383,8 @@ def retain(native):
         shutil.copyfile(native.EVIDENCE, output / 'native-metadata.json')
     data = native.read()
     if data.get('build') != 'PASS':
+        if data.get('build') == 'FAIL':
+            retain_build_failure(native, data, output)
         return
     built = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
     inventory, executable = native._bundle_inventory(built)

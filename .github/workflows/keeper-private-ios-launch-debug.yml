@@ -11,7 +11,8 @@ concurrency:
 jobs:
   investigate:
     if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-launch-debug' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
-    runs-on: macos-15-intel
+    # Private comparison using the harness's existing arm64 build budget.
+    runs-on: macos-15
     timeout-minutes: 150
     env:
       CI: 'true'
@@ -37,6 +38,8 @@ jobs:
             if (repo.id !== 839671816 || !repo.private || pr.head.repo.id !== repo.id || pr.head.sha !== process.env.KEEPER_SOURCE_SHA || !pr.labels.some(x => x.name === 'keeper/ios-launch-debug') || pr.labels.some(x => x.name === 'keeper/native-diagnostic')) {
               core.setFailed('Private debug selection moved or is not authorized.');
             }
+      - name: Verify diagnostic ARM host
+        run: python3 -c "import platform; assert platform.machine() == 'arm64'"
       - name: Set up Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:

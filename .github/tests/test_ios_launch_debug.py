@@ -29,6 +29,106 @@ class PrivateLaunchDebug(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
 
+    def failed_compiler(self, folder):
+        native=debug.load_native();native.ROOT=folder;native.PRIVATE=folder/'private'
+        native.PRIVATE.mkdir(parents=True);native.EVIDENCE=folder/'metadata.json';native.PLATFORM='IOS'
+        native.save({'commands':[],'build':'NOT RUN','smoke':'NOT RUN','toolchain':{}})
+        popen=subprocess.Popen
+        def compiler(args,**options):
+            self.assertEqual(args[0],'xcodebuild')
+            return popen([sys.executable,'-c','import sys;sys.stderr.write("x"*70000+"\\nCompileC owned-unit.mm\\nclang: error: actual controlled compiler reason\\n");sys.exit(2)'],**options)
+        with mock.patch.object(native.platform,'machine',return_value='arm64'),mock.patch.object(
+                native.shutil,'disk_usage',return_value=SimpleNamespace(free=32*1024**3)),mock.patch.object(
+                native.subprocess,'Popen',side_effect=compiler):
+            with self.assertRaises(RuntimeError):native.build()
+        data=native.read();data['build']='FAIL';native.save(data)
+        return native
+
+    def test_actual_failed_arm_build_retains_late_compiler_cause_and_existing_deadline_only_privately(self):
+        native=self.failed_compiler(self.root)
+        original=native.EVIDENCE.read_bytes()
+        (native.PRIVATE/'unrelated.log').write_text('UNRELATED_PRIVATE_DATA')
+        with mock.patch.object(debug.subprocess,'check_output',return_value=str(16*1024**3)+'\n'):
+            debug.retain(native)
+        output=self.root/'artifacts/private-ios-launch-debug'
+        summary=json.loads((output/'summary.json').read_text())
+        self.assertEqual(summary['architecture'],'arm64')
+        self.assertEqual(summary['command']['timeout_seconds'],2400)
+        self.assertIn('actual controlled compiler reason',summary['compiler_tail'])
+        self.assertLessEqual(len(summary['compiler_tail'].encode()),65536)
+        self.assertTrue(summary['compiler_tail_truncated'])
+        self.assertEqual(summary['host_memory_bytes'],16*1024**3)
+        self.assertFalse(summary['native_acceptance'])
+        self.assertNotIn('UNRELATED_PRIVATE_DATA',json.dumps(summary))
+        self.assertEqual(native.EVIDENCE.read_bytes(),original)
+        self.assertFalse((self.root/'artifacts/private-ios-simulator-app').exists())
+
+    def test_compiler_capture_rejects_foreign_symlink_and_fifo_without_reading_or_blocking(self):
+        for kind in ('symlink','fifo','hardlink','directory-symlink'):
+            with self.subTest(kind=kind):
+                folder=self.root/kind;native=self.failed_compiler(folder)
+                log=native.PRIVATE/'command-001.log';log.unlink()
+                secret=folder/'foreign';secret.write_text('FOREIGN_PRIVATE_DATA')
+                if kind=='symlink':log.symlink_to(secret)
+                elif kind=='fifo':os.mkfifo(log)
+                elif kind=='hardlink':os.link(secret,log)
+                else:
+                    log.write_text('PRIVATE_DIRECTORY_DATA')
+                    native.PRIVATE.rename(folder/'moved-private')
+                    native.PRIVATE.symlink_to(folder/'moved-private',target_is_directory=True)
+                started=time.monotonic()
+                with mock.patch.object(debug.subprocess,'check_output',return_value='invalid memory value'):
+                    debug.retain(native)
+                self.assertLess(time.monotonic()-started,1)
+                summary=json.loads((folder/'artifacts/private-ios-launch-debug/summary.json').read_text())
+                self.assertIn('compiler_output_unavailable',summary)
+                self.assertIn('host_memory_unavailable',summary)
+                self.assertNotIn('FOREIGN_PRIVATE_DATA',json.dumps(summary))
+
+    def test_compiler_capture_rejects_actual_mutation_during_bounded_read(self):
+        native=self.failed_compiler(self.root);fstat=os.fstat;observed=0
+        identity=(native.PRIVATE/'command-001.log').stat()
+        def changed(descriptor):
+            nonlocal observed
+            info=fstat(descriptor)
+            if (info.st_dev,info.st_ino)==(identity.st_dev,identity.st_ino):
+                observed+=1
+                if observed==2:
+                    with (native.PRIVATE/'command-001.log').open('ab') as target:target.write(b'changed')
+                    return fstat(descriptor)
+            return info
+        with mock.patch.object(debug.os,'fstat',side_effect=changed),mock.patch.object(
+                debug.subprocess,'check_output',return_value=str(16*1024**3)):
+            debug.retain(native)
+        summary=json.loads((self.root/'artifacts/private-ios-launch-debug/summary.json').read_text())
+        self.assertEqual(summary['compiler_output_unavailable'],'ValueError')
+        self.assertNotIn('compiler_tail',summary)
+
+    def test_compiler_token_echo_and_environment_exports_are_removed_without_losing_reason(self):
+        native=self.failed_compiler(self.root)
+        controlled={'ACTIONS_RUNTIME_TOKEN':'CONTROLLED_RUNTIME_VALUE','GITHUB_TOKEN':'CONTROLLED_GITHUB_VALUE',
+            'ACTIONS_ID_TOKEN_REQUEST_TOKEN':'CONTROLLED_ID_VALUE','PRIVATE_KEY':'CONTROLLED_MULTI_LINE\nSECOND_CONTROLLED_LINE'}
+        log=native.PRIVATE/'command-001.log'
+        with log.open('ab') as output:
+            output.write(b'    export NORMAL_CONFIG=CONTROLLED_EXPORT_VALUE\nDB_PASSWORD=UNBOUND_PASSWORD_VALUE\n')
+            output.write(('\n'.join(controlled.values())+'\nclang: error: actual controlled compiler reason\n').encode())
+        with mock.patch.dict(os.environ,controlled,clear=True),mock.patch.object(
+                debug.subprocess,'check_output',return_value=str(16*1024**3)):
+            debug.retain(native)
+        text=(self.root/'artifacts/private-ios-launch-debug/summary.json').read_text()
+        for value in (*controlled.values(),'CONTROLLED_EXPORT_VALUE','UNBOUND_PASSWORD_VALUE','SECOND_CONTROLLED_LINE'):
+            self.assertNotIn(value,text)
+        self.assertIn('actual controlled compiler reason',text)
+        self.assertIn('[REDACTED]',text)
+
+    def test_unmatched_failed_command_cannot_export_its_output(self):
+        native=self.failed_compiler(self.root);data=native.read()
+        data['commands'][0]['command']=['unrelated-private-tool'];native.save(data)
+        with mock.patch.object(debug.subprocess,'check_output') as query:
+            debug.retain(native)
+        query.assert_not_called()
+        self.assertFalse((self.root/'artifacts/private-ios-launch-debug/summary.json').exists())
+
     def test_rolling_tail_retains_late_actual_reason_after_prefix_saturation(self):
         path = self.root / 'stream.log'
         with mock.patch.object(debug, 'MAX_LOG', 32):
@@ -162,6 +262,7 @@ class PrivateLaunchDebug(unittest.TestCase):
 
     def test_private_debug_builds_before_actual_smoke_and_always_retains_app(self):
         workflow=(ROOT/'workflows/keeper-private-ios-launch-debug.yml').read_text()
+        self.assertIn('runs-on: macos-15\n',workflow)
         self.assertNotIn('hosted_native.py driver',workflow)
         self.assertLess(workflow.index('hosted_native.py build'),workflow.index('ios_launch_debug.py run'))
         self.assertIn('name: Retain exact build and scoped private error evidence\n        if: always()',workflow)
