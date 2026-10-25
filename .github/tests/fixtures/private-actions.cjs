@@ -5,8 +5,8 @@ const { RECOVERY_SOURCES } = require('../../native/private_integration_receipts.
 const { WORKER_SOURCES } = require('../../native/public_software_receipts.cjs');
 const ROOT = path.resolve(__dirname, '../../..');
 const PRIVATE = 'KeeperCommunity/bitcoin-keeper-relay', APP = 'KeeperCommunity/bitcoin-keeper';
-const BACKEND = '29597b27eeeb299205bf7d0555db0a90c38cc4be', BASELINE = '448e09d7a373fc7e9d9c540880b45e2c742997f7';
-const REF = 'refs/heads/codex/r5-native-integration-execution-20261022';
+const BACKEND = '29597b27eeeb299205bf7d0555db0a90c38cc4be', BASELINE = 'f0a695a6bba068ba93962e90ab52e8901ef4a852';
+const REF = 'refs/heads/codex/r5-cloud-native-execution-20261025';
 const WORKFLOW = '.github/workflows/r5-native-integration.yml', POLICY = 'release/r5-native-integration/inputs.json';
 const MARKER = 'release/r5-native-integration/native-request.json', TOOL = 'scripts/native-source-identity.cjs';
 const blob = bytes => crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
@@ -60,7 +60,7 @@ function fixture() {
       "Remove only this run's owned Mongo runtime", 'Retain metadata only'].map(name => ({ name, status: 'completed',
         conclusion: name.startsWith('Run one ') && !name.includes(platform === 'IOS' ? 'iOS' : 'Android') ? 'skipped' : 'success' }));
     state.jobs[runId] = [{ id: runId + 300, name: 'native', run_id: runId, run_attempt: 1, head_sha: sha,
-      labels: [platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04'],
+      labels: [platform === 'IOS' ? 'macos-15-intel' : 'ubuntu-24.04'],
       started_at: platform === 'IOS' ? '2026-10-22T23:10:00Z' : '2026-10-22T23:21:00Z',
       completed_at: platform === 'IOS' ? '2026-10-22T23:20:00Z' : '2026-10-22T23:29:00Z',
       status: 'completed', conclusion: 'success', check_run_url: `https://api.github.com/repos/${PRIVATE}/check-runs/${runId + 400}`, steps }];

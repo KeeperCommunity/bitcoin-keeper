@@ -80,7 +80,7 @@ test('actual branded public and original private evidence enables the bounded so
     { status: 'PASS', ...proof }]) assert.equal(f.driver.isCurrentReleaseOrigin(forged, f.request), false);
   assert.equal(f.driver.isCurrentReleaseOrigin(proof, { ...f.request, build: '124' }), false);
 });
-test('production empty installation blocks even a complete synthetic original source corpus', async () => {
+test('production finite installation rejects an unselected synthetic source profile', async () => {
   const f = fixture();
   await assert.rejects(actual.collectCurrentReleaseOrigin(f.p.github, f.context, f.request, f.options),
     /^Error: RELEASE_ORIGIN_UNVERIFIED$/);

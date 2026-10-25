@@ -13,7 +13,7 @@ function frozen(value) {
 async function collectInstalledParentSoftware(privateGithub, github, context, request, publicProof, options = {}) {
   const canonical = require('./canonical_native.cjs');
   demand(canonical.isInstalledPublicEvidence(publicProof), 'INSTALLED_PARENT_PUBLIC_CAPABILITY_REQUIRED');
-  // The committed profile remains empty. An API response, option or artifact cannot install it.
+  // Only the committed finite profile is admissible. An API response, option or artifact cannot add one.
   const admitted = await window.authenticateInstalledParentWindow(github, context, request, { pinReader: options.pinReader });
   demand(window.isInstalledParentWindow(admitted), 'INSTALLED_PARENT_WINDOW_CAPABILITY_REQUIRED');
   demand(privateGithub && privateGithub !== github && typeof privateGithub.rest?.actions?.downloadArtifact === 'function',

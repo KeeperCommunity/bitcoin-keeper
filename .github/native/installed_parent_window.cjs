@@ -4,9 +4,20 @@ const crypto = require('node:crypto');
 const { isDeepStrictEqual: equal } = require('node:util');
 const { parseStrictJson } = require('./strict_json.cjs');
 const WINDOW_PIN = 'KEEPER_CANONICAL_PRIVATE_WINDOW_JSON';
-// Installation requires a separately reviewed finite profile. No environment,
-// artifact, caller option or live variable can populate this committed policy.
-const INSTALLED_PROFILES = Object.freeze({});
+// Offline source candidate for one reviewed stable producer baseline. This is
+// not live installation. No environment, artifact, caller option or live variable
+// can add another profile or change the committed producer/ref/raw contract.
+const INSTALLED_PROFILES = Object.freeze({
+  "r5-f0-intel-20261025": {
+    "repository": "KeeperCommunity/bitcoin-keeper-relay",
+    "repositoryId": 496119449,
+    "workflowPath": ".github/workflows/r5-native-integration.yml",
+    "ref": "refs/heads/codex/r5-cloud-native-execution-20261025",
+    "driverBase": "f0a695a6bba068ba93962e90ab52e8901ef4a852",
+    "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+    "rawProfile": "D448_RAW13"
+  }
+});
 const issued = new WeakSet(), originals = new WeakMap();
 const SHA = /^[a-f0-9]{40}$/, HEX = /^[a-f0-9]{64}$/;
 const sha = value => typeof value === 'string' && SHA.test(value);
@@ -14,8 +25,8 @@ const hex = value => typeof value === 'string' && HEX.test(value);
 const APP = 'KeeperCommunity/bitcoin-keeper', PRIVATE = 'KeeperCommunity/bitcoin-keeper-relay';
 const BACKEND = '29597b27eeeb299205bf7d0555db0a90c38cc4be';
 const WORKFLOW = '.github/workflows/r5-native-integration.yml';
-const REF = 'refs/heads/codex/r5-native-integration-execution-20261022';
-const DRIVER = '448e09d7a373fc7e9d9c540880b45e2c742997f7';
+const REF = 'refs/heads/codex/r5-cloud-native-execution-20261025';
+const DRIVER = 'f0a695a6bba068ba93962e90ab52e8901ef4a852';
 const demand = (yes, code = 'INSTALLED_PARENT_WINDOW_INVALID') => { if (!yes) throw new Error(code); };
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const keys = (v, names) => object(v) && Object.keys(v).sort().join('|') === [...names].sort().join('|');
