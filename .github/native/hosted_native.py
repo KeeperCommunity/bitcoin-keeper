@@ -1109,9 +1109,25 @@ def build():
         data = read()
         data['toolchain']['gradle'] = observed
         save(data)
-        command(['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon', '--max-workers=2',
-                 '-PreactNativeArchitectures=x86_64'], 'Build debug-key-only development APK',
-                timeout=2100, cwd=ROOT / 'android')
+        try:
+            command(['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon', '--max-workers=2',
+                     '-PreactNativeArchitectures=x86_64', '--info', '--console=plain'],
+                    'Build debug-key-only development APK', timeout=2100, cwd=ROOT / 'android')
+        except Exception:
+            try:
+                data = read()
+                index = len(data['commands'])
+                if index and data['commands'][-1].get('label') == 'Build debug-key-only development APK':
+                    spec = importlib.util.spec_from_file_location('android_build_failure',
+                        Path(__file__).with_name('android_build_failure.py'))
+                    observer = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(observer)
+                    data['android_build_failure'] = observer.collect(PRIVATE,
+                        PRIVATE / ('command-%03d.log' % index), ROOT)
+                    save(data)
+            except Exception:
+                pass
+            raise
     data = read()
     data['built_artifact'] = artifact_identity()
     data['build'] = 'PASS'
