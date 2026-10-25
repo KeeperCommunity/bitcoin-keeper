@@ -88,6 +88,9 @@ jobs:
           cmdline-tools-version: '13114758'
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
+      - name: Prepare disposable Android runner disk
+        if: inputs.platform == 'ANDROID' && inputs.diagnostic && github.repository_id == '839671816' && github.event.repository.private == true
+        run: python3 .github/native/android_runner_disk.py
       - name: Record runner and toolchain
         run: python3 .github/native/hosted_native.py record
       - name: Install immutable native dependencies
