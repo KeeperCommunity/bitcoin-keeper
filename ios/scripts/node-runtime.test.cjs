@@ -39,9 +39,16 @@ function fixture(t) {
   for (const name of ['yarn', 'bundle', 'git']) tool(`bin/${name}`, name);
   tool('node_modules/.bin/patch-package', 'patch-package');
   tool('node_modules/react-native/scripts/react-native-xcode.sh', 'bundle-phase');
+  // The real post-clone hook prepends its selected Node directory to PATH.
+  // Give it an owned executable so a runner-installed Yarn cannot shadow the
+  // fixture tools. A byte-for-byte copy retains the real runtime attestation.
+  const nodeBinary = path.join(root, 'selected-node/node');
+  fs.mkdirSync(path.dirname(nodeBinary));
+  fs.copyFileSync(process.execPath, nodeBinary, fs.constants.COPYFILE_FICLONE);
+  fs.chmodSync(nodeBinary, 0o700);
   fs.mkdirSync(path.join(root, 'ios/Pods'), { recursive: true });
   const env = { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
-    NODE_BINARY: process.execPath, FIXTURE_LOG: path.join(root, 'calls.jsonl'),
+    NODE_BINARY: nodeBinary, FIXTURE_LOG: path.join(root, 'calls.jsonl'),
     PODS_ROOT: path.join(root, 'ios/Pods'), SRCROOT: path.join(root, 'ios') };
   const calls = () => fs.existsSync(env.FIXTURE_LOG)
     ? fs.readFileSync(env.FIXTURE_LOG, 'utf8').trim().split('\n').map(JSON.parse) : [];
@@ -56,7 +63,7 @@ function fixture(t) {
     write('ios/.xcode.env', `export NODE_BINARY=${quote(process.execPath)}\n`);
     return write('run-phase.sh', phaseScripts()[0]);
   };
-  return { root, write, env, calls, run, prepareXcode };
+  return { root, write, env, calls, run, prepareXcode, nodeBinary };
 }
 
 function phaseScripts() {
@@ -78,7 +85,7 @@ test('CI verifies its executable, uses frozen installs and preserves patch failu
   const result = f.run('ios/ci_scripts/ci_post_clone.sh');
   assert.equal(result.status, 0, result.stderr);
   const attestation = JSON.parse(result.stdout.trim());
-  assert.equal(attestation.executable, process.execPath);
+  assert.equal(attestation.executable, f.nodeBinary);
   assert.equal(attestation.sha256, crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex'));
   const calls = f.calls();
   assert.deepEqual(calls.map(({ tool }) => tool),
@@ -89,7 +96,7 @@ test('CI verifies its executable, uses frozen installs and preserves patch failu
   assert.equal(calls[5].cwd, path.join(f.root, 'ios'));
   assert.equal(calls[5].gemfile, path.join(f.root, 'Gemfile'));
   assert.equal(calls[5].frozen, 'true');
-  assert.ok(calls.every(({ selected }) => selected === process.execPath));
+  assert.ok(calls.every(({ selected }) => selected === f.nodeBinary));
 });
 
 test('CI stops before dependency execution when selected runtime is unusable', (t) => {
