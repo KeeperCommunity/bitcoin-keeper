@@ -106,12 +106,67 @@ class PrivateLaunchDebug(unittest.TestCase):
             return SimpleNamespace(stop=lambda: {'cleanup_failed':False,'drain_failed':False})
         with mock.patch.object(debug, 'Stream', side_effect=stream):
             session.start(DEVICE)
-        guest = streams[0][1]
+        guest = streams[1][1]
         self.assertEqual(guest[:4], ['xcrun','simctl','spawn',DEVICE])
         self.assertIn('SpringBoard', guest[-1])
         self.assertNotIn('eventMessage CONTAINS', guest[-1])
         session.freeze();session.freeze()
         self.assertEqual(len(session.stream_results),2)
+
+    def test_failed_owned_boot_output_keeps_actual_late_cause_without_other_command_logs(self):
+        native=debug.load_native();native.PRIVATE=self.root;native.EVIDENCE=self.root/'metadata.json'
+        native.save({'commands':[]})
+        session=debug.Session(native)
+        popen=subprocess.Popen
+        actual_reason='Error Domain=NSPOSIXErrorDomain Code=60: actual boot service refusal'
+        def child(args,**options):
+            return popen([sys.executable,'-c',
+                'import sys;sys.stderr.write("x"*20000+'+repr(actual_reason)+');sys.exit(1)'],**options)
+        with mock.patch.object(native.subprocess,'Popen',side_effect=child):
+            with self.assertRaises(RuntimeError):
+                native.command(['xcrun','simctl','bootstatus',DEVICE,'-b'],
+                               'Wait for simulator boot',timeout=240)
+        data=native.read();data['commands'].append({'command':['unrelated-private-tool'],
+                                                  'label':'unrelated','exit_code':1})
+        native.save(data);(self.root/'command-002.log').write_text('UNRELATED_PRIVATE_DATA')
+        rows=session.setup_commands(DEVICE)
+        self.assertEqual(len(rows),1)
+        self.assertIn(actual_reason,rows[0]['output'])
+        self.assertTrue(rows[0]['output_truncated'])
+        self.assertEqual(rows[0]['timeout_seconds'],240)
+        self.assertNotIn('UNRELATED_PRIVATE_DATA',json.dumps(rows))
+
+    def test_host_log_attachment_failure_keeps_actual_os_error_private_and_allows_boot(self):
+        session=debug.Session(SimpleNamespace(PRIVATE=self.root))
+        with mock.patch.object(debug,'Stream',side_effect=OSError('actual host log error: unavailable')):
+            session.before_boot(DEVICE)
+        self.assertEqual(session.device,DEVICE)
+        self.assertEqual(session.stream_results[0]['error'],'actual host log error: unavailable')
+        session.freeze()
+
+    def test_observer_initialization_failure_reaps_owned_process_and_closes_pipe(self):
+        popen=subprocess.Popen
+        children=[]
+        def child(*args,**options):
+            process=popen(*args,**options);children.append(process)
+            return process
+        for owner,name,error in [(debug.os,'set_blocking',OSError('controlled observer setup failure')),
+                                 (debug.threading.Thread,'start',RuntimeError('controlled thread setup failure'))]:
+            with self.subTest(stage=name),mock.patch.object(debug.subprocess,'Popen',side_effect=child),mock.patch.object(
+                    owner,name,side_effect=error):
+                with self.assertRaises(type(error)):
+                    debug.Stream(self.root/'failed-stream.log',
+                                 [sys.executable,'-c','import time;time.sleep(30)'])
+            self.assertIsNotNone(children[-1].poll())
+            self.assertTrue(children[-1].stdout.closed)
+
+    def test_private_debug_builds_before_actual_smoke_and_always_retains_app(self):
+        workflow=(ROOT/'workflows/keeper-private-ios-launch-debug.yml').read_text()
+        self.assertNotIn('hosted_native.py driver',workflow)
+        self.assertLess(workflow.index('hosted_native.py build'),workflow.index('ios_launch_debug.py run'))
+        self.assertIn('name: Retain exact build and scoped private error evidence\n        if: always()',workflow)
+        ordinary=(ROOT/'workflows/keeper-native-platform.yml').read_text()
+        self.assertIn('hosted_native.py driver',ordinary)
 
     def test_public_or_moved_source_cannot_enter_private_capture(self):
         event = {'repository': {'id':839671816,'private':True}, 'pull_request': {'head': {
@@ -134,7 +189,8 @@ class PrivateLaunchDebug(unittest.TestCase):
         (app/'hexa_keeper_dev').write_bytes(b'controlled-simulator-binary')
         (app/'hexa_keeper_dev').chmod(0o755)
         secret=native.PRIVATE/'Keychains/do-not-export';secret.parent.mkdir();secret.write_text('PRIVATE_USER_DATA')
-        native.save({'build':'PASS','built_artifact':native.artifact_identity(),'toolchain':{'ios_simulator_signature':{'verified':True}}})
+        native.save({'build':'PASS','smoke':'FAIL','built_artifact':native.artifact_identity(),
+                     'toolchain':{'ios_simulator_signature':{'verified':True}}})
         with mock.patch.object(debug.subprocess,'check_output',side_effect=['a'*40+'\n','b'*40+'\n']):
             debug.retain(native)
         folder=self.root/'artifacts/private-ios-simulator-app';manifest=json.loads((folder/'manifest.json').read_text())
@@ -147,16 +203,38 @@ class PrivateLaunchDebug(unittest.TestCase):
         self.assertEqual(manifest['archive_sha256'],native._file_sha256(folder/'simulator-app.tar.gz'))
 
 class ActualSmokeLifecycle(unittest.TestCase):
+    def test_thread_attachment_failure_still_executes_real_boot_and_preserves_boot_failure(self):
+        fixture=load('private_debug_attachment_lifecycle', ROOT/'tests/test_startup_integration.py')
+        case=fixture.StartupIntegrationTest(methodName='runTest');case.setUp()
+        original=fixture.native.smoke;sessions=[]
+        def smoke(suite):
+            session=debug.Session(fixture.native);sessions.append(session)
+            return original(suite,debug_session=session)
+        try:
+            with mock.patch.object(fixture.native,'smoke',side_effect=smoke),mock.patch.object(
+                    debug,'Stream',side_effect=RuntimeError('actual controlled thread attachment failure')):
+                result=case.exercise(platform='IOS',boot_fails=True)
+            self.assertIs(result['error'],case.original_error)
+            self.assertIn('command-Boot disposable simulator',case.events)
+            self.assertIn('command-Wait for simulator boot',case.events)
+            self.assertIn('device-delete',case.events)
+            summary=json.loads((sessions[0].directory/'summary.json').read_text())
+            self.assertEqual(summary['streams'][0]['start_failed'],'RuntimeError')
+            self.assertFalse(summary['native_acceptance'])
+            self.assertEqual(result['metadata']['smoke'],'FAIL')
+        finally:case.doCleanups()
+
     def test_original_failure_survives_capture_failures_and_all_cleanup_still_runs(self):
         fixture=load('private_debug_existing_lifecycle', ROOT/'tests/test_startup_integration.py')
         for finish_fails in (False,True):
             case=fixture.StartupIntegrationTest(methodName='runTest');case.setUp()
+            def before_boot(device):case.events.append('debug-before-boot')
             def start(device):case.events.append('debug-start')
             def freeze():case.events.append('debug-freeze')
             def finish(device,error):
                 self.assertIs(error,case.original_error);case.events.append('debug-finish')
                 if finish_fails:raise RuntimeError('private debug capture failed')
-            session=SimpleNamespace(start=start,freeze=freeze,finish=finish)
+            session=SimpleNamespace(before_boot=before_boot,start=start,freeze=freeze,finish=finish)
             original=fixture.native.smoke
             try:
                 with mock.patch.object(fixture.native,'smoke',side_effect=lambda suite:original(suite,debug_session=session)):
@@ -164,10 +242,44 @@ class ActualSmokeLifecycle(unittest.TestCase):
                 self.assertIs(result['error'],case.original_error)
                 self.assertEqual(result['metadata']['smoke'],'FAIL')
                 self.assertNotIn('ios_direct_launch_observation',result['metadata'])
-                for before,after in [('installed-proof','debug-start'),('debug-start','maestro'),
+                for before,after in [('debug-before-boot','command-Boot disposable simulator'),
+                        ('installed-proof','debug-start'),('debug-start','maestro'),
                         ('maestro','debug-freeze'),('debug-freeze','failure-diagnostics'),
                         ('capture-stop','debug-finish'),('debug-finish','metro-stop'),('metro-stop','device-delete')]:
                     self.assertLess(case.events.index(before),case.events.index(after))
             finally:case.doCleanups()
+
+    def test_actual_boot_failure_stops_private_capture_and_preserves_original_and_cleanup(self):
+        fixture=load('private_debug_boot_lifecycle', ROOT/'tests/test_startup_integration.py')
+        case=fixture.StartupIntegrationTest(methodName='runTest');case.setUp()
+        sessions=[]
+        def stream(path,args):
+            case.events.append('host-stream-start')
+            def stop():
+                case.events.append('host-stream-stop')
+                return {'cleanup_failed':False,'drain_failed':False}
+            return SimpleNamespace(stop=stop)
+        original=fixture.native.smoke
+        def smoke(suite):
+            session=debug.Session(fixture.native);sessions.append(session)
+            return original(suite,debug_session=session)
+        try:
+            with mock.patch.object(fixture.native,'smoke',side_effect=smoke),mock.patch.object(debug,'Stream',side_effect=stream):
+                result=case.exercise(platform='IOS',boot_fails=True)
+            self.assertIs(result['error'],case.original_error)
+            self.assertEqual(result['metadata']['smoke'],'FAIL')
+            self.assertEqual(result['metadata']['build'],'PASS')
+            self.assertNotIn('maestro',case.events)
+            for before,after in [('host-stream-start','command-Boot disposable simulator'),
+                    ('command-Wait for simulator boot','host-stream-stop'),
+                    ('host-stream-stop','failure-diagnostics'),('host-stream-stop','device-delete')]:
+                self.assertLess(case.events.index(before),case.events.index(after))
+            summary=json.loads((sessions[0].directory/'summary.json').read_text())
+            self.assertEqual(summary['capture_phase'],'OWNED_SIMULATOR_BOOT_AND_INSTALL')
+            self.assertTrue(summary['original_smoke_failed'])
+            self.assertFalse(summary['native_acceptance'])
+            self.assertFalse((sessions[0].directory/'original-launch-error.json').exists())
+            self.assertEqual(len(sessions[0].stream_results),1)
+        finally:case.doCleanups()
 
 if __name__=='__main__':unittest.main()

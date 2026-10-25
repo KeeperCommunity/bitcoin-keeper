@@ -1298,6 +1298,8 @@ def smoke(suite='startup', debug_session=None):
             if not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', created):
                 raise ValueError('Expected owned simulator UUID before installation.')
             device = created
+            if debug_session is not None:
+                debug_session.before_boot(device)
             command(['xcrun', 'simctl', 'boot', device], 'Boot disposable simulator')
             command(['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for simulator boot', timeout=240)
             wait_for_simulator_app_services(device)

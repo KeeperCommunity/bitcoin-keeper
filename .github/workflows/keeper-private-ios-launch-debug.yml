@@ -56,8 +56,6 @@ jobs:
         run: python3 .github/native/hosted_native.py record
       - name: Install immutable native dependencies
         run: python3 .github/native/hosted_native.py prepare
-      - name: Verify disposable driver readiness
-        run: python3 .github/native/hosted_native.py driver
       - name: Build simulator app once
         run: python3 .github/native/hosted_native.py build
       - name: Capture original launch failure before cleanup

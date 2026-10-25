@@ -65,7 +65,7 @@ class StartupIntegrationTest(unittest.TestCase):
                  import_fails=False, popen_fails=False, receipt_fails=None,
                  cleanup_fails=(), diagnostics_fail=False, install_timeout=False,
                  install_fails=False, readiness_fails=False, create_result=None,
-                 installed_proof_fails=False):
+                 installed_proof_fails=False, boot_fails=False):
         captured = {}
         self.expected_platform = platform
         self.device = '12345678-1234-1234-1234-123456789ABC' if platform == 'IOS' else 'emulator-5554'
@@ -92,6 +92,8 @@ class StartupIntegrationTest(unittest.TestCase):
         def command(args, label, **kwargs):
             captured.setdefault('command_calls', []).append((args, label, kwargs))
             self.events.append('command-' + label)
+            if label == 'Wait for simulator boot' and boot_fails:
+                raise self.original_error
             if label == 'Install unsigned development app':
                 captured['install_command_count'] = captured.get('install_command_count', 0) + 1
                 captured['install_args'], captured['install_options'] = args, kwargs

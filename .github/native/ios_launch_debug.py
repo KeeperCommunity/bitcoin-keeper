@@ -58,10 +58,21 @@ class Stream:
         self.stopping = threading.Event()
         self.child = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                       start_new_session=True)
-        os.set_blocking(self.child.stdout.fileno(), False)
-        self.initial_exit_code = self.child.poll()
-        self.thread = threading.Thread(target=self.drain, daemon=True)
-        self.thread.start()
+        try:
+            os.set_blocking(self.child.stdout.fileno(), False)
+            self.initial_exit_code = self.child.poll()
+            self.thread = threading.Thread(target=self.drain, daemon=True)
+            self.thread.start()
+        except Exception:
+            try:
+                try:
+                    os.killpg(self.child.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                self.child.wait(timeout=2)
+            finally:
+                self.child.stdout.close()
+            raise
 
     def drain(self):
         tail = bytearray()
@@ -183,6 +194,21 @@ class Session:
         self.directory = native.PRIVATE / 'ios-launch-debug'
         self.directory.mkdir(mode=0o700)
         self.started = None
+        self.capture_phase = 'OWNED_SIMULATOR_BOOT_AND_INSTALL'
+
+    def before_boot(self, device):
+        if (self.started is not None or
+                not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', device)):
+            raise ValueError('One fresh owned simulator UUID required.')
+        self.device, self.started = device, time.time()
+        host = '(process == "CoreSimulatorService" OR process == "simctl") AND eventMessage CONTAINS "' + device + '"'
+        try:
+            self.streams.append(Stream(self.directory / 'host-simulator.log',
+                ['log', 'stream', '--style', 'ndjson', '--level', 'debug', '--predicate', host]))
+        except Exception as error:
+            # Failure to attach an observer must not prevent the real boot.
+            self.stream_results.append({'stream': 'host-simulator.log',
+                'start_failed': type(error).__name__, 'error': str(error)[:4096]})
 
     def start(self, device):
         data = self.native.read()
@@ -191,7 +217,11 @@ class Session:
                 data.get('device', {}).get('fresh_disposable_state') is not True or
                 data.get('installed_artifact_verified') is not True):
             raise ValueError('Owned byte-verified simulator install required.')
-        self.device, self.started = device, time.time()
+        if self.started is None:
+            self.before_boot(device)
+        if device != self.device:
+            raise ValueError('The owned simulator changed before app launch.')
+        self.capture_phase = 'VERIFIED_INSTALL_AND_APP_LAUNCH'
         services = '(process == "SpringBoard" OR process == "runningboardd" OR process == "launchd" OR process == "lsd" OR process == "amfid")'
         # The entire selected service stream belongs to this fresh owned UUID.
         # Underlying reasons often occupy records without the app identifier.
@@ -199,9 +229,33 @@ class Session:
         self.streams.append(Stream(self.directory / 'simulator-launch.log',
             ['xcrun', 'simctl', 'spawn', device, 'log', 'stream', '--style', 'ndjson',
              '--level', 'debug', '--predicate', predicate]))
-        host = '(process == "CoreSimulatorService" OR process == "simctl") AND eventMessage CONTAINS "' + device + '"'
-        self.streams.append(Stream(self.directory / 'host-simulator.log',
-            ['log', 'stream', '--style', 'ndjson', '--level', 'debug', '--predicate', host]))
+
+    def setup_commands(self, device):
+        """Retain actual failed owned setup output privately, with no extra query."""
+        expected = [['xcrun', 'simctl', 'boot', device],
+                    ['xcrun', 'simctl', 'bootstatus', device, '-b'],
+                    ['xcrun', 'simctl', 'install', device, str(self.native.PRIVATE /
+                     'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app')]]
+        result = []
+        for index, entry in enumerate(self.native.read().get('commands', []), 1):
+            if entry.get('command') not in expected:
+                continue
+            row = {key: entry[key] for key in ('label', 'exit_code', 'duration_seconds',
+                                               'timeout_seconds') if key in entry}
+            if entry.get('exit_code') != 0:
+                path = self.native.PRIVATE / ('command-%03d.log' % index)
+                try:
+                    if path.is_symlink() or not path.is_file():
+                        raise ValueError('Owned command output unavailable.')
+                    with path.open('rb') as source:
+                        size = source.seek(0, os.SEEK_END)
+                        source.seek(max(0, size - 16384))
+                        row.update(output=source.read(16384).decode(errors='replace'),
+                                   output_bytes=size, output_truncated=size > 16384)
+                except (OSError, ValueError) as error:
+                    row['output_unavailable'] = type(error).__name__
+            result.append(row)
+        return result
 
     def freeze(self):
         if self.frozen:
@@ -220,17 +274,19 @@ class Session:
         if self.started is None or device != self.device:
             write_json(self.directory / 'summary.json', {'state': 'NO_OWNED_CAPTURE', 'native_acceptance': False})
             return
-        try:
-            errors = original_launch_error(self.native.PRIVATE)
-        except Exception:
-            errors = {'state': 'ORIGINAL_ERROR_JSON_UNAVAILABLE'}
-        write_json(self.directory / 'original-launch-error.json', errors)
-        executable = self.native.read()['built_artifact']['executable']
-        write_json(self.directory / 'owned-crash-reasons.json',
-            {'reports': crash_reasons(self.native.PRIVATE, device, executable, self.started, ended),
-             'scope': 'OWNED_UUID_APP_AND_CAPTURE_WINDOW_ONLY_NO_MEMORY_OR_USER_DATA'})
+        if self.capture_phase == 'VERIFIED_INSTALL_AND_APP_LAUNCH':
+            try:
+                errors = original_launch_error(self.native.PRIVATE)
+            except Exception:
+                errors = {'state': 'ORIGINAL_ERROR_JSON_UNAVAILABLE'}
+            write_json(self.directory / 'original-launch-error.json', errors)
+            executable = self.native.read()['built_artifact']['executable']
+            write_json(self.directory / 'owned-crash-reasons.json',
+                {'reports': crash_reasons(self.native.PRIVATE, device, executable, self.started, ended),
+                 'scope': 'OWNED_UUID_APP_AND_CAPTURE_WINDOW_ONLY_NO_MEMORY_OR_USER_DATA'})
         write_json(self.directory / 'summary.json', {'state': 'CAPTURED_BEFORE_OWNED_DEVICE_CLEANUP',
             'original_smoke_failed': original_error is not None, 'streams': streams,
+            'capture_phase': self.capture_phase, 'setup_commands': self.setup_commands(device),
             'capture_started_epoch': self.started, 'inspection_completed_epoch': ended,
             'scope': 'PRIVATE_LAUNCH_DIAGNOSIS_NOT_NATIVE_ACCEPTANCE', 'native_acceptance': False})
         if any(row.get('cleanup') == 'FAILED' or row.get('cleanup_failed') or row.get('drain_failed') for row in streams):
