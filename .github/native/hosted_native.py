@@ -1372,6 +1372,25 @@ def smoke(suite='startup'):
                 data = read()
                 data[result_key] = 'FAIL'
                 data['probe_diagnostics'] = 'Native module or worker probe failed; raw output retained only on ephemeral runner.'
+                if is_features:
+                    try:
+                        spec = importlib.util.spec_from_file_location('r5_feature_failure',
+                            Path(__file__).with_name('r5_feature_failure.py'))
+                        observer = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(observer)
+                        observation = observer.collect(
+                            SimpleNamespace(PLATFORM=PLATFORM, APP_IDS=APP_IDS, PRIVATE=PRIVATE,
+                                ROOT=ROOT, R5_SOURCES=R5_SOURCES, R5_SCENARIOS=R5_SCENARIOS,
+                                R5_LIMITS=R5_LIMITS, command=command), device, report)
+                    except Exception:
+                        observation = {'state': 'UNAVAILABLE',
+                            'native_acceptance': False}
+                    # The bounded read records its own command; retain those
+                    # updated command numbers without replacing the first FAIL.
+                    data = read()
+                    data[result_key] = 'FAIL'
+                    data['probe_diagnostics'] = 'Native module or worker probe failed; raw output retained only on ephemeral runner.'
+                    data['r5_feature_failure_observation'] = observation
                 save(data)
         except Exception as error:
             # Diagnostics never replace the original failed native/UI result.

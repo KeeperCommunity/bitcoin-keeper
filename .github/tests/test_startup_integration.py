@@ -46,6 +46,12 @@ class StartupIntegrationTest(unittest.TestCase):
 
     def collect(self, context, device, capture):
         self.assertEqual(device, self.device)
+        if capture == self.root / 'features-junit.xml':
+            self.events.append('feature-failure-collect')
+            data = native.read()
+            data['commands'].append({'label': 'fixed failure document read', 'exit_code': 0})
+            native.save(data)
+            return {'scope': 'failure only', 'native_acceptance': False}
         self.assertIn(capture, [self.capture, None])
         self.events.append('capture-collect')
         return {'scope': 'startup only', 'collection_errors': []}
@@ -257,6 +263,34 @@ class StartupIntegrationTest(unittest.TestCase):
                               ('metro-stop', 'device-uninstall')]:
             self.assertLess(self.events.index(before), self.events.index(after))
         self.assertTrue(value['metro_options']['stdout'].closed)
+
+    def test_feature_failure_capture_preserves_original_error_commands_and_disposal(self):
+        value = self.exercise(suite='features', smoke_fails=True)
+        self.assertIs(value['error'], self.original_error)
+        self.assertEqual(value['metadata']['r5_features'], 'FAIL')
+        self.assertFalse(value['metadata']['r5_feature_failure_observation']['native_acceptance'])
+        self.assertEqual(value['metadata']['commands'][-1]['label'], 'fixed failure document read')
+        self.assertLess(self.events.index('feature-failure-collect'), self.events.index('device-uninstall'))
+        self.assertEqual(value['maestro_options'], {'timeout': 660, 'error_details': False})
+        self.assertEqual(self.events.count('maestro'), 1)
+        self.assertNotIn('r5_feature_evidence', value['metadata'])
+        self.assertIn('metro-stop', self.events)
+
+    def test_feature_capture_error_does_not_replace_failure_or_skip_cleanup(self):
+        value = self.exercise(suite='features', smoke_fails=True, collect_fails=True)
+        self.assertIs(value['error'], self.original_error)
+        self.assertEqual(value['metadata']['r5_features'], 'FAIL')
+        self.assertEqual(value['metadata']['r5_feature_failure_observation'],
+                         {'state': 'UNAVAILABLE', 'native_acceptance': False})
+        self.assertIn('metro-stop', self.events)
+        self.assertIn('device-uninstall', self.events)
+
+    def test_feature_observer_is_absent_from_success_and_native_probe_failure(self):
+        for suite, fails in [('features', False), ('probe', True)]:
+            self.events.clear()
+            value = self.exercise(suite=suite, smoke_fails=fails)
+            self.assertNotIn('feature-failure-collect', self.events)
+            self.assertNotIn('r5_feature_failure_observation', value['metadata'])
 
     def test_capture_failure_is_optional_but_collection_and_disposal_still_happen(self):
         value = self.exercise(collect_fails=True)
