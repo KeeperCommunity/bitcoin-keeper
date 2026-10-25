@@ -55,8 +55,11 @@ exact IDs into the unchanged canonical attestation schema. Public receipt
 identities and executed-check scopes remain unchanged.
 
 The manifest/source/public pin is rechecked after private collection, private
-origins are rechecked after that public read, and the public window/source/pin
-is checked last. These are bounded repeated readbacks, not an atomic snapshot
+origins are rechecked after that public read, and the public proof's original
+ZIP ID/name/digest/size/source/expiry and selected job/check authorities are
+revalidated. The public window/source/pin is checked last. Parent proof branding
+also retains the exact original public capability, so a different genuine
+public proof cannot borrow its parent facts. These are bounded repeated readbacks, not an atomic snapshot
 of GitHub. A concurrent service change after the final observation remains
 outside that observation window.
 
@@ -80,10 +83,15 @@ approved installation inputs. No actual private read route or identity has been
 tested. No native run, backend/provider action, merge, pin/profile installation,
 release signing, store upload, distribution or publication was performed.
 
-New and adopted host controls execute fake Actions/SDK boundaries, actual ZIP
+New and adopted host controls execute controlled Actions boundaries, actual ZIP
 parsing, original raw validators, source-copy-only synthetic installed profiles,
 credential isolation, late revocation and canonical schema projection. They are
 not native or live installed acceptance. The existing canonical contract
 workflow selects these controls under read-only permissions and its unchanged
-raw-source checks. All returned software objects retain installed trust
+raw-source checks. A separate fixture executes the actual pinned github-script
+v8 Octokit client with only a dummy identity and controlled fetch. Local proof
+uses the verified pinned bundle on Node24.22.1, and the same fixture is selected
+inside that pinned action in CI. Success, API/host rejection, byte caps, body
+cancellation and a controlled-clock abort of the actual passed30-second signal
+are exercised without any service request. All returned software objects retain installed trust
 UNVERIFIED and native/release/readiness/authorization/execution flags false.

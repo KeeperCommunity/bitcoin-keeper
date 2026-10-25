@@ -14,6 +14,7 @@ on:
       - '.github/tests/test_private_software_artifact_zip.py'
       - '.github/tests/fixtures/private-actions.cjs'
       - '.github/tests/fixtures/private-software.cjs'
+      - '.github/tests/fixtures/private-artifact-real-sdk.cjs'
       - '.github/tests/installed-parent-window.test.cjs'
       - '.github/tests/installed-parent-bootstrap.test.cjs'
       - '.github/tests/fixtures/installed-parent.cjs'
@@ -47,6 +48,12 @@ jobs:
           node --test .github/tests/private-actions-origin.test.cjs .github/tests/private-actions-pagination.test.cjs .github/tests/private-actions-software.test.cjs .github/tests/private-artifact-stream.test.cjs .github/tests/installed-parent-software.test.cjs
           python3 -B -m unittest discover -s .github/tests -p test_canonical_metadata.py
           python3 -B -m unittest discover -s .github/tests -p test_private_software_artifact_zip.py
+      - name: Test actual pinned SDK with disposable private transport boundaries
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const run = require('./.github/tests/fixtures/private-artifact-real-sdk.cjs');
+            await run(github.constructor);
       - name: Verify exact source after checks
         if: always()
         run: node .github/scripts/verify-ci-source.cjs

@@ -3,7 +3,7 @@
 const { isDeepStrictEqual: equal } = require('node:util');
 const window = require('./installed_parent_window.cjs');
 const privateSoftware = require('./private_actions_software.cjs');
-const issued = new WeakSet();
+const issued = new WeakSet(), publicBindings = new WeakMap();
 const demand = (yes, code) => { if (!yes) throw new Error(code); };
 const PARENTS = require('./release_acceptance.cjs').REQUIRED.slice(2);
 function frozen(value) {
@@ -45,16 +45,19 @@ async function collectInstalledParentSoftware(privateGithub, github, context, re
   // not an atomic GitHub snapshot; the final API phase rereads the public source and pins.
   await window.revalidateInstalledParentWindow(github, context, request, admitted, { pinReader: options.pinReader });
   await privateSoftware.revalidatePrivateActionsSoftware(privateGithub, privateProof, { clock: options.clock });
+  await canonical.revalidateInstalledPublicEvidence(github, context, request, publicProof,
+    { pinReader: options.pinReader, clock: options.clock });
   await window.revalidateInstalledParentWindow(github, context, request, admitted, { pinReader: options.pinReader });
   const result = frozen({ schema: 1, kind: 'installed-parent-original-software', app: admitted.app,
     window_id: admitted.window_id, manifest_sha256: admitted.manifest_sha256, platforms,
     installed_trust: 'UNVERIFIED', native_acceptance: false, release_ready: false,
     authorization_eligible: false, execution_allowed: false, release_authorized: false });
-  issued.add(result); return result;
+  issued.add(result); publicBindings.set(result, publicProof); return result;
 }
 function projectInstalledParentCases(publicProof, privateProof) {
   const canonical = require('./canonical_native.cjs');
   demand(canonical.isInstalledPublicEvidence(publicProof) && issued.has(privateProof) &&
+    publicBindings.get(privateProof) === publicProof &&
     publicProof.source_sha === privateProof.app.sha && publicProof.source_tree === privateProof.app.tree,
   'INSTALLED_PARENT_COMPOSITION_CAPABILITIES_REQUIRED');
   return Object.fromEntries(['IOS', 'ANDROID'].map(platform => {

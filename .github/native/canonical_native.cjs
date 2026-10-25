@@ -20,6 +20,7 @@ const demand = (condition, code) => { if (!condition) throw new Error(code); };
 const artifactName = (platform, request) => `keeper-canonical-native-${platform}-${request.sourceSha}-${request.runId}-${request.attempt}`;
 const attestationName = request => `keeper-canonical-native-attestation-${request.sourceSha}-${request.runId}-${request.attempt}`;
 const publicProofs = new WeakSet();
+const publicAuthorities = new WeakMap();
 function freeze(value) {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
   return value;
@@ -130,7 +131,8 @@ async function platformJobs(github, context, request, run) {
     const matches = jobs.filter(job => job.name === `${platform.toLowerCase()} / Canonical ${platform} build and features`);
     demand(matches.length === 1, 'CANONICAL_PLATFORM_JOB_MISSING_OR_AMBIGUOUS');
     const job = matches[0];
-    demand(job.run_id === request.runId && job.run_attempt === request.attempt && job.head_sha === request.sourceSha &&
+    demand(Number.isSafeInteger(job.id) && job.id > 0 && !Object.values(result).some(previous => previous.id === job.id) &&
+      job.run_id === request.runId && job.run_attempt === request.attempt && job.head_sha === request.sourceSha &&
       job.status === 'completed' && job.conclusion === 'success', 'CANONICAL_PLATFORM_NOT_EXACT_SUCCESS');
     for (const name of requiredSteps(platform)) {
       const steps = job.steps?.filter(step => step.name === name) ?? [];
@@ -210,7 +212,9 @@ async function collectPublic(github, context, request, readZip, { pinReader } = 
     GITHUB_WORKFLOW_REF: request.workflowRef, KEEPER_CANONICAL_NATIVE_DRIVER_SHA: request.pin,
     GITHUB_RUN_ID: String(request.runId), GITHUB_RUN_ATTEMPT: String(request.attempt) });
   const { run } = await origin(github, context, request, { pinReader });
-  await platformJobs(github, context, request, run);
+  const jobs = await platformJobs(github, context, request, run);
+  const jobAuthorities = Object.fromEntries(['IOS', 'ANDROID'].map(platform => [platform,
+    { id: jobs[platform].id, name: jobs[platform].name, check_run_url: jobs[platform].check_run_url }]));
   // Compare full-file worker hashes with fixed committed inputs, independently
   // of the downloaded receipt. No artifact ingestion or private-route admission.
   const workerSources = await Promise.all(Object.entries(WORKER_SOURCES).map(async ([member, names]) => {
@@ -235,7 +239,8 @@ async function collectPublic(github, context, request, readZip, { pinReader } = 
     // Capture primitive authority fields independently of response object identity.
     // Every selected artifact is rechecked after all later platform/tree reads.
     artifactAuthorities.push({ id: artifact.id, name: artifact.name, digest: artifact.digest,
-      size: artifact.size_in_bytes, runId: artifact.workflow_run.id, sourceSha: artifact.workflow_run.head_sha });
+      size: artifact.size_in_bytes, runId: artifact.workflow_run.id, sourceSha: artifact.workflow_run.head_sha,
+      expiresAt: artifact.expires_at ?? null });
     const archive = Buffer.from((await github.rest.actions.downloadArtifact({ ...context.repo,
       artifact_id: artifact.id, archive_format: 'zip' })).data);
     demand(archive.length <= 1048576 && archive.length === artifact.size_in_bytes &&
@@ -267,7 +272,11 @@ async function collectPublic(github, context, request, readZip, { pinReader } = 
     workflow_path: WORKFLOW, run_id: request.runId, run_attempt: request.attempt,
     selected_route: 'canonical-hosted-native', platforms, worker_sources: workerSources });
   if (Object.values(platforms).every(item => item.cases.slice(0, 2).every(test => test.status === 'PASS') &&
-    Object.values(item.executed_checks).every(test => test.status === 'PASS'))) publicProofs.add(result);
+    Object.values(item.executed_checks).every(test => test.status === 'PASS'))) {
+    publicProofs.add(result);
+    publicAuthorities.set(result, freeze({ request: { ...request }, jobs: jobAuthorities,
+      artifacts: artifactAuthorities, tree: commit.tree.sha, suiteId: run.check_suite_id, workflowId: run.workflow_id }));
+  }
   return result;
 }
 
@@ -275,6 +284,37 @@ async function collectInstalledPublicEvidence(github, context, request, readZip,
   const result = await collectPublic(github, context, request, readZip, options);
   demand(publicProofs.has(result), 'CANONICAL_PUBLIC_SOFTWARE_INCOMPLETE');
   return result;
+}
+
+async function revalidateInstalledPublicEvidence(github, context, request, proof, { pinReader, clock = Date.now } = {}) {
+  demand(publicProofs.has(proof), 'CANONICAL_PUBLIC_CAPABILITY_REQUIRED');
+  const original = publicAuthorities.get(proof);
+  demand(['sourceSha', 'workflowSha', 'workflowRef', 'pin', 'runId', 'attempt'].every(key =>
+    request[key] === original.request[key]), 'CANONICAL_PUBLIC_WINDOW_MISMATCH');
+  const { run } = await origin(github, context, request, { pinReader });
+  demand(run.check_suite_id === original.suiteId && run.workflow_id === original.workflowId,
+    'CANONICAL_PUBLIC_AUTHORITY_CHANGED');
+  const jobs = await platformJobs(github, context, request, run);
+  for (const platform of ['IOS', 'ANDROID']) {
+    const current = jobs[platform], previous = original.jobs[platform];
+    demand(current.id === previous.id && current.name === previous.name && current.check_run_url === previous.check_run_url,
+      'CANONICAL_PUBLIC_AUTHORITY_CHANGED');
+  }
+  const commit = (await github.rest.git.getCommit({ ...context.repo, commit_sha: request.sourceSha })).data;
+  demand(commit.sha === request.sourceSha && commit.tree?.sha === original.tree, 'CANONICAL_SOURCE_TREE_UNVERIFIED');
+  for (const previous of original.artifacts) {
+    const current = (await github.rest.actions.getArtifact({ ...context.repo, artifact_id: previous.id })).data;
+    const expiry = current.expires_at ?? null;
+    demand(current.id === previous.id && current.name === previous.name && current.expired === false &&
+      current.digest === previous.digest && current.size_in_bytes === previous.size &&
+      current.workflow_run?.id === previous.runId && current.workflow_run.head_sha === previous.sourceSha &&
+      expiry === previous.expiresAt && (expiry === null || (typeof expiry === 'string' && Date.parse(expiry) > clock())),
+    'CANONICAL_ARTIFACT_EXPIRED_OR_CHANGED');
+  }
+  // Long private network/ZIP work cannot preserve stale public proof authority.
+  // This final public phase also rechecks source/workflow/current run and live pin.
+  await origin(github, context, request, { pinReader });
+  return true;
 }
 
 async function collect(github, context, request, output, readZip, { pinReader, privateGithub, clock, fetchImpl } = {}) {
@@ -310,4 +350,5 @@ function readMetadataZip(archive) {
 module.exports = { REPOSITORY, REPOSITORY_ID, WORKFLOW, WORKER, APP_ID, requestFromEnvironment,
   pinReaderFromEnvironment, privateReaderFromEnvironment, origin, requiredSteps, platformJobs, validateMetadata, collect,
   artifactName, attestationName, readMetadataZip, collectInstalledPublicEvidence,
+  revalidateInstalledPublicEvidence,
   isInstalledPublicEvidence: value => publicProofs.has(value) };

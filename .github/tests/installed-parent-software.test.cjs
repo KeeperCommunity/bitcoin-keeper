@@ -66,6 +66,9 @@ test('synthetic installed source composes actual public proof and original priva
   assert.equal(JSON.stringify(platforms).includes('PRIVATE_SENTINEL'), false);
   for (const fake of [{ ...parents }, structuredClone(parents)])
     assert.throws(() => driver.projectInstalledParentCases(f.proof, fake), /CAPABILITIES_REQUIRED/);
+  const other = await fixture();
+  assert.throws(() => driver.projectInstalledParentCases(other.proof, parents), /CAPABILITIES_REQUIRED/,
+    'a different genuine public capability cannot borrow this parent composition');
   assert.equal(f.p.windowReads, 3, 'initial manifest and repeated public fences after private work');
 });
 test('private client has no implicit ordinary-token fallback', async () => {
@@ -108,6 +111,29 @@ test('private artifact expiry during later public manifest read rejects the whol
     return result;
   };
   await assert.rejects(collect(driver, f), /PRIVATE_ACTIONS_ARTIFACT_INVALID/);
+});
+for (const [name, mutate] of Object.entries({
+  expiredArtifact: x => x.p.artifacts[0].expired = true,
+  originalZipDigest: x => x.p.artifacts[0].digest = `sha256:${'1'.repeat(64)}`,
+  originalZipSize: x => x.p.artifacts[0].size_in_bytes++,
+  renamedArtifact: x => x.p.artifacts[0].name += '-other',
+  artifactSource: x => x.p.artifacts[0].workflow_run.head_sha = 'b'.repeat(40),
+  jobFailure: x => x.p.jobs[0].conclusion = 'failure',
+  jobIdentity: x => x.p.jobs[0].id++,
+  checkOwnership: x => x.p.checkApp = { id: 42, slug: 'github-actions' },
+})) test(`later private download revokes original public authority: ${name}`, async () => {
+  const f = await fixture(), driver = loadSimulatedInstalledCollector();
+  f.f.afterStorage = id => { if (id === 1102) mutate(f); };
+  await assert.rejects(collect(driver, f), /^Error: CANONICAL_[A-Z_]+$/);
+});
+test('public authority refresh accepts only its exact branded request and original capability', async () => {
+  const f = await fixture(), calls = f.p.calls.length;
+  for (const proof of [{ ...f.proof }, structuredClone(f.proof), { status: 'PASS' }])
+    await assert.rejects(canonical.revalidateInstalledPublicEvidence(f.p.github, f.p.context, f.p.request,
+      proof, { pinReader: f.p.pinReader }), /PUBLIC_CAPABILITY_REQUIRED/);
+  assert.equal(f.p.calls.length, calls);
+  await assert.rejects(canonical.revalidateInstalledPublicEvidence(f.p.github, f.p.context,
+    { ...f.p.request, runId: 401 }, f.proof, { pinReader: f.p.pinReader }), /PUBLIC_WINDOW_MISMATCH/);
 });
 test('canonical collection cannot issue parent credit with an explicit client and empty installed policy', async () => {
   const f = await fixture(), output = fs.mkdtempSync(path.join(os.tmpdir(), 'keeper-no-installed-parent-'));

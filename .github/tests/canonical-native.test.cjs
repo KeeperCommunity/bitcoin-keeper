@@ -28,6 +28,7 @@ function fixture() {
       pull_requests: [], status: 'in_progress', check_suite_id: 77 },
     suite: { id: 77, app: { id: 15368, slug: 'github-actions' }, head_sha: source }, active: [] };
   state.jobs = ['IOS', 'ANDROID'].map((platform, index) => ({
+    id: 800 + index,
     name: `${platform.toLowerCase()} / Canonical ${platform} build and features`, run_id: 400, run_attempt: 2,
     head_sha: source, status: 'completed', conclusion: 'success',
     check_run_url: `https://api.github.com/repos/${repository}/check-runs/${90 + index}`,
