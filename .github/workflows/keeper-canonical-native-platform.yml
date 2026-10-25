@@ -25,7 +25,7 @@ jobs:
   native:
     name: Canonical ${{ inputs.platform }} build and features
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/sprint' && inputs.source_sha == github.sha
-    runs-on: ${{ inputs.platform == 'IOS' && 'macos-15' || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.platform == 'IOS' && 'macos-15-intel' || 'ubuntu-24.04' }}
     # Same standard hosted workers and feature budget as candidate diagnostics.
     timeout-minutes: 240
     env:
@@ -49,8 +49,32 @@ jobs:
         with:
           script: |
             try {
+              // Remove read credentials before raw-source Git/Python subprocesses.
+              const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
+              delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
+              delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+              // Pinned source bootstrap: validate captured bytes before importing repository code.
+              const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+              const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');
+              if (fs.realpathSync(root) !== root || fs.realpathSync(guardPath) !== guardPath) throw new Error('RAW_BOOTSTRAP_ALIAS');
+              const before = fs.lstatSync(guardPath);
+              if (!before.isFile() || before.nlink !== 1 || (before.mode & 0o100)) throw new Error('RAW_BOOTSTRAP_TYPE');
+              const fd = fs.openSync(guardPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+              let bytes;
+              try {
+                const opened = fs.fstatSync(fd);
+                if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) throw new Error('RAW_BOOTSTRAP_REPLACED');
+                bytes = fs.readFileSync(fd);
+              } finally { fs.closeSync(fd); }
+              const oid = crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+              if (oid !== '2c36d299851261d68965d37dbda024b950d46d8d') throw new Error('RAW_BOOTSTRAP_BLOB');
+              const guard = new (require('node:module'))(guardPath);
+              guard.filename = guardPath;
+              guard._compile(bytes.toString('utf8'), guardPath);
+              guard.exports.verifyRawCheckout(root, context.sha);
+              // End pinned source bootstrap.
               const driver = require('./.github/native/canonical_native.cjs');
-              const pinReader = driver.pinReaderFromEnvironment(github, process.env);
+              const pinReader = driver.pinReaderFromEnvironment(github, pinEnv);
               const request = driver.requestFromEnvironment(context, process.env);
               await driver.origin(github, context, request, { admission: true, pinReader });
             } catch {

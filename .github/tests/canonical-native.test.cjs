@@ -28,6 +28,7 @@ function fixture() {
       pull_requests: [], status: 'in_progress', check_suite_id: 77 },
     suite: { id: 77, app: { id: 15368, slug: 'github-actions' }, head_sha: source }, active: [] };
   state.jobs = ['IOS', 'ANDROID'].map((platform, index) => ({
+    id: 800 + index,
     name: `${platform.toLowerCase()} / Canonical ${platform} build and features`, run_id: 400, run_attempt: 2,
     head_sha: source, status: 'completed', conclusion: 'success',
     check_run_url: `https://api.github.com/repos/${repository}/check-runs/${90 + index}`,
@@ -108,6 +109,54 @@ function origin(f, options = {}) {
 function collect(f, output) {
   return driver.collect(f.github, f.context, f.request, output, raw => raw, { pinReader: f.pinReader });
 }
+
+test('installed public proof comes only from complete fresh raw collection and is immutable', async () => {
+  const f = fixture();
+  const proof = await driver.collectInstalledPublicEvidence(f.github, f.context, f.request, raw => raw, { pinReader: f.pinReader });
+  assert.equal(driver.isInstalledPublicEvidence(proof), true);
+  assert.equal(Object.isFrozen(proof.platforms.IOS.executed_checks), true);
+  assert.equal(driver.isInstalledPublicEvidence({ ...proof }), false);
+  assert.equal(driver.isInstalledPublicEvidence(JSON.parse(JSON.stringify(proof))), false);
+  assert.equal(proof.platforms.IOS.cases.filter(row => row.status === 'NOT IMPLEMENTED').length, 5);
+});
+for (const [name, code, change] of [
+  ['pin revoked', 'LIVE_DRIVER_PIN_REVOKED_OR_UNREADABLE', f => { f.pin.value = ''; }],
+  ['source moved', 'CANONICAL_HEAD_MOVED_OR_UNPROTECTED', f => { f.branch.commit.sha = 'f'.repeat(40); }],
+  ['workflow disabled', 'CANONICAL_WORKFLOW_NOT_INSTALLED', f => { f.workflow.state = 'disabled_manually'; }],
+  ['new attempt', 'CANONICAL_RUN_MISMATCH', f => { f.run.run_attempt++; }],
+  ['new run', 'NEWER_OR_INCOMPLETE_CANONICAL_RUNS', f => { f.newerRun = true; }],
+]) test(`late commit-tree read cannot mint an installed public proof after ${name}`, async () => {
+  const f = fixture(), original = f.github.rest.git.getCommit;
+  f.github.rest.git.getCommit = async args => {
+    const response = await original(args); change(f); return response;
+  };
+  await assert.rejects(driver.collectInstalledPublicEvidence(f.github, f.context, f.request, raw => raw,
+    { pinReader: f.pinReader }), new RegExp(code));
+});
+for (const [name, change] of [
+  ['expired', artifact => { artifact.expired = true; }],
+  ['digest changed', artifact => { artifact.digest = `sha256:${'f'.repeat(64)}`; }],
+  ['source changed', artifact => { artifact.workflow_run = { id: 400, head_sha: 'f'.repeat(40) }; }],
+  ['size changed', artifact => { artifact.size_in_bytes++; }],
+]) test(`second artifact read cannot retain an earlier ${name} artifact's public proof`, async () => {
+  const f = fixture(), original = f.github.rest.actions.getArtifact;
+  let changed = false;
+  f.github.rest.actions.getArtifact = async args => {
+    const response = await original(args);
+    if (args.artifact_id === 102 && !changed) { change(f.artifacts[0]); changed = true; }
+    return response;
+  };
+  await assert.rejects(driver.collectInstalledPublicEvidence(f.github, f.context, f.request, raw => raw,
+    { pinReader: f.pinReader }), /CANONICAL_ARTIFACT_EXPIRED_OR_CHANGED/);
+});
+test('public proof rejects contradictory raw success and a different invocation context', async () => {
+  for (const change of [f => { f.context.sha = 'f'.repeat(40); }, f => { f.context.eventName = 'push'; },
+    f => { f.metadata.IOS.smoke = 'FAIL'; f.archives[0] = Buffer.from(JSON.stringify(f.metadata.IOS));
+      f.artifacts[0].digest = `sha256:${hash(f.archives[0])}`; f.artifacts[0].size_in_bytes = f.archives[0].length; }]) {
+    const f = fixture(); change(f);
+    await assert.rejects(driver.collectInstalledPublicEvidence(f.github, f.context, f.request, raw => raw, { pinReader: f.pinReader }));
+  }
+});
 
 test('dedicated pin identity is mandatory and removed from child-process environment', () => {
   const instances = [];

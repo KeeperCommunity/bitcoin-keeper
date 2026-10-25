@@ -20,6 +20,30 @@ on:
       - '.github/tests/test_software_artifact_zip.py'
       - '.github/tests/strict-json.test.cjs'
       - '.github/tests/fixtures/**'
+      - '.github/native/installed_parent_window.cjs'
+      - '.github/native/installed_parent_software.cjs'
+      - '.github/native/private_actions*'
+      - '.github/native/private_integration_receipts.cjs'
+      - '.github/native/parent_software_evidence.cjs'
+      - '.github/native/private_software_artifact_zip.py'
+      - '.github/tests/private-actions*'
+      - '.github/tests/private-integration-receipts.test.cjs'
+      - '.github/tests/parent-software-evidence.test.cjs'
+      - '.github/tests/private-source-proof-scopes.test.cjs'
+      - '.github/tests/private-artifact-stream.test.cjs'
+      - '.github/tests/installed-parent-software.test.cjs'
+      - '.github/tests/test_private_software_artifact_zip.py'
+      - '.github/tests/fixtures/private-actions.cjs'
+      - '.github/tests/fixtures/private-software.cjs'
+      - '.github/tests/fixtures/private-integration.cjs'
+      - '.github/tests/fixtures/parent-software.cjs'
+      - '.github/tests/fixtures/producer-source-proofs.json'
+      - '.github/tests/fixtures/private-artifact-real-sdk.cjs'
+      - '.github/tests/installed-parent-window.test.cjs'
+      - '.github/tests/installed-parent-bootstrap.test.cjs'
+      - '.github/tests/fixtures/installed-parent.cjs'
+      - 'docs/r5/INSTALLED-PARENT-ADMISSION.md'
+      - 'docs/r5/CANONICAL-SOURCE-SUCCESSOR.md'
       - '.github/tests/canonical-native.test.cjs'
       - '.github/tests/test_canonical_metadata.py'
       - '.github/workflows/keeper-canonical-native*'
@@ -47,6 +71,16 @@ jobs:
           node --test .github/tests/canonical-native.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs .github/tests/actions-software-evidence.test.cjs .github/tests/release-evidence.test.cjs .github/tests/release-pipeline.test.cjs
           python3 -B -m unittest discover -s .github/tests -p test_canonical_metadata.py
           python3 -B -m unittest discover -s .github/tests -p test_software_artifact_zip.py
+          node --test .github/tests/installed-parent-window.test.cjs .github/tests/installed-parent-bootstrap.test.cjs
+          node --test .github/tests/private-actions-origin.test.cjs .github/tests/private-actions-pagination.test.cjs .github/tests/private-actions-software.test.cjs .github/tests/private-artifact-stream.test.cjs .github/tests/installed-parent-software.test.cjs
+          node --test .github/tests/private-integration-receipts.test.cjs .github/tests/parent-software-evidence.test.cjs .github/tests/private-source-proof-scopes.test.cjs
+          python3 -B -m unittest discover -s .github/tests -p test_private_software_artifact_zip.py
+      - name: Test actual pinned SDK with disposable private transport boundaries
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const run = require('./.github/tests/fixtures/private-artifact-real-sdk.cjs');
+            await run(github.constructor);
       - name: Verify exact source after checks
         if: always()
         run: node .github/scripts/verify-ci-source.cjs

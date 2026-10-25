@@ -86,7 +86,11 @@ function synthetic(platform = 'IOS') {
   const aggregate = { schema: 1, status: 'PASS', app_sha: expected.app.sha, app_tree: expected.app.tree,
     control_sha: expected.control.sha, control_tree: expected.control.tree, backend_base: expected.backend.sha, platform,
     run_id: '123', run_attempt: '2', built_artifact: built, scope: 'THREE_SERIAL_NORMAL_UI_FEATURE_SUITES_ONE_BUILD',
-    source_admission: Object.fromEntries(suites.map(suite => [suite, structuredClone(source)])), barriers: [], suites: {},
+    source_admission: Object.fromEntries(suites.map(suite => [suite, { ...structuredClone(source), scope: {
+      protected: 'BOUNDED_PRIVATE_NATIVE_ACCEPTANCE_TOOLING',
+      recovery: 'BOUNDED_PRIVATE_FRESH_RECOVERY_TOOLING',
+      account: 'BOUNDED_PRIVATE_NORMAL_ACCOUNT_READ_ISOLATION_TOOLING',
+    }[suite] }])), barriers: [], suites: {},
     physical_devices: 'NOT_TESTED', historical_upgrade: 'NOT_TESTED', b_backend_mutation_isolation: 'NOT_TESTED', biometrics: 'NOT_TESTED',
     five_startup_measurements: 'REQUIRES_SEPARATE_RAW_MEASUREMENT_EVIDENCE', trusted_acceptance: 'NOT_ESTABLISHED', release_readiness: 'NOT_ESTABLISHED' };
   values['control/artifacts/native-protected/mongo.json'] = { owner: 'keeper-r5-native-protected-123-2', version: '7.0.16',

@@ -104,6 +104,20 @@ test('reusable paths keep explicit draft and diagnostic boundaries with no dispa
   assert.equal(workflows['android-diagnostic-build.yml'].concurrency['cancel-in-progress'], 'false');
 });
 
+test('canonical iOS uses the reviewed Intel host while Android retains its runner', () => {
+  const canonical = workflows['keeper-canonical-native-platform.yml'];
+  const diagnostic = workflows['keeper-native-platform.yml'];
+  function select(workflow, platform) {
+    const expression = workflow.jobs.native['runs-on'].replace(/^\$\{\{\s*|\s*\}\}$/g, '');
+    return new Function('inputs', `return (${expression});`)({ platform });
+  }
+  assert.equal(select(canonical, 'IOS'), 'macos-15-intel');
+  assert.equal(select(canonical, 'ANDROID'), 'ubuntu-24.04');
+  assert.equal(select(canonical, 'IOS'), select(diagnostic, 'IOS'));
+  assert.equal(canonical.jobs.native['timeout-minutes'], '240');
+  assert.ok(!canonical.jobs.native.environment && !canonical.jobs.native.secrets);
+});
+
 test('pushing an isolated branch permits only the read-only origin contract workflow', () => {
   const triggeredFiles = Object.entries(workflows).filter(([, workflow]) =>
     triggered(workflow, 'push', null, 'codex/cloud-bootstrap-privacy')).map(([filename]) => filename);
@@ -171,7 +185,11 @@ test('canonical pin credential stays in explicit provenance steps with read-only
         if (step.env?.KEEPER_CANONICAL_PIN_READ_TOKEN) {
           assert.match(step.uses, /^actions\/github-script@[a-f0-9]{40}$/);
           assert.equal(step.with['github-token'], undefined, 'Actions/check APIs keep the normal workflow identity');
-          assert.match(step.with.script, /pinReaderFromEnvironment\(github, process.env\)/);
+          assert.match(step.with.script, /pinReaderFromEnvironment\(github, pinEnv\)/);
+          assert.match(step.with.script, /const pinEnv = \{ KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN \}/);
+          assert.ok(step.with.script.indexOf('delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;') >= 0 &&
+            step.with.script.indexOf('delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;') <
+            step.with.script.indexOf('guard.exports.verifyRawCheckout(root, context.sha);'));
           assert.match(step.with.script, /(?:admission: true, pinReader|\{ pinReader \})/);
         } else {
           assert.doesNotMatch(JSON.stringify(step), /secrets\./, 'build/tooling steps receive no pin credential');

@@ -38,8 +38,32 @@ jobs:
         with:
           script: |
             try {
+              // Remove read credentials before raw-source Git/Python subprocesses.
+              const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
+              delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
+              delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+              // Pinned source bootstrap: validate captured bytes before importing repository code.
+              const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+              const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');
+              if (fs.realpathSync(root) !== root || fs.realpathSync(guardPath) !== guardPath) throw new Error('RAW_BOOTSTRAP_ALIAS');
+              const before = fs.lstatSync(guardPath);
+              if (!before.isFile() || before.nlink !== 1 || (before.mode & 0o100)) throw new Error('RAW_BOOTSTRAP_TYPE');
+              const fd = fs.openSync(guardPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+              let bytes;
+              try {
+                const opened = fs.fstatSync(fd);
+                if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) throw new Error('RAW_BOOTSTRAP_REPLACED');
+                bytes = fs.readFileSync(fd);
+              } finally { fs.closeSync(fd); }
+              const oid = crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+              if (oid !== '2c36d299851261d68965d37dbda024b950d46d8d') throw new Error('RAW_BOOTSTRAP_BLOB');
+              const guard = new (require('node:module'))(guardPath);
+              guard.filename = guardPath;
+              guard._compile(bytes.toString('utf8'), guardPath);
+              guard.exports.verifyRawCheckout(root, context.sha);
+              // End pinned source bootstrap.
               const driver = require('./.github/native/canonical_native.cjs');
-              const pinReader = driver.pinReaderFromEnvironment(github, process.env);
+              const pinReader = driver.pinReaderFromEnvironment(github, pinEnv);
               const request = driver.requestFromEnvironment(context, process.env);
               await driver.origin(github, context, request, { admission: true, pinReader });
               core.setOutput('trusted', 'true');
@@ -83,6 +107,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+          KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
           IOS_RESULT: ${{ needs.ios.result }}
           ANDROID_RESULT: ${{ needs.android.result }}
         with:
@@ -91,10 +116,36 @@ jobs:
               if (process.env.IOS_RESULT !== 'success' || process.env.ANDROID_RESULT !== 'success') {
                 throw new Error('Required platform did not execute successfully');
               }
+              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN };
+              // Remove read credentials before raw-source Git/Python subprocesses.
+              const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
+              delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
+              delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+              // Pinned source bootstrap: validate captured bytes before importing repository code.
+              const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+              const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');
+              if (fs.realpathSync(root) !== root || fs.realpathSync(guardPath) !== guardPath) throw new Error('RAW_BOOTSTRAP_ALIAS');
+              const before = fs.lstatSync(guardPath);
+              if (!before.isFile() || before.nlink !== 1 || (before.mode & 0o100)) throw new Error('RAW_BOOTSTRAP_TYPE');
+              const fd = fs.openSync(guardPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+              let bytes;
+              try {
+                const opened = fs.fstatSync(fd);
+                if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) throw new Error('RAW_BOOTSTRAP_REPLACED');
+                bytes = fs.readFileSync(fd);
+              } finally { fs.closeSync(fd); }
+              const oid = crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+              if (oid !== '2c36d299851261d68965d37dbda024b950d46d8d') throw new Error('RAW_BOOTSTRAP_BLOB');
+              const guard = new (require('node:module'))(guardPath);
+              guard.filename = guardPath;
+              guard._compile(bytes.toString('utf8'), guardPath);
+              guard.exports.verifyRawCheckout(root, context.sha);
+              // End pinned source bootstrap.
               const driver = require('./.github/native/canonical_native.cjs');
-              const pinReader = driver.pinReaderFromEnvironment(github, process.env);
+              const pinReader = driver.pinReaderFromEnvironment(github, pinEnv);
               const request = driver.requestFromEnvironment(context, process.env);
-              await driver.collect(github, context, request, 'artifacts/canonical-native', driver.readMetadataZip, { pinReader });
+              const privateGithub = driver.privateReaderFromEnvironment(github, privateEnv);
+              await driver.collect(github, context, request, 'artifacts/canonical-native', driver.readMetadataZip, { pinReader, privateGithub });
             } catch {
               core.setFailed('Canonical software matrix incomplete or exact Actions/receipt provenance invalid. No release authorization.');
             }
