@@ -34,16 +34,24 @@ export default class Node {
       return { saved: false, connectionError: 'Missing node host URL or port' };
     }
 
-    // test connection before saving
+    const node = { ...nodeDetail };
+    const savedEndpoint = this.getAllNodes().find((savedNode) =>
+      savedNode.host === node.host && savedNode.port === node.port &&
+      savedNode.networkType === node.networkType && (!node.id || savedNode.id === node.id));
+    if (!node.useSSL) node.tlsCa = null;
+    else if (!Object.prototype.hasOwnProperty.call(nodeDetail, 'tlsCa') && savedEndpoint) {
+      // Omitted trust keeps the saved endpoint's explicit choice; null explicitly clears it.
+      node.tlsCa = savedEndpoint.tlsCa || null;
+    }
+
+    // test the exact candidate transport before saving
     const { connected: isConnectable, error: connectionError } =
-      await ElectrumClient.testConnection(nodeDetail);
+      await ElectrumClient.testConnection(node);
     if (!isConnectable) {
       return { saved: false, connectionError };
     }
     if (!this.isAccountActive(originAppId) || accountSession !== currentBackupAccountSession())
       return { saved: false, connectionError: 'Account changed' };
-
-    const node = { ...nodeDetail };
 
     const predefinedNodes =
       bitcoinNetworkType === NetworkType.TESTNET ? predefinedTestnetNodes : predefinedMainnetNodes;
@@ -55,15 +63,28 @@ export default class Node {
         predefinedNode.id === node.id ||
         (predefinedNode.host === node.host && predefinedNode.port === node.port)
     );
-    const isExistingNode = allNodes.some(
-      (savedNode) => savedNode.host === node.host && savedNode.port === node.port
+    const existingNode = allNodes.find(
+      (savedNode) => savedNode.host === node.host && savedNode.port === node.port &&
+        savedNode.networkType === node.networkType
     );
     const isSavedNode = allNodes.some(
       (savedNode) =>
         savedNode.id === node.id || (savedNode.host === node.host && savedNode.port === node.port)
     );
 
-    if (!node.id && isExistingNode) return { saved: true };
+    if (!node.id && existingNode) {
+      if (node.useSSL === existingNode.useSSL && (node.tlsCa || null) === (existingNode.tlsCa || null)) {
+        return { saved: true };
+      }
+      if (existingNode.useKeeperNode && node.tlsCa) {
+        return { saved: false, connectionError: 'Custom certificate trust requires a private TLS node' };
+      }
+      // A successful explicit trust update must reach the normal guarded write;
+      // retain the saved endpoint's identity instead of silently discarding its new CA.
+      node.id = existingNode.id;
+      node.useKeeperNode = existingNode.useKeeperNode;
+      node.isConnected = existingNode.isConnected;
+    }
     if (!node.id) {
       // IDs cover both networks because the recoverable node map is account-wide.
       const savedNodes = Array.from(dbManager.getCollection(RealmSchema.NodeConnect)) as unknown as NodeDetail[];

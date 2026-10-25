@@ -8,6 +8,7 @@ import { RealmSchema } from 'src/storage/realm/enum';
 import { electrumClientConnectionExecuted } from 'src/store/reducers/login';
 import { ElectrumTransaction, ElectrumUTXO } from './interface';
 import torrific from './torrific';
+import { forNode as tlsForNode } from './tls';
 import RestClient, { TorStatus } from '../rest/RestClient';
 import ecc from '../wallets/operations/taproot-utils/noble_ecc';
 import { store } from 'src/store/store';
@@ -133,7 +134,7 @@ export default class ElectrumClient {
 
       client = new ElectrumCli(
         ElectrumClient.connectOverTor ? torrific : global.net,
-        global.tls,
+        tlsForNode(peer),
         peer.port,
         peer.host,
         peer.useSSL ? 'tls' : 'tcp'
@@ -208,7 +209,7 @@ export default class ElectrumClient {
         type: errorType,
         message: errorMessage,
       };
-      console.log('Bad connection:', JSON.stringify(peer), {
+      console.log('Bad connection:', peer.host, {
         errorType,
         message: errorMessage,
       });
@@ -636,22 +637,23 @@ export default class ElectrumClient {
   public static async testConnection(node: NodeDetail) {
     const connectOverTor =
       node.host?.endsWith('.onion') && RestClient?.getTorStatus() === TorStatus.CONNECTED;
-    const client = new ElectrumCli(
-      connectOverTor ? torrific : global.net,
-      global.tls,
-      node.port,
-      node.host,
-      node.useSSL ? 'tls' : 'tcp'
-    );
-
-    client.onError = (ex) => {
-      console.log(ex);
-    }; // mute
+    let client: ElectrumCli | null = null;
     let timeoutId = null;
 
     let conncetionError = null;
     let connectionErrorType: ElectrumConnectionErrorType | null = null;
     try {
+      client = new ElectrumCli(
+        connectOverTor ? torrific : global.net,
+        tlsForNode(node),
+        node.port,
+        node.host,
+        node.useSSL ? 'tls' : 'tcp'
+      );
+
+      client.onError = (ex) => {
+        console.log(ex);
+      }; // mute
       const ver = await Promise.race([
         new Promise((resolve) => {
           timeoutId = setTimeout(() => resolve('timeout'), 20000);
@@ -674,7 +676,7 @@ export default class ElectrumClient {
       conncetionError = err;
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      client.close();
+      client?.close();
     }
 
     return { connected: false, error: conncetionError, errorType: connectionErrorType };

@@ -7,6 +7,7 @@
     "iosProd": "npx react-native run-ios --scheme=hexa_keeper --simulator 'iPhone 16' ",
     "start": "react-native start",
     "test": "jest",
+    "test:electrum-security": "node --test tests/electrum/*.test.cjs",
     "test:release": "node --test scripts/release-version.test.cjs scripts/verify-channel-config.test.cjs && python3 -B -m unittest discover -s scripts -p 'test_release_artifact.py' && ruby scripts/test_fastlane_build_only.rb",
     "version:inspect": "node scripts/release-version.cjs inspect",
     "version:check": "node scripts/release-version.cjs check",
@@ -214,6 +215,6 @@
     "stream": "stream-browserify"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.23.4 <23"
   }
 }

@@ -1,3 +1,4 @@
+import { createChannelRequestData } from 'src/services/channel/crypto';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Box, VStack, useColorMode } from '@gluestack-ui/themed-native-base';
 import ScreenWrapper from 'src/components/ScreenWrapper';
@@ -10,7 +11,6 @@ import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import Text from 'src/components/KeeperText';
 import crypto from 'crypto';
-import { createCipherGcm } from 'src/utils/service-utilities/utils';
 import QRScanner from 'src/components/QRScanner';
 import BackgroundTimer from 'react-native-background-timer';
 import Relay from 'src/services/backend/Relay';
@@ -156,7 +156,11 @@ function PurchaseWithChannel() {
     const res = await Relay.checkEligibilityForBtcPay(requestBody);
     if (res.status) {
       requestBody['action'] = EMIT_MODES.PURCHASE_SUBS;
-      const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
+      const requestData = createChannelRequestData(
+        requestBody,
+        bitcoinNetworkType,
+        decryptionKey.current
+      );
       channel.emit(JOIN_CHANNEL, { room, network: bitcoinNetworkType, requestData });
     } else {
       navigation.goBack();

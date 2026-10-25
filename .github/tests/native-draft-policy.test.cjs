@@ -43,6 +43,22 @@ function triggered(workflow, event, action, branch) {
   return !types || types.includes(action);
 }
 
+test('explicit workflow Node executables meet the incident-fixed native build floor', () => {
+  const { supportedNode } = require('../../scripts/verify-node-runtime.cjs');
+  let checked = 0;
+  for (const [filename, workflow] of Object.entries(workflows)) {
+    for (const [jobName, job] of Object.entries(workflow.jobs || {})) {
+      for (const step of job.steps || []) {
+        if (!step.uses?.startsWith('actions/setup-node@')) continue;
+        const selected = step.with?.['node-version'];
+        assert.ok(supportedNode(selected), `${filename}/${jobName} selects unsupported Node ${selected}`);
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(checked > 0, 'check actual workflow executable selections');
+});
+
 test('native opened, synchronize and reopened draft jobs are skipped before runner allocation', () => {
   assert.deepEqual(Object.keys(native.jobs), ['ios', 'android']);
   for (const action of ['opened', 'synchronize', 'reopened']) {
@@ -172,7 +188,7 @@ test('canonical provenance contracts stay read-only and separate from manual nat
   assert.equal(job.environment, undefined);
   assert.equal(job.secrets, undefined);
   assert.equal(job['timeout-minutes'], '5');
-  assert.equal(job.steps.find(step => step.with?.['node-version']).with['node-version'], '22.23.3');
+  assert.equal(job.steps.find(step => step.with?.['node-version']).with['node-version'], '22.23.4');
   assert.deepEqual(job.steps.filter(step => step.run).map(step => step.name),
     ['Verify exact event source before checks', 'Test read-only canonical trust and archive controls',
       'Verify exact source after checks']);

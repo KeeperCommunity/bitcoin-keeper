@@ -1,0 +1,71 @@
+{
+  "source_pr": 546,
+  "source_head": "e981b775c50fe3d7f7802127164673e8043b0523",
+  "note": "Upstream files contain SPKI SEQUENCE contents; task .spki.der artifacts wrap DER SEQUENCE tag/length. Public keys only; no private keys.",
+  "keys": [
+    {
+      "name": "EMDVTLSCAG3B.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMDVTLSCAG3B.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "2d5f988ee3ceaf696845a34299ca3e05816429cdb5de92427889533175f97b95",
+      "complete_spki_sha256": "ebed6475c2c2d80fcb199f3fe8dd6e6b3ce60b77eb15d4e42c3dec0c6f5b5105"
+    },
+    {
+      "name": "EMDVTLSCAG3C.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMDVTLSCAG3C.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "616e9a92539c40f454813f7fb8ae4a6db719498495215774f02d8b8b5a615d36",
+      "complete_spki_sha256": "49dd353dc2b919a3770645117d0e60c16115e7d1bc259eefe734b00ea434fe5f"
+    },
+    {
+      "name": "EMEVTLSCAG3B.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMEVTLSCAG3B.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "bdf5ab18303069ebc3e3ddbb0fc0613693acef01b2fb7be1a0624aab60fbff0d",
+      "complete_spki_sha256": "e0254c7fcdc265e2f0f8a428dabb75ab4ae039b4872d62f5ee57f0877d5a8a41"
+    },
+    {
+      "name": "EMEVTLSCAG3C.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMEVTLSCAG3C.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "b941c7577b918f7b9a9374aff3b02d8eda92545c86adb5b5268d1e121fe58ce2",
+      "complete_spki_sha256": "5c0660a2b164910d8ff589c18e14552e9e0ec237dcefe2cb736d41a4811f81a0"
+    },
+    {
+      "name": "EMOVCSCAG3B.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMOVCSCAG3B.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "e8263cea915a92109a29fb497105dceeeb58fa099c2552c4082aff1e1a9a33b2",
+      "complete_spki_sha256": "ec4ffa1ad0ac88081314b7aaffef6a91f97cd57291bb5ba686c5415f5eb4f6b6"
+    },
+    {
+      "name": "EMOVCSCAG3C.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMOVCSCAG3C.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "09f75d128061fcdc6d31d8317ce3fe0aea4dab2c66777ce548858dd23f763ce7",
+      "complete_spki_sha256": "92c063d67e8f14db71d288e11266ffdaf69cbf115f7bab14f3bc2f68d25e0e30"
+    },
+    {
+      "name": "EMOVTLSCAG3B.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMOVTLSCAG3B.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "7f09de2d155cc9fbc2dc4585f2c134ea3fc04ea9d9b3e31fa2d6bf9fdc0a02a2",
+      "complete_spki_sha256": "43bffa19d6ef651451f6841e019931e96f6f2eaeff28ab4b6f1ce4576de2717b"
+    },
+    {
+      "name": "EMOVTLSCAG3C.spki.der",
+      "source": "https://raw.githubusercontent.com/rustls/webpki/e981b775c50fe3d7f7802127164673e8043b0523/src/data/distrusted/EMOVTLSCAG3C.spki.der",
+      "upstream_bytes": 118,
+      "full_der_bytes": 120,
+      "upstream_contents_sha256": "6fc13706463e00b2cd2ae357f86de2441e59d501e322c7a02a531a9871e450f6",
+      "complete_spki_sha256": "63ecefee431d49523bc1136c4e72d0206a477086caf606cd5cf025686c109cf8"
+    }
+  ]
+}

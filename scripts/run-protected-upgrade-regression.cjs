@@ -40,7 +40,7 @@ function checkedCurrentBackend(checkout) {
 historical.checkedBackend = checkedCurrentBackend;
 
 function main() {
-  assert.ok(historical.supportedNode(process.versions.node), 'Use Node22.23.3 or a later22.x patch');
+  assert.ok(historical.supportedNode(process.versions.node), 'Use Node22.23.4 or a later22.x patch');
   const checkout = checkedCurrentBackend(process.env.KEEPER_PROTECTED_RELAY_CHECKOUT);
   const mongo = historical.disposableMongoUrl(process.env.BACKUP_TEST_MONGO_URL);
   const app = path.resolve(__dirname, '..');

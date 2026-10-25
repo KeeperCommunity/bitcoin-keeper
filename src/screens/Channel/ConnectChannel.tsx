@@ -21,7 +21,6 @@ import { setSigningDevices } from 'src/store/reducers/bhr';
 import Text from 'src/components/KeeperText';
 import crypto from 'crypto';
 import {
-  createCipherGcm,
   createDecipherGcm,
   generateOutputDescriptors,
   generateVaultAddressDescriptors,
@@ -38,7 +37,7 @@ import ReceiveAddress from '../Recieve/ReceiveAddress';
 import ReceiveQR from '../Recieve/ReceiveQR';
 import ChannelRequestScanner from 'src/services/channel/ChannelRequestScanner';
 import { getUSBSignerDetails } from 'src/hardware/usbSigner';
-import { InvalidChannelQRCodeError } from 'src/services/channel/crypto';
+import { createChannelRequestData, InvalidChannelQRCodeError } from 'src/services/channel/crypto';
 import { SignerType, VaultType } from 'src/services/wallets/enums';
 import WalletOperations from 'src/services/wallets/operations';
 import { getKeyUID } from 'src/utils/utilities';
@@ -164,8 +163,8 @@ function ConnectChannel() {
           mode === InteracationMode.ADDRESS_VERIFICATION
             ? EMIT_MODES.VERIFY_ADDRESS
             : mode == EMIT_MODES.HEALTH_CHECK
-            ? EMIT_MODES.HEALTH_CHECK
-            : EMIT_MODES.ADD_DEVICE,
+              ? EMIT_MODES.HEALTH_CHECK
+              : EMIT_MODES.ADD_DEVICE,
         signerType,
       };
       if (mode === InteracationMode.ADDRESS_VERIFICATION) {
@@ -178,7 +177,11 @@ function ConnectChannel() {
       } else {
         requestBody.accountNumber = accountNumber;
       }
-      const requestData = createCipherGcm(JSON.stringify(requestBody), decryptionKey.current);
+      const requestData = createChannelRequestData(
+        requestBody,
+        bitcoinNetworkType,
+        decryptionKey.current
+      );
       channel.emit(JOIN_CHANNEL, {
         room,
         network: bitcoinNetworkType,

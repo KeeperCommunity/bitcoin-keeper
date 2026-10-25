@@ -1,0 +1,21 @@
+{
+  "source": "https://github.com/nodejs/node/commit/68fa0df6d620afc79fd2d642a406b2c41cde9dc9",
+  "upstream_store": "https://raw.githubusercontent.com/nss-dev/nss/NSS_3_131_1_RTM/lib/ckfw/builtins/certdata.txt",
+  "note": "Public certificates removed by Node NSS3.131.1 update. These fixtures are never installed into app trust.",
+  "roots": [
+    {
+      "file": "emSign_ECC_Root_CA_-_C3.pem",
+      "certificate_der_sha256": "bc4d809b15189d78db3e1d8cf4f9726a795da1643ca5f1358e1ddb0edc0d7eb3"
+    },
+    {
+      "file": "emSign_ECC_Root_CA_-_G3.pem",
+      "certificate_der_sha256": "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b"
+    },
+    {
+      "file": "emSign_Root_CA_-_C1.pem",
+      "certificate_der_sha256": "125609aa301da0a249b97a8239cb6a34216f44dcac9f3954b14292f2e8c8608f"
+    }
+  ],
+  "extracted_from": "https://raw.githubusercontent.com/nodejs/node/a538a9515d679eaa0835b128b7fd3ec569fd4668/src/node_root_certs.h",
+  "extraction": "Public PEM blocks for named roots, parent of removal commit; decoded quoted C strings without alteration."
+}

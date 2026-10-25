@@ -7,8 +7,8 @@ const { test } = require('node:test');
 const { supportedNode, disposableMongoUrl, checkedBackend } = require('./run-protected-backup-genuine.cjs');
 
 test('protected proof requires the reviewed current22 runtime without accepting other majors or prereleases', () => {
-  for (const version of ['22.23.3', 'v22.23.4', '22.24.0']) assert.equal(supportedNode(version), true);
-  for (const version of ['22.16.0', '22.23.2', '20.23.3', '23.0.0', '22.23.3-rc.1', 'invalid'])
+  for (const version of ['22.23.4', 'v22.23.4', '22.24.0']) assert.equal(supportedNode(version), true);
+  for (const version of ['22.16.0', '22.23.2', '22.23.3', '20.23.3', '23.0.0', '22.23.4-rc.1', 'invalid'])
     assert.equal(supportedNode(version), false);
 });
 

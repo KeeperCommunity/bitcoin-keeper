@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '22.23.3'
+          node-version: '22.23.4'
       - name: Verify exact event source before setup
         run: node .github/scripts/verify-ci-source.cjs
       - name: Install isolated locked contract tools without lifecycle scripts

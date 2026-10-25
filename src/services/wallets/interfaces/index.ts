@@ -199,6 +199,8 @@ export interface NodeDetail {
   isConnected: boolean;
   useKeeperNode: boolean;
   useSSL: boolean;
+  /** Explicit trust supplied by the private node operator; never learned from the server. */
+  tlsCa?: string | null;
   networkType: NetworkType;
 }
 

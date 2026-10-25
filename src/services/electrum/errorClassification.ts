@@ -17,7 +17,7 @@ export const classifyElectrumConnectionError = (
   const message = getErrorMessage(error).toLowerCase();
 
   if (
-    /(certpathvalidatorexception|trust anchor|certificate path|valid certification path|sslhandshakeexception|certificate verify|hostname.*(mismatch|verif))/.test(
+    /(certpathvalidatorexception|trust anchor|certificate path|valid certification path|sslhandshakeexception|certificate verify|tls certificate|hostname.*(mismatch|verif))/.test(
       message
     )
   ) {

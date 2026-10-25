@@ -26,6 +26,18 @@ export const createCipherGcm = (data: string, password: string) => {
   };
 };
 
+// The chain is action data: authenticate it with the request, never just relay it.
+export const createChannelRequestData = (
+  data: Record<string, unknown>,
+  network: string,
+  password: string
+) => {
+  if (network !== 'MAINNET' && network !== 'TESTNET') {
+    throw new Error('Unsupported channel network');
+  }
+  return createCipherGcm(JSON.stringify({ ...data, network }), password);
+};
+
 interface DecryptData {
   iv: string;
   encryptedData: string;
