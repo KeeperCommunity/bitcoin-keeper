@@ -942,6 +942,25 @@ def driver():
     except Exception as error:
         original_error = error
         details['error_type'] = type(error).__name__
+        if device:
+            # Reuse the setup-only collector while the owned device and private
+            # XCTest logs still exist. Observation never replaces this failure.
+            try:
+                spec = importlib.util.spec_from_file_location('driver_failure_diagnosis',
+                    Path(__file__).with_name('driver_diagnosis.py'))
+                observer = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(observer)
+                observer.native = SimpleNamespace(PRIVATE=PRIVATE)
+                diagnosis = observer.collect(device, read())
+            except Exception:
+                diagnosis = {'scope': 'Before owned simulator cleanup; driver setup only.',
+                    'collection_errors': [{'stage': 'pre_cleanup', 'error_type': 'OTHER_ERROR'}]}
+            try:
+                data = read()
+                data['driver_diagnosis'] = diagnosis
+                save(data)
+            except Exception:
+                pass  # Preserve the primary driver failure even if its receipt fails.
         raise
     finally:
         if device:
