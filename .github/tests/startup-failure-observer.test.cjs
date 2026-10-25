@@ -127,13 +127,14 @@ function navigate({ read, replace, current = true, report } = {}) {
     ts.forEachChild(node, visit);
   }
   visit(tree); assert.ok(selected);
-  const failures = [], flags = [], reads = [], marker = () => {};
+  const failures = [], flags = [], reads = [], boundaries = [], marker = () => {};
   const context = { current, readPending: { current: true }, setStartupError: value => flags.push(value),
     SecureStore: { hasPin(...args) { reads.push(args); return read(); } },
     startupFailureObserver: marker, reportStartupFailure: report || ((...args) => failures.push(args)),
+    observeStartupBoundary: (...args) => boundaries.push(args),
     navigation: { replace }, exports: {} };
   vm.runInNewContext(ts.transpileModule('exports.run = ' + selected, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText, context);
-  return { run: context.exports.run, failures, flags, reads, marker, context };
+  return { run: context.exports.run, failures, flags, reads, boundaries, marker, context };
 }
 
 test('actual Splash closure records navigation throws separately without duplicating credential failures', async () => {
@@ -143,8 +144,14 @@ test('actual Splash closure records navigation throws separately without duplica
   assert.deepEqual(nav.failures[0].slice(1, 3), ['NAVIGATION', 'THREW']);
   assert.equal(nav.failures[0][3], error); assert.deepEqual(nav.flags, [true]);
   assert.equal(nav.reads.length, 1); assert.equal(nav.reads[0][1], nav.marker);
+  assert.deepEqual(nav.boundaries, [
+    ['CREDENTIAL_PROBE_ENTERED'], ['CREDENTIAL_PROBE_RESOLVED'],
+    ['ROUTE_REPLACE_ENTERED'], ['ROUTE_REPLACE_THROWN'],
+  ]);
   const native = navigate({ read: () => Promise.reject(error), replace() { throw new Error('must not navigate'); } });
   await native.run(); assert.deepEqual(native.failures, []); assert.deepEqual(native.flags, [true]);
+  assert.deepEqual(native.boundaries, [['CREDENTIAL_PROBE_ENTERED'], ['CREDENTIAL_PROBE_REJECTED']]);
   const stale = navigate({ current: false, read: () => Promise.resolve(true), replace() { throw new Error('must not navigate'); } });
   await stale.run(); assert.deepEqual(stale.flags, []); assert.deepEqual(stale.failures, []);
+  assert.deepEqual(stale.boundaries, [['CREDENTIAL_PROBE_ENTERED'], ['CREDENTIAL_PROBE_RESOLVED']]);
 });
