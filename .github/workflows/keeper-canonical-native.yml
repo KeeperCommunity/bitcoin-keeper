@@ -40,6 +40,7 @@ jobs:
             try {
               // Remove read credentials before raw-source Git/Python subprocesses.
               const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
+              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN };
               delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
               delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
               // Pinned source bootstrap: validate captured bytes before importing repository code.
@@ -107,6 +108,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+          KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
           IOS_RESULT: ${{ needs.ios.result }}
           ANDROID_RESULT: ${{ needs.android.result }}
         with:
@@ -117,6 +119,7 @@ jobs:
               }
               // Remove read credentials before raw-source Git/Python subprocesses.
               const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
+              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN };
               delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
               delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
               // Pinned source bootstrap: validate captured bytes before importing repository code.
@@ -142,7 +145,8 @@ jobs:
               const driver = require('./.github/native/canonical_native.cjs');
               const pinReader = driver.pinReaderFromEnvironment(github, pinEnv);
               const request = driver.requestFromEnvironment(context, process.env);
-              await driver.collect(github, context, request, 'artifacts/canonical-native', driver.readMetadataZip, { pinReader });
+              const privateGithub = driver.privateReaderFromEnvironment(github, privateEnv);
+              await driver.collect(github, context, request, 'artifacts/canonical-native', driver.readMetadataZip, { pinReader, privateGithub });
             } catch {
               core.setFailed('Canonical software matrix incomplete or exact Actions/receipt provenance invalid. No release authorization.');
             }

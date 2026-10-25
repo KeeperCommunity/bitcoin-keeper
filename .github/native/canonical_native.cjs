@@ -54,6 +54,17 @@ function pinReaderFromEnvironment(github, env) {
   return new github.constructor({ auth: token });
 }
 
+function privateReaderFromEnvironment(github, env) {
+  const token = env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+  delete env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+  // Missing private identity preserves incomplete readiness; it never borrows
+  // the public Actions client or its token to produce parent facts.
+  if (token === undefined || token === '') return undefined;
+  demand(typeof token === 'string' && token.trim().length > 0, 'PRIVATE_ACTIONS_READ_IDENTITY_INVALID');
+  try { return new github.constructor({ auth: token }); }
+  catch { throw new Error('PRIVATE_ACTIONS_READ_IDENTITY_INVALID'); }
+}
+
 async function origin(github, context, request, { admission = false, pinReader } = {}) {
   demand(typeof pinReader?.rest?.actions?.getRepoVariable === 'function', 'LIVE_DRIVER_PIN_IDENTITY_REQUIRED');
   const args = context.repo;
@@ -266,15 +277,22 @@ async function collectInstalledPublicEvidence(github, context, request, readZip,
   return result;
 }
 
-async function collect(github, context, request, output, readZip, { pinReader } = {}) {
+async function collect(github, context, request, output, readZip, { pinReader, privateGithub, clock, fetchImpl } = {}) {
   fs.rmSync(path.join(output, 'keeper-canonical-native-attestation.json'), { force: true });
   const publicProof = await collectPublic(github, context, request, readZip, { pinReader });
   const { kind, worker_sources, ...publicFields } = publicProof;
-  // Admission is a separate source capability; the parent collector is stacked
-  // separately. Public raw facts alone keep all five parents blocking.
-  const complete = Object.values(publicProof.platforms).every(item => item.cases.length === REQUIRED.length &&
+  // No default-token fallback: parent collection requires an explicitly supplied
+  // separate read identity and a genuinely installed, finite source profile.
+  let platforms = publicProof.platforms;
+  if (privateGithub !== undefined) {
+    const parents = require('./installed_parent_software.cjs');
+    const privateProof = await parents.collectInstalledParentSoftware(privateGithub, github, context, request,
+      publicProof, { pinReader, clock, fetchImpl });
+    platforms = parents.projectInstalledParentCases(publicProof, privateProof);
+  }
+  const complete = Object.values(platforms).every(item => item.cases.length === REQUIRED.length &&
     item.cases.every(test => test.status === 'PASS') && Object.values(item.executed_checks).every(test => test.status === 'PASS'));
-  const result = { ...publicFields, kind: 'keeper-canonical-native', feature_matrix_complete: complete };
+  const result = { ...publicFields, platforms, kind: 'keeper-canonical-native', feature_matrix_complete: complete };
   fs.mkdirSync(output, { recursive: true });
   fs.writeFileSync(path.join(output, complete ? 'keeper-canonical-native-attestation.json' :
     'keeper-canonical-native-readiness.json'), JSON.stringify(result, null, 2) + '\n');
@@ -290,6 +308,6 @@ function readMetadataZip(archive) {
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 }
 module.exports = { REPOSITORY, REPOSITORY_ID, WORKFLOW, WORKER, APP_ID, requestFromEnvironment,
-  pinReaderFromEnvironment, origin, requiredSteps, platformJobs, validateMetadata, collect,
+  pinReaderFromEnvironment, privateReaderFromEnvironment, origin, requiredSteps, platformJobs, validateMetadata, collect,
   artifactName, attestationName, readMetadataZip, collectInstalledPublicEvidence,
   isInstalledPublicEvidence: value => publicProofs.has(value) };

@@ -37,12 +37,27 @@ const safePath = p => typeof p === 'string' && p.length <= 4096 && /^[A-Za-z0-9_
   !p.startsWith('/') && p.split('/').every(s => s && s !== '.' && s !== '..');
 const api = repository => ({ owner: 'KeeperCommunity', repo: repository.split('/')[1], request: { timeout: 30000 } });
 function data(r) { demand(r?.status === 200 && object(r.data) && !/rel="next"/.test(r.headers?.link || ''), 'PRIVATE_ACTIONS_API_INCOMPLETE'); return r.data; }
-function complete(r, field) {
-  const value = data(r);
-  demand(id(value.total_count) && value.total_count <= 100 && Array.isArray(value[field]) &&
-    value[field].length === value.total_count && new Set(value[field].map(v => v.id)).size === value.total_count &&
-    value[field].every(v => id(v.id)), 'PRIVATE_ACTIONS_API_INCOMPLETE');
-  return value[field];
+async function complete(endpoint, args, field) {
+  const rows = [], ids = new Set();
+  let total;
+  for (let page = 1; page <= 10; page++) {
+    // Construct each page against the same fixed SDK endpoint/arguments. Never
+    // follow an API-supplied URL or silently drop older/failed attempts.
+    const response = await endpoint({ ...args, per_page: 100, page }), value = response?.data;
+    demand(response?.status === 200 && object(value) && id(value.total_count) && value.total_count <= 1000 &&
+      (total === undefined || value.total_count === total) && Array.isArray(value[field]) &&
+      value[field].length > 0 && value[field].length <= 100, 'PRIVATE_ACTIONS_API_INCOMPLETE');
+    total = value.total_count;
+    for (const row of value[field]) {
+      demand(id(row?.id) && !ids.has(row.id), 'PRIVATE_ACTIONS_API_INCOMPLETE');
+      ids.add(row.id); rows.push(row);
+    }
+    const more = /rel="next"/.test(response.headers?.link || '');
+    demand(rows.length <= total && more === (rows.length < total), 'PRIVATE_ACTIONS_API_INCOMPLETE');
+    if (!more) return rows;
+    demand(value[field].length === 100, 'PRIVATE_ACTIONS_API_INCOMPLETE');
+  }
+  throw new Error('PRIVATE_ACTIONS_API_INCOMPLETE');
 }
 function repository(value, name, number) { return value?.id === number && value.full_name === name; }
 function descriptor(value, platform) {
@@ -123,8 +138,8 @@ async function selectedJob(github, value, run, now) {
   const suite = data(await github.rest.checks.getSuite({ ...args, check_suite_id: run.check_suite_id }));
   demand(suite.id === run.check_suite_id && suite.head_sha === control.sha && suite.status === 'completed' &&
     suite.conclusion === 'success' && suite.app?.id === 15368 && suite.app.slug === 'github-actions', 'PRIVATE_ACTIONS_SUITE_INVALID');
-  const jobs = complete(await github.rest.actions.listJobsForWorkflowRunAttempt({ ...args, run_id: e.runId,
-    attempt_number: e.runAttempt, per_page: 100 }), 'jobs');
+  const jobs = await complete(github.rest.actions.listJobsForWorkflowRunAttempt, { ...args, run_id: e.runId,
+    attempt_number: e.runAttempt }, 'jobs');
   demand(jobs.length === 1, 'PRIVATE_ACTIONS_JOB_INVALID');
   const job = jobs[0], match = job.check_run_url?.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper-relay\/check-runs\/([1-9]\d*)$/);
   demand(job.name === 'native' && job.run_id === e.runId && job.run_attempt === e.runAttempt && job.head_sha === control.sha &&
@@ -148,8 +163,8 @@ async function selectedJob(github, value, run, now) {
 }
 async function windowOrigin(github, value, workflow, backendTree, baselinePolicy, now) {
   const { platform, control, execution: e, app } = value, args = api(PRIVATE);
-  const runs = complete(await github.rest.actions.listWorkflowRuns({ ...args, workflow_id: workflow.id,
-    head_sha: control.sha, branch: REF.slice(11), event: 'push', per_page: 100 }), 'workflow_runs');
+  const runs = await complete(github.rest.actions.listWorkflowRuns, { ...args, workflow_id: workflow.id,
+    head_sha: control.sha, branch: REF.slice(11), event: 'push' }, 'workflow_runs');
   demand(Math.max(...runs.map(r => r.id)) === e.runId, 'PRIVATE_ACTIONS_LATEST_RUN_REQUIRED');
   const [run, commit, rawTree] = await Promise.all([
     github.rest.actions.getWorkflowRun({ ...args, run_id: e.runId }).then(data),
@@ -180,7 +195,7 @@ async function windowOrigin(github, value, workflow, backendTree, baselinePolicy
   demand(workflowText.includes(`KEEPER_SOURCE_SHA: ${app.sha}`) &&
     workflowText.includes(`origin ${app.sha}`) && workflowText.includes(`--detach ${app.sha}`), 'PRIVATE_ACTIONS_APP_SELECTION_INVALID');
   const selected = await selectedJob(github, value, run, now);
-  const artifacts = complete(await github.rest.actions.listWorkflowRunArtifacts({ ...args, run_id: e.runId, per_page: 100 }), 'artifacts');
+  const artifacts = await complete(github.rest.actions.listWorkflowRunArtifacts, { ...args, run_id: e.runId }, 'artifacts');
   const name = `r5-integration-native-${platform}-${control.sha}-${e.runId}-${e.runAttempt}`;
   const found = artifacts.filter(a => a.name === name);
   demand(found.length === 1, 'PRIVATE_ACTIONS_ARTIFACT_INVALID');
@@ -238,15 +253,15 @@ async function authenticatePrivateActionsOrigins(github, supplied, { clock = Dat
     // rerun or changed artifact before issuing even this diagnostic-only origin.
     for (const p of ['IOS', 'ANDROID']) {
       const row = rows[p], e = expected[p].execution;
-      const latest = complete(await github.rest.actions.listWorkflowRuns({ ...args, workflow_id: workflow.id,
-        head_sha: expected[p].control.sha, branch: REF.slice(11), event: 'push', per_page: 100 }), 'workflow_runs');
+      const latest = await complete(github.rest.actions.listWorkflowRuns, { ...args, workflow_id: workflow.id,
+        head_sha: expected[p].control.sha, branch: REF.slice(11), event: 'push' }, 'workflow_runs');
       const run = data(await github.rest.actions.getWorkflowRun({ ...args, run_id: e.runId }));
       demand(Math.max(...latest.map(r => r.id)) === e.runId && run.check_suite_id === row.check_suite_id &&
         latest.some(r => r.id === e.runId && r.run_attempt === e.runAttempt && r.head_sha === expected[p].control.sha), 'PRIVATE_ACTIONS_EXACT_RUN_REQUIRED');
       runIdentity(run, expected[p], workflow, clock());
       demand(equal(await selectedJob(github, expected[p], run, clock()), { check_suite_id: row.check_suite_id,
         job_id: row.job_id, check_run_id: row.check_run_id, started_at: row.started_at, completed_at: row.completed_at }), 'PRIVATE_ACTIONS_JOB_CHANGED');
-      const currentArtifacts = complete(await github.rest.actions.listWorkflowRunArtifacts({ ...args, run_id: e.runId, per_page: 100 }), 'artifacts');
+      const currentArtifacts = await complete(github.rest.actions.listWorkflowRunArtifacts, { ...args, run_id: e.runId }, 'artifacts');
       const selected = currentArtifacts.filter(a => a.name === row.artifact.name);
       demand(selected.length === 1 && selected[0].id === row.artifact.id,
         'PRIVATE_ACTIONS_ARTIFACT_INVALID');
@@ -264,8 +279,8 @@ async function authenticatePrivateActionsOrigins(github, supplied, { clock = Dat
       github.rest.repos.get(args).then(data),
       ...['IOS', 'ANDROID'].flatMap(p => {
         const e = expected[p].execution;
-        return [github.rest.actions.listWorkflowRuns({ ...args, workflow_id: workflow.id, head_sha: expected[p].control.sha,
-          branch: REF.slice(11), event: 'push', per_page: 100 }).then(r => complete(r, 'workflow_runs')),
+        return [complete(github.rest.actions.listWorkflowRuns, { ...args, workflow_id: workflow.id, head_sha: expected[p].control.sha,
+          branch: REF.slice(11), event: 'push' }, 'workflow_runs'),
         github.rest.actions.getWorkflowRun({ ...args, run_id: e.runId }).then(data)];
       }),
     ]);

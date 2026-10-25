@@ -51,6 +51,7 @@ jobs:
             try {
               // Remove read credentials before raw-source Git/Python subprocesses.
               const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
+              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN };
               delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
               delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
               // Pinned source bootstrap: validate captured bytes before importing repository code.
