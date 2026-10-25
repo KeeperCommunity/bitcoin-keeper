@@ -1,0 +1,83 @@
+name: Keeper private iOS launch investigation
+on:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: private-ios-launch-debug-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  investigate:
+    if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-launch-debug' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    runs-on: macos-15-intel
+    timeout-minutes: 150
+    env:
+      CI: 'true'
+      HUSKY: '0'
+      KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_NATIVE_PLATFORM: IOS
+      KEEPER_DIAGNOSTIC: 'true'
+      KEEPER_PRIVATE_IOS_LAUNCH_DEBUG: '1'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out exact private source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify selected private source and opt-in
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data: repo } = await github.rest.repos.get(context.repo);
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
+            if (repo.id !== 839671816 || !repo.private || pr.head.repo.id !== repo.id || pr.head.sha !== process.env.KEEPER_SOURCE_SHA || !pr.labels.some(x => x.name === 'keeper/ios-launch-debug') || pr.labels.some(x => x.name === 'keeper/native-diagnostic')) {
+              core.setFailed('Private debug selection moved or is not authorized.');
+            }
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.4'
+          cache: yarn
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - name: Record exact toolchain
+        run: python3 .github/native/hosted_native.py record
+      - name: Install immutable native dependencies
+        run: python3 .github/native/hosted_native.py prepare
+      - name: Verify disposable driver readiness
+        run: python3 .github/native/hosted_native.py driver
+      - name: Build simulator app once
+        run: python3 .github/native/hosted_native.py build
+      - name: Capture original launch failure before cleanup
+        run: python3 .github/native/ios_launch_debug.py run
+      - name: Retain exact build and scoped private error evidence
+        if: always()
+        run: python3 .github/native/ios_launch_debug.py retain
+      - name: Upload private launch evidence for one day
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-launch-debug-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-launch-debug/
+          retention-days: 1
+          if-no-files-found: warn
+      - name: Upload exact reusable simulator build for one day
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-simulator-app-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-simulator-app/
+          retention-days: 1
+          if-no-files-found: warn

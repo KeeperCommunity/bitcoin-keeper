@@ -1225,7 +1225,9 @@ def collect_r5_feature_evidence(device):
     return validate_r5_feature_evidence(raw)
 
 
-def smoke(suite='startup'):
+def smoke(suite='startup', debug_session=None):
+    if debug_session is not None and (PLATFORM != 'IOS' or suite != 'startup'):
+        raise ValueError('Private launch capture is limited to iOS startup.')
     if suite not in ['startup', 'probe', 'features']:
         raise ValueError('Unknown disposable native suite.')
     is_probe = suite == 'probe'
@@ -1341,6 +1343,8 @@ def smoke(suite='startup'):
             except Exception:
                 data['startup_observation_capture'] = 'UNAVAILABLE'
                 save(data)
+        if debug_session is not None:
+            debug_session.start(device)
         command([data['maestro']['binary'], '--device', device, 'test', '--env', 'APP_ID=' + APP_IDS[PLATFORM],
                  '--flatten-debug-output', '--debug-output', str(PRIVATE / 'maestro-output'),
                  '--format', 'junit', '--output', str(report), '--test-output-dir', str(PRIVATE / 'maestro-output'),
@@ -1365,6 +1369,11 @@ def smoke(suite='startup'):
         save(data)
     except Exception as original_error:
         startup_error = original_error
+        if debug_session is not None:
+            try:
+                debug_session.freeze()  # Keep the late refusal before unrelated post-failure queries.
+            except Exception:
+                pass  # The original smoke failure remains authoritative.
         try:
             if not (is_probe or is_features):
                 record_startup_failure(report, device, getattr(startup_capture, 'started_ms', None))
@@ -1423,7 +1432,10 @@ def smoke(suite='startup'):
             if 'startup_capture' in cleanup_errors:
                 updates['startup_observation_cleanup'] = 'FAIL'
 
-        if startup_error is not None and PLATFORM == 'IOS' and device and not (is_probe or is_features):
+        if debug_session is not None and device:
+            cleanup('private_launch_debug', lambda: debug_session.finish(device, startup_error))
+
+        if debug_session is None and startup_error is not None and PLATFORM == 'IOS' and device and not (is_probe or is_features):
             # Original failure diagnostics are already frozen. This one later
             # launch cannot repair smoke or unlock subsequent acceptance phases.
             try:
