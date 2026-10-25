@@ -1404,6 +1404,21 @@ def smoke(suite='startup'):
             if 'startup_capture' in cleanup_errors:
                 updates['startup_observation_cleanup'] = 'FAIL'
 
+        if startup_error is not None and PLATFORM == 'IOS' and device and not (is_probe or is_features):
+            # Original failure diagnostics are already frozen. This one later
+            # launch cannot repair smoke or unlock subsequent acceptance phases.
+            try:
+                spec = importlib.util.spec_from_file_location('ios_direct_launch_observation',
+                    Path(__file__).with_name('ios_direct_launch_observation.py'))
+                observer = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(observer)
+                updates['ios_direct_launch_observation'] = observer.collect(
+                    SimpleNamespace(PLATFORM=PLATFORM, PRIVATE=PRIVATE, read=read,
+                                    original_smoke_failed=True), device)
+            except Exception:
+                updates['ios_direct_launch_observation'] = {
+                    'state': 'UNAVAILABLE', 'native_acceptance': False}
+
         def stop_metro():
             if metro.poll() is None:
                 os.killpg(metro.pid, signal.SIGTERM)

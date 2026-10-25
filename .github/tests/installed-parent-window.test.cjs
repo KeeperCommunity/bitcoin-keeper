@@ -3,10 +3,10 @@ const { test } = require('node:test'), assert = require('node:assert/strict');
 const actual = require('../native/installed_parent_window.cjs');
 const { canonicalFixture, withWindow, loadWindow } = require('./fixtures/installed-parent.cjs');
 const auth = (driver, f) => driver.authenticateInstalledParentWindow(f.github, f.context, f.request, { pinReader: f.pinReader });
-test('actual empty installed policy blocks before any public/private API access', async () => {
+test('finite committed policy rejects an unselected test profile before private collection', async () => {
   const f = withWindow(canonicalFixture());
   await assert.rejects(auth(actual, f), /^Error: INSTALLED_PARENT_PROFILE_REQUIRED$/);
-  assert.deepEqual(f.calls, []); assert.equal(f.windowReads, 0);
+  assert(f.calls.length > 0); assert.equal(f.windowReads, 1);
   for (const value of [undefined, {}, { kind: 'installed-reviewed-private-window', status: 'PASS' }])
     assert.equal(actual.isInstalledParentWindow(value), false);
 });
@@ -70,4 +70,20 @@ test('live manifest bytes, public pin and protected source are rechecked and rev
     const driver = loadWindow(), f = withWindow(canonicalFixture()), cap = await auth(driver, f); change(f);
     await assert.rejects(driver.revalidateInstalledParentWindow(f.github, f.context, f.request, cap, { pinReader: f.pinReader }));
   }
+});
+test('one finite f0 profile admits the selected exact window without embedding app or controller identities', async () => {
+  const f = withWindow(canonicalFixture()); f.window.profile = 'r5-f0-intel-20261025';
+  const proof = await auth(actual, f);
+  assert.equal(actual.isInstalledParentWindow(proof), true);
+  assert.equal(proof.profile, f.window.profile);
+  assert.equal(proof.app.sha, f.request.sourceSha);
+  assert.equal(proof.expectedPerPlatform.IOS.execution.ref, 'refs/heads/codex/r5-cloud-native-execution-20261025');
+  assert.equal(proof.execution_allowed, false); assert.equal(proof.release_ready, false);
+  const fs = require('node:fs'), path = require('node:path');
+  const text = fs.readFileSync(path.resolve(__dirname, '../native/installed_parent_window.cjs'), 'utf8');
+  const table = text.slice(text.indexOf('const INSTALLED_PROFILES ='), text.indexOf('\nconst issued'));
+  assert(!table.includes(f.request.sourceSha));
+  assert(!table.includes(f.window.app.tree));
+  assert(!table.includes(f.window.private.IOS.control.sha));
+  assert(!table.includes(f.window.private.ANDROID.control.sha));
 });

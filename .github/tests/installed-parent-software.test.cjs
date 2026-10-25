@@ -12,7 +12,7 @@ function loadSimulatedInstalledCollector() {
   const file = path.resolve(__dirname, '../native/installed_parent_software.cjs'), originalRequire = createRequire(file);
   const admitted = loadWindow(), module = { exports: {} };
   // Explicit synthetic source copy, matching the existing installed-policy controls.
-  // No production option can populate the empty committed profile.
+  // No production option can populate or extend the finite committed profile.
   new Function('require', 'module', fs.readFileSync(file, 'utf8'))(name =>
     name === './installed_parent_window.cjs' ? admitted : originalRequire(name), module);
   return module.exports;
@@ -35,7 +35,7 @@ async function fixture() {
 }
 const collect = (driver, { p, f, proof }) => driver.collectInstalledParentSoftware(f.github, p.github,
   p.context, p.request, proof, { pinReader: p.pinReader, fetchImpl: f.fetchImpl, clock: () => f.now });
-test('committed empty profile blocks all real parent collection before private API or download', async () => {
+test('committed finite profile rejects an unselected test profile before private API or download', async () => {
   const f = await fixture();
   await assert.rejects(collect(actual, f), /^Error: INSTALLED_PARENT_PROFILE_REQUIRED$/);
   assert.deepEqual(f.f.calls, []); assert.deepEqual(f.f.downloads, []);
@@ -135,7 +135,7 @@ test('public authority refresh accepts only its exact branded request and origin
   await assert.rejects(canonical.revalidateInstalledPublicEvidence(f.p.github, f.p.context,
     { ...f.p.request, runId: 401 }, f.proof, { pinReader: f.p.pinReader }), /PUBLIC_WINDOW_MISMATCH/);
 });
-test('canonical collection cannot issue parent credit with an explicit client and empty installed policy', async () => {
+test('canonical collection cannot issue parent credit for an unselected installed profile', async () => {
   const f = await fixture(), output = fs.mkdtempSync(path.join(os.tmpdir(), 'keeper-no-installed-parent-'));
   try {
     fs.writeFileSync(path.join(output, 'keeper-canonical-native-attestation.json'), 'stale');

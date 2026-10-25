@@ -7,9 +7,9 @@ const { WORKER_SOURCES } = require('./public_software_receipts.cjs');
 const PRIVATE = 'KeeperCommunity/bitcoin-keeper-relay', PRIVATE_ID = 496119449;
 const APP = 'KeeperCommunity/bitcoin-keeper', APP_ID = 470904030;
 const BACKEND = '29597b27eeeb299205bf7d0555db0a90c38cc4be';
-const REVIEWED_DRIVER = '448e09d7a373fc7e9d9c540880b45e2c742997f7';
+const REVIEWED_DRIVER = 'f0a695a6bba068ba93962e90ab52e8901ef4a852';
 const WORKFLOW = '.github/workflows/r5-native-integration.yml';
-const REF = 'refs/heads/codex/r5-native-integration-execution-20261022';
+const REF = 'refs/heads/codex/r5-cloud-native-execution-20261025';
 const POLICY = 'release/r5-native-integration/inputs.json';
 const MARKER = 'release/r5-native-integration/native-request.json';
 const MAX_AGE = 86400000, MAX_ARCHIVE = 12 * 1024 * 1024;
@@ -144,7 +144,7 @@ async function selectedJob(github, value, run, now) {
   const job = jobs[0], match = job.check_run_url?.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper-relay\/check-runs\/([1-9]\d*)$/);
   demand(job.name === 'native' && job.run_id === e.runId && job.run_attempt === e.runAttempt && job.head_sha === control.sha &&
     job.status === 'completed' && job.conclusion === 'success' && match && id(Number(match[1])) &&
-    Array.isArray(job.labels) && job.labels.includes(platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04') &&
+    Array.isArray(job.labels) && job.labels.includes(platform === 'IOS' ? 'macos-15-intel' : 'ubuntu-24.04') &&
     !job.labels.includes('self-hosted') && instant(job.started_at) > 0 &&
     instant(job.completed_at) > instant(job.started_at) && instant(job.completed_at) <= now, 'PRIVATE_ACTIONS_JOB_INVALID');
   for (const name of stepNames(platform)) {

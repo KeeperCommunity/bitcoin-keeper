@@ -1,0 +1,117 @@
+{
+  "baseline": "f0a695a6bba068ba93962e90ab52e8901ef4a852",
+  "baseline_app_sha": "5bb116a530a4f6ebabd85bb3cbed62947c5c028d",
+  "baseline_app_tree": "538974beb448a6d64058fdda384e8c225fc0e42e",
+  "purpose": "Exact baseline selectors for a later separately reviewed preparation; no replacement or execution is performed by this inventory.",
+  "historical_evidence": "Do not replace baseline identities in previous receipts, recorded tested-SHA evidence, original logs or source history. Current preparation docs may describe new selected S only in a new reviewed preparation.",
+  "members": [
+    {
+      "path": ".github/native-account/run.py",
+      "role": "production_native_driver",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-account/test_runner.py",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-account/test_source.py",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-integration/run.py",
+      "role": "production_native_driver",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 1
+    },
+    {
+      "path": ".github/native-protected/run.py",
+      "role": "production_native_driver",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-protected/test_runner.py",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-recovery/admission.py",
+      "role": "production_source_admission_helper",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-recovery/run.py",
+      "role": "production_native_driver",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/native-recovery/test_runner.py",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 2,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": ".github/workflows/r5-native-integration.yml",
+      "role": "workflow_source_selection",
+      "app_sha_occurrences": 3,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": "release/r5-native-integration/admission.md",
+      "role": "current_preparation_documentation",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 1
+    },
+    {
+      "path": "release/r5-native-integration/inputs.json",
+      "role": "admission_input_policy",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 1
+    },
+    {
+      "path": "release/r5-native-integration/readiness.md",
+      "role": "current_preparation_documentation",
+      "app_sha_occurrences": 2,
+      "app_tree_occurrences": 2
+    },
+    {
+      "path": "scripts/native-integration-contract.cjs",
+      "role": "production_source_admission_helper",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 1
+    },
+    {
+      "path": "tests/nativeIntegrationSource.test.cjs",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 1
+    },
+    {
+      "path": "tests/nativeRecoveryFixture.test.cjs",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": "tests/support/nativeAccountFixture.cjs",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    },
+    {
+      "path": "tests/support/publicRecoveryPacket.cjs",
+      "role": "regression_fixture_or_assertion",
+      "app_sha_occurrences": 1,
+      "app_tree_occurrences": 0
+    }
+  ]
+}

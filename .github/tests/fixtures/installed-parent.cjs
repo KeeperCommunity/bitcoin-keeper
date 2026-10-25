@@ -4,8 +4,8 @@ const fs = require('node:fs'), path = require('node:path'), { createRequire } = 
 const root = path.resolve(__dirname, '../../..');
 const profile = { repository: 'KeeperCommunity/bitcoin-keeper-relay', repositoryId: 496119449,
   workflowPath: '.github/workflows/r5-native-integration.yml',
-  ref: 'refs/heads/codex/r5-native-integration-execution-20261022',
-  driverBase: '448e09d7a373fc7e9d9c540880b45e2c742997f7',
+  ref: 'refs/heads/codex/r5-cloud-native-execution-20261025',
+  driverBase: 'f0a695a6bba068ba93962e90ab52e8901ef4a852',
   backendSha: '29597b27eeeb299205bf7d0555db0a90c38cc4be', rawProfile: 'D448_RAW13' };
 function canonicalFixture() {
   const file = path.join(root, '.github/tests/canonical-native.test.cjs');
@@ -44,9 +44,10 @@ function loadWindow({ installed = true, typesOnly = false } = {}) {
   const file = path.join(root, '.github/native/installed_parent_window.cjs');
   let text = fs.readFileSync(file, 'utf8');
   if (installed) {
-    const needle = 'const INSTALLED_PROFILES = Object.freeze({});';
-    if (text.split(needle).length !== 2) throw new Error('policy seam changed');
-    text = text.replace(needle, `const INSTALLED_PROFILES = Object.freeze(${JSON.stringify({ 'synthetic-reviewed-profile': profile })});`);
+    const start = text.indexOf('const INSTALLED_PROFILES = Object.freeze(');
+    const end = text.indexOf(');\nconst issued', start);
+    if (start < 0 || end < start) throw new Error('policy seam changed');
+    text = text.slice(0, start) + `const INSTALLED_PROFILES = Object.freeze(${JSON.stringify({ 'synthetic-reviewed-profile': profile })});` + text.slice(end + 2);
   }
   const module = { exports: {} };
   if (typesOnly) text += '\nmodule.exports.typePredicates = { sha, hex };';

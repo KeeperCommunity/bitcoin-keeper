@@ -222,3 +222,12 @@ test('JSON arrays cannot coerce source expectations or API timestamp/digest scal
     const f = fixture(); mutate(f); await assert.rejects(run(f), /^Error: PRIVATE_ACTIONS_[A-Z_]+$/);
   }
 });
+test('f0 route pins the stable baseline and rejects former host or former execution ref', async () => {
+  const f = fixture(); await run(f);
+  assert(f.calls.some(row => row.name === 'source' && row.args.path === POLICY &&
+    row.args.ref === 'f0a695a6bba068ba93962e90ab52e8901ef4a852'));
+  const host = fixture(); host.jobs[1001][0].labels = ['macos-15'];
+  await assert.rejects(run(host), /PRIVATE_ACTIONS_JOB_INVALID/);
+  const previous = fixture(); previous.expected.IOS.execution.ref = 'refs/heads/codex/r5-native-integration-execution-20261022';
+  await assert.rejects(run(previous), /PRIVATE_ACTIONS_ORIGIN_INVALID/);
+});

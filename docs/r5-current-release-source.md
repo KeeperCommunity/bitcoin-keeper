@@ -3,7 +3,9 @@
 This source package completes a bounded bridge between genuine canonical/native
 software evidence and the four existing protected worker adapters. It is
 **unpublished source implementation**, not an installed release capability or
-R4/R5 acceptance. Production installed-parent profiles remain empty. No real
+R4/R5 acceptance. The active protected source retains empty installed-parent
+profiles. This isolated [finite f0 profile candidate](r5/F0-CONSUMER-PROFILE-CANDIDATE.md)
+is reviewable source only and has not been installed. No real
 operation can cross that boundary, and no signing, upload, dispatch, installation,
 credential provisioning or store action was performed to prepare this package.
 

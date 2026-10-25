@@ -1,6 +1,6 @@
 'use strict';
 // Disposable host-only corpus. Test-only policy installation never changes the
-// committed empty production profile, and no network/native/provider is used.
+// committed finite production profile, and no network/native/provider is used.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), os = require('node:os');
 const { createRequire } = require('node:module');
 const { canonicalFixture, withWindow, loadWindow } = require('../../.github/tests/fixtures/installed-parent.cjs');

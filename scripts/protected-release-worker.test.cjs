@@ -100,6 +100,7 @@ test('old attempt, mismatched producer, untrusted check URL and incomplete pagin
 
 test('dispatch metadata rejects duplicate JSON fields instead of accepting a last value', () => {
   const { env } = fixture();
-  const duplicate = env.KEEPER_RELEASE_REQUEST_JSON.replace('{', '{"build":"1",');
+  assert.ok(env.KEEPER_RELEASE_REQUEST_JSON.startsWith('{'));
+  const duplicate = '{"build":"1",' + env.KEEPER_RELEASE_REQUEST_JSON.slice(1);
   assert.throws(() => workerRequest({ ...env, KEEPER_RELEASE_REQUEST_JSON: duplicate }));
 });
