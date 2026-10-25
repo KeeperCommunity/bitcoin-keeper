@@ -171,6 +171,9 @@ class WorkerTests(unittest.TestCase):
                 upload.assert_called_once(); ios.assert_not_called(); android.assert_not_called()
             receipt = json.loads((root / 'keeper-release-output/receipt.json').read_text())
             self.assertTrue(receipt['storeUploaded']); self.assertFalse(receipt['storeProcessingVerified'])
+            self.assertEqual(receipt['operationScope'], 'SIGNED_BUILD_OR_INTERNAL_UPLOAD_ONLY')
+            self.assertEqual(receipt['physicalAcceptance'], 'NOT_RUN_NOT_WAIVED')
+            self.assertFalse(receipt['publicReleaseReady'])
             self.assertEqual(list((root / 'keeper-release-output').iterdir()), [root / 'keeper-release-output/receipt.json'])
 
     def test_wrong_expected_fingerprint_stops_before_any_native_or_upload_action(self):

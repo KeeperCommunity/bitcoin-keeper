@@ -97,3 +97,9 @@ test('old attempt, mismatched producer, untrusted check URL and incomplete pagin
     assert.throws(() => excludeOwnExecutionChecks(f.request, f.evidence, f.run, f.jobs, f.current));
   }
 });
+
+test('dispatch metadata rejects duplicate JSON fields instead of accepting a last value', () => {
+  const { env } = fixture();
+  const duplicate = env.KEEPER_RELEASE_REQUEST_JSON.replace('{', '{"build":"1",');
+  assert.throws(() => workerRequest({ ...env, KEEPER_RELEASE_REQUEST_JSON: duplicate }));
+});

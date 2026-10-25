@@ -365,7 +365,9 @@ def execute(context, root, private):
         if not signing:
             receipt.update(sourceRunId=context["sourceRunId"], sourceRunAttempt=context["sourceRunAttempt"])
         receipt.update(schema=1, artifactSha256=verified_digest, signatureVerified=True, storeUploaded=not signing,
-                       storeProcessingVerified=False, publicPublication=False)
+                       storeProcessingVerified=False, publicPublication=False,
+                       operationScope="SIGNED_BUILD_OR_INTERNAL_UPLOAD_ONLY",
+                       physicalAcceptance="NOT_RUN_NOT_WAIVED", publicReleaseReady=False)
         if signing:
             copied = output / ("release.ipa" if artifact.suffix == ".ipa" else "release.aab")
             shutil.copyfile(artifact, copied)

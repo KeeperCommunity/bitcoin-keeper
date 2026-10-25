@@ -359,4 +359,4 @@ async function collectTrustedOrigin(request, token, now = Date.now(), pinReadTok
   }
 }
 
-module.exports = { collectTrustedOrigin, isTrustedOrigin: proof => proofs.has(proof), CASES, EXECUTED, PIN, CANONICAL_PATH };
+module.exports = { collectTrustedOrigin, isTrustedOrigin: proof => proofs.has(proof), CASES, EXECUTED, PIN, CANONICAL_PATH, unpackReadOnlyArtifact: unpack };

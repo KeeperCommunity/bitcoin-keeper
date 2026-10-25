@@ -1,5 +1,14 @@
 # Protected release orchestration — Phase B3 candidate
 
+A later [current-installed source bridge candidate](../../docs/r5-current-release-source.md)
+adds genuine same-process SDK/native/security authority for the four bounded
+artifact/internal-upload operations. Production profiles remain empty and all
+real operations remain disabled pending separately reviewed installation and live
+evidence. That successor requires current protected S for uploads too; the
+older-source upload description below is historical and unsupported by the new
+route. Physical acceptance remains NOT RUN / NOT WAIVED and public release is
+not authorized.
+
 These are **implemented future worker candidates, NOT EXECUTED / NOT VERIFIED**. They combine separately reviewable preparation #7072, fail-closed origin guard #7074, worker core #7076 and frozen Ruby inputs #7078. Those producer checkpoints and the primary R5 native candidate are unchanged. No workflow was dispatched, credentials provisioned, signed app built, store contacted, binary uploaded, deployment made or paid setup initiated to prepare this package. Host contracts use synthetic data and fake actions only. Do not treat those contracts as successful remote signing/distribution.
 
 The [manual workflow](../../.github/workflows/keeper-protected-release-workers.yml) has four explicit operations. Each invocation performs exactly one:

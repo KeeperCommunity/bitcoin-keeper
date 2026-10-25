@@ -12,6 +12,13 @@ on:
       - '.github/tests/public-companion-receipts.test.cjs'
       - '.github/tests/fixtures/**'
       - 'scripts/trusted-release-origin*'
+      - 'scripts/current-release-*'
+      - 'scripts/fixtures/current-release-*'
+      - 'scripts/protected-release-*'
+      - '.github/native/**'
+      - '.github/tests/fixtures/**'
+      - '.github/workflows/keeper-protected-release-workers.yml'
+      - 'docs/r5-current-release-source.md'
       - 'scripts/codeql-analysis-receipt*'
       - '.github/workflows/codeql.yml'
       - 'docs/r5-trusted-release-origin.md'
@@ -29,6 +36,13 @@ on:
       - '.github/tests/public-companion-receipts.test.cjs'
       - '.github/tests/fixtures/**'
       - 'scripts/trusted-release-origin*'
+      - 'scripts/current-release-*'
+      - 'scripts/fixtures/current-release-*'
+      - 'scripts/protected-release-*'
+      - '.github/native/**'
+      - '.github/tests/fixtures/**'
+      - '.github/workflows/keeper-protected-release-workers.yml'
+      - 'docs/r5-current-release-source.md'
       - 'scripts/codeql-analysis-receipt*'
       - '.github/workflows/codeql.yml'
       - 'docs/r5-trusted-release-origin.md'
@@ -61,7 +75,15 @@ jobs:
       - name: Verify exact event source before checks
         run: node .github/scripts/verify-ci-source.cjs
       - name: Test fake API and bounded artifact evidence
-        run: node --test scripts/trusted-release-origin.test.cjs scripts/codeql-analysis-receipt.test.cjs scripts/protected-release-plan.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs
+        run: node --test scripts/trusted-release-origin.test.cjs scripts/current-release-origin.test.cjs scripts/current-release-sdk.test.cjs scripts/current-release-bootstrap.test.cjs scripts/codeql-analysis-receipt.test.cjs scripts/protected-release-plan.test.cjs scripts/protected-release-worker.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs
+      - name: Verify the actual pinned SDK with disposable controlled transport
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8, Node 24
+        with:
+          script: |
+            // All fetches in these helpers are synthetic in-process responses.
+            globalThis.fetch = async () => { throw new Error('UNPLANNED_NETWORK_DISABLED'); };
+            await require('./scripts/fixtures/current-release-real-sdk.cjs')(github.constructor);
+            await require('./scripts/fixtures/current-release-origin-real-sdk.cjs')(github.constructor);
       - name: Verify exact source after checks
         if: always()
         run: node .github/scripts/verify-ci-source.cjs
