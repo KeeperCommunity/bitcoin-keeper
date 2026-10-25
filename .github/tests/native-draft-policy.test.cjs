@@ -132,9 +132,19 @@ test('pushing an isolated branch permits only the read-only origin contract work
   assert.equal(job.steps.some(step => /secrets\.|workflow_dispatch/.test(JSON.stringify(step))), false);
   assert.deepEqual(job.steps.filter(step => step.run).map(step => step.run), [
     'node .github/scripts/verify-ci-source.cjs',
-    'node --test scripts/trusted-release-origin.test.cjs scripts/codeql-analysis-receipt.test.cjs scripts/protected-release-plan.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs',
+    'node --test scripts/trusted-release-origin.test.cjs scripts/current-release-origin.test.cjs scripts/current-release-sdk.test.cjs scripts/current-release-bootstrap.test.cjs scripts/codeql-analysis-receipt.test.cjs scripts/protected-release-plan.test.cjs scripts/protected-release-worker.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs',
     'node .github/scripts/verify-ci-source.cjs',
   ]);
+  const sdk = job.steps.filter(step => step.uses ===
+    'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd');
+  assert.equal(sdk.length, 1);
+  assert.equal(sdk[0].with.script, [
+    '// All fetches in these helpers are synthetic in-process responses.',
+    "globalThis.fetch = async () => { throw new Error('UNPLANNED_NETWORK_DISABLED'); };",
+    "await require('./scripts/fixtures/current-release-real-sdk.cjs')(github.constructor);",
+    "await require('./scripts/fixtures/current-release-origin-real-sdk.cjs')(github.constructor);",
+    '',
+  ].join('\n'));
 });
 
 test('draft opening and updates retain the expected host checks without a release trigger', () => {
