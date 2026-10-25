@@ -19,12 +19,14 @@ const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const OPERATIONS = new Set(['ios-signed-build', 'android-signed-build', 'testflight-upload', 'play-internal-upload']);
 const requestFields = ['repository', 'ref', 'driverSha', 'sourceSha', 'releaseRef', 'operation',
   'version', 'build', 'artifactSha256', 'approvalCommentId', 'identitySha256', 'configSha256', 'artifactId'];
-// Both entries are exact, independently reviewed workflow bytes. The only
+// Entries are exact, independently reviewed workflow bytes. The only
 // optional failing job is the obsolete v2 characterization against its fixed
 // legacy backend; none of its results supply v3/native/release credit.
 const TEST_POLICIES = new Set([
   '8e58443ce81d1821845191ef89983af6c5d2bf9b058d62bc322a0eda093f7e4b',
   '6521e99c0ad5890a2d534c6b4efa9c190315c6ae4ccf273e8a89b0e1ec302278',
+  // Existing required Tests plus the reviewed development startup observer controls.
+  '422bb269e9b345cbf937faaa9e4f0ee42d13398229933812291cccc675eab140',
 ]);
 const CODEQL_POLICY = '213c6a2f87e769853797992879cfb5230df6d97531501795c0d783b524c50641';
 const TEST_JOBS = ['Lint', 'Tests', 'Automatic backup native Realm and Relay'];
