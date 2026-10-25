@@ -3,6 +3,12 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { execFileSync } = require('node:child_process');
 const { childEnvironment } = require('./protected-release-worker.cjs');
+const networkNames = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY',
+  'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy', 'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE', 'SSL_CERT_DIR', 'CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE'];
+const networkFixture = Object.fromEntries(networkNames.map(name => [name,
+  /proxy/i.test(name) ? (name.toLowerCase() === 'no_proxy' ? 'disposable.invalid,127.0.0.1' :
+    'http://127.0.0.1:9/disposable-' + name) : '/disposable/trust/' + name]));
 const root = path.resolve(__dirname, '..');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/keeper-protected-release-workers.yml'), 'utf8');
 const match = workflow.match(/          script: &current-installed-release-sdk \|\n([\s\S]+?)\n\n  approved-operation:/);
@@ -24,7 +30,8 @@ function fixture() {
       workerRequest() { return { operation: 'android-signed-build' }; },
       async run(stage, options) {
         const observed = JSON.parse(require('node:child_process').execFileSync('python3', ['-c', 'import json,os; print(json.dumps(dict(os.environ)))'], { env: actual.childEnvironment(options.env, 'android-signed-build'), encoding: 'utf8' }));
-        global.__keeperBootstrapObservation = { stage, env: options.env, observed,
+        const sourceObserved = JSON.parse(require('node:child_process').execFileSync('python3', ['-c', 'import json,os; print(json.dumps(dict(os.environ)))'], { encoding: 'utf8' }));
+        global.__keeperBootstrapObservation = { stage, env: options.env, observed, sourceObserved,
           sourceKeys: Object.keys(process.env), pin: options.pinReader.value, private: options.privateGithub.value };
       }
     };`);
@@ -53,6 +60,7 @@ async function invoke(f, mutate) {
       KEY_PASSWORD: 'DISPOSABLE_KEY_PASSWORD', KEY_ALIAS: 'DISPOSABLE_ALIAS',
       KEEPER_ASC_KEY_BASE64: 'DISPOSABLE_WRONG_OPERATION_SECRET',
       ANDROID_HOME: '/synthetic/sdk', JAVA_HOME: '/synthetic/java', BUNDLE_PATH: '/synthetic/gems',
+      ...networkFixture, UNRELATED_PROXY_TOKEN: 'DISPOSABLE_UNRELATED_NETWORK_TOKEN',
     });
     if (mutate) mutate();
     delete global.__keeperBootstrapObservation;
@@ -63,7 +71,7 @@ async function invoke(f, mutate) {
     Object.assign(process.env, original); delete global.__keeperBootstrapObservation;
   }
 }
-test('actual workflow bootstrap verifies raw Git bytes and isolates every real child environment', async () => {
+test('actual workflow bootstrap preserves configured proxy/CA trust and isolates real child credentials', async () => {
   const f = fixture();
   try {
     const { failures, result } = await invoke(f); assert.deepEqual(failures, []);
@@ -73,10 +81,17 @@ test('actual workflow bootstrap verifies raw Git bytes and isolates every real c
     assert.equal(result.observed.ANDROID_HOME, '/synthetic/sdk');
     assert.equal(result.observed.JAVA_HOME, '/synthetic/java'); assert.equal(result.observed.BUNDLE_PATH, '/synthetic/gems');
     assert.equal(result.observed.KEEPER_ASC_KEY_BASE64, undefined);
+    for (const name of networkNames) {
+      assert.equal(result.sourceObserved[name], networkFixture[name], 'source child changed ' + name);
+      assert.equal(result.env[name], networkFixture[name], 'worker input changed ' + name);
+      assert.equal(result.observed[name], networkFixture[name], 'build child changed ' + name);
+    }
     for (const key of ['GH_TOKEN', 'GITHUB_TOKEN', 'INPUT_GITHUB-TOKEN', 'ACTIONS_RUNTIME_TOKEN',
       'ACTIONS_ID_TOKEN_REQUEST_TOKEN', 'KEEPER_CANONICAL_PIN_READ_TOKEN',
-      'KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN', 'KEEPER_RELEASE_PROVENANCE_READ_TOKEN', 'UNRELATED_SECRET']) {
+      'KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN', 'KEEPER_RELEASE_PROVENANCE_READ_TOKEN',
+      'UNRELATED_SECRET', 'UNRELATED_PROXY_TOKEN']) {
       assert.equal(result.env[key], undefined, key); assert.equal(result.observed[key], undefined, key);
+      assert.equal(result.sourceObserved[key], undefined, key);
       assert(!result.sourceKeys.includes(key), key);
     }
     assert(!result.sourceKeys.includes('KEEPER_ANDROID_KEYSTORE_BASE64'));
@@ -98,4 +113,18 @@ test('operation environment cannot forward credentials from another operation or
   assert.deepEqual(childEnvironment(env, 'testflight-upload'), { PATH: process.env.PATH, KEEPER_ASC_KEY_BASE64: 'ASC' });
   assert.deepEqual(childEnvironment(env, 'android-signed-build'), { PATH: process.env.PATH,
     KEEPER_ANDROID_KEYSTORE_BASE64: 'ANDROID', KEEPER_PRODUCTION_CONFIG_BASE64: 'CONFIG' });
+});
+
+test('every operation child retains only recognized proxy and CA variables alongside its scoped inputs', () => {
+  const env = { PATH: process.env.PATH, ...networkFixture,
+    ACTIONS_RUNTIME_TOKEN: 'DISPOSABLE_RUNTIME', 'INPUT_GITHUB-TOKEN': 'DISPOSABLE_READER',
+    OIDC_TOKEN: 'DISPOSABLE_OIDC', UNRELATED_PROXY_TOKEN: 'DISPOSABLE_EXTRA',
+    NODE_TLS_REJECT_UNAUTHORIZED: '0', CURL_SSL_VERIFY: 'false', PYTHONHTTPSVERIFY: '0' };
+  for (const operation of ['ios-signed-build', 'android-signed-build', 'testflight-upload', 'play-internal-upload']) {
+    const observed = JSON.parse(execFileSync('python3', ['-c', 'import json,os; print(json.dumps(dict(os.environ)))'],
+      { env: childEnvironment(env, operation), encoding: 'utf8' }));
+    for (const name of networkNames) assert.equal(observed[name], networkFixture[name], operation + ': ' + name);
+    for (const name of ['ACTIONS_RUNTIME_TOKEN', 'INPUT_GITHUB-TOKEN', 'OIDC_TOKEN', 'UNRELATED_PROXY_TOKEN',
+      'NODE_TLS_REJECT_UNAUTHORIZED', 'CURL_SSL_VERIFY', 'PYTHONHTTPSVERIFY']) assert.equal(observed[name], undefined, name);
+  }
 });

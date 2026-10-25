@@ -59,6 +59,9 @@ function excludeOwnExecutionChecks(request, evidence, run, jobs, current) {
 // step secrets are inherited by source readers or native/provider tools.
 const BUILD_ENVIRONMENT = Object.freeze([
   'PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL',
+  // Preserve configured network routing and CA trust without changing either.
+  'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy',
+  'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE',
   'RUNNER_TEMP', 'RUNNER_ENVIRONMENT', 'GITHUB_ACTIONS', 'GITHUB_WORKSPACE',
   'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA', 'GITHUB_REF', 'GITHUB_REPOSITORY',
   'ANDROID_HOME', 'ANDROID_SDK_ROOT', 'ANDROID_NDK_HOME', 'ANDROID_NDK_ROOT', 'JAVA_HOME',

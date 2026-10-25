@@ -68,7 +68,10 @@ jobs:
                 'KEEPER_CANONICAL_PIN_READ_TOKEN', 'KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN',
                 'KEEPER_RELEASE_PROVENANCE_READ_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN']) delete stepEnv[name];
               // Source Git/Python cannot inherit signing/upload or runner credentials.
-              const sourceNames = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL'];
+              // Preserve configured proxy routing and CA trust for source tools.
+              const sourceNames = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL',
+                'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy',
+                'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE'];
               for (const name of Object.keys(process.env)) if (!sourceNames.includes(name)) delete process.env[name];
               const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
               const root = path.resolve(stepEnv.GITHUB_WORKSPACE, 'driver');

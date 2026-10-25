@@ -30,8 +30,9 @@ The pinned GitHub Script v8 SDK (Node 24) collects and invokes the worker in one
 process. Before any repository import or Git/Python child, an embedded bootstrap
 checks the fixed raw-source verifier Git blob and verifies the complete installed
 driver checkout against S. Reader tokens are captured into separate scoped SDK
-clients; all other global environment fields except source-tool PATH/home/temp
-and locale values are removed. Native/provider child environments use an explicit
+clients; all other global environment fields except source-tool PATH/home/temp,
+locale and recognized proxy/CA configuration are removed. Existing network routing
+and CA trust are preserved without changing network policy. Native/provider child environments use an explicit
 build-tool allowlist plus only the selected operation's signing or upload fields.
 Actions/runtime/read credentials and unrelated secrets are excluded.
 
