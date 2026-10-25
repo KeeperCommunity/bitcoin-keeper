@@ -546,7 +546,8 @@ class HostedNativeHarnessTest(unittest.TestCase):
                 self.assertIn('ARCHS=' + architecture, arguments)
                 self.assertIn('ONLY_ACTIVE_ARCH=YES', arguments)
                 self.assertIn('CODE_SIGNING_ALLOWED=NO', arguments)
-                self.assertEqual(command.call_args.kwargs['timeout'], 2400)
+                self.assertEqual(command.call_args.kwargs['timeout'],
+                                 3600 if architecture == 'x86_64' else 2400)
                 self.assertEqual(native.read()['toolchain']['ios_simulator_architecture'], architecture)
                 sign_simulator.assert_called_once_with()
 
