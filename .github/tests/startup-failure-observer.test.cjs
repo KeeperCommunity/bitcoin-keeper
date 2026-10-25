@@ -130,6 +130,7 @@ function navigate({ read, replace, current = true, report } = {}) {
   const failures = [], flags = [], reads = [], marker = () => {};
   const context = { current, readPending: { current: true }, setStartupError: value => flags.push(value),
     SecureStore: { hasPin(...args) { reads.push(args); return read(); } },
+    observeStartupBoundary: () => {},
     startupFailureObserver: marker, reportStartupFailure: report || ((...args) => failures.push(args)),
     navigation: { replace }, exports: {} };
   vm.runInNewContext(ts.transpileModule('exports.run = ' + selected, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText, context);
