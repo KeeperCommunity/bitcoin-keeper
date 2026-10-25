@@ -1,0 +1,380 @@
+# Ordinary index.js and real app PIN/Realm/sagas; no state or key injection.
+# Runs after product_key_acceptance on the same owned Testnet installation.
+# All seed input below is deliberately PUBLIC BIP39 reference-test input.
+appId: ${APP_ID}
+name: Real visible hidden and archived Vault Mobile key references
+---
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '1'
+- tapOn:
+    id: home_tab_keys
+- tapOn:
+    id: manage_keys_actions
+- extendedWaitUntil:
+    visible: All the keys are hidden
+    timeout: 30000
+- assertNotVisible:
+    id: btnDelete
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: predecessor_fixture_verified
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: keys_add_key
+- tapOn: Add a software key
+- extendedWaitUntil:
+    visible:
+      id: btn_MY_KEEPER
+    timeout: 30000
+- tapOn:
+    id: btn_MY_KEEPER
+- extendedWaitUntil:
+    visible: Setting up Mobile Key \(Hot\)
+    timeout: 30000
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Confirm passcode to generate key
+    timeout: 30000
+- runFlow: product_vault_pin.yaml
+- extendedWaitUntil:
+    visible: Mobile Key Added Successfully!
+    timeout: 60000
+- assertNotVisible:
+    id: seed_item_0
+- tapOn: Cancel
+- tapOn:
+    id: keys_add_key
+- tapOn: Add a software key
+- runFlow:
+    file: product_vault_public_seed.yaml
+    env:
+      PUBLIC_WORDS: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: native_mobile_and_public_seed_created
+- tapOn:
+    id: home_tab_wallets
+- tapOn:
+    id: wallets_add_wallet
+- tapOn: Create Wallet
+- extendedWaitUntil:
+    visible: Select your wallet type
+    timeout: 30000
+- tapOn: Select custom setup.*
+- extendedWaitUntil:
+    visible: Create a Custom Wallet
+    timeout: 30000
+# Default2-of3 -> real2-of2, never a Mobile1-of1 hot-wallet substitute.
+- tapOn:
+    id: btn_decreaseValue
+    index: 0
+- tapOn: Confirm
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Select 2 keys for your wallet
+    timeout: 30000
+- tapOn:
+    id: btn_Mobile Key
+- tapOn:
+    id: btn_Seed Key
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible:
+      id: input_input_wallet_name
+    timeout: 30000
+- tapOn:
+    id: input_input_wallet_name
+- inputText: R5 Reference Vault
+- hideKeyboard
+- assertVisible: Mobile Key
+- assertVisible: Seed Key
+- tapOn: Create Your Wallet
+- extendedWaitUntil:
+    visible: Wallet Created Successfully
+    timeout: 120000
+- assertVisible: 2-of-2
+- tapOn: View Wallet
+# Normal creation asks for a tip after2seconds. Decline, never open SendTip.
+- extendedWaitUntil:
+    visible: No Thanks
+    timeout: 15000
+- tapOn: No Thanks
+- assertVisible: R5 Reference Vault
+- tapOn:
+    id: wallet_details_back
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_2
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- assertVisible: R5 Reference Vault
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: real_two_of_two_vault_created
+- tapOn:
+    id: home_tab_keys
+- tapOn:
+    id: manage_keys_actions
+# Exactly one visible Mobile key. Scope its action by the safe type-only row.
+- assertVisible: Mobile Key
+- tapOn:
+    id: btnDelete
+    childOf:
+      id: manage_key_type_MY_KEEPER
+- extendedWaitUntil:
+    visible: Key Used in Wallet
+    timeout: 30000
+- assertVisible: R5 Reference Vault
+- assertVisible: This key cannot be deleted because it is used by the wallet below.
+- assertNotVisible: Confirm passcode to delete key
+- assertNotVisible:
+    id: modal_passcode_verify
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: visible_reference_blocks_mobile_deletion
+- tapOn: Back
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: home_tab_wallets
+- tapOn: R5 Reference Vault
+- tapOn:
+    id: wallet_details_settings
+- scrollUntilVisible:
+    element: Hide wallet
+    direction: DOWN
+    timeout: 30000
+- tapOn: Hide wallet
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- assertNotVisible: R5 Reference Vault
+- stopApp
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '1'
+- assertNotVisible: R5 Reference Vault
+- tapOn:
+    id: home_tab_keys
+- tapOn:
+    id: manage_keys_actions
+- assertVisible: Mobile Key
+- tapOn:
+    id: btnDelete
+    childOf:
+      id: manage_key_type_MY_KEEPER
+- extendedWaitUntil:
+    visible: Key Used in Wallet
+    timeout: 30000
+- assertVisible: Keep this key until the wallet no longer needs it. Hiding a wallet does not remove its key references.
+- assertNotVisible: R5 Reference Vault
+- assertNotVisible: This key cannot be deleted because it is used by the wallet below.
+- assertNotVisible:
+    id: modal_passcode_verify
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: hidden_reference_blocks_without_name_after_relaunch
+- tapOn: View Vault
+- extendedWaitUntil:
+    visible: Show hidden wallets
+    timeout: 30000
+- tapOn: Show hidden wallets
+- extendedWaitUntil:
+    visible:
+      id: modal_passcode_verify
+    timeout: 30000
+- runFlow: product_vault_pin.yaml
+- extendedWaitUntil:
+    visible: R5 Reference Vault
+    timeout: 30000
+# This is the only hidden row; Mobile Wallet remained visible throughout.
+- tapOn:
+    id: btnUnhide
+- extendedWaitUntil:
+    visible:
+      id: modal_passcode_verify
+    timeout: 30000
+- runFlow: product_vault_pin.yaml
+- extendedWaitUntil:
+    notVisible:
+      id: btnUnhide
+    timeout: 30000
+- stopApp
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '2'
+- assertVisible: R5 Reference Vault
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: vault_unhidden_with_correct_native_pin
+- tapOn: R5 Reference Vault
+- tapOn: More\s+Options
+- tapOn: Manage Keys
+- extendedWaitUntil:
+    visible:
+      id: btn_Mobile Key
+    timeout: 30000
+- tapOn:
+    id: btn_Mobile Key
+- scrollUntilVisible:
+    element: Change Key
+    direction: DOWN
+    timeout: 30000
+- tapOn: Change Key
+- tapOn:
+    id: btn_add_new_key
+- tapOn: Add a software key
+- runFlow:
+    file: product_vault_public_seed.yaml
+    env:
+      PUBLIC_WORDS: legal winner thank year wave sausage worth useful legal winner thank yellow
+# A is already the retained co-signer; B is the second imported public Seed.
+- tapOn:
+    id: btn_Seed Key
+    index: 1
+- tapOn: Replace Key
+# Nonzero original balance takes a send/migration path, which this suite
+# never follows. Only zero-balance archival reaches this confirmation.
+- extendedWaitUntil:
+    visible: Key Replaced Successfully
+    timeout: 120000
+- tapOn: View Wallet
+- assertVisible: R5 Reference Vault
+- tapOn:
+    id: wallet_details_settings
+- scrollUntilVisible:
+    element: Archived wallet versions
+    direction: DOWN
+    timeout: 30000
+- tapOn: Archived wallet versions
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Archived Vaults
+    timeout: 30000
+- tapOn: R5 Reference Vault
+- tapOn: More\s+Options
+- assertVisible: Reinstate
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: zero_balance_rotation_retained_original_archive
+- stopApp
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '2'
+- tapOn:
+    id: home_tab_keys
+- tapOn:
+    id: manage_keys_actions
+- assertVisible: Mobile Key
+- tapOn:
+    id: btnDelete
+    childOf:
+      id: manage_key_type_MY_KEEPER
+- extendedWaitUntil:
+    visible: Confirm passcode to delete key
+    timeout: 30000
+- assertNotVisible: Key Used in Wallet
+- runFlow: product_vault_pin.yaml
+- extendedWaitUntil:
+    visible: Key Deleted Successfully
+    timeout: 60000
+- tapOn: Continue
+- extendedWaitUntil:
+    notVisible: Mobile Key
+    timeout: 30000
+- assertVisible: Seed Key
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: archived_only_mobile_logically_archived
+- stopApp
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '2'
+- tapOn:
+    id: home_tab_keys
+- tapOn:
+    id: manage_keys_actions
+- assertNotVisible: Mobile Key
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: home_tab_wallets
+- tapOn: R5 Reference Vault
+- tapOn:
+    id: wallet_details_settings
+- scrollUntilVisible:
+    element: Archived wallet versions
+    direction: DOWN
+    timeout: 30000
+- tapOn: Archived wallet versions
+- tapOn: R5 Reference Vault
+- tapOn: More\s+Options
+- tapOn: Reinstate
+# The callback is delayed by300ms. Wait for dispatch before stopping the app;
+# the toast alone is not acceptance, so require the cold counts/key checks next.
+- extendedWaitUntil:
+    visible: Vault reinstated successfully
+    timeout: 30000
+# The worker atomically refuses reinstatement if a signer record is missing.
+# Verify the actual result after a cold restart, not merely its optimistic toast.
+- stopApp
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '3'
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: archived_vault_reinstated_after_cold_restart
+- tapOn:
+    id: home_tab_keys
+- tapOn:
+    id: manage_keys_actions
+- assertVisible: Mobile Key
+- tapOn:
+    id: btnDelete
+    childOf:
+      id: manage_key_type_MY_KEEPER
+- extendedWaitUntil:
+    visible: Key Used in Wallet
+    timeout: 30000
+- assertVisible: R5 Reference Vault
+- assertNotVisible:
+    id: modal_passcode_verify
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: retained_mobile_key_is_protected_again
+- tapOn: Back
+- tapOn:
+    id: btn_back
+- tapOn:
+    id: home_tab_wallets
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_3
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_vault_metric.js
+    env:
+      STAGE: unrelated_wallet_preserved_final_count_three
+- stopApp

@@ -149,7 +149,7 @@ const loginSlice = createSlice({
     setOfflineStatus: (state, action: PayloadAction<boolean>) => {
       state.isOffline = action.payload;
     },
-    setHasDeepLink: (state, action: PayloadAction<string>) => {
+    setHasDeepLink: (state, action: PayloadAction<string | null>) => {
       state.hasDeepLink = action.payload;
     },
     clearHasCreds: (state) => {

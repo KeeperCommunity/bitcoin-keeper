@@ -15,6 +15,7 @@ import android.content.Context
 import com.facebook.react.ReactInstanceManager
 import com.hexa_keeper.CloudBackupPackage
 import com.hexa_keeper.KeepScreenAwakePackage
+import com.margelo.nitro.iap.NitroIapPackage
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -29,6 +30,8 @@ class MainApplication : Application(),  ReactApplication {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               add(KeepScreenAwakePackage())
               add(CloudBackupPackage())
+              // CLI 15 misses IAP's Java BaseReactPackage; Gradle already links it.
+              if (none { it is NitroIapPackage }) add(NitroIapPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

@@ -12,6 +12,7 @@ import Colors from 'src/theme/Colors';
 interface SettingCardItemProps {
   title?: string;
   description?: string;
+  expandDescription?: boolean;
   icon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   isDiamond?: boolean;
@@ -100,6 +101,7 @@ const SettingCard: React.FC<SettingCardProps> = ({
                             ? titleColor ?? `${colorMode}.balanceText`
                             : `${colorMode}.secondaryLightGrey`
                         }
+                        allowFontScaling={!!item.expandDescription}
                         fontSize={14}
                         medium
                         style={styles.title}
@@ -110,7 +112,8 @@ const SettingCard: React.FC<SettingCardProps> = ({
                         <Text
                           style={styles.content}
                           fontSize={12}
-                          numberOfLines={2}
+                          allowFontScaling={!!item.expandDescription}
+                          numberOfLines={item.expandDescription ? undefined : 2}
                           color={
                             applyDiamondCheck ? subtitleColor : `${colorMode}.secondaryLightGrey`
                           }

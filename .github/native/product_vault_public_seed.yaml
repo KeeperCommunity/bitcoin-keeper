@@ -1,0 +1,54 @@
+# Public BIP39 reference vectors, never generated private wallet material.
+# Caller opens the ordinary software-key list. Import is explicit; Create is
+# never selected. The app derives fingerprints, paths and xpubs itself.
+appId: ${APP_ID}
+---
+- scrollUntilVisible:
+    element:
+      id: btn_SEED_WORDS
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_SEED_WORDS
+- extendedWaitUntil:
+    visible: Add a Seed Key
+    timeout: 30000
+- tapOn: Import
+- extendedWaitUntil:
+    visible: Import a Seed Key
+    timeout: 30000
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible: Enter Seed Words
+    timeout: 30000
+- evalScript: ${output.publicWords = PUBLIC_WORDS.split(' '); output.wordIndex = 0}
+- repeat:
+    times: 12
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: input_seedWord${output.wordIndex + 1}
+          direction: DOWN
+          timeout: 30000
+      - tapOn:
+          id: input_seedWord${output.wordIndex + 1}
+      - inputText: ${output.publicWords[output.wordIndex]}
+      - extendedWaitUntil:
+          visible:
+            id: btn_suggested_${output.publicWords[output.wordIndex]}
+          timeout: 10000
+      - tapOn:
+          id: btn_suggested_${output.publicWords[output.wordIndex]}
+      - evalScript: ${output.wordIndex += 1}
+- tapOn: Next
+- extendedWaitUntil:
+    visible: Remember Seed Words\?
+    timeout: 30000
+# Only the public xpubs are retained for these fixtures.
+- tapOn: Skip
+- extendedWaitUntil:
+    visible: Seed key Added Successfully!
+    timeout: 60000
+- assertNotVisible:
+    id: seed_item_0
+- tapOn: Cancel

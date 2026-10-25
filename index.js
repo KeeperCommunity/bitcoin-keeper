@@ -7,6 +7,7 @@ global.atob = decode;
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import './shim';
+import './src/services/backup/encoding';
 import { AppRegistry, Text as NativeText } from 'react-native';
 import 'react-native-get-random-values';
 import { Text, Input } from '@gluestack-ui/themed-native-base';
@@ -16,6 +17,9 @@ import { name as appName } from './app.json';
 import { enableAndroidFontFix } from './AndroidFontFix';
 import { initSentrySDK } from 'src/services/sentry';
 
+const { observeStartupBoundary } = require('src/utils/startup-boundary-observer');
+
+observeStartupBoundary('ENTRYPOINT_READY');
 initSentrySDK();
 enableAndroidFontFix();
 
@@ -29,3 +33,4 @@ Svg.defaultProps = Svg.defaultProps || {};
 Svg.defaultProps.pointerEvents = 'none';
 
 AppRegistry.registerComponent(appName, () => App);
+observeStartupBoundary('ENTRYPOINT_REGISTERED');

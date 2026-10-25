@@ -1,0 +1,87 @@
+# Sixth fresh fixture, outside all five performance samples. First HTTP body is
+# read then disconnected before any server commit; only explicit UI Retry succeeds.
+appId: ${APP_ID}
+name: Full app controlled setup disconnect Retry and cold persistence
+---
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_fixture_start
+- launchApp:
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible: Create a passcode
+    timeout: 180000
+- runFlow: product_prepare_pin.yaml
+- tapOn:
+    id: view_startNewTile
+- extendedWaitUntil:
+    visible: '^Something went wrong$'
+    timeout: 60000
+- assertVisible: '^Please check your internet connection and try again\.$'
+- assertVisible: '^Retry$'
+- assertNotVisible:
+    text: '^Something went wrong$'
+    index: 1
+- assertNotVisible: '^Next$'
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_error_visible
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_submit
+- tapOn: '^Retry$'
+- extendedWaitUntil:
+    visible: '^Next$'
+    timeout: 180000
+- assertNotVisible: '^Something went wrong$'
+- tapOn: '^Next$'
+- extendedWaitUntil:
+    visible: Protect Your Recovery Key
+    timeout: 30000
+- tapOn: Skip for Now
+- extendedWaitUntil:
+    visible: Continue Without Backup?
+    timeout: 30000
+- tapOn: Skip Backup
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 30000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_home_ready
+- stopApp
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_relaunch_start
+- launchApp
+- extendedWaitUntil:
+    visible: Enter your passcode
+    timeout: 60000
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_relaunch_login
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 60000
+- assertVisible: Mobile Wallet
+- runScript:
+    file: product_metric.js
+    env:
+      STAGE: retry_relaunch_home
+- stopApp

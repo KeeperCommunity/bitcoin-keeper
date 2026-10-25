@@ -1,0 +1,16 @@
+{
+  "scope": "SYNTHETIC_RELEASED_JVM_LOGS_NOT_NATIVE_DEVICE_OR_APP_DELIVERY",
+  "archive_sha256": "5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a",
+  "hierarchy": [
+    "06:56:57.760 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=1, resource-id=key_1, bounds=[3,4][23,34]}, children=[], clickable=true, enabled=true, focused=false, checked=null, selected=false), bounds=Bounds(x=3, y=4, width=20, height=30))\n",
+    "06:56:57.807 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (13, 19) using hierarchy based logic for wait\n",
+    "06:56:57.810 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=Skip\u00a0\u00a0, resource-id=btn_skip, bounds=[920,78][1038,134]}, children=[], clickable=true, enabled=true, focused=false, checked=null, selected=false), bounds=Bounds(x=920, y=78, width=118, height=56))\n",
+    "06:56:57.811 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (979, 106) using hierarchy based logic for wait\n"
+  ],
+  "screenshot": [
+    "06:56:57.816 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=1, resource-id=key_1, bounds=[3,4][23,34]}, children=[], clickable=true, enabled=true, focused=false, checked=null, selected=false), bounds=Bounds(x=3, y=4, width=20, height=30))\n",
+    "06:56:57.818 [ INFO] maestro.Maestro.screenshotBasedTap-ogj28Uc: Try tapping at (13, 19) using hierarchy based logic for wait\n",
+    "06:56:57.870 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=Skip\u00a0\u00a0, resource-id=btn_skip, bounds=[920,78][1038,134]}, children=[], clickable=true, enabled=true, focused=false, checked=null, selected=false), bounds=Bounds(x=920, y=78, width=118, height=56))\n",
+    "06:56:57.871 [ INFO] maestro.Maestro.screenshotBasedTap-ogj28Uc: Try tapping at (979, 106) using hierarchy based logic for wait\n"
+  ]
+}

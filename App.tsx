@@ -14,6 +14,7 @@ import { persistor, store } from './src/store/store';
 import NotificationHandler from 'src/hooks/useNotificationHandler';
 import { SentryWrapper } from 'src/services/sentry';
 import ThemeContextProvider from 'src/context/ThemeContext';
+import { observeStartupBoundary, withStartupBoundary } from 'src/utils/startup-boundary-observer';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
 LogBox.ignoreLogs([
@@ -24,39 +25,56 @@ LogBox.ignoreLogs([
 ]);
 
 function AndroidProvider({ children }: { children: ReactElement }) {
-  return Platform.OS === 'android' ? <HCESessionProvider>{children}</HCESessionProvider> : children;
+  useEffect(() => {
+    observeStartupBoundary('HCE_WRAPPER_COMMITTED');
+  }, []);
+  return Platform.OS === 'android' ? (
+    <HCESessionProvider>
+      {withStartupBoundary(children, 'HCE_CHILDREN_RENDERED', 'HCE_CHILDREN_COMMITTED')}
+    </HCESessionProvider>
+  ) : (
+    children
+  );
 }
 
 function App() {
+  observeStartupBoundary('APP_RENDERED');
   useEffect(() => {
-    initConnection();
+    observeStartupBoundary('APP_COMMITTED');
+    // Billing is optional at startup; the IAP adapter already logs failures.
+    initConnection().catch(() => undefined);
     return () => {
-      endConnection();
+      endConnection().catch(() => undefined);
     };
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <ThemeContextProvider>
-          <NotificationHandler />
-          <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-          <LocalizationProvider>
-            <AppContextProvider>
-              <TorContextProvider>
-                <AndroidProvider>
-                  <Navigator />
-                </AndroidProvider>
-              </TorContextProvider>
-            </AppContextProvider>
-          </LocalizationProvider>
-        </ThemeContextProvider>
+        {withStartupBoundary(
+          <ThemeContextProvider>
+            <NotificationHandler />
+            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+            <LocalizationProvider>
+              <AppContextProvider>
+                <TorContextProvider>
+                  <AndroidProvider>
+                    <Navigator />
+                  </AndroidProvider>
+                </TorContextProvider>
+              </AppContextProvider>
+            </LocalizationProvider>
+          </ThemeContextProvider>,
+          'SAFE_AREA_CHILDREN_RENDERED',
+          'SAFE_AREA_CHILDREN_COMMITTED'
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
 function AppWrapper() {
+  observeStartupBoundary('ROOT_WRAPPER_RENDERED');
   return (
     <PersistGate persistor={persistor} loading={null}>
       <Provider store={store}>

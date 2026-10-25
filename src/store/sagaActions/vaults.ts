@@ -41,9 +41,10 @@ export const migrateVault = (newVaultInfo: NewVaultInfo, oldVaultId: string) => 
   payload: { newVaultInfo, oldVaultId },
 });
 
-export const deleteVault = (payload: string) => ({
+export const deleteVault = (payload: string, onComplete?: (deleted: boolean) => void) => ({
   type: DELETE_VAULT,
   payload: { vaultId: payload },
+  onComplete,
 });
 
 export const reinstateVault = (payload: string) => ({

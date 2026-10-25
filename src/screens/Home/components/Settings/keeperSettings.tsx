@@ -32,6 +32,7 @@ const KeeperSettings = ({ route }) => {
   const { signer: signerText, inheritancePlanning, settings, common } = translations;
   const {
     BackAndRecovery,
+    BackupFeedback,
     General,
     keysAndwallet,
     Tips,
@@ -51,7 +52,9 @@ const KeeperSettings = ({ route }) => {
     };
   }, []); // Empty dependency array means this runs once on mount
 
-  const { backupAllLoading } = useAppSelector((state) => state.bhr);
+  const backupAllLoading = useAppSelector(
+    (state) => !!state.bhr.backupAllLoadingByAppId?.[state.storage.appId]
+  );
   const dispatch = useDispatch();
 
   return (
@@ -68,6 +71,7 @@ const KeeperSettings = ({ route }) => {
         icon={<SupportDeveloperIcon width={30} height={30} />}
         showDot={false}
       />
+      {BackupFeedback}
       <SettingCard
         header={inheritancePlanning.backupRecovery}
         subtitleColor={`${colorMode}.balanceText`}

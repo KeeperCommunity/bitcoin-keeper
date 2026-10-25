@@ -43,6 +43,7 @@ const WalletDetailHeader = ({
         {/* header  */}
         <Box style={styles.header}>
           <TouchableOpacity
+            testID="wallet_details_back"
             onPress={() => {
               navigation.goBack();
             }}
@@ -51,6 +52,7 @@ const WalletDetailHeader = ({
             <BackWhiteButton />
           </TouchableOpacity>
           <TouchableOpacity
+            testID="wallet_details_settings"
             style={styles.settingBtn}
             onPress={() => {
               settingCallBack();

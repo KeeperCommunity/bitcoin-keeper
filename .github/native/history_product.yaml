@@ -1,0 +1,47 @@
+# Normal index.js. Controlled Realm history fixture; account version is unchanged.
+appId: ${APP_ID}
+name: Current history observation after ordinary cold login
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Enter your passcode
+    timeout: 60000
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: key_1
+- tapOn: Proceed
+- extendedWaitUntil:
+    visible:
+      id: home_visible_wallet_count_1
+    timeout: 60000
+- assertVisible: Mobile Wallet
+- tapOn:
+    id: home_tab_more
+- scrollUntilVisible:
+    element:
+      id: btn_setting_App Settings
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_setting_App Settings
+- extendedWaitUntil:
+    visible:
+      id: btn_setting_Version History
+    timeout: 30000
+- tapOn:
+    id: btn_setting_Version History
+- extendedWaitUntil:
+    visible:
+      id: text_installedAppVersionLabel
+      text: Installed app version
+    timeout: 30000
+- assertVisible:
+    id: text_installedAppVersion
+    text: ${EXPECTED_INSTALLED_REGEX}
+- assertVisible: Current installation observed
+- assertVisible:
+    text: ${EXPECTED_HISTORY_REGEX}
+- assertNotVisible: Upgraded from.*
+- stopApp

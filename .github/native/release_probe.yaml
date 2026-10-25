@@ -1,0 +1,45 @@
+appId: ${APP_ID}
+name: Disposable native module persistence across process relaunch
+---
+# The iOS harness already installed and verified this app on a new UUID device.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          clearState: false
+          permissions:
+            all: deny
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: true
+          permissions:
+            all: deny
+- extendedWaitUntil:
+    visible:
+      id: native-probe-seeded
+    timeout: 60000
+- assertNotVisible:
+    id: native-probe-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: native-probe-mutated
+    timeout: 60000
+- assertNotVisible:
+    id: native-probe-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: native-probe-pass
+    timeout: 60000
+- assertNotVisible:
+    id: native-probe-failed
+- stopApp
