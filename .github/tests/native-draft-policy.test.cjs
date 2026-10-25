@@ -94,7 +94,7 @@ test('reusable paths keep explicit draft and diagnostic boundaries with no dispa
     assert.match(diagnostic.jobs[platform].if, /keeper\/native-diagnostic/);
   }
   assert.deepEqual(acceptance.jobs.android.needs, ['provenance', 'ios']);
-  assert.equal(diagnostic.jobs.android.needs, 'ios');
+  assert.equal(diagnostic.jobs.android.needs, undefined);
   assert.equal(diagnostic.concurrency['cancel-in-progress'], 'false');
   for (const filename of ['keeper-hosted-native.yml', 'keeper-native-platform.yml',
     'keeper-release-acceptance.yml', 'keeper-native-diagnostic.yml']) {
