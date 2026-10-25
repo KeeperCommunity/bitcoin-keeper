@@ -17,7 +17,7 @@ concurrency:
 jobs:
   driver-preflight:
     # Diagnosis only. This label never opts into either app build or Android.
-    if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/ios-driver-preflight') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/ios-driver-preflight') && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !(contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only') && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only'))
     runs-on: macos-15
     timeout-minutes: 15
     env:
@@ -39,7 +39,7 @@ jobs:
           script: |
             const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
             const labels = pr.labels.map(label => label.name);
-            if (pr.head.sha !== process.env.KEEPER_SOURCE_SHA || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !labels.includes('keeper/ios-driver-preflight') || labels.includes('keeper/native-diagnostic')) {
+            if (pr.head.sha !== process.env.KEEPER_SOURCE_SHA || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !labels.includes('keeper/ios-driver-preflight') || labels.includes('keeper/native-diagnostic') || (labels.includes('keeper/ios-diagnostic-only') && labels.includes('keeper/android-diagnostic-only'))) {
               core.setFailed('Preflight source moved or isolated opt-in is absent; no native credit');
             }
       - name: Set up Node
@@ -66,7 +66,7 @@ jobs:
           retention-days: 7
 
   ios:
-    if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    if: github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
     uses: ./.github/workflows/keeper-native-platform.yml
     with:
       source_sha: ${{ github.event.pull_request.head.sha }}
@@ -75,8 +75,7 @@ jobs:
       prepare_only: ${{ contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only') }}
 
   android:
-    needs: ios
-    # Optional scheduling modifier only; required Android acceptance is unchanged.
+    # Scheduling modifiers only; required platform acceptance is unchanged.
     if: always() && github.event.pull_request.number != 7045 && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only')
     uses: ./.github/workflows/keeper-native-platform.yml
     with:

@@ -22,12 +22,13 @@ class ReceiptsTests(unittest.TestCase):
         result = receipts.parse(payload, {100})
         self.assertEqual(result['state'], 'OBSERVED')
         self.assertTrue(all(value is True for value in result['stages'].values()))
-        self.assertEqual(result['owned_marker_records'], 5)
+        self.assertEqual(result['owned_marker_records'], 7)
+        self.assertEqual(result['ordered_stages'], list(receipts.STAGES))
         self.assertEqual(result['freshness'], 'GUEST_CLOCK_UNVERIFIED')
         self.assertEqual(result['cause'], 'UNDETERMINED')
         self.assertEqual(result['coverage'], 'POSITIVE_ONLY_MISSING_STAGES_UNKNOWN')
         self.assertEqual(result['producer_per_stage_limit'], 4)
-        self.assertEqual(result['producer_total_limit'], 20)
+        self.assertEqual(result['producer_total_limit'], 28)
         self.assertEqual(result['consumer_marker_limit'], 64)
         self.assertEqual(result['input_byte_limit'], 512 * 1024)
         self.assertEqual(result['scan_record_limit'], 10000)
@@ -42,8 +43,21 @@ class ReceiptsTests(unittest.TestCase):
         self.assertEqual(result['duplicate_records'], 1)
         self.assertEqual(result['owned_marker_records'], 2)
         self.assertEqual(result['marker_records'], 3)
+        self.assertEqual(result['ordered_stages'], ['SKIP_PRESS', 'SKIP_PRESS'])
         self.assertTrue(receipts.is_diagnostic_marker_record(record(pid=200)))
         self.assertTrue(receipts.has_diagnostic_marker_prefix(record(pid=200)))
+
+    def test_touch_lifecycle_order_is_fixed_owned_observation_not_a_route_or_delivery_verdict(self):
+        expected = ['SKIP_PRESS_IN', 'SKIP_PRESS_OUT']
+        payload = (record('SKIP_PRESS', pid=200) + '\n' +
+                   '\n'.join(record(stage) for stage in expected) + '\n')
+        result = receipts.parse(payload, {100})
+        self.assertEqual(result['ordered_stages'], expected)
+        self.assertEqual(result['state'], 'OBSERVED')
+        self.assertEqual(result['cause'], 'UNDETERMINED')
+        self.assertIsNone(result['stages']['SKIP_PRESS'])
+        self.assertNotIn(False, result['stages'].values())
+        self.assertNotIn('100', json.dumps(result['ordered_stages']))
 
     def test_calendar_validation_rejects_impossible_dates_without_using_a_clock(self):
         for calendar in ('02-30', '02-31', '04-31', '06-31', '09-31', '11-31'):
@@ -133,6 +147,7 @@ class ReceiptsTests(unittest.TestCase):
             self.assertTrue(result['marker_limit_reached'])
             self.assertEqual(result['marker_records'], 2)
             self.assertEqual(result['state'], 'PARTIAL')
+            self.assertEqual(len(result['ordered_stages']), 2)
         self.assertNotIn('PRIVATE_SENTINEL', json.dumps(result))
 
     def test_private_content_surrogates_and_terminal_fragments_never_escape(self):

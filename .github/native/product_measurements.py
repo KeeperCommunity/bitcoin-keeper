@@ -93,6 +93,19 @@ def sample_failed_assertion_snapshot(private, flow, failure_observation, observe
                 'scope': 'POST_FAILED_ASSERT_OUTCOME_NOT_TAP_TIME'}
 
 
+def sample_skip_tap_observation(private, flow, failure_observation):
+    """Project the existing private Maestro log; never replace a sample failure."""
+    try:
+        spec = importlib.util.spec_from_file_location('maestro_skip_tap',
+            Path(__file__).with_name('maestro_skip_tap.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.collect(private, flow, failure_observation.get('junit'))
+    except Exception:
+        return {'schema': 1, 'state': 'UNKNOWN', 'reason': 'COLLECTOR_UNAVAILABLE',
+                'scope': 'HOST_DRIVER_TAP_INTENT_NOT_APP_DELIVERY'}
+
+
 class Receipt:
     """Fixed vocabulary and numbers only; never store a request body/identifier."""
     def __init__(self):
@@ -436,6 +449,8 @@ def run(h):
                 outcome['failed_assertion_snapshot'] = sample_failed_assertion_snapshot(
                     output, flow, outcome['failure_observation'], observer)
                 if h.PLATFORM == 'ANDROID':
+                    outcome['skip_tap_observation'] = sample_skip_tap_observation(
+                        output, flow, outcome['failure_observation'])
                     outcome['android_runtime_diagnostic'] = android_failure_observation(output, device)
                 if retry_fixture:
                     result['controlled_disconnect_retry'] = outcome

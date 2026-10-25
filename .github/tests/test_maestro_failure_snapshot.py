@@ -319,6 +319,14 @@ class FailedSnapshot(unittest.TestCase):
         h = types.SimpleNamespace(ROOT=root, PRIVATE=private, PLATFORM='ANDROID', APP_IDS={'ANDROID': 'owned.app'},
             read=lambda: copy.deepcopy(state), save=lambda value: state.update(copy.deepcopy(value)),
             artifact_identity=lambda: artifact, command=command, verify_installed_artifact=installed)
+        original_spec = product.importlib.util.spec_from_file_location
+
+        def optional_spec(name, *args, **kwargs):
+            if name == 'maestro_skip_tap':
+                order.append('tap')
+                raise ValueError('PRIVATE_SENTINEL optional tap collector')
+            return original_spec(name, *args, **kwargs)
+
         with contextlib.ExitStack() as stack:
             stack.enter_context(mock.patch.dict(product.os.environ, {'GITHUB_ACTIONS': 'true',
                 'RUNNER_ENVIRONMENT': 'github-hosted', 'KEEPER_SOURCE_SHA': sha}))
@@ -328,6 +336,7 @@ class FailedSnapshot(unittest.TestCase):
                 observer if name == 'product_failure_diagnosis' else types.SimpleNamespace(OwnedMetro=lambda *_: manager)))
             stack.enter_context(mock.patch.object(product, 'make_server', return_value=server))
             stack.enter_context(mock.patch.object(product, 'android_failure_observation', return_value={'status': 'UNAVAILABLE'}))
+            stack.enter_context(mock.patch.object(product.importlib.util, 'spec_from_file_location', side_effect=optional_spec))
             with self.assertRaises(RuntimeError) as failure:
                 product.run(h)
         self.assertIs(failure.exception, original_error)
@@ -335,7 +344,8 @@ class FailedSnapshot(unittest.TestCase):
         self.assertEqual(outcome['failure_observation'], old)
         self.assertEqual(set(outcome['failure_observation']), {'scope', 'junit', 'hierarchy', 'product_metro'})
         self.assertEqual(outcome['failed_assertion_snapshot']['binding_state'], 'UNKNOWN')
-        self.assertEqual(order, ['old', 'secondary', 'close'])
+        self.assertEqual(outcome['skip_tap_observation']['state'], 'UNKNOWN')
+        self.assertEqual(order, ['old', 'secondary', 'tap', 'close'])
         self.assertEqual(list(private.iterdir()), [])
         self.assertNotIn('PRIVATE_SENTINEL', json.dumps(state['product_ui']))
 

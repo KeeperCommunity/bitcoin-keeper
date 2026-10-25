@@ -56,8 +56,23 @@ appId: ${APP_ID}
     file: product_pin_metric.js
     env:
       MARKER: skip_visible
-- tapOn:
-    id: btn_skip
+# One intended Skip action on either platform. Android aims at the visible
+# label inside the same button rather than its full-width container center.
+# This is a diagnostic target hypothesis; the following assertions still decide.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          text: '^Skip[ \u00A0]*$'
+          childOf:
+            id: btn_skip
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: btn_skip
 - runScript:
     file: product_pin_metric.js
     env:

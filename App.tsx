@@ -29,9 +29,10 @@ function AndroidProvider({ children }: { children: ReactElement }) {
 
 function App() {
   useEffect(() => {
-    initConnection();
+    // Billing is optional at startup; the IAP adapter already logs failures.
+    initConnection().catch(() => undefined);
     return () => {
-      endConnection();
+      endConnection().catch(() => undefined);
     };
   }, []);
 

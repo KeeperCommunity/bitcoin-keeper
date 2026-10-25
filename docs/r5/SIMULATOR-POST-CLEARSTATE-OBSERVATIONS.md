@@ -79,7 +79,10 @@ The additional `keeper/ios-diagnostic-only` label is a scheduling modifier for
 `keeper/native-diagnostic`, it retains the normal iOS diagnostic and skips only
 that workflow's Android job. Without the modifier, iOS then Android remains the
 default, including Android's existing `always()` behavior after iOS failure.
-The separate driver-preflight label keeps its existing meaning.
+The separate driver-preflight label keeps its existing meaning. The table below
+covers combinations without the Android-only modifier; see
+[Android-only scheduling](ANDROID-SKIP-LABEL-DIAGNOSTIC.md#explicit-android-only-scheduling)
+for that modifier and fail-closed conflicting selections.
 
 | Labels | Driver preflight | iOS app diagnostic | Android app diagnostic |
 | --- | --- | --- | --- |
@@ -97,6 +100,9 @@ permissions, installed-byte/privacy controls and noncancelling serialization
 remain unchanged. This option does not grant diagnostic source authority or
 trusted acceptance, alter canonical/full acceptance workflows, waive Android
 requirements, or transfer any pass from another source. A skipped Android job is
-reported as skipped. The coordinator must still verify a fresh globally idle
-native window and select exact reviewed source before adding any execution
-label. No labels or native execution are performed by this preparation.
+reported as skipped. The coordinator must still verify no overlapping job on the selected platform
+and select exact reviewed source before adding any execution label. Under the
+user's parallel-work instruction, separate immutable iOS-only and Android-only
+sources may run on separate cloud VMs; evidence stays source-specific and
+passes are never combined. No labels or native execution are performed by this
+preparation.

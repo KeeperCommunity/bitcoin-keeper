@@ -227,7 +227,7 @@ class FixtureTests(unittest.TestCase):
 
 
 class PinFlowTests(unittest.TestCase):
-    def test_markers_follow_existing_actions_without_changing_the_pin_flow(self):
+    def test_markers_and_acceptance_remain_around_one_platform_scoped_skip_action(self):
         filename = Path(product.__file__).with_name('product_prepare_pin.yaml')
         header, commands = list(yaml.safe_load_all(filename.read_text()))
         self.assertEqual(header, {'appId': '${APP_ID}'})
@@ -256,9 +256,38 @@ class PinFlowTests(unittest.TestCase):
             self.assertEqual(set(script['env']), {'MARKER'})
             markers.append(script['env']['MARKER'])
             positions.append(len(actions))
-        self.assertEqual(actions, expected)
+        skip = actions[9:11]
+        self.assertEqual(skip, [
+            {'runFlow': {'when': {'platform': 'Android'}, 'commands': [{'tapOn': {
+                'text': r'^Skip[ \u00A0]*$', 'childOf': {'id': 'btn_skip'}}}]}},
+            {'runFlow': {'when': {'platform': 'iOS'}, 'commands': [{'tapOn': {'id': 'btn_skip'}}]}},
+        ])
+        for platform in ('Android', 'iOS'):
+            resolved = []
+            for action in actions:
+                if 'runFlow' not in action:
+                    resolved.append(action)
+                elif action['runFlow']['when']['platform'] == platform:
+                    resolved.extend(action['runFlow']['commands'])
+            wanted = list(expected)
+            if platform == 'Android':
+                wanted[9] = {'tapOn': {'text': r'^Skip[ \u00A0]*$', 'childOf': {'id': 'btn_skip'}}}
+            self.assertEqual(resolved, wanted)
+            self.assertEqual(len(resolved), len(expected), 'one intended Skip command; no authored retries or extra waits')
         self.assertEqual(markers, list(product.PIN_MARKERS))
-        self.assertEqual(positions, list(range(2, 12)), 'acknowledge each existing completed operation')
+        self.assertEqual(positions, list(range(2, 10)) + [11, 12], 'both conditional source rows precede the same Skip acknowledgement')
+
+    def test_android_label_regex_accepts_only_source_skip_label_and_space_variants(self):
+        import re
+        commands = list(yaml.safe_load_all(Path(product.__file__).with_name('product_prepare_pin.yaml').read_text()))[1]
+        flow = next(row['runFlow'] for row in commands if 'runFlow' in row and
+                    row['runFlow']['when']['platform'] == 'Android')
+        tap = flow['commands'][0]['tapOn']
+        self.assertEqual(tap['childOf'], {'id': 'btn_skip'})
+        for text in ('Skip', 'Skip  ', 'Skip\u00a0\u00a0', 'Skip \u00a0'):
+            self.assertIsNotNone(re.fullmatch(tap['text'], text))
+        for text in ('Skip Backup', 'Skip for Now', 'Other Skip', 'Skip\n', 'skip'):
+            self.assertIsNone(re.fullmatch(tap['text'], text))
 
 
 class AndroidFailureObservationTests(unittest.TestCase):

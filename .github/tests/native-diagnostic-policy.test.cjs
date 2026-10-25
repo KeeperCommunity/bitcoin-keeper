@@ -14,7 +14,7 @@ assert.equal(parsed.status, 0, parsed.stderr);
 const workflows = JSON.parse(parsed.stdout);
 const diagnostic = workflows['keeper-native-diagnostic.yml'];
 const worker = workflows['keeper-native-platform.yml'];
-function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, dependenciesOnly = false, prepareOnly = false, platform = 'IOS', sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true } = {}) {
+function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, androidOnly = false, dependenciesOnly = false, prepareOnly = false, platform = 'IOS', sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true } = {}) {
   const expression = condition
     .replace(/^\$\{\{\s*|\s*\}\}$/g, '')
     .replaceAll('github.event_name', 'eventName')
@@ -25,12 +25,13 @@ function enabled(condition, { draft = null, labeled = false, preflightLabeled = 
     .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/ios-driver-preflight')", 'preflightLabeled')
     .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only')", 'iosOnly')
     .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only')", 'dependenciesOnly')
+    .replaceAll("contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')", 'androidOnly')
     .replaceAll('inputs.source_sha == github.event.pull_request.head.sha', 'sameSha')
     .replaceAll('inputs.diagnostic', 'diagnostic')
     .replaceAll('inputs.prepare_only', 'prepareOnly')
     .replaceAll('inputs.platform', 'platform')
     .replaceAll('always()', 'true');
-  return new Function('draft', 'labeled', 'preflightLabeled', 'iosOnly', 'dependenciesOnly', 'prepareOnly', 'platform', 'sameRepo', 'number', 'eventName', 'diagnostic', 'sameSha', 'toJSON', `return (${expression});`)(draft, labeled, preflightLabeled, iosOnly, dependenciesOnly, prepareOnly, platform, sameRepo, number, eventName, diagnostic, sameSha, JSON.stringify);
+  return new Function('draft', 'labeled', 'preflightLabeled', 'iosOnly', 'androidOnly', 'dependenciesOnly', 'prepareOnly', 'platform', 'sameRepo', 'number', 'eventName', 'diagnostic', 'sameSha', 'toJSON', `return (${expression});`)(draft, labeled, preflightLabeled, iosOnly, androidOnly, dependenciesOnly, prepareOnly, platform, sameRepo, number, eventName, diagnostic, sameSha, JSON.stringify);
 }
 test('dependency-only modifier is explicit, defaults off and stops all native phases', () => {
   assert.equal(worker.on.workflow_call.inputs.prepare_only.default, 'false');
@@ -59,7 +60,7 @@ test('dependency-only modifier is explicit, defaults off and stops all native ph
     assert.equal(enabled(step.if, { prepareOnly: false, platform: name.startsWith('Enable') || name.startsWith('Run Android') ? 'ANDROID' : 'IOS' }), true, name);
   }
 });
-test('candidate diagnostics require explicit same-repository opt-in and serialize platforms', () => {
+test('candidate diagnostics require explicit same-repository opt-in and independent platform jobs', () => {
   for (const name of ['ios', 'android']) {
     const condition = diagnostic.jobs[name].if;
     assert.equal(enabled(condition, { draft: true, labeled: true }), true);
@@ -67,7 +68,7 @@ test('candidate diagnostics require explicit same-repository opt-in and serializ
       assert.equal(enabled(condition, { draft: true, labeled: true, ...override }), false);
     }
   }
-  assert.equal(diagnostic.jobs.android.needs, 'ios');
+  assert.equal(diagnostic.jobs.android.needs, undefined);
   assert.equal(diagnostic.concurrency['cancel-in-progress'], 'false');
   assert.equal(diagnostic.permissions.contents, 'read');
   assert.equal(diagnostic.permissions['pull-requests'], 'read');
@@ -91,7 +92,7 @@ test('explicit iOS-only modifier schedules nothing alone and only removes diagno
   assert.deepEqual(Object.keys(diagnostic.on), ['pull_request']);
   assert.deepEqual(diagnostic.on.pull_request.branches, ['sprint']);
   assert.deepEqual(diagnostic.on.pull_request.types, ['labeled', 'synchronize', 'reopened']);
-  assert.equal(diagnostic.jobs.android.needs, 'ios');
+  assert.equal(diagnostic.jobs.android.needs, undefined);
   assert.match(diagnostic.jobs.android.if, /^always\(\)/);
   for (const platform of ['ios', 'android']) {
     assert.equal(diagnostic.jobs[platform].uses, './.github/workflows/keeper-native-platform.yml');
@@ -100,6 +101,43 @@ test('explicit iOS-only modifier schedules nothing alone and only removes diagno
   }
   assert.equal(enabled(worker.jobs.native.if, { draft: true, iosOnly: true, diagnostic: true }), false);
 });
+test('Android-only modifier selects only Android and conflicting modifiers fail closed', () => {
+  for (const labeled of [false, true]) for (const preflightLabeled of [false, true]) {
+    for (const iosOnly of [false, true]) for (const androidOnly of [false, true]) {
+      const options = { draft: true, labeled, preflightLabeled, iosOnly, androidOnly };
+      const selected = ['driver-preflight', 'ios', 'android'].map(name => enabled(diagnostic.jobs[name].if, options));
+      assert.deepEqual(selected, [preflightLabeled && !labeled && !(iosOnly && androidOnly),
+        labeled && !androidOnly, labeled && !iosOnly], JSON.stringify(options));
+      for (const override of [{ sameRepo: false }, { number: 7045 }]) {
+        assert.deepEqual(['driver-preflight', 'ios', 'android'].map(name =>
+          enabled(diagnostic.jobs[name].if, { ...options, ...override })), [false, false, false]);
+      }
+    }
+  }
+  assert.equal(diagnostic.jobs.android.needs, undefined);
+  assert.match(diagnostic.jobs.android.if, /^always\(\)/);
+  assert.equal(diagnostic.concurrency['cancel-in-progress'], 'false');
+});
+
+test('combined scheduling modifiers retain dependency-only and platform exclusions', () => {
+  for (const labeled of [false, true]) for (const preflightLabeled of [false, true])
+    for (const iosOnly of [false, true]) for (const androidOnly of [false, true])
+      for (const dependenciesOnly of [false, true]) {
+        const options = { draft: true, labeled, preflightLabeled, iosOnly, androidOnly, dependenciesOnly };
+        const selected = ['driver-preflight', 'ios', 'android'].map(name =>
+          enabled(diagnostic.jobs[name].if, options));
+        assert.deepEqual(selected, [preflightLabeled && !labeled && !(iosOnly && androidOnly),
+          labeled && !androidOnly, labeled && !iosOnly && !dependenciesOnly], JSON.stringify(options));
+        for (const override of [{ sameRepo: false }, { number: 7045 }])
+          assert.deepEqual(['driver-preflight', 'ios', 'android'].map(name =>
+            enabled(diagnostic.jobs[name].if, { ...options, ...override })), [false, false, false]);
+      }
+  // Separate hosted machines may execute together; both results remain required.
+  assert.equal(diagnostic.jobs.ios.needs, undefined);
+  assert.equal(diagnostic.jobs.android.needs, undefined);
+  assert.equal(diagnostic.concurrency['cancel-in-progress'], 'false');
+});
+
 test('isolated driver label cannot schedule an app platform or overlap full diagnostics', () => {
   const preflight = diagnostic.jobs['driver-preflight'];
   for (const [labeled, preflightLabeled, expected] of [
@@ -136,7 +174,7 @@ test('preflight live source guard rejects moved source, foreign repository and n
   const step = diagnostic.jobs['driver-preflight'].steps.find(step =>
     step.name === 'Verify current preflight source and isolated opt-in');
   const script = new vm.Script(`(async()=>{${step.with.script}})()`);
-  for (const mutation of [null, 'sha', 'labels', 'full-only', 'both-labels', 'repo', 'missing-source']) {
+  for (const mutation of [null, 'sha', 'labels', 'full-only', 'both-labels', 'repo', 'missing-source', 'conflicting-modifiers']) {
     const pr = { head: { sha: 'a'.repeat(40), repo: { full_name: 'KeeperCommunity/bitcoin-keeper' } },
       labels: [{ name: 'keeper/ios-driver-preflight' }] };
     const env = { KEEPER_SOURCE_SHA: 'a'.repeat(40) };
@@ -146,6 +184,7 @@ test('preflight live source guard rejects moved source, foreign repository and n
     if (mutation === 'both-labels') pr.labels.push({ name: 'keeper/native-diagnostic' });
     if (mutation === 'repo') pr.head.repo.full_name = 'fork/bitcoin-keeper';
     if (mutation === 'missing-source') delete env.KEEPER_SOURCE_SHA;
+    if (mutation === 'conflicting-modifiers') pr.labels.push({ name: 'keeper/ios-diagnostic-only' }, { name: 'keeper/android-diagnostic-only' });
     const failures = [];
     const requests = [];
     await script.runInNewContext({
