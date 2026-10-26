@@ -31,7 +31,7 @@ const TEST_POLICIES = new Set([
   'f1bcced79e60159b105efa93c63f88d31349bf00f459c22b03fa3e24abd404ca',
 ]);
 const PRIVATE_V3_POLICY = '202911034ffc8c94d455dfac3a3872f55de4012a3d55d051550b04b8e758865d';
-const CODEQL_POLICY = '213c6a2f87e769853797992879cfb5230df6d97531501795c0d783b524c50641';
+const CODEQL_POLICY = '1a415f96d992778c1e0eb8b42c16555c94a710c2cecdbe21496fd0a09e3e4f9c';
 const TEST_JOBS = ['Lint', 'Tests', 'Automatic backup native Realm and Relay'];
 const TEST_STEPS = ['Run tests', 'Run recovery regression tests',
   'Verify checked-out release version consistency', 'Run release and packaged-artifact tests'];

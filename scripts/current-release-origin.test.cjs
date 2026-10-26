@@ -112,6 +112,7 @@ for (const [name, mutate, error] of [
   ['unknown Tests job', f => { f.jobs[100][2].name = 'unreviewed-new-security-check'; }, /TEST_JOBS_UNREVIEWED/],
   ['contradictory Tests run conclusion', f => { f.runs[100].conclusion = 'success'; }, /TEST_RUN_CONTRADICTION/],
   ['CodeQL producer failure', f => { f.runs[200].conclusion = 'failure'; }, /RUN_INVALID/],
+  ['skipped private CodeQL is not a security pass', f => { f.runs[200].conclusion = 'skipped'; }, /RUN_INVALID/],
   ['forged CodeQL Actions app', f => { f.checks[12010].app.id = 7; }, /CHECK_INVALID/],
   ['CodeQL upload provenance step skipped', f => { f.jobs[200][0].steps[3].conclusion = 'skipped'; }, /CODEQL_STEP_FAILED/],
   ['failed official GAS check', f => { f.gas.conclusion = 'failure'; }, /SECURITY_CHECK_NOT_SUCCESS/],
