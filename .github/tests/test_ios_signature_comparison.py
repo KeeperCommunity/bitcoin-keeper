@@ -1,5 +1,9 @@
 """Retained-build admission and observational lifecycle; no native acceptance."""
 import importlib.util
+import contextlib
+import io
+import json
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import plistlib
@@ -134,11 +138,64 @@ class ComparisonTest(unittest.TestCase):
         self.assertFalse(result['native_acceptance'])
 
     def test_one_key_signing_failure_is_incomplete_and_removes_temporary_entitlements(self):
-        result, native, _, _ = self.variant('without_team_identifier', 'Apply one-key simulator entitlement comparison')
+        result, native, _, _ = self.variant('without_team_identifier', 'Apply reviewed simulator entitlement comparison')
         self.assertFalse(result['observation_complete'])
         self.assertEqual(result['phase'], 'STATIC_SIGNATURE')
         self.assertFalse(result['static_signature']['verified'])
         self.assertFalse((native.PRIVATE / 'comparison-debug.entitlements').exists())
+
+    def test_identity_groups_variant_removes_only_debug_entitlement_from_teamless(self):
+        before = comparison.entitlement_policy('without_team_identifier')
+        after = comparison.entitlement_policy('identity_groups_only')
+        self.assertEqual(set(before) - set(after), {'get-task-allow'})
+        self.assertEqual(after, {key: value for key, value in before.items() if key != 'get-task-allow'})
+        result, _, _, _ = self.variant('identity_groups_only')
+        self.assertTrue(result['observation_complete'])
+        self.assertEqual(result['effective_entitlements'], after)
+        self.assertEqual(result['keychain_access_groups'], before['keychain-access-groups'])
+
+    def test_empty_policy_is_only_os_diagnostic_and_does_not_claim_keychain_access(self):
+        self.assertEqual(comparison.entitlement_policy('empty_entitlements'), {})
+        result, _, _, _ = self.variant('empty_entitlements')
+        self.assertTrue(result['observation_complete'])
+        self.assertEqual(result['effective_entitlements'], {})
+        self.assertIsNone(result['keychain_access_groups'])
+        self.assertEqual(result['static_signature']['keychain_behavior'], 'NOT_TESTED')
+        self.assertFalse(result['native_acceptance'])
+
+    def test_live_policy_projection_requires_owned_path_thread_and_window(self):
+        def row(thread, message, second=1):
+            return {'processImagePath': '/usr/libexec/amfid', 'threadID': thread, 'processID': 97,
+                'timestamp': '2026-10-26 06:00:%02d.000000+0000' % second, 'eventMessage': message}
+        marker = 'Requirements for restricted entitlements failed to validate, error -67688'
+        path = self.root / 'stream.log'
+        rows = [row(10, '/Devices/' + DEVICE + '/hexa_keeper_dev.app/hexa_keeper_dev PRIVATE_PATH'),
+            row(11, marker), row(10, 'AppleMobileFileIntegrityError Code=-420', 9)]
+        start = datetime(2026, 10, 26, 6, tzinfo=timezone.utc).timestamp()
+        path.write_text('\n'.join(json.dumps(value) for value in rows))
+        result = comparison.host_policy_observation(path, DEVICE, start, start + 5)
+        self.assertEqual(result['owned_thread_count'], 1)
+        self.assertFalse(result['restricted_entitlement_requirement_failed'])
+        self.assertFalse(result['amfi_invalid_signature'])
+        rows.append(row(10, marker))
+        path.write_text('\n'.join(json.dumps(value) for value in rows))
+        result = comparison.host_policy_observation(path, DEVICE, start, start + 5)
+        self.assertTrue(result['restricted_entitlement_requirement_failed'])
+        self.assertNotIn('PRIVATE_PATH', str(result))
+
+    def test_joblog_projection_omits_private_paths_raw_errors_and_unknown_crash_text(self):
+        value, _, _, _ = self.variant('empty_entitlements')
+        value.update(observed_artifact=None, arbitrary_secret='SECRET',
+            owned_crashes=[{'termination': {'namespace': 'SECRET', 'code': 1},
+                'faulting_symbols': ['PRIVATE_FUNCTION'], 'exception': {'reason': 'SECRET'}}])
+        with mock.patch.dict(os.environ, ENV), contextlib.redirect_stdout(io.StringIO()) as output:
+            comparison.emit_bounded_summary(comparison.metadata(), [value])
+        text = output.getvalue()
+        self.assertTrue(text.startswith('IOS_SIGNATURE_OBSERVATION '))
+        self.assertNotIn('SECRET', text)
+        self.assertNotIn('PRIVATE_FUNCTION', text)
+        self.assertNotIn('private/app', text)
+        self.assertFalse(json.loads(text.split(' ', 1)[1])['native_acceptance'])
 
 if __name__ == '__main__':
     unittest.main()

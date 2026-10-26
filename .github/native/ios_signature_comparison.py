@@ -1,5 +1,6 @@
 """Private, source-pinned simulator signature comparison; no app build or UI credit."""
 import hashlib
+from datetime import datetime
 import importlib.util
 import json
 import os
@@ -29,6 +30,7 @@ MAX_FILE = 171016360
 APP = 'io.hexawallet.hexakeeper.dev'
 HOST_PREDICATE = '(process == "taskgated-helper" OR process == "taskgated" OR process == "amfid")'
 LABEL = "keeper/ios-signature-comparison"
+VARIANTS = ('without_team_identifier', 'identity_groups_only', 'empty_entitlements')
 
 
 def module(name):
@@ -167,23 +169,90 @@ def metadata():
         'scope': 'REUSED_SIMULATOR_APP_OS_SIGNATURE_COMPARISON_NO_COMPILE_METRO_UI_OR_RELEASE_ACCEPTANCE'}
 
 
+def host_policy_observation(path, device, started, ended):
+    """Project fixed policy markers from the owned app's live AMFI thread only."""
+    result = {'scope': 'LIVE_OWNED_PATH_SAME_AMFI_THREAD_NOT_CAUSAL_PROOF',
+        'owned_thread_count': 0, 'restricted_entitlement_requirement_failed': False,
+        'amfi_invalid_signature': False, 'state': 'UNAVAILABLE'}
+    raw = path.read_bytes()
+    if len(raw) > 2 * 1024 * 1024:
+        return result
+    rows = []
+    for line in raw.decode('utf-8', errors='replace').splitlines():
+        try:
+            row = strict_json(line)
+            stamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S.%f%z').timestamp()
+            if (row.get('processImagePath') == '/usr/libexec/amfid' and
+                    type(row.get('threadID')) is int and type(row.get('processID')) is int and
+                    type(row.get('eventMessage')) is str and started <= stamp <= ended):
+                rows.append(row)
+        except (ValueError, KeyError, TypeError, RecursionError):
+            continue
+    owned = {(row['processID'], row['threadID']) for row in rows
+        if '/Devices/' + device + '/' in row['eventMessage'] and
+        'hexa_keeper_dev.app/hexa_keeper_dev' in row['eventMessage']}
+    result.update(state='OBSERVED', owned_thread_count=len(owned))
+    for row in rows:
+        if (row['processID'], row['threadID']) not in owned:
+            continue
+        message = row['eventMessage']
+        result['restricted_entitlement_requirement_failed'] |= (
+            'Requirements for restricted entitlements failed to validate, error -67688' in message)
+        result['amfi_invalid_signature'] |= ('AppleMobileFileIntegrityError Code=-420' in message)
+    return result
+
+
+def emit_bounded_summary(result, variants):
+    """Private job logs carry fixed facts and hashes; raw evidence stays in artifacts."""
+    projected = []
+    for value in variants:
+        crashes = []
+        for crash in value.get('owned_crashes', []):
+            termination = crash.get('termination', {})
+            namespace = termination.get('namespace')
+            code = termination.get('code')
+            crashes.append({'namespace': namespace if namespace in ('CODESIGNING', 'SIGNAL', 'DYLD', 'LIBSYSTEM') else 'OTHER',
+                'code': code if type(code) is int and -(2 ** 31) <= code < 2 ** 31 else None,
+                'dyld_start_observed': '_dyld_start' in crash.get('faulting_symbols', [])})
+        row = {key: value.get(key) for key in ('variant', 'observation_complete', 'cleanup_errors',
+            'phase', 'setup_error_type', 'effective_entitlements_sha256', 'entitlement_keys',
+            'keychain_access_groups', 'installed_artifact_verified', 'installed_artifact',
+            'launch_request', 'launch_command', 'host_policy_observation')}
+        row['process_states'] = {name: value.get(name, {}).get('state', 'UNKNOWN')
+            for name in ('before_process', 'immediate_process', 'after_process')}
+        row['signed_app'] = {key: (value.get('observed_artifact') or {}).get(key)
+            for key in ('executable_sha256', 'bundle_tree_sha256')}
+        row['owned_crashes'] = crashes
+        row['native_acceptance'] = False
+        projected.append(row)
+    print('IOS_SIGNATURE_OBSERVATION ' + json.dumps({'schema': 1, 'control_source': result['source_sha'],
+        'run_id': result['run_id'], 'run_attempt': result['run_attempt'],
+        'workflow_sha': result['workflow_sha'], 'original_build': result['original_build'],
+        'variants': projected, 'app_ui_keychain_product': 'NOT_RUN', 'native_acceptance': False}, sort_keys=True), flush=True)
+
+
 def entitlement_policy(name):
     policy = dict(module('simulator_signing').ENTITLEMENTS)
-    if name == 'without_team_identifier':
+    if name in ('without_team_identifier', 'identity_groups_only', 'empty_entitlements'):
         del policy['com.apple.developer.team-identifier']
+        if name in ('identity_groups_only', 'empty_entitlements'):
+            del policy['get-task-allow']
+        if name == 'empty_entitlements':
+            policy.clear()
     elif name not in ('original', 'complete_nested'):
         raise ValueError('Unknown simulator entitlement comparison.')
     return policy
 
 
 def resign_outer_for_comparison(native, policy):
-    """One diagnostic-only delta on an already validated development simulator app."""
-    expected = entitlement_policy('without_team_identifier')
-    if policy != expected:
-        raise ValueError('Only the reviewed one-key simulator entitlement delta is allowed.')
+    """Reviewed diagnostic-only policies on a validated development simulator app."""
+    names = [name for name in VARIANTS if policy == entitlement_policy(name)]
+    if len(names) != 1:
+        raise ValueError('Only the reviewed simulator entitlement policies are allowed.')
+    name = names[0]
     data = native.read()
     data['toolchain']['ios_simulator_signature'].update(verified=False,
-        entitlement_policy='DIAGNOSTIC_REMOVE_ONLY_SYNTHETIC_TEAM_IDENTIFIER_PENDING')
+        entitlement_policy='DIAGNOSTIC_' + name.upper() + '_PENDING')
     native.save(data)
     app = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
     entitlements = native.PRIVATE / 'comparison-debug.entitlements'
@@ -193,9 +262,9 @@ def resign_outer_for_comparison(native, policy):
     try:
         native.command(['codesign', '--force', '--sign', '-', '--timestamp=none', '--entitlements',
             str(entitlements), '--generate-entitlement-der', str(app)],
-            'Apply one-key simulator entitlement comparison', error_details=False)
+            'Apply reviewed simulator entitlement comparison', error_details=False)
         native.command(['codesign', '--verify', '--deep', '--strict', str(app)],
-            'Verify one-key simulator signature comparison', error_details=False)
+            'Verify reviewed simulator signature comparison', error_details=False)
     finally:
         entitlements.unlink()
 
@@ -213,9 +282,9 @@ def compare_variant(name, base, output, input_zip, debug, observer):
     try:
         restore(native, input_zip)
         result['phase'] = 'STATIC_SIGNATURE'
-        if name in ('complete_nested', 'without_team_identifier'):
+        if name == 'complete_nested' or name in VARIANTS:
             native.sign_simulator_app()
-            if name == 'without_team_identifier':
+            if name in VARIANTS:
                 resign_outer_for_comparison(native, policy)
         else:
             app = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
@@ -234,12 +303,14 @@ def compare_variant(name, base, output, input_zip, debug, observer):
         result['effective_entitlements_sha256'] = hashlib.sha256(
             plistlib.dumps(entitlements, sort_keys=True)).hexdigest()
         result['entitlement_keys'] = sorted(entitlements)
-        if name == 'without_team_identifier':
+        result['effective_entitlements'] = entitlements
+        result['keychain_access_groups'] = entitlements.get('keychain-access-groups')
+        if name in VARIANTS:
             data = native.read()
             data['toolchain']['ios_simulator_signature'].update(
                 verified=True,
                 entitlements_sha256=result['effective_entitlements_sha256'],
-                entitlement_policy='DIAGNOSTIC_REMOVE_ONLY_SYNTHETIC_TEAM_IDENTIFIER',
+                entitlement_policy='DIAGNOSTIC_' + name.upper(),
                 keychain_behavior='NOT_TESTED')
             native.save(data)
         data = native.read()
@@ -284,6 +355,7 @@ def compare_variant(name, base, output, input_zip, debug, observer):
         result['observation_delay_seconds'] = 10
         result['host_stream'] = stream.stop()
         stream = None
+        result['host_policy_observation'] = host_policy_observation(stream_path, device, started, time.time())
         # A short host-only retrospective query covers subscription startup gaps.
         try:
             native.command(['log', 'show', '--last', '2m', '--style', 'ndjson', '--debug', '--info',
@@ -360,16 +432,17 @@ def main():
     try:
         input_zip = Path(os.environ['RUNNER_TEMP']) / 'keeper-original-ios-app.zip'
         observer = module('ios_direct_launch_observation')
-        for name in ('complete_nested', 'without_team_identifier'):
+        for name in VARIANTS:
             variants.append(compare_variant(name, base, output, input_zip, debug, observer))
     finally:
         debug.write_json(output / 'summary.json', {'state': 'SIGNATURE_COMPARISON_ONLY',
             'original_build': result['original_build'], 'variants': variants,
-            'entitlement_policy': 'FULL_POLICY_CONTROL_VS_REMOVE_ONLY_SYNTHETIC_TEAM_IDENTIFIER',
-            'prior_comparison_run': 40278968972, 'prior_full_policy_variants': 'BOTH_CODESIGNING_REJECTED',
+            'entitlement_policy': 'TEAMLESS_CONTROL_VS_REMOVE_DEBUG_ENTITLEMENT_VS_EMPTY_DIAGNOSTIC_BASELINE',
+            'prior_comparison_run': 40280470376, 'prior_full_and_teamless_variants': 'BOTH_CODESIGNING_REJECTED',
             'native_acceptance': False,
             'original_ddcd_smoke': 'FAIL_PRESERVED', 'metro_ui_keychain_and_r5': 'NOT_RUN'})
-    if len(variants) != 2 or any(not value['observation_complete'] or value['cleanup_errors'] for value in variants):
+        emit_bounded_summary(result, variants)
+    if len(variants) != len(VARIANTS) or any(not value['observation_complete'] or value['cleanup_errors'] for value in variants):
         raise RuntimeError('Signature comparison was incomplete; inspect per-variant phase and outcome.')
 
 

@@ -32,7 +32,7 @@ jobs:
         with:
           script: |
             await require('./.github/native/ios_signature_download.cjs')({ github, context });
-      - name: Compare full policy and one-key simulator entitlement delta without rebuilding
+      - name: Compare teamless, identity groups, and empty simulator policies without rebuilding
         run: python3 .github/native/ios_signature_comparison.py
       - name: Retain scoped private comparison evidence for one day
         if: always()
