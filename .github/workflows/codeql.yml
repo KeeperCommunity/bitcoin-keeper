@@ -6,14 +6,14 @@ on:
       - sprint
       - dev
       - main
-      - release/2.6.4
+      - 'release/*'
   pull_request:
     branches:
       - sprint
       - codex/r3-release-baseline-to-sprint
       - dev
       - main
-      - release/2.6.4
+      - 'release/*'
 
 permissions:
   actions: read
@@ -22,6 +22,8 @@ permissions:
 
 jobs:
   analyze:
+    # Public CodeQL is free. Private test copies must not request the paid feature.
+    if: github.repository == 'KeeperCommunity/bitcoin-keeper' && github.event.repository.private == false
     name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
     timeout-minutes: 30
