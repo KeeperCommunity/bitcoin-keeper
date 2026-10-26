@@ -1,0 +1,30 @@
+name: Cloud reader contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/keeper-cloud-readers.yml'
+      - '.github/workflows/keeper-cloud-reader-contracts.yml'
+      - '.github/tests/cloud-readers.test.cjs'
+  push:
+    branches: [sprint]
+    paths:
+      - '.github/workflows/keeper-cloud-readers.yml'
+      - '.github/workflows/keeper-cloud-reader-contracts.yml'
+      - '.github/tests/cloud-readers.test.cjs'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: node --test .github/tests/cloud-readers.test.cjs

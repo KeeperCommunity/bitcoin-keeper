@@ -1,0 +1,58 @@
+name: Verify cloud reader access
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  verify:
+    if: github.repository == 'KeeperCommunity/bitcoin-keeper' && github.ref == 'refs/heads/sprint'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify only the approved read capabilities
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          SETTINGS_READER: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+          PRIVATE_TEST_READER: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+        with:
+          script: |
+            const settings = process.env.SETTINGS_READER;
+            const privateTests = process.env.PRIVATE_TEST_READER;
+            delete process.env.SETTINGS_READER;
+            delete process.env.PRIVATE_TEST_READER;
+            if (![settings, privateTests].every(value => typeof value === 'string' && /^github_pat_[A-Za-z0-9_]{20,250}$/.test(value))) {
+              throw new Error('Both approved fine-grained readers are required');
+            }
+            core.setSecret(settings);
+            core.setSecret(privateTests);
+            const routes = Object.freeze({
+              settings: 'https://api.github.com/repos/KeeperCommunity/bitcoin-keeper/actions/variables?per_page=1',
+              privateTests: 'https://api.github.com/repos/KeeperCommunity/bitcoin-keeper-private/actions/runs?per_page=1',
+            });
+            async function read(token, url) {
+              try {
+                return await fetch(url, {
+                  method: 'GET', redirect: 'error', signal: AbortSignal.timeout(20000),
+                  headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                });
+              } catch {
+                throw new Error('Approved GitHub read could not be completed');
+              }
+            }
+            async function verify(token, allowed, denied, field, label) {
+              const response = await read(token, allowed);
+              if (response.status !== 200) throw new Error(`${label} read failed (HTTP ${response.status})`);
+              let body;
+              try { body = await response.json(); } catch { throw new Error(`${label} response format was invalid`); }
+              if (!body || !Array.isArray(body[field])) throw new Error(`${label} response format was invalid`);
+              const other = await read(token, denied);
+              if (![403, 404].includes(other.status)) throw new Error(`${label} has access outside its approved capability`);
+              core.info(`${label}: approved read verified; other capability denied`);
+            }
+            await verify(settings, routes.settings, routes.privateTests, 'variables', 'Settings reader');
+            await verify(privateTests, routes.privateTests, routes.settings, 'workflow_runs', 'Private test reader');
+            await core.summary.addHeading('Cloud reader access verified')
+              .addRaw('Both limited readers passed their API checks. No private results or configuration values are included. This check does not establish native acceptance or release readiness.')
+              .write();
