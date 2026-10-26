@@ -630,7 +630,7 @@ def record():
         'run_id': os.environ.get('GITHUB_RUN_ID'), 'run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT'),
         'runner': {key: os.environ.get(key) for key in
                    ['RUNNER_OS', 'RUNNER_ARCH', 'ImageOS', 'ImageVersion']},
-        'os': platform.platform(), 'commands': [], 'build': 'NOT RUN', 'smoke': 'NOT RUN', 'native_probe': 'NOT RUN', 'r5_features': 'NOT RUN',
+        'os': platform.platform(), 'commands': [], 'build': 'NOT RUN', 'smoke': 'NOT RUN', 'native_keychain': 'NOT RUN', 'native_probe': 'NOT RUN', 'r5_features': 'NOT RUN',
         'hardware': 'NOT RUN', 'signing': 'NOT RUN', 'app_id': APP_IDS[PLATFORM],
         'smoke_scope': 'Fresh install; render Create a passcode; type four disposable digits; assert Confirm your passcode; stop before persisting credentials.',
         'startup_timing_scope': 'Bounded cold development bundle/startup allowance; no release performance acceptance.',
@@ -1246,15 +1246,26 @@ def collect_r5_feature_evidence(device):
     return validate_r5_feature_evidence(raw)
 
 
+def collect_keychain_evidence(device):
+    spec = importlib.util.spec_from_file_location('keychain_evidence', Path(__file__).with_name('keychain_evidence.py'))
+    observer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(observer)
+    return observer.collect(SimpleNamespace(PLATFORM=PLATFORM, APP_IDS=APP_IDS, command=command), device)
+
+
 def smoke(suite='startup', debug_session=None):
     if debug_session is not None and (PLATFORM != 'IOS' or suite != 'startup'):
         raise ValueError('Private launch capture is limited to iOS startup.')
-    if suite not in ['startup', 'probe', 'features']:
+    if suite not in ['startup', 'keychain', 'probe', 'features']:
         raise ValueError('Unknown disposable native suite.')
     is_probe = suite == 'probe'
     is_features = suite == 'features'
-    result_key = 'r5_features' if is_features else 'native_probe' if is_probe else 'smoke'
-    if (is_probe or is_features) and read()['smoke'] != 'PASS':
+    is_keychain = suite == 'keychain'
+    is_module = is_probe or is_features or is_keychain
+    if is_keychain and PLATFORM != 'IOS':
+        raise RuntimeError('The dedicated Keychain diagnostic requires a fresh owned iOS simulator.')
+    result_key = 'native_keychain' if is_keychain else 'r5_features' if is_features else 'native_probe' if is_probe else 'smoke'
+    if is_module and read()['smoke'] != 'PASS':
         raise RuntimeError('The real app startup smoke must pass before module probes.')
     if read()['build'] != 'PASS':
         raise RuntimeError('A successful native build is required before smoke testing.')
@@ -1264,7 +1275,7 @@ def smoke(suite='startup', debug_session=None):
         command(['git', 'diff', '--exit-code', 'HEAD', '--', *R5_SOURCES],
                 'Verify committed R5 worker source before extraction', error_details=False)
         command(['node', '.github/native/r5_prepare.cjs'], 'Prepare exact-source R5 production worker probe', timeout=60, error_details=False)
-    report = PRIVATE / ('features-junit.xml' if is_features else 'probe-junit.xml' if is_probe else 'smoke-junit.xml')
+    report = PRIVATE / ('keychain-junit.xml' if is_keychain else 'features-junit.xml' if is_features else 'probe-junit.xml' if is_probe else 'smoke-junit.xml')
     report.unlink(missing_ok=True)
     metro_output = (PRIVATE / 'metro.log').open('wb')
     metro_args = ['node', 'node_modules/react-native/cli.js', 'start', '--port', '8081']
@@ -1273,8 +1284,8 @@ def smoke(suite='startup', debug_session=None):
     startup_context = SimpleNamespace(PRIVATE=PRIVATE, PLATFORM=PLATFORM)
     metro_env = os.environ.copy()
     try:
-        if is_probe or is_features:
-            metro_args += ['--config', str(ROOT / ('.github/native/r5_metro.cjs' if is_features else '.github/native/release_metro.cjs'))]
+        if is_module:
+            metro_args += ['--config', str(ROOT / ('.github/native/keychain_metro.cjs' if is_keychain else '.github/native/r5_metro.cjs' if is_features else '.github/native/release_metro.cjs'))]
         else:
             # Observation retains the normal entrypoint/resolver/transformer and
             # response body on both platforms. Only fixed facts leave the window.
@@ -1326,7 +1337,7 @@ def smoke(suite='startup', debug_session=None):
             wait_for_simulator_app_services(device)
             install_args = ['xcrun', 'simctl', 'install', device,
                             str(PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app')]
-            if not (is_probe or is_features):
+            if not is_module:
                 spec = importlib.util.spec_from_file_location('install_diagnosis', Path(__file__).with_name('install_diagnosis.py'))
                 installer = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(installer)
@@ -1371,15 +1382,25 @@ def smoke(suite='startup', debug_session=None):
         command([data['maestro']['binary'], '--device', device, 'test', '--env', 'APP_ID=' + APP_IDS[PLATFORM],
                  '--flatten-debug-output', '--debug-output', str(PRIVATE / 'maestro-output'),
                  '--format', 'junit', '--output', str(report), '--test-output-dir', str(PRIVATE / 'maestro-output'),
-                 '.github/native/r5_features.yaml' if is_features else '.github/native/release_probe.yaml' if is_probe else '.github/native/startup.yaml'],
-                'Assert R5 production workers over native storage' if is_features else 'Assert native persistence across process launches' if is_probe else
+                 '.github/native/keychain_probe.yaml' if is_keychain else '.github/native/r5_features.yaml' if is_features else '.github/native/release_probe.yaml' if is_probe else '.github/native/startup.yaml'],
+                'Assert disposable native Keychain across three processes' if is_keychain else 'Assert R5 production workers over native storage' if is_features else 'Assert native persistence across process launches' if is_probe else
                 'Assert startup and disposable passcode transition', timeout=660 if is_features else 300 if is_probe else 420,
-                error_details=not (is_probe or is_features))
+                error_details=not is_module)
         cases = successful_junit(report)
         if artifact_identity() != read()['built_artifact']:
             raise RuntimeError('Built artifact changed during native execution.')
         verify_installed_artifact(device)
         data = read()
+        if is_keychain:
+            observation = collect_keychain_evidence(device)
+            if observation['stage'] != 'pass':
+                raise RuntimeError('Complete disposable native Keychain evidence required.')
+            data = read()  # Preserve command receipt from the owned container lookup.
+            data['native_keychain_evidence'] = observation
+            data['native_keychain_process_launches'] = 3
+            data['native_keychain_scope'] = ('Actual react-native-keychain on one fixed synthetic service; '
+                'write/read, process reopen/update/read, process reopen/delete/read-absent. '
+                'No product credentials, PIN persistence, biometrics, shared access groups or release acceptance.')
         data[result_key] = 'PASS'
         data[result_key + '_test_cases'] = cases
         if is_features:
@@ -1398,12 +1419,21 @@ def smoke(suite='startup', debug_session=None):
             except Exception:
                 pass  # The original smoke failure remains authoritative.
         try:
-            if not (is_probe or is_features):
+            if not is_module:
                 record_startup_failure(report, device, getattr(startup_capture, 'started_ms', None))
             else:
                 data = read()
                 data[result_key] = 'FAIL'
                 data['probe_diagnostics'] = 'Native module or worker probe failed; raw output retained only on ephemeral runner.'
+                if is_keychain:
+                    try:
+                        observation = collect_keychain_evidence(device)
+                    except Exception:
+                        observation = {'stage': 'unavailable', 'failure_code': 'RECEIPT_UNAVAILABLE',
+                                       'native_code': None, 'native_acceptance': False}
+                    data = read()
+                    data[result_key] = 'FAIL'
+                    data['native_keychain_evidence'] = observation
                 if is_features:
                     try:
                         spec = importlib.util.spec_from_file_location('r5_feature_failure',
@@ -1458,7 +1488,7 @@ def smoke(suite='startup', debug_session=None):
         if debug_session is not None and device:
             cleanup('private_launch_debug', lambda: debug_session.finish(device, startup_error))
 
-        if debug_session is None and startup_error is not None and PLATFORM == 'IOS' and device and not (is_probe or is_features):
+        if debug_session is None and startup_error is not None and PLATFORM == 'IOS' and device and not is_module:
             # Original failure diagnostics are already frozen. This one later
             # launch cannot repair smoke or unlock subsequent acceptance phases.
             try:

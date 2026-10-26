@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+name: Disposable native Keychain write update and deletion across three processes
+---
+# The harness installs and verifies exact bytes on its freshly created simulator.
+- launchApp:
+    clearState: false
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: keychain-probe-seeded
+    timeout: 60000
+- assertNotVisible:
+    id: keychain-probe-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: keychain-probe-updated
+    timeout: 60000
+- assertNotVisible:
+    id: keychain-probe-failed
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: keychain-probe-pass
+    timeout: 60000
+- assertNotVisible:
+    id: keychain-probe-failed
+- stopApp
