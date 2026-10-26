@@ -5,14 +5,53 @@ const fs = require('node:fs'), os = require('node:os'), path = require('node:pat
 const child = require('node:child_process');
 const sourceRoot = path.resolve(__dirname, '../..');
 const guardBytes = fs.readFileSync(path.join(sourceRoot, '.github/scripts/verify-ci-source.cjs'));
-function bootstraps() {
+const workflowNames = ['keeper-canonical-native.yml', 'keeper-canonical-native-platform.yml'];
+// Decode YAML scalars before examining JavaScript: the caller uses block scalars,
+// while both reusable worker jobs currently serialize their scripts as quoted YAML.
+const workflows = JSON.parse(child.execFileSync('python3', ['-c',
+  'import json,sys,yaml; print(json.dumps({name: yaml.safe_load(text) for name,text in json.load(sys.stdin).items()}))'], {
+  input: JSON.stringify(Object.fromEntries(workflowNames.map(name => [name,
+    fs.readFileSync(path.join(sourceRoot, '.github/workflows', name), 'utf8')]))),
+  encoding: 'utf8', timeout: 10000, maxBuffer: 512 * 1024,
+  env: { PATH: process.env.PATH, PYTHONPYCACHEPREFIX: '/dev/null', PYTHONDONTWRITEBYTECODE: '1' },
+}));
+const expectedLocations = ['keeper-canonical-native.yml:provenance', 'keeper-canonical-native.yml:attestation',
+  'keeper-canonical-native-platform.yml:android-build', 'keeper-canonical-native-platform.yml:native'].sort();
+function bootstraps(documents = workflows) {
   const found = [];
-  for (const name of ['keeper-canonical-native.yml', 'keeper-canonical-native-platform.yml']) {
-    const text = fs.readFileSync(path.join(sourceRoot, '.github/workflows', name), 'utf8');
-    for (const match of text.matchAll(/              \/\/ Remove read credentials[\s\S]+?              \/\/ End pinned source bootstrap\./g))
-      found.push(match[0].split('\n').map(line => line.slice(14)).join('\n'));
+  const start = '// Remove read credentials before raw-source Git/Python subprocesses.';
+  const end = '// End pinned source bootstrap.';
+  for (const name of workflowNames) {
+    for (const [job, value] of Object.entries(documents[name].jobs)) {
+      for (const step of value.steps || []) {
+        const script = step.with?.script;
+        if (typeof script !== 'string' || (!script.includes(start) && !script.includes(end))) continue;
+        const lines = script.split('\n');
+        const starts = lines.flatMap((line, index) => line.trim() === start ? [index] : []);
+        const ends = lines.flatMap((line, index) => line.trim() === end ? [index] : []);
+        assert.equal(starts.length, 1, `${name}:${job} bootstrap start`);
+        assert.equal(ends.length, 1, `${name}:${job} bootstrap end`);
+        assert(starts[0] < ends[0], `${name}:${job} bootstrap order`);
+        const indent = lines[starts[0]].match(/^\s*/)[0];
+        const snippet = lines.slice(starts[0], ends[0] + 1).map(line => {
+          assert(line.startsWith(indent), `${name}:${job} bootstrap indentation`);
+          return line.slice(indent.length);
+        }).join('\n');
+        found.push({ location: `${name}:${job}`, snippet });
+      }
+    }
   }
   return found;
+}
+function checkedBootstraps(documents = workflows) {
+  const found = bootstraps(documents);
+  assert.deepEqual(found.map(row => row.location).sort(), expectedLocations, 'Canonical bootstrap location coverage changed');
+  assert.equal(new Set(found.map(row => row.snippet)).size, 1, 'Canonical bootstrap bodies differ');
+  for (const { snippet } of found) {
+    assert.match(snippet, /2c36d299851261d68965d37dbda024b950d46d8d/);
+    assert.match(snippet, /verifyRawCheckout\(root, context.sha\)/);
+  }
+  return found.map(row => row.snippet);
 }
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keeper-parent-bootstrap-'));
@@ -24,16 +63,26 @@ function fixture() {
   git('add', '.'); git('commit', '-qm', 'Synthetic raw source fixture');
   return { root, git, sha: git('rev-parse', 'HEAD'), guard: path.join(root, '.github/scripts/verify-ci-source.cjs') };
 }
-function run(f, snippet = bootstraps()[0]) {
+function run(f, snippet = checkedBootstraps()[0]) {
   const cwd = process.cwd(); process.chdir(f.root);
   try { new Function('require', 'context', snippet)(require, { sha: f.sha }); }
   finally { process.chdir(cwd); }
 }
-test('all three actual canonical pre-import bootstraps are identical and hard-pin reviewed guard bytes', () => {
-  const snippets = bootstraps(); assert.equal(snippets.length, 3);
-  assert.equal(new Set(snippets).size, 1);
-  assert.match(snippets[0], /2c36d299851261d68965d37dbda024b950d46d8d/);
-  assert.match(snippets[0], /verifyRawCheckout\(root, context.sha\)/);
+test('all four actual caller and producer/runtime pre-import bootstraps are identical and hard-pin reviewed guard bytes', () => {
+  assert.equal(checkedBootstraps().length, 4);
+});
+test('semantic workflow discovery rejects a missing producer bootstrap', () => {
+  const changed = structuredClone(workflows);
+  const producer = changed['keeper-canonical-native-platform.yml'].jobs['android-build'];
+  producer.steps = producer.steps.filter(step => step.name !== 'Verify canonical installed source');
+  assert.throws(() => checkedBootstraps(changed), /bootstrap location coverage changed/);
+});
+test('semantic workflow discovery rejects a changed producer guard pin', () => {
+  const changed = structuredClone(workflows);
+  const producer = changed['keeper-canonical-native-platform.yml'].jobs['android-build'];
+  const step = producer.steps.find(step => step.name === 'Verify canonical installed source');
+  step.with.script = step.with.script.replace('2c36d299851261d68965d37dbda024b950d46d8d', '0'.repeat(40));
+  assert.throws(() => checkedBootstraps(changed), /bootstrap bodies differ/);
 });
 test('actual bootstrap loads captured pinned bytes, verifies full Git tree and strips both read credentials before Git', () => {
   const f = fixture(), original = child.execFileSync, saved = {};

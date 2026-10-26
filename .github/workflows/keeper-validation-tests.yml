@@ -14,7 +14,10 @@ jobs:
   contracts:
     name: Native validation contracts
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # Frozen app dependencies plus the full host contract suite; no native build.
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -29,11 +32,45 @@ jobs:
         run: |
           npm ci --prefix .github/native/contract-tools --ignore-scripts --no-audit --no-fund
           echo "NODE_PATH=$GITHUB_WORKSPACE/.github/native/contract-tools/node_modules" >> "$GITHUB_ENV"
+      - name: Install frozen app dependencies for host contracts without lifecycle scripts
+        run: |
+          npm install --global yarn@1.22.22 --ignore-scripts
+          yarn install --frozen-lockfile --ignore-scripts --non-interactive
+      - name: Apply repository dependency patches fail closed
+        run: node_modules/.bin/patch-package --error-on-fail
+      - name: Verify dependency inputs remain unchanged
+        run: git diff --exit-code HEAD -- package.json yarn.lock ios/Podfile.lock
       - name: Verify exact source after setup
         run: node .github/scripts/verify-ci-source.cjs
       - name: Verify contract compiler matches the candidate
         run: |
           node -e "require('node:assert/strict').equal(require('typescript/package.json').version, require('./package.json').devDependencies.typescript)"
+      - name: Verify app and YAML host contract requirements
+        run: |
+          python3 -B -c "import yaml; assert callable(yaml.safe_load)"
+          node - <<'NODE'
+          const assert = require('node:assert/strict'), candidate = require('./package.json');
+          const expected = { react: candidate.dependencies.react,
+            'react-test-renderer': candidate.devDependencies['react-test-renderer'],
+            'electrum-client': require('./.github/native/r52_retained_manifest.json').package_versions['electrum-client'] };
+          for (const [name, version] of Object.entries(expected)) {
+            assert.equal(require(name + '/package.json').version, version);
+          }
+          NODE
+      - name: Materialize reviewed Realm109 source objects for host contracts only
+        run: |
+          python3 -B - <<'PY'
+          import importlib.util, json, os
+          from pathlib import Path
+          root = Path.cwd()
+          helper = root / '.github/native/r52_realm109_history.py'
+          spec = importlib.util.spec_from_file_location('host_contract_history', helper)
+          history = importlib.util.module_from_spec(spec)
+          exec(compile(helper.read_bytes(), str(helper), 'exec'), history.__dict__)
+          receipt = history.provision(root, helper.with_name('r52_realm109_objects.json'),
+              Path(os.environ['RUNNER_TEMP']) / 'keeper-contract-realm109-history.json')
+          print('REALM109_HOST_CONTRACT_SOURCE_ONLY ' + json.dumps(receipt, sort_keys=True))
+          PY
       - run: node --test .github/tests/*.test.cjs
       - run: python3 -B -m unittest discover -s .github/tests -p 'test_*.py'
       - name: Verify exact source after checks
