@@ -1,0 +1,16 @@
+appId: ${APP_ID}
+---
+- tapOn:
+    id: home_tab_more
+- scrollUntilVisible:
+    element:
+      id: btn_setting_App Settings
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_setting_App Settings
+- tapOn:
+    id: btn_setting_Server Settings
+- extendedWaitUntil:
+    visible: Add Server
+    timeout: 30000

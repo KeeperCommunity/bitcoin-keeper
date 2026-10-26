@@ -6,7 +6,8 @@ const { createRequire } = require('node:module');
 const { canonicalFixture, withWindow, loadWindow } = require('../../.github/tests/fixtures/installed-parent.cjs');
 const { fixtureSoftware, zip } = require('../../.github/tests/fixtures/private-software.cjs');
 const { WORKER_SOURCES } = require('../../.github/native/public_software_receipts.cjs');
-const ROOT = path.resolve(__dirname, '../..'), REPO = 'KeeperCommunity/bitcoin-keeper';
+const ROOT = path.resolve(__dirname, '../..');
+const profiles = require('../../.github/native/release_repository_profiles.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const blob = bytes => crypto.createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex');
 const clone = value => structuredClone(value);
@@ -32,8 +33,18 @@ function sarifFixture({ score = '5.0', results = 1 } = {}) {
       ({ ruleId: rule.id, ruleIndex: 0, rule: { id: rule.id, index: 0 } })) }] };
   return { analysis, sarif };
 }
-function fixture({ Octokit } = {}) {
-  const p = withWindow(canonicalFixture()), f = fixtureSoftware({ appTree: 'c'.repeat(40) });
+function fixture({ Octokit, profile = profiles.PUBLIC } = {}) {
+  const REPO = profile.repository;
+  const p = withWindow(canonicalFixture({ profile })), f = fixtureSoftware({ appTree: 'c'.repeat(40), appProfile: profile });
+  if (profile.private) {
+    // The app client stays distinct from the Relay artifact client. Both use
+    // this test-only source corpus; no actual network or credential is used.
+    const sourceRepository = p.github.rest.repos.get, sourceCommit = p.github.rest.git.getCommit;
+    p.github.rest.repos.get = async args => ({ status: 200, headers: {}, ...await sourceRepository(args) });
+    p.github.rest.git.getCommit = async args => ({ status: 200, headers: {}, ...await sourceCommit(args) });
+    p.github.rest.git.getTree = async args => f.github.rest.git.getTree(args);
+    p.github.rest.repos.getContent = async args => f.github.rest.repos.getContent(args);
+  }
   p.window.app = clone(f.expected.IOS.app); p.window.private = clone(f.expected);
   p.sourceBytes = Object.fromEntries(Object.keys(WORKER_SOURCES).map(name => [name, fs.readFileSync(path.join(ROOT, name))]));
   p.workerSources = Object.entries(WORKER_SOURCES).map(([name, names]) =>
@@ -62,6 +73,10 @@ function fixture({ Octokit } = {}) {
   s.runs = { 100: run(100, 'test.yml', 'push', 'completed', 'failure'),
     200: run(200, 'codeql.yml', 'push'), 400: p.run,
     900: run(900, 'keeper-protected-release-workers.yml', 'workflow_dispatch', 'in_progress', null) };
+  const dispatcher = { id: 789012, login: 'release-operator' };
+  Object.assign(s.runs[900], { actor: clone(dispatcher), triggering_actor: clone(dispatcher),
+    run_started_at: '2026-10-22T23:00:00Z' });
+  s.actorPermissions = { 'release-operator': { permission: 'write', user: clone(dispatcher) } };
   const steps = names => names.map(name => ({ name, status: 'completed', conclusion: 'success' }));
   const job = (id, name, runId, conclusion = 'success', status = 'completed') => ({ id, name,
     run_id: runId, run_attempt: s.runs[runId].run_attempt, head_sha: source, status, conclusion,
@@ -69,6 +84,14 @@ function fixture({ Octokit } = {}) {
   s.jobs = { 100: [job(1010, 'Lint', 100), job(1011, 'Tests', 100), job(1012, 'Automatic backup native Realm and Relay', 100, 'failure')],
     200: [job(2010, 'Analyze JavaScript/TypeScript', 200)], 400: p.jobs,
     900: [job(9010, 'plan', 900, null, 'in_progress')] };
+  if (fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8').includes('  protected-backup-v3:')) {
+    if (profile.private) { s.jobs[100][2].conclusion = 'skipped'; s.runs[100].conclusion = 'success'; }
+    const backup = job(1013, 'Protected backup v3 proof', 100, profile.private ? 'success' : 'skipped');
+    backup.steps = steps(['Execute all 351 private-v3 cases and verify all 295 retained obligations',
+      'Verify exact source after checks', "Remove only this job's owned disposable replica",
+      'Preserve exact-source private-v3 proof ledger']);
+    s.jobs[100].push(backup);
+  }
   s.jobs[100][1].steps = steps(['Run tests', 'Run recovery regression tests',
     'Verify checked-out release version consistency', 'Run release and packaged-artifact tests']);
   s.jobs[200][0].steps = steps(['Initialize CodeQL', 'Analyze', 'Capture official CodeQL upload ID', 'Upload CodeQL analysis provenance']);
@@ -125,6 +148,7 @@ function fixture({ Octokit } = {}) {
     if (endpoint.startsWith('code-scanning/analyses/')) {
       return init.headers.accept === 'application/sarif+json' ? s.sarif : s.analysis;
     }
+    if (endpoint.startsWith('collaborators/')) return s.actorPermissions[bits[1]];
     throw new Error('UNPLANNED_DISPOSABLE_ENDPOINT');
   };
   p.github.request = Octokit ? new Octokit({ auth: 'SYNTHETIC_ONLY', request: { fetch: async () => {
@@ -158,6 +182,7 @@ function fixture({ Octokit } = {}) {
   return s;
 }
 function gateFixture(options) {
+  const REPO = (options?.profile || profiles.PUBLIC).repository;
   const f = fixture(options), file = path.join(ROOT, 'scripts/protected-release-plan.cjs');
   const original = createRequire(file), module = { exports: {} };
   new Function('require', 'module', fs.readFileSync(file, 'utf8').replace(/^#![^\n]*\n/, ''))(name =>
@@ -187,7 +212,7 @@ function gateFixture(options) {
   f.api = (url, init) => {
     const endpoint = url.pathname.slice(('/repos/' + REPO + '/').length);
     if (endpoint.startsWith('branches/') || endpoint.startsWith('issues/comments/') ||
-      endpoint.startsWith('collaborators/') || endpoint.startsWith('environments/')) {
+      endpoint === 'collaborators/antuz123/permission' || endpoint.startsWith('environments/')) {
       f.calls.push(url.pathname + url.search); f.onApi(url, init);
       if (endpoint === 'branches/sprint') return f.driverBranch;
       if (endpoint.startsWith('branches/')) return f.releaseBranch;

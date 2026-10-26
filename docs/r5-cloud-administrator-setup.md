@@ -7,16 +7,19 @@ existing authorized custodian; no personal Mac or keychain export is required.
 The [operator handoff](r5-protected-release-handoff.md) retains the package ledger
 and native/provenance blockers.
 
-The latest successful read-only inventory on 22 October 2026 returned only
+The latest successful read-only inventory on 25 October 2026 returned only
 `copilot`, `Env` and `keeper-claude-review`. Both proposed release environments
-were absent. Earlier secret-name and variable-name API reads returned HTTP403;
+were absent. None of these environments had a required-reviewer rule. Human
+review and owner receipt comments are optional under the owner's current
+direction; no reviewer selection is required to configure these environments.
+Earlier secret-name and variable-name API reads returned HTTP403;
 custody and credential readiness are **UNKNOWN**, not proven absent. The managed
 task has no configured release credentials. Neither an environment name nor a
 secret name proves a usable signing/store identity.
 
 ## Administrator specification
 
-After separately approved administration, configure exactly
+Configure exactly
 `keeper-release-ios` and `keeper-release-android` in
 `KeeperCommunity/bitcoin-keeper`. The current
 [gate](../scripts/protected-release-plan.cjs) requires the following metadata for
@@ -25,13 +28,7 @@ each environment:
 ```json
 {
   "can_admins_bypass": false,
-  "protection_rules": [
-    {
-      "type": "required_reviewers",
-      "prevent_self_review": true,
-      "reviewers": ["<actual approved independent user/team metadata>"]
-    }
-  ],
+  "protection_rules": [],
   "deployment_branch_policy": {
     "protected_branches": true,
     "custom_branch_policies": false
@@ -39,11 +36,13 @@ each environment:
 }
 ```
 
-This is a shape specification, not a GitHub API write payload. Use actual approved
-reviewer IDs and verify that the requester cannot approve their own deployment.
-The gate expects exactly one required-reviewers rule with at least one reviewer.
+This is a shape specification, not a GitHub API write payload. No human-review
+rule is required. If an owner chooses to add one, use real reviewer IDs and
+prevent self-review; malformed or duplicate optional reviewer rules are rejected.
 Custom branch-name rules alone fail this gate. Protected-branches-only permits
 protected branches as a class; it does not prove exact-source authorization.
+GitHub allows all branches under this option when no branch-protection rules
+exist. Verify actual effective protection rather than relying on the dropdown.
 The driver additionally requires `refs/heads/sprint`, its current protected SHA,
 and a protected `release/<version>` ref at the requested source. Signed-build
 source must equal the installed canonical driver SHA. Keep those code checks.
@@ -54,19 +53,27 @@ actor/bypass scope and force-push/deletion controls. Require `Tests` and
 `keeper/local-validation` for `sprint` as AGENTS.md specifies; retain the actual
 security/native requirements and applicable review policy. A reported check is
 not protected enforcement. Record a secret-free negative-control plan proving
-wrong ref/source, absent independent review, self review, and bypass attempts
+wrong ref/source, unauthorized dispatchers, changed optional review and bypass attempts
 cannot reach a credential-bearing step. Perform that plan only under its own
 approved infrastructure-testing scope. Do not weaken rules to make a test pass.
 
-The canonical producer #7084 additionally reads the nonsecret Actions variable
+## Canonical readers and installation order
+
+The current source contains the SDK bridge in
+[`protected-release-plan.cjs`](../scripts/protected-release-plan.cjs) and a finite
+producer profile in
+[`installed_parent_window.cjs`](../.github/native/installed_parent_window.cjs).
+This is implemented source, not a live installation. The earlier missing-bridge
+or empty-profile diagnosis does not apply to this candidate. Follow the
+[finite-profile installation sequence](r5/F0-CONSUMER-PROFILE-CANDIDATE.md).
+
+The canonical producer reads the nonsecret repository Actions variable
 `KEEPER_CANONICAL_NATIVE_DRIVER_SHA`; its value must be the full reviewed current
 protected canonical driver SHA and the selected source must equal it. The
 workflow has no environment, so provide this separately approved pin at a scope
 visible to that workflow and verify its live read-only API visibility rather than
-assuming environment variables supply it. Successor
-[#7095](https://github.com/KeeperCommunity/bitcoin-keeper/pull/7095),
-`effd9175c00ebbdbaf616813a3ecfa6886bbbf45`, fixes the candidate's default-token
-Variables-read incompatibility. Its separate installation requirement is the
+assuming environment variables supply it. The dedicated reader avoids the
+default Actions token's Variables-read limitation. Its requirement is the
 repository secret **`KEEPER_CANONICAL_PIN_READ_TOKEN`**: a finite-expiry fine-grained
 PAT with resource owner KeeperCommunity, selected repository only `bitcoin-keeper`,
 **Variables: Read-only** (`actions_variables=read`) plus automatic Metadata read.
@@ -77,11 +84,84 @@ or default-token fallback is acceptable. Explicit reusable alias
 `canonical_pin_read_token` is step-scoped and removed before subprocesses. During
 later authorized rotation revoke the old PAT; replacing the stored secret does
 not revoke an already running token. This identity is not provisioned/live-tested
-here. Review/adopt #7095 separately; it is not installed or included in this
-reconciliation branch. Pin/credential creation or update is not authorized here.
-The #7085 consumer is not an authorization integration. Keep B1's
-private origin capability unminted and all authorization flags false until
-genuine canonical evidence, security linkage and enforcement are established.
+here.
+
+Also provision a separate finite-expiry repository secret
+`KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN`: resource owner KeeperCommunity,
+selected repository only `bitcoin-keeper-relay`, **Actions: Read-only**,
+**Contents: Read-only**, **Checks: Read-only**, plus automatic Metadata read.
+It has no write, dispatch, administration, signing or store permission. Use its
+dedicated scoped client, never the public Actions token as a private fallback.
+See [the current source contract](r5-current-release-source.md) and
+[private-reader scopes](r5/CANONICAL-SOURCE-SUCCESSOR.md).
+
+After final protected source S and its tree are known, retarget and review the
+private preparation, then create/run its serial iOS and Android controllers.
+Set repository variable `KEEPER_CANONICAL_PRIVATE_WINDOW_JSON` only after the
+actual canonical/public run and both private controller/run identities exist.
+Use the exact strict schema in
+[installed parent admission](r5/INSTALLED-PARENT-ADMISSION.md); no invented run
+IDs, historical receipts, cached pins or placeholder windows. Updating a variable
+cannot install a profile or promote diagnostic results into authority. Keep all
+release operations blocked until genuine current-source native, parent,
+security, protection, custody and authenticated repository authorization pass.
+Any supplied optional human receipt must also remain valid and exact.
+
+## Exact environment creation and readback
+
+No human reviewer input is needed. The default payload has no required reviewer.
+The SDK independently authenticates the official workflow's original and rerun
+dispatchers against current repository write/maintain/admin access. An actor
+assertion or optional receipt cannot replace that authorization. Its execution
+window expires four hours after the official run start. A supplied human receipt
+can shorten, never extend, that window.
+
+Use an already authorized administrator Cloud terminal. Re-read both environment
+GET endpoints before creation. If either exists, compare its complete rules
+instead of overwriting it. An unavailable/403 read is not absence. The commands
+below create protected environments but do not install source, provision secrets
+or execute a release. The helper generates payloads or verifies metadata only;
+it has no network or write capability.
+
+```sh
+set -euo pipefail
+test "$(gh api repos/KeeperCommunity/bitcoin-keeper --jq '.id')" = 470904030
+KEEPER_ADMIN_WORK=$(mktemp -d)
+chmod 700 "$KEEPER_ADMIN_WORK"
+python3 scripts/cloud_release_environment_setup.py plan \
+  > "$KEEPER_ADMIN_WORK/environment.json"
+
+# These PUTs are the administrator mutation, not a test or a release dispatch.
+gh api --method PUT repos/KeeperCommunity/bitcoin-keeper/environments/keeper-release-ios \
+  --input "$KEEPER_ADMIN_WORK/environment.json" \
+  --jq '{name,can_admins_bypass,protection_rules,deployment_branch_policy}'
+gh api --method PUT repos/KeeperCommunity/bitcoin-keeper/environments/keeper-release-android \
+  --input "$KEEPER_ADMIN_WORK/environment.json" \
+  --jq '{name,can_admins_bypass,protection_rules,deployment_branch_policy}'
+
+for KEEPER_RELEASE_ENVIRONMENT in keeper-release-ios keeper-release-android; do
+  gh api "repos/KeeperCommunity/bitcoin-keeper/environments/$KEEPER_RELEASE_ENVIRONMENT" | \
+    python3 scripts/cloud_release_environment_setup.py verify \
+      --name "$KEEPER_RELEASE_ENVIRONMENT"
+done
+```
+
+The generated GitHub PUT body has `wait_timer:0`, `prevent_self_review:true`,
+`can_admins_bypass:false`, `reviewers:[]`, and
+`deployment_branch_policy:{protected_branches:true,custom_branch_policies:false}`.
+It deliberately uses create/update API fields, not a copied GET response.
+Readback rejects enabled/unknown bypass, wrong environment, wrong source
+restriction and malformed optional review rules. Owner-chosen optional reviewers
+can be generated/verified with paired `--reviewer-type User|Team --reviewer-id ID`.
+Metadata success is not proof of live reviewer enforcement or release readiness.
+
+On 25 October, ruleset24908211 enforced `Tests` and `keeper/local-validation`,
+deletion/non-fast-forward protection and no ruleset bypass actors for `sprint`
+only. The proposed `release/2.6.5` branch did not exist and its effective rules
+were empty. Classic `sprint` protection detail remained HTTP403 for this
+integration. An administrator must inspect effective release-ref protection
+before its later authorized creation; never treat `sprint` protection as release
+protection or create/move that ref merely to complete environment setup.
 
 ## Exact protected names and operation scope
 
@@ -103,7 +183,7 @@ values, private files or key material in issues, PRs, requests, logs or artifact
 
 Signing steps must not load upload credentials; upload steps must not load
 signing credentials. Keep the existing step-scoped references, credential-free
-frozen dependency setup, and fresh revalidation after environment review,
+frozen dependency setup, and fresh revalidation after any optional environment review,
 immediately before secret loading and at adapter entry. Do not use repository or
 organization secret fallbacks to bypass an absent/protected environment.
 
@@ -131,9 +211,10 @@ Current source inputs are 2.6.4 / iOS620 / Android627. Historical store baseline
 in `release/version.json` are not fresh store acceptance or allocation of new
 counters. The current gate requires fresh complete store/version evidence.
 
-For later operation approval, the owner receipt must bind the exact source and
-driver SHA, operation, version/build, artifact/certificate/config digest, expiry
-and the 14-day GitHub Actions artifact audience. Signed artifacts in this public
+Every operation must bind the exact source and driver SHA, operation,
+version/build, artifact/certificate/config digest, bounded execution expiry and
+the 14-day GitHub Actions artifact audience. An optional human receipt can record
+that scope; it is not required. Signed artifacts in this public
 repository can be accessible to authenticated public-repository readers. If that
 audience is not approved, a separately reviewed private transport is required.
 Do not generate an approval on the owner's behalf.

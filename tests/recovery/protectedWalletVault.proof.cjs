@@ -51,6 +51,7 @@ function assertPending(f) {
   assert.equal(f.store.getState().bhr.pendingAllBackupByAppId[f.appId], true);
   assert.equal(f.automatic.isBackupVerificationCurrent(f.appId), false);
   assert.notEqual(f.store.getState().bhr.backupRepairStateByAppId[f.appId], 'verified');
+  assert.notEqual(f.store.getState().bhr.backupRepairCompletedByAppId[f.appId], true);
 }
 
 async function assertConfirmed(f, count = 1) {

@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "scope": "ALL_THREE_ORIGINAL_LOCAL_OPERATION_PROOF_BOUNDARIES_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentReplySha": "5e85634affb979ee981ec95fa6dacdbc0b6aa83e",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedLocalProofGuards.proof.cjs",
+  "expectedGenuineCases": 3,
+  "priorSourceDispositionCounts": {
+    "UNCOVERED": 3
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:beginBackupLocalOperation",
+    "src/services/backup/automatic.ts:completeBackupLocalOperation",
+    "src/services/backup/automatic.ts:commitBackupLocalOperation"
+  ],
+  "preservedAssertions": [
+    "Real native write cannot expose an intent or begin another operation while uncommitted; deliberate rollback removes staged Tag.",
+    "Caller true cannot bypass managed-commit identity and mint intent.",
+    "Selected-account switch INSIDE real final transaction callback rolls back the original wallet mutation.",
+    "Counterfeit copied operation never enters its callback, commits false and yields undefined intent."
+  ],
+  "strongerObservables": [
+    "Real staged Tag and wallet mutation independently witnessed before actual rollback.",
+    "Actual selected store transition and production account-session advance are required.",
+    "Zero total HTTP before complete unchanged local/account comparison.",
+    "Actual signed remote snapshot remains present and byte-equivalent, with full decrypted image unchanged."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:195",
+      "legacyCase": "an uncommitted native image or caller boolean cannot issue a committed-generation proof",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedLocalProofGuards.proof.cjs:1",
+      "protectedCase": "uncommitted real native image and caller boolean cannot mint a branded committed-generation proof"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:196",
+      "legacyCase": "a selected-account switch inside the final native transaction callback rolls back the whole operation",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedLocalProofGuards.proof.cjs:2",
+      "protectedCase": "actual selected-account switch inside final native transaction rolls back the complete local operation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:202",
+      "legacyCase": "a counterfeit local operation never executes its native transaction callback",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedLocalProofGuards.proof.cjs:3",
+      "protectedCase": "counterfeit local operation cannot enter the native transaction callback or mint an intent"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

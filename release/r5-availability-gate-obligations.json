@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "scope": "FIVE_ORIGINAL_ENDPOINT_AND_REAL_NATIVE_AVAILABILITY_BOUNDARIES_SOURCE_ONLY",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedAvailabilityGateGrid.proof.cjs",
+  "expectedGenuineCases": 5,
+  "priorSourceDispositionCounts": {
+    "UNCOVERED": 5
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/protected.ts:loopback",
+    "src/services/backup/protected.ts:endpoint",
+    "src/services/rest/RestClient.ts:post"
+  ],
+  "preservedAssertions": [
+    "Original hosted-target request cannot mutate the selected real disposable backend and remains fully pending.",
+    "Both real Node fixture overrides are absent during four actual native/endpoint checks, with exact previous presence/value restored.",
+    "Development loopback with compiled source ready succeeds once and clears pending; production HTTP, disabled development HTTP, and missing explicit port reject before transport.",
+    "Original compiled AUTOMATIC_BACKUP_HOSTED_AVAILABLE remains true; app availability does not certify deployed backend readiness."
+  ],
+  "positiveControls": [
+    "Start from actual signed enrollment, full original tuple/image, committed native receipt and positive ciphertext readback.",
+    "A transparent actual RestClient boundary delegates unchanged args/this/Promise only to the owned server origin; every other origin throws before original transport/network.",
+    "Eligible native loopback requires real three-request snapshot/CAS/readback, original CAS tuple, exact returned remote tuple and verified full-image match."
+  ],
+  "currentAvailabilityAdaptation": [
+    "All three current compiled source/hosted flags remain unchanged.",
+    "Fixture authorization never matches an HTTPS hosted URL. Intentional compiled hosted availability permits a signed HTTPS snapshot attempt independently; the controlled boundary requires this actual attempt and stops it before external I/O.",
+    "The historical source assertion was zero writes at the local trace, not proof of zero attempted external I/O. No compiled flag is disabled and no production endpoint policy changes."
+  ],
+  "scopeLimits": [
+    "No external hosted request is sent; no live backend availability, authentication, readiness or native platform runtime is attested.",
+    "Availability properties use current exact source; no obsolete disabled-hosting assumption or fake response is introduced."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:197",
+      "legacyCase": "fixture authorization never permits a hosted Relay target",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAvailabilityGateGrid.proof.cjs:1",
+      "protectedCase": "configured hosted target cannot escape the controlled proof transport even when compiled hosting is intentionally available"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:198",
+      "legacyCase": "without the Node fixture override development-loopback obeys the native source and availability gates",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAvailabilityGateGrid.proof.cjs:2",
+      "protectedCase": "without either Node fixture override development-loopback obeys the real compiled native and endpoint gates"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:199",
+      "legacyCase": "without the Node fixture override production-environment obeys the native source and availability gates",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAvailabilityGateGrid.proof.cjs:3",
+      "protectedCase": "without either Node fixture override production-environment obeys the real compiled native and endpoint gates"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:200",
+      "legacyCase": "without the Node fixture override development-disabled obeys the native source and availability gates",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAvailabilityGateGrid.proof.cjs:4",
+      "protectedCase": "without either Node fixture override development-disabled obeys the real compiled native and endpoint gates"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:201",
+      "legacyCase": "without the Node fixture override missing-explicit-port obeys the native source and availability gates",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAvailabilityGateGrid.proof.cjs:5",
+      "protectedCase": "without either Node fixture override missing-explicit-port obeys the real compiled native and endpoint gates"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

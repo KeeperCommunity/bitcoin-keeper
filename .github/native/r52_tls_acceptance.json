@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "scope": "ACTUAL_APP_RN_TLS_BRIDGE_AND_SEPARATE_IOS_SECURITY_FRAMEWORK_SOURCE_METHODS",
+  "status": "SOURCE_PREPARED_NATIVE_NOT_RUN",
+  "command": "python3 .github/native/hosted_native.py tls",
+  "preconditions": [
+    "Existing exact-source hosted record/prepare/driver/build/smoke have succeeded",
+    "Actual private repository839671816 on a GitHub-hosted runner",
+    "No Metro process remains from startup",
+    "Current original built artifact remains available and unchanged",
+    "Current source includes these committed .github files; any retained older native artifact requires separate complete native-input equivalence proof before this strict same-source entrypoint can be adapted"
+  ],
+  "actual_app_bridge_cases": {
+    "ANDROID": 24,
+    "IOS": 25,
+    "uses": "Unchanged src/services/electrum/tls.js forNode and actual installed react-native-tcp-socket bridge; no JS/native socket mock",
+    "iOS_system_root": "New owned simulator only, one generated fixture CA, destroyed with simulator; no host/system/application production trust edit",
+    "Android_system_root": "NOT_RUN; no system root mutation"
+  },
+  "ios_source_method_cases": {
+    "count": 24,
+    "uses": "Exact sha256-pinned TcpSocketClient.m keeperCertificateAllowed, didReceiveTrust delegate and stripPEMHeader methods plus actual KeeperCertificatePolicy.h; compiled for selected simulator CPU and linked against actual simulator Security.framework",
+    "scope_limit": "Separate source-method executable, not the full app. Actual app matrix is reported independently.",
+    "compromised_private_keys": "NONE; only public SPKI/certificate fixtures"
+  },
+  "evidence": "r52_tls_native field in existing private native metadata; server witnesses require exactly one observed connection, no data for every rejected case, and exact challenge echo for every accepted case; timeout/closed/JSexception are failures",
+  "cleanup": "Own fixture servers/keys/generated JSON, Metro process group, per-port Android reverse mappings and installed diagnostic package; iOS newly created simulator shut down/deleted, including fixture trust root",
+  "not_covered": [
+    "Normal AddNode custom trust paste/probe/save UI",
+    "Persisted selected-node trust across process relaunch",
+    "Actual installed109-to110 app upgrade",
+    "Full app Electrum RPC sync/fee/fakebroadcast and reconnect/failover",
+    "Actual Tor/onion provider",
+    "Physical HWI/biometric/camera/NFC/USB"
+  ],
+  "no_release_acceptance": true,
+  "automatic_native_runs_added": false
+}

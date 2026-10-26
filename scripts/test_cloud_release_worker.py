@@ -20,6 +20,16 @@ spec.loader.exec_module(worker)
 
 
 class WorkerTests(unittest.TestCase):
+    def test_repository_receipt_names_actual_finite_custody(self):
+        private = worker.repository_receipt({'repository': 'KeeperCommunity/bitcoin-keeper-private'})
+        self.assertEqual(private, {'repository': 'KeeperCommunity/bitcoin-keeper-private',
+                                 'repositoryId': 839671816, 'repositoryPrivate': True})
+        public = worker.repository_receipt({'repository': 'KeeperCommunity/bitcoin-keeper'})
+        self.assertEqual(public['repositoryId'], 470904030)
+        self.assertFalse(public['repositoryPrivate'])
+        with self.assertRaises(ValueError):
+            worker.repository_receipt({'repository': 'KeeperCommunity/unreviewed'})
+
     def test_ios_restore_or_delete_failure_prevents_receipt_and_preserves_primary_failure(self):
         for failed_cleanup, primary_failure in [('delete-keychain', False), ('list-keychains', False), ('delete-keychain', True)]:
             with self.subTest(failed_cleanup=failed_cleanup, primary_failure=primary_failure), tempfile.TemporaryDirectory() as tmp:

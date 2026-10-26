@@ -139,10 +139,10 @@ test('manual contract CLI emits only a source receipt and rejects combined optio
     { ...options, stdio: ['ignore', 'pipe', 'pipe'] }), /CI_SOURCE_IDENTITY_FAILED/);
 });
 
-test('all three CI jobs select the event head and verify source before setup, after setup and after checks', () => {
+test('all four CI jobs select the event head and verify source before setup, after setup and after checks', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../workflows/test.yml'), 'utf8');
-  const chunks = source.split(/\n  (?:lint|test|automatic-backup-genuine):\n/).slice(1);
-  assert.equal(chunks.length, 3);
+  const chunks = source.split(/\n  (?:lint|test|automatic-backup-genuine|protected-backup-v3):\n/).slice(1);
+  assert.equal(chunks.length, 4);
   for (const chunk of chunks) {
     assert.match(chunk, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
     assert.equal((chunk.match(/node \.github\/scripts\/verify-ci-source\.cjs/g) || []).length, 3);

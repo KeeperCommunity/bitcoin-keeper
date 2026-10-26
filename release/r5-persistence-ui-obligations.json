@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "scope": "FOUR_ORIGINAL_PERSISTENCE_UI_ASSERTION_GAPS_IN_EXISTING_SEVEN_CASE_SUITE_SOURCE_ONLY",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedPersistence.proof.cjs",
+  "originalProofFileSha256": "5e7f49d20136965f08eb9725b4bdfcf6d0e2364792cbde8582fa8c702472a368",
+  "currentProofFileSha256": "d3a3d4f4fb2dada9f37ac5999ec631e41a2495888c23192937b97a8fdad1d880",
+  "mappedLegacyRows": 4,
+  "newTestRegistrations": 0,
+  "expectedAffectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 4
+  },
+  "sourceContracts": [
+    "src/store/reducers/bhr.ts:invalidateRehydratedBackupState",
+    "src/screens/AppSettings/AssistedBackupStatus.tsx:recordedPhase",
+    "src/screens/AppSettings/AssistedBackupStatus.tsx:phase"
+  ],
+  "addedAssertions": [
+    "assert.equal(f.store.getState().bhr.seedConfirmed, true);",
+    "assert.equal(f.store.getState().bhr.backupMethod, 'SEED');",
+    "assert.equal(f.store.getState().bhr.backupMethod, 'SEED');",
+    "assert.equal(savedBhr.backupMethod, 'SEED');",
+    "assert.equal(f.store.getState().bhr.backupRepairStateByAppId[appId], 'verified', 'Historical Redux phase must remain present while the original A-session proof is stale');",
+    "assert.equal(f.store.getState().bhr.backupRepairStateByAppId[appId], 'verified', 'The exact phase predicate must reject a stale recorded phase before any Redux mutation notification');"
+  ],
+  "sourceRetention": "Removing exactly six added assertion lines restores entire original seven-case suite bytes/hash; no prior statement/assertion/schedule/builder/registration removed or changed.",
+  "protocolLimits": [
+    "Actual Redux Persist uses the existing host Promise storage boundary; no nativeMMKV process-relaunch claim.",
+    "Actual UI expression and current-proof callback are unchanged; verified Redux is independently required at both stale checkpoints, without fabricated current proof or altered observers."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:209",
+      "legacyCase": "actual persisted root-first reconciliation never lets legacy consent override canonical opt-out",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedPersistence.proof.cjs:3",
+      "protectedCase": "root-first canonical opt-out never exposes legacy opt-in or authorizes a later automatic write",
+      "newTestCase": false
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:210",
+      "legacyCase": "actual persisted bhr-first reconciliation never lets legacy consent override canonical opt-out",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedPersistence.proof.cjs:4",
+      "protectedCase": "bhr-first canonical opt-out never exposes legacy opt-in or authorizes a later automatic write",
+      "newTestCase": false
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:212",
+      "legacyCase": "actual absent-first legacy fallback without persistence metadata retains future nested writes",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedPersistence.proof.cjs:6",
+      "protectedCase": "confirmed canonical absence preserves sanitized legacy fallback and durably stores a later opt-out",
+      "newTestCase": false
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:213",
+      "legacyCase": "actual AssistedBackupStatus phase expression requires current native session proof",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedPersistence.proof.cjs:7",
+      "protectedCase": "actual status expression expires an earlier session and a later native mutation without requesting backup",
+      "newTestCase": false
+    }
+  ],
+  "affectedProtectedCases": [
+    {
+      "id": "protectedPersistence.proof.cjs:1",
+      "name": "bhr historical Verified boot expires every saved proof before genuine current readback"
+    },
+    {
+      "id": "protectedPersistence.proof.cjs:2",
+      "name": "root historical Verified boot expires every saved proof before genuine current readback"
+    },
+    {
+      "id": "protectedPersistence.proof.cjs:3",
+      "name": "root-first canonical opt-out never exposes legacy opt-in or authorizes a later automatic write"
+    },
+    {
+      "id": "protectedPersistence.proof.cjs:4",
+      "name": "bhr-first canonical opt-out never exposes legacy opt-in or authorizes a later automatic write"
+    },
+    {
+      "id": "protectedPersistence.proof.cjs:5",
+      "name": "failed canonical storage read cannot fall back to old consent or gain write authority from Check Again"
+    },
+    {
+      "id": "protectedPersistence.proof.cjs:6",
+      "name": "confirmed canonical absence preserves sanitized legacy fallback and durably stores a later opt-out"
+    },
+    {
+      "id": "protectedPersistence.proof.cjs:7",
+      "name": "actual status expression expires an earlier session and a later native mutation without requesting backup"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

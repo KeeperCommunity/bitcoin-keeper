@@ -1,0 +1,14 @@
+appId: ${APP_ID}
+name: Actual installed app production TLS bridge against owned loopback identities
+---
+- launchApp:
+    clearState: false
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: r52-tls-pass
+    timeout: 240000
+- assertNotVisible:
+    id: r52-tls-failed
+- stopApp

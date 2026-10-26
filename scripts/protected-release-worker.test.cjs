@@ -21,6 +21,13 @@ test('signed build requires current canonical installed source and exact metadat
   input.arbitrary_secret = 'never-pass-through';
   assert.throws(() => workerRequest({ ...env, KEEPER_RELEASE_REQUEST_JSON: JSON.stringify(input) }));
 });
+test('human receipt is optional, but other exact request fields remain required', () => {
+  const { input, env } = fixture();
+  delete input.approval_comment_id;
+  assert.equal(workerRequest({ ...env, KEEPER_RELEASE_REQUEST_JSON: JSON.stringify(input) }).approvalCommentId, 'none');
+  delete input.config_sha256;
+  assert.throws(() => workerRequest({ ...env, KEEPER_RELEASE_REQUEST_JSON: JSON.stringify(input) }), /INVALID_REQUEST_JSON/);
+});
 test('upload cannot reuse pending artifact or unapproved signing identity/config', () => {
   const { input, env } = fixture('testflight-upload');
   for (const change of [{ artifact_sha256: 'pending' }, { certificate_sha256: '' }, { config_sha256: 'secret-value' }, { artifact_id: 'moving-name' }]) {
@@ -44,6 +51,36 @@ function artifactFixture() {
     configSha256: request.configSha256, runId: '456', runAttempt: 2, signatureVerified: true, storeUploaded: false };
   return { request, artifact, run, receipt };
 }
+function privateArtifactFixture() {
+  const f = artifactFixture();
+  f.request.repository = 'KeeperCommunity/bitcoin-keeper-private';
+  const identity = { id: 839671816, full_name: f.request.repository, private: true };
+  f.run.repository = { ...identity }; f.run.head_repository = { ...identity };
+  Object.assign(f.receipt, { repository: identity.full_name, repositoryId: identity.id, repositoryPrivate: true });
+  return f;
+}
+test('private release request and signed receipt keep actual private custody identity', () => {
+  const { env } = fixture();
+  const request = workerRequest({ ...env, GITHUB_REPOSITORY: 'KeeperCommunity/bitcoin-keeper-private' });
+  assert.equal(request.repository, 'KeeperCommunity/bitcoin-keeper-private');
+  assert.match(approvalBody(request, '2026-10-22T13:00:00Z'), /GitHub Actions private-repository readers/);
+  const f = privateArtifactFixture();
+  assert.doesNotThrow(() => validateArtifactRun(f.request, f.artifact, f.run, f.receipt));
+  assert.throws(() => workerRequest({ ...env, GITHUB_REPOSITORY: 'KeeperCommunity/unreviewed-repository' }));
+});
+for (const [name, mutate] of [
+  ['public repository ID', f => { f.run.repository.id = 470904030; }],
+  ['public head ID', f => { f.run.head_repository.id = 470904030; }],
+  ['wrong full name', f => { f.run.repository.full_name = 'KeeperCommunity/bitcoin-keeper'; }],
+  ['public visibility', f => { f.run.repository.private = false; }],
+  ['missing visibility', f => { delete f.run.head_repository.private; }],
+  ['public receipt', f => { f.receipt.repository = 'KeeperCommunity/bitcoin-keeper'; }],
+  ['wrong receipt ID', f => { f.receipt.repositoryId = 470904030; }],
+  ['missing receipt custody', f => { delete f.receipt.repositoryPrivate; }],
+]) test(`private signed producer rejects ${name}`, () => {
+  const f = privateArtifactFixture(); mutate(f);
+  assert.throws(() => validateArtifactRun(f.request, f.artifact, f.run, f.receipt));
+});
 test('accepts only exact completed canonical signing producer receipt', () => {
   const { request, artifact, run, receipt } = artifactFixture();
   assert.doesNotThrow(() => validateArtifactRun(request, artifact, run, receipt));

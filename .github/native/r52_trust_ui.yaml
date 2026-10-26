@@ -1,0 +1,133 @@
+# Actual product UI; observer entrypoint requires ordinary index.js and only reads.
+appId: ${APP_ID}
+name: R52 normal custom trust save probe reopen and reconnect
+---
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '1'
+- runFlow: r52_trust_navigation.yaml
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: baseline
+- runFlow:
+    file: r52_trust_form.yaml
+    env:
+      NODE_PORT: ${PORT_A}
+      NODE_CA: ${CA_A}
+- extendedWaitUntil:
+    visible: Add Server
+    timeout: 45000
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: custom_saved
+- runFlow:
+    file: r52_trust_form.yaml
+    env:
+      NODE_PORT: ${PORT_A}
+      NODE_CA: ${CA_C}
+- extendedWaitUntil:
+    visible: '(?s)Error connecting to node:.*'
+    timeout: 45000
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: failed_update_preserved
+- stopApp
+- runFlow:
+    file: product_vault_login.yaml
+    env:
+      WALLET_COUNT: '1'
+- runFlow: r52_trust_navigation.yaml
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: cold_reopen
+- scrollUntilVisible:
+    element:
+      text: ${PORT_A}
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_disconnetNode
+    below:
+      text: ${PORT_A}
+    index: 0
+- extendedWaitUntil:
+    visible: Disconnecting from Server
+    timeout: 30000
+- tapOn:
+    id: btn_primaryText
+    text: Disconnect
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: disconnected
+- tapOn:
+    id: btn_disconnetNode
+    below:
+      text: ${PORT_A}
+    index: 0
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: reconnected
+- runFlow:
+    file: r52_trust_form.yaml
+    env:
+      NODE_PORT: ${PORT_B}
+      NODE_CA: ''
+- extendedWaitUntil:
+    visible: '(?s)Error connecting to node:.*'
+    timeout: 45000
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: untrusted_peer_rejected
+- tapOn:
+    id: btn_back
+- runFlow:
+    file: r52_trust_form.yaml
+    env:
+      NODE_PORT: ${PORT_C}
+      NODE_CA: ${CA_C}
+- extendedWaitUntil:
+    visible: Add Server
+    timeout: 45000
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: selfsigned_saved
+- scrollUntilVisible:
+    element:
+      text: ${PORT_C}
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_deleteNode
+    below:
+      text: ${PORT_C}
+    index: 0
+- extendedWaitUntil:
+    visible: Disconnecting from Server
+    timeout: 30000
+- tapOn:
+    id: btn_primaryText
+    text: Disconnect
+- scrollUntilVisible:
+    element:
+      text: ${PORT_A}
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: btn_deleteNode
+    below:
+      text: ${PORT_A}
+    index: 0
+- runScript:
+    file: r52_trust_metric.js
+    env:
+      STAGE: fixture_nodes_removed
+- stopApp

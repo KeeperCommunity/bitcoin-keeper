@@ -134,6 +134,15 @@ def safe_unzip(archive, destination, *, exact_names=None):
                     os.chmod(target, mode)
 
 
+def repository_receipt(context):
+    repository = context.get("repository", "KeeperCommunity/bitcoin-keeper")
+    profiles = {"KeeperCommunity/bitcoin-keeper": (470904030, False),
+                "KeeperCommunity/bitcoin-keeper-private": (839671816, True)}
+    demand(repository in profiles)
+    repository_id, private = profiles[repository]
+    return {"repository": repository, "repositoryId": repository_id, "repositoryPrivate": private}
+
+
 def unpack(context, private):
     payload = "release.ipa" if context["operation"] == "testflight-upload" else "release.aab"
     safe_unzip(private / "artifact.zip", private / "input", exact_names=[payload, "receipt.json"])
@@ -362,6 +371,7 @@ def execute(context, root, private):
         output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "keeper-release-output"
         output.mkdir(mode=0o700)  # Refuse an existing output; never reuse an older artifact.
         receipt = {key: context[key] for key in ["sourceSha", "driverSha", "operation", "version", "build", "identitySha256", "configSha256", "runId", "runAttempt", "approvalCommentId", "approvalExpiresAt", "artifactId"]}
+        receipt.update(repository_receipt(context))
         if not signing:
             receipt.update(sourceRunId=context["sourceRunId"], sourceRunAttempt=context["sourceRunAttempt"])
         receipt.update(schema=1, artifactSha256=verified_digest, signatureVerified=True, storeUploaded=not signing,

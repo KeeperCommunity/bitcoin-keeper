@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_ACTUAL_HELD_HTTP_ABORT_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentReceiptSha": "8ded4cdd81a37519dddc65b2458205ceea23f9e6",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedHttpAbortGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "sourceContracts": [
+    "src/services/backup/transport.ts:boundedBackupPost",
+    "src/services/rest/RestClient.ts:post",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "fault": "Unchanged fixture beforeReply holds the actual successful committed ACK until the real AbortController aborts actual Axios; only existing fixture abort timer option compresses setTimeout, with no fake clock, deadline or error.",
+  "positiveAbortWitnesses": [
+    "Real route status200/committedtrue and original full valid ACK required before held barrier opens.",
+    "Request must still be unsettled and real signal un-aborted at the commit barrier.",
+    "Same AbortSignal must emit exactly one real abort and be observed aborted.",
+    "Original Axios must reject CanceledError/ERR_CANCELED; unchanged bounded transport must classify timeout."
+  ],
+  "preservedAssertions": [
+    "Exactly one actual write with retained original namespace/revision/generation/authEpoch, independently committed.",
+    "No confirmed/updated success; every original pending/completed flag and consent retained including Delete.",
+    "Complete local image, KeeperApp and independent retained wallet remain unchanged.",
+    "Real independent signed readback proves the committed complete remote effect or exact tombstone.",
+    "Consumed uncertain receipt sends zero further HTTP and cannot renew authority."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:14",
+      "legacyCase": "updateAppImage: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:38",
+      "legacyCase": "migrateXfps: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:62",
+      "legacyCase": "deleteAppImageEntity: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:86",
+      "legacyCase": "deleteVaults: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:110",
+      "legacyCase": "updateVaultImage: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:134",
+      "legacyCase": "modifyLabels: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:158",
+      "legacyCase": "deleteBackup: genuine delayed HTTP reply is aborted and remains pending",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedHttpAbortGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: a genuine held committed HTTP reply is aborted and cannot confirm, opt out or replay"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged"
+}

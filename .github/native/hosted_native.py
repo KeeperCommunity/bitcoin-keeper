@@ -5,6 +5,7 @@ Native and Maestro output stays under RUNNER_TEMP, never in an uploaded glob.
 The gate trusts protected workflow/job provenance, never this writable artifact.
 """
 
+import contextlib
 import hashlib
 import importlib.util
 import json
@@ -521,6 +522,29 @@ def record_startup_failure(report, device, startup_started_ms=None):
     print('Bounded startup diagnostics: ' + json.dumps(details), flush=True)
 
 
+@contextlib.contextmanager
+def watched_android_command_signals():
+    """Unwind the active command before the watcher terminates its Python owner."""
+    if PLATFORM != 'ANDROID' or os.environ.get('KEEPER_ANDROID_BUILD_WATCHED') != '1':
+        yield
+        return
+    previous = {}
+    received = False
+    def interrupted(signum, _frame):
+        nonlocal received
+        if received:
+            return
+        received = True
+        raise SystemExit(128 + signum)
+    try:
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            previous[signum] = signal.signal(signum, interrupted)
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
 def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=True):
     """Record exact nonsecret argv and status; keep all process output private."""
     PRIVATE.mkdir(parents=True, exist_ok=True)
@@ -549,15 +573,26 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
     output_file = PRIVATE / ('command-%03d.log' % len(data['commands']))
     print(label, flush=True)
     try:
-        with output_file.open('wb') as output:
-            proc = subprocess.Popen(args, cwd=cwd, stdout=output, stderr=subprocess.STDOUT,
-                                    start_new_session=True, env=child_env)
+        with output_file.open('wb') as output, watched_android_command_signals():
+            proc = None
             try:
-                code = proc.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGKILL)
-                proc.wait()
-                code = 124
+                proc = subprocess.Popen(args, cwd=cwd, stdout=output, stderr=subprocess.STDOUT,
+                                        start_new_session=True, env=child_env)
+                try:
+                    code = proc.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                    proc.wait()
+                    code = 124
+            finally:
+                # This Popen owns a distinct session. The watcher's Python group
+                # does not include it; reap it here while its handle is retained.
+                if proc is not None and proc.returncode is None:
+                    try:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    proc.wait(timeout=5)
     except OSError:
         code = 127
     entry['exit_code'] = code
@@ -1578,9 +1613,16 @@ def features():
     smoke('features')
 
 
+def tls():
+    spec = importlib.util.spec_from_file_location('r52_tls_native', Path(__file__).with_name('r52_tls_native.py'))
+    matrix = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(matrix)
+    matrix.run(sys.modules[__name__])
+
+
 def main():
-    if PLATFORM not in APP_IDS or len(sys.argv) != 2 or sys.argv[1] not in ['record', 'prepare', 'driver', 'build', 'smoke', 'probe', 'features']:
-        raise RuntimeError('Expected a hosted platform and record|prepare|driver|build|smoke|probe|features.')
+    if PLATFORM not in APP_IDS or len(sys.argv) != 2 or sys.argv[1] not in ['record', 'prepare', 'driver', 'build', 'smoke', 'probe', 'features', 'tls']:
+        raise RuntimeError('Expected a hosted platform and record|prepare|driver|build|smoke|probe|features|tls.')
     os.environ.update({'ENVFILE': '.env.ci', 'RCT_NO_LAUNCH_PACKAGER': '1',
                        'RCT_NEW_ARCH_ENABLED': '1', 'MAESTRO_CLI_NO_ANALYTICS': '1'})
     run_phase(sys.argv[1])
@@ -1598,6 +1640,8 @@ def run_phase(phase):
                     evidence['dependency_preparation']['status'] = 'FAIL'
                 if phase in ['build', 'smoke', 'probe', 'features']:
                     evidence['r5_features' if phase == 'features' else 'native_probe' if phase == 'probe' else phase] = 'FAIL'
+                if phase == 'tls':
+                    evidence.setdefault('r52_tls_native', {})['status'] = 'FAIL'
                 save(evidence)
         except Exception:
             pass

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "scope": "WHOLE_1_0_5_UPGRADE_SOURCE_OBLIGATIONS_ONLY",
+  "startingAppSha": "c61e58fe185eea63d92dcdbbf05025fab5984126",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "productionCaller": "src/store/sagas/upgrade.ts:applyUpgradeSequence",
+  "legacyFile": "tests/recovery/automaticUpgradeProducer.integration.cjs",
+  "protectedFile": "tests/recovery/protectedLaunchHistory.proof.cjs",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "upgradeFamilyMapSha256": "82bc69589e1b18d3d901f3eaefe3fb1ebb045cbcaa340ac50e27dcd1c5eca8c9",
+  "rows": [
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:1",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:3"
+      ],
+      "sourceDisposition": "RETAINED_EXISTING_FULL_SOURCE_MAPPING"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:2",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:4"
+      ],
+      "sourceDisposition": "RETAINED_EXISTING_FULL_SOURCE_MAPPING"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:3",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:10"
+      ],
+      "priorSourceDisposition": "PARTIAL",
+      "sourceDisposition": "NEW_WHOLE_MIGRATION_NO_ORIGINAL_AUTHORITY",
+      "name": "whole 1.0.5 upgrade without original authority retains every local migration and performs zero HTTP"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:4",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:5"
+      ],
+      "sourceDisposition": "RETAINED_EXISTING_FULL_SOURCE_MAPPING"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:5",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:11"
+      ],
+      "priorSourceDisposition": "UNCOVERED",
+      "sourceDisposition": "NEW_PRECOMMIT_ASYNC_UTXO_READ_A_B_A",
+      "name": "whole 1.0.5 upgrade held at its asynchronous label read rejects A-to-B-to-A before every local migration or HTTP"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:6",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:7"
+      ],
+      "sourceDisposition": "RETAINED_EXISTING_FULL_SOURCE_MAPPING"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:7",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:12"
+      ],
+      "priorSourceDisposition": "PARTIAL",
+      "sourceDisposition": "NEW_WHOLE_MIGRATION_WITH_REAL_COMMITTED_LOST_ACK",
+      "name": "whole 1.0.5 upgrade with its first real CAS ACK lost preserves all migrations pending without later fanout or replay"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:8",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:9"
+      ],
+      "sourceDisposition": "RETAINED_EXISTING_FULL_SOURCE_MAPPING"
+    },
+    {
+      "legacyId": "automaticUpgradeProducer.integration.cjs:9",
+      "protectedIds": [
+        "protectedLaunchHistory.proof.cjs:13"
+      ],
+      "priorSourceDisposition": "PARTIAL",
+      "sourceDisposition": "NEW_SECOND_ACTUAL_WHOLE_PRODUCER_WITH_CONSUMED_ORIGINAL_BASE",
+      "name": "whole 1.0.5 actual upgrade producer invoked twice with its consumed original baseline sends no second HTTP and preserves one migration group"
+    }
+  ],
+  "runtimeAcceptance": "NOT_RUN",
+  "legacyMatrixResult": "PRESERVE_2_PASS_293_FAIL_UNCHANGED",
+  "nativeMobileOrHistoricDiskMigrationAcceptance": false,
+  "publicV2MatrixRetirementAuthorized": false,
+  "upgradeFamilyMap": "legacy-queue-node-label-upgrade-recovery-map-20261025.private.json"
+}

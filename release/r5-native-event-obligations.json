@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "scope": "SIX_NON_DELETE_COMMITTED_NATIVE_NOTIFICATION_HAPPY_PATH_OBLIGATIONS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentPendingAssertionSha": "94b2d6b2b06042b7a6ad0a85665d17503132f6eb",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedNativeEventGrid.proof.cjs",
+  "expectedGenuineCases": 6,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 6
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:commitBackupLocalOperation",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "missingOriginalAssertion": "Actual native Realm listener emission was installed but not asserted in the mapped protected success cases.",
+  "positiveControls": [
+    "Record listener-event boundary after all real initial enrollment/setup; actual receipt commit must emit a later event.",
+    "Real selected operation CAS must commit using the original protected namespace/revision/generation/authEpoch.",
+    "Complete actual signed readback/current proof and original verified/nonpending flags required."
+  ],
+  "preservedAssertions": [
+    "Original updatedtrue, exactlyone actual operation mutation, committedtrue, complete local/remote match, verified state and actual native events."
+  ],
+  "scopeLimits": [
+    "Delete145 is already FULL and intentionally not repeated; it makes no original native-listener claim.",
+    "Actual encrypted Realm N-API host proof is separate from Android/iOS application UI/native platform acceptance."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:1",
+      "legacyCase": "updateAppImage: matching committed native payload/target reaches real v2 once",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNativeEventGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: real committed local change emits native Realm notification before full signed verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:25",
+      "legacyCase": "migrateXfps: matching committed native payload/target reaches real v2 once",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNativeEventGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: real committed local change emits native Realm notification before full signed verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:49",
+      "legacyCase": "deleteAppImageEntity: matching committed native payload/target reaches real v2 once",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNativeEventGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: real committed local change emits native Realm notification before full signed verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:73",
+      "legacyCase": "deleteVaults: matching committed native payload/target reaches real v2 once",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNativeEventGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: real committed local change emits native Realm notification before full signed verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:97",
+      "legacyCase": "updateVaultImage: matching committed native payload/target reaches real v2 once",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNativeEventGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: real committed local change emits native Realm notification before full signed verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:121",
+      "legacyCase": "modifyLabels: matching committed native payload/target reaches real v2 once",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNativeEventGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: real committed local change emits native Realm notification before full signed verification"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

@@ -18,12 +18,12 @@ async function collectInstalledParentSoftware(privateGithub, github, context, re
   demand(window.isInstalledParentWindow(admitted), 'INSTALLED_PARENT_WINDOW_CAPABILITY_REQUIRED');
   demand(privateGithub && privateGithub !== github && typeof privateGithub.rest?.actions?.downloadArtifact === 'function',
     'INSTALLED_PARENT_PRIVATE_READ_IDENTITY_REQUIRED');
-  demand(publicProof.source_sha === admitted.app.sha && publicProof.source_tree === admitted.app.tree &&
+  demand(publicProof.repository === admitted.app.repository && publicProof.source_sha === admitted.app.sha && publicProof.source_tree === admitted.app.tree &&
     publicProof.workflow_sha === admitted.public.workflowSha && publicProof.workflow_path === admitted.public.workflowPath &&
     publicProof.run_id === admitted.public.runId && publicProof.run_attempt === admitted.public.runAttempt,
   'INSTALLED_PARENT_PUBLIC_WINDOW_MISMATCH');
   const privateProof = await privateSoftware.collectPrivateActionsSoftware(privateGithub,
-    admitted.expectedPerPlatform, { clock: options.clock, fetchImpl: options.fetchImpl });
+    admitted.expectedPerPlatform, { clock: options.clock, fetchImpl: options.fetchImpl, appGithub: github });
   demand(privateSoftware.isPrivateActionsSoftware(privateProof), 'INSTALLED_PARENT_PRIVATE_CAPABILITY_REQUIRED');
   demand(equal(publicProof.worker_sources, privateProof.worker_sources), 'INSTALLED_PARENT_WORKER_SOURCE_MISMATCH');
   const platforms = {};

@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_TWO_PRE_ADMISSION_REAL_PEER_CHANGES_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentAfterSendSha": "d6ab0a456f53c7f1e3611710e66e1f4af00d53e2",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedPeerAdmissionGrid.proof.cjs",
+  "expectedGenuineCases": 14,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 1,
+    "UNCOVERED": 13
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/protected.ts:sameProtectedBackupBase"
+  ],
+  "schedule": "After genuine original local commit but BEFORE old queue admission, real signed peer CAS advances the remote image with remote-only wallet or changed xpub at the retained walletID. Then the old receipt reads the actual advanced peer snapshot, refuses old authority and sends zero own mutations.",
+  "preservedAssertions": [
+    "Original seven operations \u00d7 both actual remote-only/key-conflict triggers.",
+    "No own mutation request, every original pending/completed flag, exact peer wallet xpub intact."
+  ],
+  "strongerObservables": [
+    "Actual status200 committed peer CAS and fully valid positive ACK/base must be witnessed.",
+    "Exactly one actual successful old-operation snapshot read and zero own mutations/enrollment/repair.",
+    "Complete committed local image/account and independent recovery records survive, including rejected Delete consent.",
+    "Whole actual signed remote image matches the original baseline plus only the exact peer change.",
+    "Replay of the old original receipt sends zero further HTTP and cannot rebase to peer authority."
+  ],
+  "fixtureTransition": "Genuine signed peer CAS replaces the legacy server.seed whole-image helper; all peer recovery content and pre-admission schedule are preserved.",
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:15",
+      "legacyCase": "updateAppImage: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "updateAppImage",
+      "change": "remote-only",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:16",
+      "legacyCase": "updateAppImage: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "updateAppImage",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:2",
+      "protectedCase": "updateAppImage: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:39",
+      "legacyCase": "migrateXfps: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "migrateXfps",
+      "change": "remote-only",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:3",
+      "protectedCase": "migrateXfps: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:40",
+      "legacyCase": "migrateXfps: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "migrateXfps",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:4",
+      "protectedCase": "migrateXfps: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:63",
+      "legacyCase": "deleteAppImageEntity: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "deleteAppImageEntity",
+      "change": "remote-only",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:5",
+      "protectedCase": "deleteAppImageEntity: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:64",
+      "legacyCase": "deleteAppImageEntity: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "deleteAppImageEntity",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:6",
+      "protectedCase": "deleteAppImageEntity: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:87",
+      "legacyCase": "deleteVaults: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "deleteVaults",
+      "change": "remote-only",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:7",
+      "protectedCase": "deleteVaults: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:88",
+      "legacyCase": "deleteVaults: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "deleteVaults",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:8",
+      "protectedCase": "deleteVaults: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:111",
+      "legacyCase": "updateVaultImage: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "updateVaultImage",
+      "change": "remote-only",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:9",
+      "protectedCase": "updateVaultImage: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:112",
+      "legacyCase": "updateVaultImage: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "updateVaultImage",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:10",
+      "protectedCase": "updateVaultImage: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:135",
+      "legacyCase": "modifyLabels: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "modifyLabels",
+      "change": "remote-only",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:11",
+      "protectedCase": "modifyLabels: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:136",
+      "legacyCase": "modifyLabels: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "modifyLabels",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:12",
+      "protectedCase": "modifyLabels: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:159",
+      "legacyCase": "deleteBackup: a peer remote-only snapshot cannot be overwritten by the old local receipt",
+      "operation": "deleteBackup",
+      "change": "remote-only",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:13",
+      "protectedCase": "deleteBackup: genuine pre-admission remote-only peer copy survives old local receipt without any own mutation"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:160",
+      "legacyCase": "deleteBackup: a peer key-conflict snapshot cannot be overwritten by the old local receipt",
+      "operation": "deleteBackup",
+      "change": "key-conflict",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedPeerAdmissionGrid.proof.cjs:14",
+      "protectedCase": "deleteBackup: genuine pre-admission key-conflict peer copy survives old local receipt without any own mutation"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged"
+}

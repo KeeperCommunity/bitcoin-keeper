@@ -59,7 +59,7 @@ for (const [name, mutate, expectedCode] of [
   ['wrong artifact approval', e => { e.comment.body = e.comment.body.replace('c'.repeat(64), 'd'.repeat(64)); }, 'APPROVAL_SCOPE_MISMATCH'],
   ['administrative bypass', e => { e.environment.can_admins_bypass = true; }, 'ENVIRONMENT_MISSING_OR_BYPASS_UNVERIFIED'],
   ['unverified bypass', e => { delete e.environment.can_admins_bypass; }, 'ENVIRONMENT_MISSING_OR_BYPASS_UNVERIFIED'],
-  ['self approval', e => { e.environment.protection_rules[0].prevent_self_review = false; }, 'INDEPENDENT_ENVIRONMENT_REVIEW_REQUIRED'],
+  ['malformed optional review', e => { e.environment.protection_rules[0].prevent_self_review = false; }, 'OPTIONAL_ENVIRONMENT_REVIEW_INVALID'],
   ['missing environment', e => { e.environment = null; }, 'ENVIRONMENT_MISSING_OR_BYPASS_UNVERIFIED'],
   ['stale native status', e => { e.statuses.sha = 'd'.repeat(40); }, 'STATUS_NOT_EXACT_SUCCESS'],
   ['failed security check', e => { e.checks.check_runs[1].conclusion = 'failure'; }, 'CHECKS_NOT_EXACT_SUCCESS'],

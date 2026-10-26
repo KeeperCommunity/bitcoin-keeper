@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_INITIAL_MISSING_VAULT_REFERENCE_SNAPSHOT_OBLIGATIONS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedMissingReferenceGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "UNCOVERED": 7
+  },
+  "sourceContracts": [
+    "src/services/backup/protected.ts:validateRead",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "faultModel": "Append original missing-vault-reference to appImage.vaults in the actual first initial queue snapshot response. Preserve original revision and complete actual backend bytes. No mutation response or successful snapshot is fabricated.",
+  "protocolBoundary": {
+    "actualRejection": "Changed complete raw snapshot projection fails v3 revision integrity before reference decoder execution.",
+    "noMatchingRevisionFabrication": true,
+    "referenceDecoderBranchCredit": false
+  },
+  "positiveControls": [
+    "Genuine committed native receipt retains original protected full tuple.",
+    "Exactly one actual initial successful snapshot response must receive the fault and match whole verified original snapshot before injection.",
+    "Original reference absent from appImage.vaults and allVaultImages; injected reference list equals original plus exactly the missing ID."
+  ],
+  "preservedAssertions": [
+    "Zero own mutations for every original operation and every independent pending/nonverified/completed flag.",
+    "Consent remains enabled including old explicit Delete; complete committed native image/account/recovery data survive."
+  ],
+  "strongerObservables": [
+    "Actual initial response namespace/revision/generation/authEpoch and whole snapshot must equal original verified copy.",
+    "Exactly one initial snapshot and zero mutations/enrollment/repair before explicit independent inspection.",
+    "Actual complete signed remote snapshot remains unchanged and decrypts to whole original image.",
+    "Old rejected original receipt sends zero additional HTTP before and after fresh independent readback."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:22",
+      "legacyCase": "updateAppImage: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:46",
+      "legacyCase": "migrateXfps: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:70",
+      "legacyCase": "deleteAppImageEntity: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:94",
+      "legacyCase": "deleteVaults: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:118",
+      "legacyCase": "updateVaultImage: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:142",
+      "legacyCase": "modifyLabels: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:166",
+      "legacyCase": "deleteBackup: a malformed missing-reference snapshot authorizes no mutation",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedMissingReferenceGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: missing vault reference in the real initial snapshot cannot authorize any mutation or receipt replay"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

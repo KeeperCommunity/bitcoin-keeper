@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "scope": "ALL_ORIGINAL_THREE_MEMBER_FAILURE_VARIANTS_NATIVE_INTERLEAVE_AND_SHARED_REGISTRATION_PRODUCER_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentIdentitySha": "1e1a6ff4ea0f67b7abf3f885e9aed4e7b4159586",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedFanoutObligations.proof.cjs",
+  "expectedGenuineCases": 5,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 4,
+    "UNCOVERED": 1
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/store/sagas/bhr.ts:buildAutomaticVaultMutation",
+    "src/store/sagas/bhr.ts:queueCommittedBackupWorker"
+  ],
+  "faultModel": "After own actual ACK1, a separately signed real peer CAS advances the server. Own member2 submits ONLY its own ACK1 tuple and receives actual409; member3 never sends. A separate case holds real ACK1 while a later native Tags commit invalidates the original receipt.",
+  "preservedAssertions": [
+    "Three prepared effects and every original create/archive/shared-registration/label-import/delete local mutation remain.",
+    "First own attempt genuinely commits, second genuinely fails, and no third own attempt occurs.",
+    "Every original pending/completed flag and complete committed native image survive.",
+    "Native interleave commits while the first actual ACK remains outstanding; exact first/old/remaining label effects are checked.",
+    "Actual BHR builder and queue worker update a shared native registration list into both existing vaults; both decoded arrays and pending false are retained."
+  ],
+  "strongerObservables": [
+    "Real competing peer commit is independently distinguished from own requests; its remote-only recovery record survives.",
+    "Own member2 cannot borrow peer tuple or retry/rebase; full original ACK chain is checked.",
+    "Actual full signed snapshots prove exact committed/remaining remote content.",
+    "Explicit old receipt replay sends zero further HTTP.",
+    "Shared-registration happy path verifies the entire local/remote image and current proof before an explicit consumed-receipt replay."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:169",
+      "legacyCase": "create-and-archive-vaults: first real CAS succeeds, second fails, remaining effects stop and all local data survives",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedFanoutObligations.proof.cjs:1",
+      "protectedCase": "create-and-archive-vaults: real peer CAS after ACK1 rejects member2, stops member3 and preserves every local effect"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:170",
+      "legacyCase": "shared-vault-registration: first real CAS succeeds, second fails, remaining effects stop and all local data survives",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedFanoutObligations.proof.cjs:2",
+      "protectedCase": "shared-vault-registration: real peer CAS after ACK1 rejects member2, stops member3 and preserves every local effect"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:171",
+      "legacyCase": "label-import-and-delete: first real CAS succeeds, second fails, remaining effects stop and all local data survives",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedFanoutObligations.proof.cjs:3",
+      "protectedCase": "label-import-and-delete: real peer CAS after ACK1 rejects member2, stops member3 and preserves every local effect"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:172",
+      "legacyCase": "a genuine native write between fanout members stops every later member after the first real CAS",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedFanoutObligations.proof.cjs:4",
+      "protectedCase": "a genuine later native label commit while ACK1 is held stops fanout members2/3 after the first real CAS"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:183",
+      "legacyCase": "actual BHR vault producer builds from shared native registrations and acknowledges the complete fanout",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedFanoutObligations.proof.cjs:5",
+      "protectedCase": "actual BHR shared native registration producer updates both existing vaults with its own ACK chain and full readback"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged"
+}

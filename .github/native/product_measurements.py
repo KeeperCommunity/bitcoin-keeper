@@ -33,7 +33,7 @@ PIN_MARKERS = ('confirm_passcode_visible', 'confirmation_digits_tapped', 'create
 
 def native_module(name):
     if name not in ('product_metro', 'product_failure_diagnosis', 'product_credential_acceptance',
-                    'product_history_acceptance', 'product_vault_acceptance'):
+                    'product_history_acceptance', 'product_vault_acceptance', 'r52_trust_ui_acceptance'):
         raise RuntimeError('PRODUCT_UI_FIXED_COMPANION_REQUIRED')
     spec = importlib.util.spec_from_file_location(name, Path(__file__).with_name(name + '.py'))
     module = importlib.util.module_from_spec(spec)
@@ -45,6 +45,7 @@ def run_post_key_companions(h, data, device, private, receipt, metro, installed_
     """Ordering preserves the original one-account/one-wallet fixture until Vault."""
     for slot, name in (('credential_errors_ui', 'product_credential_acceptance'),
                        ('version_history_ui', 'product_history_acceptance'),
+                       ('node_trust_ui', 'r52_trust_ui_acceptance'),
                        ('vault_references_ui', 'product_vault_acceptance')):
         metro.ensure_product()
         companion = native_module(name)

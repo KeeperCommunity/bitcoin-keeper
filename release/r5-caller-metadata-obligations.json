@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "scope": "EXACT_BHR_NODE_EMPTY_SET_ARCHIVE_ALIAS_AND_SINGLE_UPDATE_THREE_METADATA_FIELDS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedCallerMetadataObligations.proof.cjs",
+  "expectedGenuineCases": 5,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 2,
+    "UNCOVERED": 3
+  },
+  "sourceContracts": [
+    "src/store/sagas/bhr.ts:buildAutomaticAppMutation",
+    "src/store/sagas/bhr.ts:updateAppImageWorker",
+    "src/services/backup/automatic.ts:project",
+    "src/services/backup/protected.ts:validateRead",
+    "src/services/backup/localSnapshot.ts:backupMetadataMatches"
+  ],
+  "preservedAssertions": [
+    "Actual BHR persisted-node addition then deletion of EVERY NodeConnect record, two actual confirmed CAS operations and exact final decoded empty remote set.",
+    "Archive alias without preceding archived ciphertext refuses any mutation and retains original pending/completed/local effects.",
+    "Single actual update followed by malformed publicId/version/subscription final metadata cannot become verified; exactlyone committed mutation and all pending/completed flags."
+  ],
+  "archiveMapProseCorrection": "Historical map says zeroHTTP; original185 asserts only attemptedWrites0. Real projector legitimately reads one original valid snapshot before rejecting archive dependency. No original assertion waived.",
+  "metadataBoundary": "Final response keeps original revision; raw content hash rejects corrupt metadata before app final metadata comparator. Tests independently call the actual production comparator on original/corrupt images to prove each selected field matters; no claimed final-caller comparator branch execution.",
+  "positiveControls": [
+    "Each native receipt/selected real CAS/fulltuple/complete readback/current verification positively observed.",
+    "Node replacement body must have replaceNodestrue and nodeCount1 then0, with own prior ACK chained.",
+    "Alias has two real local effects but only one submitted create operation, deliberately omitting preceding archive ciphertext.",
+    "Each metadata fault occurs exactly once on final snapshot after real positive ACK; original field exists and differs, actual production comparator true\u2192false."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:182",
+      "legacyCase": "actual BHR node producer reads the genuine persisted collection and clears nodes with an exact set",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCallerMetadataObligations.proof.cjs:1",
+      "protectedCase": "actual BHR node producer backs up its persisted collection then deletes every native and remote node with an exact empty set"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:185",
+      "legacyCase": "an archive alias without its preceding committed archive ciphertext sends nothing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCallerMetadataObligations.proof.cjs:2",
+      "protectedCase": "archive alias without its preceding actual archived ciphertext cannot upload a genuine two-effect native commit"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:186",
+      "legacyCase": "complete final readback with malformed publicId cannot claim verification",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCallerMetadataObligations.proof.cjs:3",
+      "protectedCase": "single actual update with malformed final publicId cannot replace current metadata verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:187",
+      "legacyCase": "complete final readback with malformed version cannot claim verification",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCallerMetadataObligations.proof.cjs:4",
+      "protectedCase": "single actual update with malformed final version cannot replace current metadata verification"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:188",
+      "legacyCase": "complete final readback with malformed subscription cannot claim verification",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCallerMetadataObligations.proof.cjs:5",
+      "protectedCase": "single actual update with malformed final subscription cannot replace current metadata verification"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

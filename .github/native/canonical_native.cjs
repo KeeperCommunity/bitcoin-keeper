@@ -9,6 +9,7 @@ const { REQUIRED, acceptance } = require('./release_acceptance.cjs');
 const { publicCompanionChecks } = require('./public_companion_receipts.cjs');
 const { validatePublicSoftware, WORKER_SOURCES, PUBLIC_SOFTWARE_SCOPE } = require('./public_software_receipts.cjs');
 const { parseStrictJson } = require('./strict_json.cjs');
+const repositories = require('./release_repository_profiles.cjs');
 const REPOSITORY = 'KeeperCommunity/bitcoin-keeper';
 const REPOSITORY_ID = 470904030;
 const WORKFLOW = '.github/workflows/keeper-canonical-native.yml';
@@ -27,14 +28,15 @@ function freeze(value) {
 }
 
 function requestFromEnvironment(context, env) {
+  const profile = repositories.forContext(context);
   const request = { sourceSha: env.KEEPER_SOURCE_SHA, workflowSha: env.GITHUB_WORKFLOW_SHA,
     workflowRef: env.GITHUB_WORKFLOW_REF, pin: env.KEEPER_CANONICAL_NATIVE_DRIVER_SHA,
     runId: Number(env.GITHUB_RUN_ID), attempt: Number(env.GITHUB_RUN_ATTEMPT) };
   demand(context.eventName === 'workflow_dispatch' && context.ref === 'refs/heads/sprint' &&
-    `${context.repo.owner}/${context.repo.repo}` === REPOSITORY, 'CANONICAL_DISPATCH_REF_REQUIRED');
+    `${context.repo.owner}/${context.repo.repo}` === profile.repository, 'CANONICAL_DISPATCH_REF_REQUIRED');
   demand(SHA.test(request.sourceSha || '') && request.sourceSha === context.sha &&
     request.workflowSha === request.sourceSha && request.pin === request.sourceSha &&
-    request.workflowRef === `${REPOSITORY}/${WORKFLOW}@refs/heads/sprint`, 'INSTALLED_DRIVER_PIN_REQUIRED');
+    request.workflowRef === `${profile.repository}/${WORKFLOW}@refs/heads/sprint`, 'INSTALLED_DRIVER_PIN_REQUIRED');
   demand(Number.isSafeInteger(request.runId) && request.runId === context.runId && request.runId > 0 &&
     Number.isSafeInteger(request.attempt) && request.attempt > 0, 'EXACT_RUN_ATTEMPT_REQUIRED');
   return request;
@@ -67,6 +69,8 @@ function privateReaderFromEnvironment(github, env) {
 }
 
 async function origin(github, context, request, { admission = false, pinReader } = {}) {
+  const profile = repositories.forContext(context);
+  demand(request.workflowRef === `${profile.repository}/${WORKFLOW}@refs/heads/sprint`, 'INSTALLED_DRIVER_PIN_REQUIRED');
   demand(typeof pinReader?.rest?.actions?.getRepoVariable === 'function', 'LIVE_DRIVER_PIN_IDENTITY_REQUIRED');
   const args = context.repo;
   const [repository, branch, workflow, run, pin] = await Promise.all([
@@ -80,13 +84,14 @@ async function origin(github, context, request, { admission = false, pinReader }
   ]);
   demand(pin?.name === 'KEEPER_CANONICAL_NATIVE_DRIVER_SHA' && pin.value === request.sourceSha && pin.value === request.pin,
     'LIVE_DRIVER_PIN_REVOKED_OR_UNREADABLE');
-  demand(repository.id === REPOSITORY_ID && repository.full_name === REPOSITORY && repository.default_branch === 'sprint', 'REPOSITORY_MISMATCH');
+  demand(repositories.matches(repository, profile) && repository.default_branch === 'sprint', 'REPOSITORY_MISMATCH');
   demand(branch.protected === true && branch.commit?.sha === request.sourceSha, 'CANONICAL_HEAD_MOVED_OR_UNPROTECTED');
   demand(workflow.path === WORKFLOW && workflow.state === 'active', 'CANONICAL_WORKFLOW_NOT_INSTALLED');
   demand(run.id === request.runId && run.run_attempt === request.attempt && run.workflow_id === workflow.id &&
     run.event === 'workflow_dispatch' && run.path?.split('@')[0] === WORKFLOW &&
     run.head_sha === request.sourceSha && run.head_branch === 'sprint' &&
-    run.head_repository?.id === REPOSITORY_ID && run.head_repository.full_name === REPOSITORY &&
+    repositories.matches(run.head_repository, profile) &&
+    (!profile.private || repositories.matches(run.repository, profile)) &&
     Array.isArray(run.pull_requests) && run.pull_requests.length === 0 &&
     (run.status === 'in_progress' || (run.status === 'completed' && run.conclusion === 'success')),
   'CANONICAL_RUN_MISMATCH');
@@ -124,6 +129,7 @@ function requiredSteps(platform) {
 }
 
 async function platformJobs(github, context, request, run) {
+  const profile = repositories.forContext(context);
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt,
     { ...context.repo, run_id: request.runId, attempt_number: request.attempt, per_page: 100 });
   const result = {};
@@ -138,10 +144,10 @@ async function platformJobs(github, context, request, run) {
       const steps = job.steps?.filter(step => step.name === name) ?? [];
       demand(steps.length === 1 && steps[0].status === 'completed' && steps[0].conclusion === 'success', 'CANONICAL_REQUIRED_STEP_NOT_SUCCESS');
     }
-    const match = job.check_run_url?.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper\/check-runs\/([0-9]+)$/);
-    demand(match, 'CANONICAL_JOB_CHECK_LINK_INVALID');
-    const check = (await github.rest.checks.get({ ...context.repo, check_run_id: Number(match[1]) })).data;
-    demand(check.id === Number(match[1]) && check.name === job.name && githubApp(check) &&
+    const checkId = repositories.checkId(job.check_run_url, profile);
+    demand(checkId, 'CANONICAL_JOB_CHECK_LINK_INVALID');
+    const check = (await github.rest.checks.get({ ...context.repo, check_run_id: checkId })).data;
+    demand(check.id === checkId && check.name === job.name && githubApp(check) &&
       check.head_sha === request.sourceSha && check.check_suite?.id === run.check_suite_id &&
       check.status === 'completed' && check.conclusion === 'success', 'CANONICAL_JOB_CHECK_UNTRUSTED');
     result[platform] = job;
@@ -267,7 +273,7 @@ async function collectPublic(github, context, request, readZip, { pinReader } = 
   // The source/pin/run fence must be terminal: commit-tree and final artifact
   // reads above can observe a revocation that occurred after initial admission.
   await origin(github, context, request, { pinReader });
-  const result = freeze({ schema: 1, kind: 'keeper-installed-public-software', repository: REPOSITORY,
+  const result = freeze({ schema: 1, kind: 'keeper-installed-public-software', repository: repositories.forContext(context).repository,
     source_sha: request.sourceSha, source_tree: commit.tree.sha, workflow_sha: request.workflowSha,
     workflow_path: WORKFLOW, run_id: request.runId, run_attempt: request.attempt,
     selected_route: 'canonical-hosted-native', platforms, worker_sources: workerSources });

@@ -4,6 +4,11 @@ on:
     branches: [sprint]
     paths:
       - '.github/native/canonical_*'
+      - '.github/native/release_repository_profiles.cjs'
+      - '.github/tests/private-release-native-profile.test.cjs'
+      - 'docs/r5-private-release-profile.md'
+      - 'scripts/prepare_private_native_parent.py'
+      - 'scripts/test_prepare_private_native_parent.py'
       - '.github/native/public_software_receipts.cjs'
       - '.github/native/public_companion_receipts.cjs'
       - '.github/native/actions_software_evidence.cjs'
@@ -72,6 +77,8 @@ jobs:
           python3 -B -m unittest discover -s .github/tests -p test_canonical_metadata.py
           python3 -B -m unittest discover -s .github/tests -p test_software_artifact_zip.py
           node --test .github/tests/installed-parent-window.test.cjs .github/tests/installed-parent-bootstrap.test.cjs
+          node --test .github/tests/private-release-native-profile.test.cjs
+          python3 -B -m unittest discover -s scripts -p test_prepare_private_native_parent.py
           node --test .github/tests/private-actions-origin.test.cjs .github/tests/private-actions-pagination.test.cjs .github/tests/private-actions-software.test.cjs .github/tests/private-artifact-stream.test.cjs .github/tests/installed-parent-software.test.cjs
           node --test .github/tests/private-integration-receipts.test.cjs .github/tests/parent-software-evidence.test.cjs .github/tests/private-source-proof-scopes.test.cjs
           python3 -B -m unittest discover -s .github/tests -p test_private_software_artifact_zip.py

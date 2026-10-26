@@ -4,8 +4,8 @@ const crypto = require('node:crypto');
 const { parseStrictJson } = require('./strict_json.cjs');
 const { RECOVERY_SOURCES } = require('./private_integration_receipts.cjs');
 const { WORKER_SOURCES } = require('./public_software_receipts.cjs');
+const repositories = require('./release_repository_profiles.cjs');
 const PRIVATE = 'KeeperCommunity/bitcoin-keeper-relay', PRIVATE_ID = 496119449;
-const APP = 'KeeperCommunity/bitcoin-keeper', APP_ID = 470904030;
 const BACKEND = '29597b27eeeb299205bf7d0555db0a90c38cc4be';
 const REVIEWED_DRIVER = 'f0a695a6bba068ba93962e90ab52e8901ef4a852';
 const WORKFLOW = '.github/workflows/r5-native-integration.yml';
@@ -62,7 +62,8 @@ async function complete(endpoint, args, field) {
 function repository(value, name, number) { return value?.id === number && value.full_name === name; }
 function descriptor(value, platform) {
   demand(keys(value, ['platform', 'app', 'control', 'backend', 'execution']) && value.platform === platform);
-  for (const [name, repo] of [['app', APP], ['control', PRIVATE]]) demand(keys(value[name], ['repository', 'sha', 'tree']) &&
+  const profile = repositories.forRepository(value.app?.repository);
+  for (const [name, repo] of [['app', profile.repository], ['control', PRIVATE]]) demand(keys(value[name], ['repository', 'sha', 'tree']) &&
     value[name].repository === repo && sha(value[name].sha) && sha(value[name].tree));
   demand(keys(value.backend, ['repository', 'sha']) && value.backend.repository === PRIVATE && value.backend.sha === BACKEND);
   const e = value.execution;
@@ -118,9 +119,10 @@ function artifactIdentity(info, value, artifactId, now, selected) {
     instant(info.created_at) >= instant(selected.started_at) && instant(info.created_at) <= instant(selected.completed_at),
   'PRIVATE_ACTIONS_ARTIFACT_INVALID');
 }
-function stepNames(platform) {
+function stepNames(platform, appRepository) {
   return ['Record actual shared native window start before checkout or build',
-    'Check out exact private tooling and only required runtime modules', 'Fetch fixed public app anonymously',
+    'Check out exact private tooling and only required runtime modules',
+    repositories.forRepository(appRepository).private ? 'Fetch fixed private app with scoped read identity' : 'Fetch fixed public app anonymously',
     'Set up reviewed Node runtime', 'Verify bounded exact source before installation',
     'Install frozen backend dependencies without scripts', 'Set up Java17',
     'Record actual hosted toolchain', 'Install immutable native app dependencies and synthetic configuration',
@@ -147,7 +149,7 @@ async function selectedJob(github, value, run, now) {
     Array.isArray(job.labels) && job.labels.includes(platform === 'IOS' ? 'macos-15-intel' : 'ubuntu-24.04') &&
     !job.labels.includes('self-hosted') && instant(job.started_at) > 0 &&
     instant(job.completed_at) > instant(job.started_at) && instant(job.completed_at) <= now, 'PRIVATE_ACTIONS_JOB_INVALID');
-  for (const name of stepNames(platform)) {
+  for (const name of stepNames(platform, value.app.repository)) {
     const found = job.steps?.filter(s => s.name === name) || [];
     demand(found.length === 1 && found[0].status === 'completed' && found[0].conclusion === 'success', 'PRIVATE_ACTIONS_STEP_INVALID');
   }
@@ -192,8 +194,26 @@ async function windowOrigin(github, value, workflow, backendTree, baselinePolicy
     controlTree.get(p)?.mode === backendTree.get(p)?.mode) || allowed.has(p), 'PRIVATE_ACTIONS_BACKEND_DELTA_INVALID');
   // The reviewed control commit selects the app itself; the artifact cannot choose it.
   const workflowText = workflowBytes.toString('utf8');
-  demand(workflowText.includes(`KEEPER_SOURCE_SHA: ${app.sha}`) &&
-    workflowText.includes(`origin ${app.sha}`) && workflowText.includes(`--detach ${app.sha}`), 'PRIVATE_ACTIONS_APP_SELECTION_INVALID');
+  demand(workflowText.includes(`KEEPER_SOURCE_SHA: ${app.sha}`), 'PRIVATE_ACTIONS_APP_SELECTION_INVALID');
+  if (repositories.forRepository(app.repository).private) {
+    // Exact reviewed transport shape. Actions removes the temporary read token
+    // before dependencies/native tools; subsequent raw-source checks still bind
+    // every file to this app SHA/tree. Bundle diagnostic jobs are a distinct
+    // unadmitted source transport and cannot inherit this profile.
+    const checkout = [
+      '      - name: Fetch fixed private app with scoped read identity',
+      '        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6',
+      '        with:',
+      '          repository: KeeperCommunity/bitcoin-keeper-private',
+      `          ref: ${app.sha}`,
+      '          path: app',
+      '          fetch-depth: 0',
+      '          persist-credentials: false',
+      '          token: ${{ secrets.KEEPER_PRIVATE_APP_CONTENTS_READ_TOKEN }}',
+    ].join('\n') + '\n';
+    demand(workflowText.split(checkout).length === 2, 'PRIVATE_ACTIONS_APP_SELECTION_INVALID');
+  } else demand(workflowText.includes(`origin ${app.sha}`) && workflowText.includes(`--detach ${app.sha}`),
+    'PRIVATE_ACTIONS_APP_SELECTION_INVALID');
   const selected = await selectedJob(github, value, run, now);
   const artifacts = await complete(github.rest.actions.listWorkflowRunArtifacts, { ...args, run_id: e.runId }, 'artifacts');
   const name = `r5-integration-native-${platform}-${control.sha}-${e.runId}-${e.runAttempt}`;
@@ -206,7 +226,7 @@ async function windowOrigin(github, value, workflow, backendTree, baselinePolicy
     policy_source_sha256: digest(policyBytes), marker_source_sha256: digest(markerBytes),
     parent: commit.parents[0].sha, controlTree };
 }
-async function authenticatePrivateActionsOrigins(github, supplied, { clock = Date.now } = {}) {
+async function authenticatePrivateActionsOrigins(github, supplied, { clock = Date.now, appGithub } = {}) {
   try {
     demand(keys(supplied, ['IOS', 'ANDROID']));
     // Snapshot caller expectations; never populate them from a receipt or API response.
@@ -214,19 +234,26 @@ async function authenticatePrivateActionsOrigins(github, supplied, { clock = Dat
     for (const p of ['IOS', 'ANDROID']) descriptor(expected[p], p);
     demand(equal(expected.IOS.app, expected.ANDROID.app) && equal(expected.IOS.backend, expected.ANDROID.backend) &&
       expected.IOS.control.sha !== expected.ANDROID.control.sha && expected.IOS.execution.runId !== expected.ANDROID.execution.runId);
-    const args = api(PRIVATE), appArgs = api(APP), app = expected.IOS.app;
+    const app = expected.IOS.app, profile = repositories.forRepository(app.repository);
+    // The private execution reader is scoped to Relay artifacts/tooling. App
+    // contents use the authenticated mobile caller client; never borrow or
+    // broaden the Relay credential, and never fall back to the public app.
+    const sourceGithub = profile.private ? appGithub : github;
+    demand(!profile.private || (sourceGithub && sourceGithub !== github &&
+      typeof sourceGithub.rest?.git?.getCommit === 'function'), 'PRIVATE_ACTIONS_APP_READ_IDENTITY_REQUIRED');
+    const args = api(PRIVATE), appArgs = api(profile.repository);
     const [privateRepo, appRepo, branch, workflow, appCommit, appRawTree, backendCommit, backendRawTree, policyBytes] = await Promise.all([
-      github.rest.repos.get(args).then(data), github.rest.repos.get(appArgs).then(data),
+      github.rest.repos.get(args).then(data), sourceGithub.rest.repos.get(appArgs).then(data),
       github.rest.repos.getBranch({ ...args, branch: REF.slice(11) }).then(data),
       github.rest.actions.getWorkflow({ ...args, workflow_id: 'r5-native-integration.yml' }).then(data),
-      github.rest.git.getCommit({ ...appArgs, commit_sha: app.sha }).then(data),
-      github.rest.git.getTree({ ...appArgs, tree_sha: app.sha, recursive: '1' }).then(data),
+      sourceGithub.rest.git.getCommit({ ...appArgs, commit_sha: app.sha }).then(data),
+      sourceGithub.rest.git.getTree({ ...appArgs, tree_sha: app.sha, recursive: '1' }).then(data),
       github.rest.git.getCommit({ ...args, commit_sha: BACKEND }).then(data),
       github.rest.git.getTree({ ...args, tree_sha: BACKEND, recursive: '1' }).then(data),
       contents(github, PRIVATE, REVIEWED_DRIVER, POLICY),
     ]);
-    demand(repository(privateRepo, PRIVATE, PRIVATE_ID) && privateRepo.private === true && repository(appRepo, APP, APP_ID) &&
-      appRepo.private === false, 'PRIVATE_ACTIONS_REPOSITORY_INVALID');
+    demand(repository(privateRepo, PRIVATE, PRIVATE_ID) && privateRepo.private === true && repositories.matches(appRepo, profile) &&
+      appRepo.private === profile.private, 'PRIVATE_ACTIONS_REPOSITORY_INVALID');
     demand(branch.name === REF.slice(11) && [expected.IOS.control.sha, expected.ANDROID.control.sha].includes(branch.commit?.sha),
       'PRIVATE_ACTIONS_BRANCH_MOVED');
     demand(id(workflow.id) && workflow.path === WORKFLOW && workflow.state === 'active', 'PRIVATE_ACTIONS_WORKFLOW_INVALID');
@@ -245,7 +272,7 @@ async function authenticatePrivateActionsOrigins(github, supplied, { clock = Dat
     demand(equal(left, right), 'PRIVATE_ACTIONS_CONTROL_EQUIVALENCE_INVALID');
     const sourceBytes = new Map(), workerSources = [], recoverySources = [];
     for (const name of new Set([...RECOVERY_SOURCES, ...Object.keys(WORKER_SOURCES)]))
-      sourceBytes.set(name, await contents(github, APP, app.sha, name, appTree));
+      sourceBytes.set(name, await contents(sourceGithub, profile.repository, app.sha, name, appTree));
     for (const name of RECOVERY_SOURCES) recoverySources.push(Object.freeze({ path: name, sha256: digest(sourceBytes.get(name)) }));
     for (const [name, names] of Object.entries(WORKER_SOURCES)) workerSources.push(Object.freeze({ path: name,
       sha256: digest(sourceBytes.get(name)), names: Object.freeze([...names]) }));
@@ -273,10 +300,11 @@ async function authenticatePrivateActionsOrigins(github, supplied, { clock = Dat
     }
     // Artifact readbacks above are network work too. Perform a terminal current
     // window fence AFTER all of them, with no subsequent API reads before issue.
-    const [lastBranch, lastWorkflow, lastRepo, ...lastRuns] = await Promise.all([
+    const [lastBranch, lastWorkflow, lastRepo, lastAppRepo, ...lastRuns] = await Promise.all([
       github.rest.repos.getBranch({ ...args, branch: REF.slice(11) }).then(data),
       github.rest.actions.getWorkflow({ ...args, workflow_id: 'r5-native-integration.yml' }).then(data),
       github.rest.repos.get(args).then(data),
+      sourceGithub.rest.repos.get(appArgs).then(data),
       ...['IOS', 'ANDROID'].flatMap(p => {
         const e = expected[p].execution;
         return [complete(github.rest.actions.listWorkflowRuns, { ...args, workflow_id: workflow.id, head_sha: expected[p].control.sha,
@@ -287,6 +315,8 @@ async function authenticatePrivateActionsOrigins(github, supplied, { clock = Dat
     demand(lastBranch.name === branch.name && lastBranch.commit?.sha === branch.commit.sha, 'PRIVATE_ACTIONS_BRANCH_MOVED');
     demand(lastWorkflow.id === workflow.id && lastWorkflow.path === WORKFLOW && lastWorkflow.state === 'active', 'PRIVATE_ACTIONS_WORKFLOW_INVALID');
     demand(repository(lastRepo, PRIVATE, PRIVATE_ID) && lastRepo.private === true, 'PRIVATE_ACTIONS_REPOSITORY_INVALID');
+    demand(repositories.matches(lastAppRepo, profile) && lastAppRepo.private === profile.private,
+      'PRIVATE_ACTIONS_REPOSITORY_INVALID');
     ['IOS', 'ANDROID'].forEach((p, index) => {
       const [latest, run] = lastRuns.slice(index * 2, index * 2 + 2), e = expected[p].execution;
       demand(Math.max(...latest.map(r => r.id)) === e.runId && run.check_suite_id === rows[p].check_suite_id &&

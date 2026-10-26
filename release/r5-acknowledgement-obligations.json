@@ -1,0 +1,406 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_SIX_ACK_VALIDATION_FAULTS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "protectedFile": "tests/recovery/protectedAcknowledgementGrid.proof.cjs",
+  "sourceContracts": [
+    "src/services/backup/protected.ts:protectedBackupMutation",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "mutations": "Exactly one field in an actual successful committed backend response is changed or removed; no fabricated success response",
+  "unchangedExistingCoverage": "The existing updateAppImage malformed-newGeneration case is different and retained; no old tests/fixtures/validators are changed",
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:8",
+      "legacyCase": "updateAppImage: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "updateAppImage",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:9",
+      "legacyCase": "updateAppImage: a real committed write with updated false acknowledgement remains pending",
+      "operation": "updateAppImage",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:2",
+      "protectedCase": "updateAppImage: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:10",
+      "legacyCase": "updateAppImage: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "updateAppImage",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:3",
+      "protectedCase": "updateAppImage: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:11",
+      "legacyCase": "updateAppImage: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "updateAppImage",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:4",
+      "protectedCase": "updateAppImage: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:12",
+      "legacyCase": "updateAppImage: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "updateAppImage",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:5",
+      "protectedCase": "updateAppImage: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:13",
+      "legacyCase": "updateAppImage: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "updateAppImage",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:6",
+      "protectedCase": "updateAppImage: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:32",
+      "legacyCase": "migrateXfps: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "migrateXfps",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:7",
+      "protectedCase": "migrateXfps: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:33",
+      "legacyCase": "migrateXfps: a real committed write with updated false acknowledgement remains pending",
+      "operation": "migrateXfps",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:8",
+      "protectedCase": "migrateXfps: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:34",
+      "legacyCase": "migrateXfps: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "migrateXfps",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:9",
+      "protectedCase": "migrateXfps: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:35",
+      "legacyCase": "migrateXfps: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "migrateXfps",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:10",
+      "protectedCase": "migrateXfps: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:36",
+      "legacyCase": "migrateXfps: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "migrateXfps",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:11",
+      "protectedCase": "migrateXfps: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:37",
+      "legacyCase": "migrateXfps: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "migrateXfps",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:12",
+      "protectedCase": "migrateXfps: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:56",
+      "legacyCase": "deleteAppImageEntity: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "deleteAppImageEntity",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:13",
+      "protectedCase": "deleteAppImageEntity: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:57",
+      "legacyCase": "deleteAppImageEntity: a real committed write with updated false acknowledgement remains pending",
+      "operation": "deleteAppImageEntity",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:14",
+      "protectedCase": "deleteAppImageEntity: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:58",
+      "legacyCase": "deleteAppImageEntity: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "deleteAppImageEntity",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:15",
+      "protectedCase": "deleteAppImageEntity: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:59",
+      "legacyCase": "deleteAppImageEntity: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "deleteAppImageEntity",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:16",
+      "protectedCase": "deleteAppImageEntity: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:60",
+      "legacyCase": "deleteAppImageEntity: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "deleteAppImageEntity",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:17",
+      "protectedCase": "deleteAppImageEntity: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:61",
+      "legacyCase": "deleteAppImageEntity: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "deleteAppImageEntity",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:18",
+      "protectedCase": "deleteAppImageEntity: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:80",
+      "legacyCase": "deleteVaults: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "deleteVaults",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:19",
+      "protectedCase": "deleteVaults: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:81",
+      "legacyCase": "deleteVaults: a real committed write with updated false acknowledgement remains pending",
+      "operation": "deleteVaults",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:20",
+      "protectedCase": "deleteVaults: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:82",
+      "legacyCase": "deleteVaults: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "deleteVaults",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:21",
+      "protectedCase": "deleteVaults: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:83",
+      "legacyCase": "deleteVaults: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "deleteVaults",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:22",
+      "protectedCase": "deleteVaults: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:84",
+      "legacyCase": "deleteVaults: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "deleteVaults",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:23",
+      "protectedCase": "deleteVaults: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:85",
+      "legacyCase": "deleteVaults: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "deleteVaults",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:24",
+      "protectedCase": "deleteVaults: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:104",
+      "legacyCase": "updateVaultImage: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "updateVaultImage",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:25",
+      "protectedCase": "updateVaultImage: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:105",
+      "legacyCase": "updateVaultImage: a real committed write with updated false acknowledgement remains pending",
+      "operation": "updateVaultImage",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:26",
+      "protectedCase": "updateVaultImage: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:106",
+      "legacyCase": "updateVaultImage: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "updateVaultImage",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:27",
+      "protectedCase": "updateVaultImage: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:107",
+      "legacyCase": "updateVaultImage: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "updateVaultImage",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:28",
+      "protectedCase": "updateVaultImage: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:108",
+      "legacyCase": "updateVaultImage: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "updateVaultImage",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:29",
+      "protectedCase": "updateVaultImage: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:109",
+      "legacyCase": "updateVaultImage: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "updateVaultImage",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:30",
+      "protectedCase": "updateVaultImage: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:128",
+      "legacyCase": "modifyLabels: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "modifyLabels",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:31",
+      "protectedCase": "modifyLabels: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:129",
+      "legacyCase": "modifyLabels: a real committed write with updated false acknowledgement remains pending",
+      "operation": "modifyLabels",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:32",
+      "protectedCase": "modifyLabels: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:130",
+      "legacyCase": "modifyLabels: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "modifyLabels",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:33",
+      "protectedCase": "modifyLabels: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:131",
+      "legacyCase": "modifyLabels: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "modifyLabels",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:34",
+      "protectedCase": "modifyLabels: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:132",
+      "legacyCase": "modifyLabels: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "modifyLabels",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:35",
+      "protectedCase": "modifyLabels: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:133",
+      "legacyCase": "modifyLabels: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "modifyLabels",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:36",
+      "protectedCase": "modifyLabels: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:152",
+      "legacyCase": "deleteBackup: actual HTTP equal-old-ack stops the write and never reports verified",
+      "operation": "deleteBackup",
+      "fault": "equal-old-ack",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:37",
+      "protectedCase": "deleteBackup: committed signed-v3 equal-old-ack preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:153",
+      "legacyCase": "deleteBackup: a real committed write with updated false acknowledgement remains pending",
+      "operation": "deleteBackup",
+      "fault": "updated-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:38",
+      "protectedCase": "deleteBackup: committed signed-v3 updated-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:154",
+      "legacyCase": "deleteBackup: a real committed write with missing updated acknowledgement remains pending",
+      "operation": "deleteBackup",
+      "fault": "updated-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:39",
+      "protectedCase": "deleteBackup: committed signed-v3 updated-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:155",
+      "legacyCase": "deleteBackup: a real committed write with precondition false acknowledgement remains pending",
+      "operation": "deleteBackup",
+      "fault": "precondition-false",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:40",
+      "protectedCase": "deleteBackup: committed signed-v3 precondition-false preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:156",
+      "legacyCase": "deleteBackup: a real committed write with missing precondition acknowledgement remains pending",
+      "operation": "deleteBackup",
+      "fault": "precondition-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:41",
+      "protectedCase": "deleteBackup: committed signed-v3 precondition-missing preserves pending state, local records and no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:157",
+      "legacyCase": "deleteBackup: a real committed write with missing new revision acknowledgement remains pending",
+      "operation": "deleteBackup",
+      "fault": "revision-missing",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAcknowledgementGrid.proof.cjs:42",
+      "protectedCase": "deleteBackup: committed signed-v3 revision-missing preserves pending state, local records and no replay"
+    }
+  ],
+  "readOnlyReconciliation": "After observing real committed state independently of the bad ACK, read-only inspection may verify matching current content; a deleted protected copy returns explicit v3 deleted. Neither acknowledgement nor Delete completion is inferred, and the old consumed receipt still causes zero HTTP.",
+  "genuineRuntimeAcceptance": "NOT_RUN",
+  "oldPublicMatrixResult": "2PASS293FAIL_PRESERVED_UNCHANGED",
+  "publicV2RetirementAuthorized": false,
+  "otherFamiliesRemaining": [
+    "other operation-by-fault rows",
+    "missing/copied/reopened receipt ownership",
+    "actual HTTP aborts",
+    "peer identity/record/reference/fanout/interleave combinations"
+  ]
+}

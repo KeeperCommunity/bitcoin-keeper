@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "scope": "ALL_FIVE_ORIGINAL_SAME_PERSISTED_IDENTITY_REPLACEMENT_OBLIGATIONS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentAbortSha": "a90e7a11f6a317cc60c6617dc589575ded5c0e16",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedSameIdentityGrid.proof.cjs",
+  "expectedGenuineCases": 5,
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:project",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/image.ts:identity",
+    "src/services/backup/image.ts:compareImages"
+  ],
+  "originalAssertionCorrection": {
+    "historicalMapWording": "Rows189\u2013193 say zero HTTP.",
+    "actualOriginalAssertion": "Each legacy callback asserts attemptedWrites().length === 0; it does not assert zero snapshot reads.",
+    "currentEquivalent": "One actual successful signed baseline read reaches production projection, with zero mutation/enrollment/repair. Replay of the now invalidated original receipt then sends zero HTTP.",
+    "waiver": false
+  },
+  "preservedAssertions": [
+    "Same persisted signer ID with xpub/private-key/network replacement and real committed encrypted body.",
+    "Same persisted vault ID with key/policy replacement and local recovery record retained.",
+    "No mutation, unconfirmed result and all original pending/completed flags."
+  ],
+  "strongerObservables": [
+    "Initial valid original xpub is enrolled through the genuine production explicit repair path; no fixture seed substitutes remote state.",
+    "Actual local identity replacement positively witnessed inside real successful native transaction.",
+    "Production compareImages must return conflict for the exact original/replacement pair.",
+    "Submitted ciphertext must decrypt to the actual complete committed replacement.",
+    "Original signed snapshot reaches projection; no write, enrollment or repair occurs.",
+    "Full local image/account and retained wallet survive.",
+    "Real remote snapshot tuple and ciphertext remain byte-equivalent and decrypt to the full original baseline.",
+    "Original receipt replay sends zero further HTTP and cannot acquire fresh authority."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:189",
+      "legacyCase": "a same-ID signer xpub identity replacement cannot upload committed native data",
+      "kind": "signer",
+      "field": "xpub",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedSameIdentityGrid.proof.cjs:1",
+      "protectedCase": "same-ID signer xpub: genuine local identity replacement cannot overwrite the original signed remote copy"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:190",
+      "legacyCase": "a same-ID signer private-key identity replacement cannot upload committed native data",
+      "kind": "signer",
+      "field": "private-key",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedSameIdentityGrid.proof.cjs:2",
+      "protectedCase": "same-ID signer private-key: genuine local identity replacement cannot overwrite the original signed remote copy"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:191",
+      "legacyCase": "a same-ID signer network identity replacement cannot upload committed native data",
+      "kind": "signer",
+      "field": "network",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedSameIdentityGrid.proof.cjs:3",
+      "protectedCase": "same-ID signer network: genuine local identity replacement cannot overwrite the original signed remote copy"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:192",
+      "legacyCase": "a same-ID vault key replacement cannot upload committed native data",
+      "kind": "vault",
+      "field": "key",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedSameIdentityGrid.proof.cjs:4",
+      "protectedCase": "same-ID vault key: genuine local identity replacement cannot overwrite the original signed remote copy"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:193",
+      "legacyCase": "a same-ID vault policy replacement cannot upload committed native data",
+      "kind": "vault",
+      "field": "policy",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedSameIdentityGrid.proof.cjs:5",
+      "protectedCase": "same-ID vault policy: genuine local identity replacement cannot overwrite the original signed remote copy"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged"
+}

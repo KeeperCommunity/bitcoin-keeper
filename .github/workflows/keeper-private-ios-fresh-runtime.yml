@@ -1,0 +1,99 @@
+name: Keeper private fresh iOS build and runtime diagnostic
+on:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  fresh:
+    if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-fresh-runtime' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    concurrency:
+      group: private-ios-launch-debug-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      HUSKY: '0'
+      KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_NATIVE_PLATFORM: IOS
+      KEEPER_DIAGNOSTIC: 'true'
+      KEEPER_PRIVATE_IOS_FRESH_RUNTIME: '1'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out exact reviewed fresh-build source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify current private opt-in and reviewed 840 app identity
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data: repo } = await github.rest.repos.get(context.repo);
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
+            const { data: app } = await github.rest.git.getCommit({ ...context.repo, commit_sha: '84084981f66082c6d3d533e191d8270b81b842cf' });
+            if (repo.id !== 839671816 || repo.private !== true || pr.head.repo.id !== repo.id || pr.head.sha !== process.env.KEEPER_SOURCE_SHA || pr.merge_commit_sha !== process.env.GITHUB_SHA || !pr.labels.some(x => x.name === 'keeper/ios-fresh-runtime') || pr.labels.some(x => x.name === 'keeper/native-diagnostic') || app.sha !== '84084981f66082c6d3d533e191d8270b81b842cf' || app.tree.sha !== 'c1104c1b30a65f86c0ecc967744a84ce2cedf585') {
+              core.setFailed('Private fresh build selection or reviewed app identity moved.');
+            }
+      - name: Verify ARM host and exact reviewed app inputs before setup
+        run: python3 .github/native/ios_fresh_runtime.py verify
+      - name: Set up pinned Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.4'
+          cache: yarn
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up frozen Ruby toolchain
+        uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - name: Record actual fresh source and toolchain
+        run: python3 .github/native/ios_fresh_runtime.py record
+      - name: Prepare unchanged immutable dependencies and synthetic configuration
+        run: python3 .github/native/ios_fresh_runtime.py prepare
+      - name: Compile simulator app once with existing build budget
+        run: python3 .github/native/ios_fresh_runtime.py build
+      - name: Verify reviewed empty ad-hoc policy and checkpoint new exact app
+        run: python3 .github/native/ios_fresh_runtime.py checkpoint
+      - name: Save fresh exact app BEFORE every runtime diagnostic
+        id: checkpoint
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-simulator-app-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-simulator-app/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Bind successful checkpoint upload before runtime
+        env:
+          KEEPER_FRESH_ARTIFACT_ID: ${{ steps.checkpoint.outputs.artifact-id }}
+          KEEPER_FRESH_ARTIFACT_DIGEST: ${{ steps.checkpoint.outputs.artifact-digest }}
+        run: python3 .github/native/ios_fresh_runtime.py uploaded
+      - name: Diagnose separate native Keychain across three direct processes
+        continue-on-error: true
+        run: python3 .github/native/ios_fresh_runtime.py direct_keychain
+      - name: Run actual app startup PIN transition with one live driver observation
+        run: python3 .github/native/ios_fresh_runtime.py startup
+      - name: Run formal three-launch native Keychain after startup PASS
+        run: python3 .github/native/ios_fresh_runtime.py keychain
+      - name: Run native persistence after actual startup and Keychain PASS
+        run: python3 .github/native/ios_fresh_runtime.py probe
+      - name: Run production worker probe after actual persistence PASS
+        run: python3 .github/native/ios_fresh_runtime.py features
+      - name: Retain bounded fresh source-qualified runtime evidence
+        if: always()
+        run: python3 .github/native/ios_fresh_runtime.py retain
+      - name: Save private fresh runtime evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-fresh-runtime-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-fresh-runtime/
+          retention-days: 7
+          if-no-files-found: warn

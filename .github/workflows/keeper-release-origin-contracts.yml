@@ -3,6 +3,7 @@ name: Keeper release origin contracts
 on:
   pull_request:
     paths:
+      - '.github/native/release_repository_profiles.cjs'
       - '.github/workflows/keeper-release-origin-contracts.yml'
       - '.github/native/public_software_receipts.cjs'
       - '.github/native/strict_json.cjs'

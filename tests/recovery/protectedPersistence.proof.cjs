@@ -228,6 +228,8 @@ for (const firstKey of ['root', 'bhr']) {
     assertSanitized(states);
     assert.ok(states.every(state => state.automaticCloudBackupByAppId[appId] !== true));
     assert.deepEqual(plain(f.store.getState().bhr.automaticCloudBackupByAppId), canonicalConsent);
+    assert.equal(f.store.getState().bhr.seedConfirmed, true);
+    assert.equal(f.store.getState().bhr.backupMethod, 'SEED');
     pending(f);
     await noBootRequest(f);
     await assertReadOnlyVerified(f);
@@ -268,6 +270,7 @@ test('confirmed canonical absence preserves sanitized legacy fallback and durabl
   assert.deepEqual(f.persistedBootStates.map(state => state.key).filter(key => ['root', 'bhr'].includes(key)), ['bhr', 'root']);
   assertSanitized(states);
   assert.equal(f.store.getState().bhr.automaticCloudBackupByAppId[appId], true);
+  assert.equal(f.store.getState().bhr.backupMethod, 'SEED');
   assert.equal(f.store.getState().bhr._persist.rehydrated, true);
   assert.equal(f.store.getState().bhr._persist.version, -1);
   assert.deepEqual(plain(f.store.getState().bhr.backupAllLoadingByAppId), {});
@@ -283,6 +286,7 @@ test('confirmed canonical absence preserves sanitized legacy fallback and durabl
   assert.equal(savedBhr.pendingAllBackupByAppId['pending-peer'], true);
   assert.equal(savedBhr.backupRepairStateByAppId[appId], 'unverified');
   assert.equal(savedBhr.backupRepairCompletedByAppId[appId], false);
+  assert.equal(savedBhr.backupMethod, 'SEED');
   assert.equal(savedBhr._persist.rehydrated, true);
   assert.equal(server.trace.length, 0);
   // A second actual persistStore reads the bytes emitted by the first writer.
@@ -319,6 +323,7 @@ test('actual status expression expires an earlier session and a later native mut
   server.clearTrace();
   await f.selectAccount('persisted-status-peer');
   await f.selectAccount(appId);
+  assert.equal(f.store.getState().bhr.backupRepairStateByAppId[appId], 'verified', 'Historical Redux phase must remain present while the original A-session proof is stale');
   assert.equal(f.automatic.isBackupVerificationCurrent(appId), false);
   assert.equal(phase(), 'unverified');
   assert.equal(server.trace.length, 0);
@@ -328,6 +333,7 @@ test('actual status expression expires an earlier session and a later native mut
   f.nativeRealm().write(() => {
     f.nativeRealm().objectForPrimaryKey(f.RealmSchema.Wallet, 'persisted-wallet').presentationData.name = 'Native change';
   });
+  assert.equal(f.store.getState().bhr.backupRepairStateByAppId[appId], 'verified', 'The exact phase predicate must reject a stale recorded phase before any Redux mutation notification');
   assert.equal(f.automatic.isBackupVerificationCurrent(appId), false);
   assert.equal(phase(), 'unverified');
   assert.equal(server.trace.length, requests);

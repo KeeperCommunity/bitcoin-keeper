@@ -12,19 +12,20 @@ const { WORKER_SOURCES } = require('../native/public_software_receipts.cjs');
 const { SCENARIOS, LIMITS } = require('../native/r5_features_core.js');
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 
-function fixture() {
-  const source = 'a'.repeat(40), repository = driver.REPOSITORY;
+function fixture({ profile = require('../native/release_repository_profiles.cjs').PUBLIC } = {}) {
+  const source = 'a'.repeat(40), repository = profile.repository;
   const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/sprint', sha: source, runId: 400,
-    repo: { owner: 'KeeperCommunity', repo: 'bitcoin-keeper' } };
+    repo: { owner: 'KeeperCommunity', repo: repository.split('/')[1] } };
   const env = { KEEPER_SOURCE_SHA: source, GITHUB_WORKFLOW_SHA: source, KEEPER_CANONICAL_NATIVE_DRIVER_SHA: source,
     GITHUB_WORKFLOW_REF: `${repository}/${driver.WORKFLOW}@refs/heads/sprint`, GITHUB_RUN_ID: '400', GITHUB_RUN_ATTEMPT: '2' };
   const request = driver.requestFromEnvironment(context, env);
   const state = { context, env, request, calls: [], branchReads: 0,
-    repository: { id: driver.REPOSITORY_ID, full_name: repository, default_branch: 'sprint' },
+    repository: { id: profile.repositoryId, full_name: repository, private: profile.private, default_branch: 'sprint' },
     pin: { name: 'KEEPER_CANONICAL_NATIVE_DRIVER_SHA', value: source },
     branch: { protected: true, commit: { sha: source } }, workflow: { id: 30, path: driver.WORKFLOW, state: 'active' },
     run: { id: 400, run_attempt: 2, workflow_id: 30, event: 'workflow_dispatch', path: driver.WORKFLOW,
-      head_sha: source, head_branch: 'sprint', head_repository: { id: driver.REPOSITORY_ID, full_name: repository },
+      head_sha: source, head_branch: 'sprint', head_repository: { id: profile.repositoryId, full_name: repository, private: profile.private },
+      repository: { id: profile.repositoryId, full_name: repository, private: profile.private },
       pull_requests: [], status: 'in_progress', check_suite_id: 77 },
     suite: { id: 77, app: { id: 15368, slug: 'github-actions' }, head_sha: source }, active: [] };
   state.jobs = ['IOS', 'ANDROID'].map((platform, index) => ({

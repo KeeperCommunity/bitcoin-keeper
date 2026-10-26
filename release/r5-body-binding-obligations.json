@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "scope": "SIX_REMAINING_COMMITTED_BODY_AND_DELETION_TARGET_BINDINGS_WITH_EXISTING_FULL_WALLET_CONTROL_RETAINED_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentLocalProofSha": "95a46298a43891ebbea845f369d044531e1dd199",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedBodyBindingGrid.proof.cjs",
+  "expectedGenuineCases": 6,
+  "priorSourceDispositionCounts": {
+    "UNCOVERED": 6
+  },
+  "existingUnchangedFullControl": {
+    "legacy": {
+      "id": "automaticWriteRealmRelay.integration.cjs:17",
+      "file": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+      "line": 340,
+      "case": "updateAppImage: current generation cannot authorize a mismatched decrypted payload or deletion target"
+    },
+    "status": "FULL",
+    "protected": [
+      {
+        "id": "protectedWalletVault.proof.cjs:7",
+        "file": "tests/recovery/protectedWalletVault.proof.cjs",
+        "line": 312,
+        "case": "a current wallet receipt cannot send stale encrypted presentation data"
+      }
+    ],
+    "mapping_or_gap": "Same genuine committed wallet rename receipt is paired with stale decrypted presentation; queue sends zero HTTP, retains local rename and pending state, and protected proof additionally checks unchanged remote image.",
+    "related_only": [],
+    "source_map": "legacy213-main-protected-obligation-map-20261025.private.json",
+    "current_source_runtime_credit": false
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:project",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "preservedAssertions": [
+    "Original six operation-specific mismatched plaintext/deletion targets with genuine committed receipt.",
+    "No own mutation and every original pending/nonverified/completed flag."
+  ],
+  "strongerObservables": [
+    "Actual submitted tampered ciphertext must decrypt to deliberately uncommitted value.",
+    "Retained wallet/vault wrong targets must really exist; changed Delete appID must differ.",
+    "One real successful initial snapshot reaches projection except wrong-account Delete, which sends zero HTTP.",
+    "Complete committed local image/account/retained recovery unchanged; actual entire signed remote snapshot remains original.",
+    "Old original receipt replay sends zero further HTTP and cannot renew authority."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:41",
+      "legacyCase": "migrateXfps: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedBodyBindingGrid.proof.cjs:1",
+      "protectedCase": "migrateXfps: genuine receipt cannot authorize uncommitted ciphertext or a mismatched deletion target"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:65",
+      "legacyCase": "deleteAppImageEntity: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedBodyBindingGrid.proof.cjs:2",
+      "protectedCase": "deleteAppImageEntity: genuine receipt cannot authorize uncommitted ciphertext or a mismatched deletion target"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:89",
+      "legacyCase": "deleteVaults: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedBodyBindingGrid.proof.cjs:3",
+      "protectedCase": "deleteVaults: genuine receipt cannot authorize uncommitted ciphertext or a mismatched deletion target"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:113",
+      "legacyCase": "updateVaultImage: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedBodyBindingGrid.proof.cjs:4",
+      "protectedCase": "updateVaultImage: genuine receipt cannot authorize uncommitted ciphertext or a mismatched deletion target"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:137",
+      "legacyCase": "modifyLabels: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedBodyBindingGrid.proof.cjs:5",
+      "protectedCase": "modifyLabels: genuine receipt cannot authorize uncommitted ciphertext or a mismatched deletion target"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:161",
+      "legacyCase": "deleteBackup: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedBodyBindingGrid.proof.cjs:6",
+      "protectedCase": "deleteBackup: genuine receipt cannot authorize uncommitted ciphertext or a mismatched deletion target"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

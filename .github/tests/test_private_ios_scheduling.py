@@ -8,6 +8,7 @@ class PrivateIOSScheduling(unittest.TestCase):
     def test_only_selected_jobs_hold_shared_slot(self):
         workflows = Path(__file__).resolve().parents[1] / 'workflows'
         cases = (
+            ('keeper-private-ios-fresh-runtime.yml', 'fresh', 'keeper/ios-fresh-runtime'),
             ('keeper-private-ios-retained-runtime.yml', 'runtime', 'keeper/ios-retained-runtime'),
             ('keeper-private-ios-signature-comparison.yml', 'compare', 'keeper/ios-signature-comparison'),
             ('keeper-private-ios-launch-debug.yml', 'investigate', 'keeper/ios-launch-debug'),

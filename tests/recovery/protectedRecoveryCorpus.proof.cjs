@@ -168,6 +168,7 @@ async function completeCorpus(f, origin) {
   const recoveryId = f.utilities.getKeyUID(origin.recoveryKey);
   equal(plain(restored.signers[recoveryId].signerXpubs), plain(origin.expected.signers[recoveryId].signerXpubs),
     'PRODUCTION_RECOVERY_KEY_MATERIAL_MUST_MATCH');
+  check(Object.values(restored.signers[recoveryId].signerXpubs).some((keys) => keys.length), 'RECOVERY_KEY_XPUB_LIST_MUST_NOT_BE_EMPTY');
   equal(plain(restored.vaults), plain(origin.expected.vaults), 'ACTIVE_ARCHIVED_VAULT_POLICIES_AND_REGISTRATIONS_MUST_SURVIVE');
   const active = f.dbManager.getObjectById(f.RealmSchema.Vault, 'active-recovery-vault');
   const archived = f.dbManager.getObjectById(f.RealmSchema.Vault, 'archived-recovery-vault');

@@ -6,6 +6,24 @@ No signing, keychain, provider, upload, distribution, release or deployment
 operation has been performed. The primary R5 candidate and all producer branches
 remain unchanged. Work-package labels 5.1/5.2 are not app versions.
 
+## Current owner policy and implementation (25 October 2026)
+
+Human reviewer and owner-comment approval checkpoints are optional. Continue
+within the user's current instruction or standing authorization and actual
+repository/account access; do not add another human approval question. Required
+native/security/physical evidence, protected source/ref identity, certificate/
+configuration/artifact binding, custody and disabled administrator bypass remain
+required. An optional configured review rule or supplied receipt is still checked.
+
+The current candidate contains the SDK release bridge and finite native parent
+profile. The disabled origin/empty-profile states in the preserved checkpoint
+inventory below are historical producer states, not missing current code.
+Use [current source authority](r5-current-release-source.md), the
+[finite-profile installation order](r5/F0-CONSUMER-PROFILE-CANDIDATE.md) and the
+[current administrator steps](r5-cloud-administrator-setup.md). Implementation is
+not protected installation or live acceptance. The extra approval policy came
+from the older release infrastructure, not R5.2.
+
 ## Preserved source checkpoints
 
 | Package | Draft PR / exact commit | Current state and next action |
@@ -71,12 +89,12 @@ UNKNOWN, not absent. No secret value was requested and no setup was changed.
 | Setup boundary | Remaining evidence/action, requiring separately authorized administration or operation |
 | --- | --- |
 | Protected source and driver | Approved installation on protected sprint, reviewed exact canonical source and release ref, current nonsecret driver pin. No merge/promotion/pin/configuration change has occurred. |
-| Protected environments | Create/configure only after approval: independent reviewers, prevented self approval, administrative bypass disabled and exact protected-source restriction; prove actual rejection before loading credentials. Environment selection alone proves nothing. |
+| Protected environments | Configure with human reviewers optional, prevented self-review if selected, administrative bypass disabled and exact protected-source restriction; prove actual rejection before loading credentials. Environment selection alone proves nothing. |
 | Apple signing | Authorized custodian for existing distribution identity/profile, matching team/app/entitlements and independently verified fingerprint; no personal Mac/keychain export, implicit certificate creation or rotation. |
 | Android signing | Authorized existing upload keystore/alias/password custody and independently verified upload-certificate continuity; distinguish Play App Signing identity. |
 | Store API custody | Approved least-privileged App Store Connect and Play app/channel identities, current agreements and authenticated complete version/build baselines. Names are listed in release/cloud/README.md; no values enter source, requests or logs. |
 | Production app configuration | Reviewed client-safe allowlist and exact digest, no signing/upload/server secret embedded. Input digest/source checks do not establish full binary configuration readback. |
-| Artifact audience | Separate owner receipt must acknowledge signed binaries accessible to authenticated readers of this public repository for14days. If that audience is not approved, a private reviewed artifact transport is still required. |
+| Artifact audience | Keep the intended signed-binary audience within the user's authorized distribution scope: authenticated readers of this public repository for14days. An optional receipt may record it; no human comment is required. If that audience is outside the authorized scope, use a reviewed private transport. |
 | Hosted capacity and trust access | Verify macOS/Xcode/Android readiness, safe caches/disk, one native build at a time and read-only variable/Actions/check/artifact/analysis permissions. Coordinate legacy routes; do not cancel active work. |
 | Native, backend and physical acceptance | Complete exact-candidate software matrix and paired backend evidence remain separate from these source packages; actual devices/testers are required for physical results. |
 
@@ -88,7 +106,7 @@ UNKNOWN, not absent. No secret value was requested and no setup was changed.
    linkage is incomplete.
 2. Reconcile installed selected-route evidence with the legacy all-checks/name
    predicate without accepting unrelated skips, pending/failed checks or another
-   SHA. Retain exact owner/environment/version/config/certificate/artifact gates.
+   SHA. Retain actual dispatcher authorization, optional supplied-receipt checks and environment/version/config/certificate/artifact gates.
 3. Original #7085 omitted root/per-scenario installed-byte binding from #7083.
    Separate successor [#7087](https://github.com/KeeperCommunity/bitcoin-keeper/pull/7087)
    now implements strict platform proof schema, built-byte binding and equality
@@ -218,8 +236,8 @@ Use a new worktree/branch; do not depend on /tmp tools from an earlier session.
    workflow success and a403 analysis API are insufficient. Fix/review selected
    route/legacy-check reconciliation; neither successor is installed by this task.
 5. Have administrator/custodian complete the separately authorized specification
-   and supply only secret-free metadata/readback. Verify environment reviewers,
-   prevented self review, can_admins_bypass:false, protected-branches-only policy,
+   and supply only secret-free metadata/readback. Human environment reviewers are
+   optional; verify self-review prevention if configured, can_admins_bypass:false, protected-branches-only policy,
    exact source/ref controls and actual credential-free rejection tests. Verify
    independent certificate/profile/upload-key/store app/channel identities and
    fresh full histories; never infer readiness from name presence or status text.
@@ -227,8 +245,9 @@ Use a new worktree/branch; do not depend on /tmp tools from an earlier session.
    blocked/not-run results, run IDs/attempts and artifact digests, remaining setup,
    named ownership and execution_allowed:false. No owner receipt is fabricated.
    No signing, upload, credential/configuration change, deployment, merge or
-   release operation follows from preparation. A later operation needs its own
-   explicit source/environment/channel/artifact approval after all gates exist.
+   release operation follows from preparation. A later operation must match the user's source/environment/channel/artifact
+   instruction or standing authorization after all technical gates pass. Do not
+   demand another human approval/comment solely because this old handoff did.
 ```
 
 Exact-head test results and native-owner coordination links belong in the new
