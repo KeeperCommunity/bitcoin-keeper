@@ -101,6 +101,68 @@ jobs:
       - name: Restore admitted exact original debug APK
         run: |
           python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-android-reuse-controller/android_runtime_checkpoint.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" restore
+      - name: Warm unchanged development bundle before emulator contention
+        # Setup only. The later smoke keeps its original request/UI budgets and gates.
+        run: |
+          python3 - <<'PYCODE'
+          import importlib.util, os, signal, subprocess
+          from pathlib import Path
+          root = Path.cwd()
+          subprocess.run(['git', 'diff', '--exit-code', 'HEAD', '--', '.github/native', '.github/workflows'], check=True)
+          def pinned(name):
+              path = root / '.github/native' / (name + '.py')
+              raw = path.read_bytes()
+              expected = subprocess.check_output(['git', 'show', 'HEAD:.github/native/' + name + '.py'])
+              if raw != expected:
+                  raise RuntimeError('PRE_EMULATOR_BUNDLE_SOURCE_CHANGED')
+              spec = importlib.util.spec_from_file_location('pre_emulator_' + name, path)
+              value = importlib.util.module_from_spec(spec)
+              exec(compile(raw, str(path), 'exec'), value.__dict__)
+              return value
+          os.environ.update({'ENVFILE': '.env.ci', 'RCT_NO_LAUNCH_PACKAGER': '1',
+                             'RCT_NEW_ARCH_ENABLED': '1', 'MAESTRO_CLI_NO_ANALYTICS': '1'})
+          h, owned = pinned('hosted_native'), pinned('product_metro')
+          before = h.read()
+          gates = ('smoke', 'native_probe', 'r5_features', 'hardware', 'signing')
+          if (h.PLATFORM != 'ANDROID' or before.get('source_sha') != os.environ['KEEPER_SOURCE_SHA'] or
+                  before.get('build_execution_scope') != 'REUSED_EXACT_ORIGINAL_PRIVATE_DEBUG_APK_NO_CURRENT_RUN_COMPILATION_OR_RELEASE' or
+                  before.get('build') != 'PASS' or any(before.get(key) != 'NOT RUN' for key in gates)):
+              raise RuntimeError('EXACT_REUSED_APK_BEFORE_EMULATOR_REQUIRED')
+          private = h.PRIVATE / 'pre-emulator-bundle'
+          private.mkdir(mode=0o700, exist_ok=False)
+          os.environ['KEEPER_STARTUP_OBSERVER_PATH'] = str(private / 'setup-observer.jsonl')
+          # Identical app resolver/transformer/entrypoint; retain its normal observer.
+          owned.PHASE_CONFIGS = {**owned.PHASE_CONFIGS, 'product': 'startup_observer.cjs'}
+          metro = owned.OwnedMetro(h, private)
+          previous, received = {}, False
+          def interrupted(signum, _frame):
+              global received
+              if not received:
+                  received = True
+                  raise SystemExit(128 + signum)
+          try:
+              for signum in (signal.SIGTERM, signal.SIGINT):
+                  previous[signum] = signal.signal(signum, interrupted)
+              metro.start('product', initial=True)
+          finally:
+              try:
+                  metro.close()
+              finally:
+                  for signum, handler in previous.items():
+                      signal.signal(signum, handler)
+          subprocess.run(['git', 'diff', '--exit-code', 'HEAD', '--', '.github/native', '.github/workflows'], check=True)
+          after = h.read()
+          if any(after.get(key) != before.get(key) for key in gates):
+              raise RuntimeError('BUNDLE_SETUP_CANNOT_CHANGE_NATIVE_GATES')
+          warm = after['metro_warmup']
+          after['pre_emulator_bundle'] = {'scope': 'DEVELOPMENT_BUNDLE_SETUP_ONLY_NOT_NATIVE_ACCEPTANCE',
+              'status': warm['result'], 'http_status': warm['http_status'],
+              'bytes': warm.get('bytes'), 'sha256': warm.get('sha256'),
+              'duration_seconds': warm['duration_seconds'], 'unchanged_request_timeout_seconds': 240,
+              'native_acceptance': False, 'owned_metro_closed': True}
+          h.save(after)
+          print('UNCHANGED_ANDROID_BUNDLE_PREPARED_BEFORE_EMULATOR_NO_NATIVE_CREDIT', flush=True)
+          PYCODE
       - name: Retain pre-emulator source and free-byte admission
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
