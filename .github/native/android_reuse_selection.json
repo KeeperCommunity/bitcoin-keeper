@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "armed": false,
+  "armed": true,
   "scope": "EXACT_PRIVATE_ANDROID_CHECKPOINT_ONLY_NOT_NATIVE_ACCEPTANCE",
   "repository_id": 839671816,
-  "source_sha": null,
-  "source_tree": null,
-  "run_id": null,
+  "source_sha": "84084981f66082c6d3d533e191d8270b81b842cf",
+  "source_tree": "c1104c1b30a65f86c0ecc967744a84ce2cedf585",
+  "run_id": 40314348562,
   "run_attempt": 1,
-  "job_id": null,
+  "job_id": 121543070062,
   "workflow_id": 395790359,
-  "check_suite_id": null,
-  "workflow_sha": null,
+  "check_suite_id": 109260312542,
+  "workflow_sha": "b14a5c48b153d336d2f1148ef2c311e1748f9a00",
   "workflow_ref": "KeeperCommunity/bitcoin-keeper-private/.github/workflows/keeper-native-diagnostic.yml@refs/pull/73/merge",
-  "artifact_id": null,
-  "archive_sha256": null,
-  "archive_size_bytes": null
+  "artifact_id": 12648775847,
+  "archive_sha256": "ba45a33de48d9622c223e7fe419b1f83d807117ad98869de33c93b793da7e4da",
+  "archive_size_bytes": 113438596
 }
