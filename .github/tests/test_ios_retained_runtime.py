@@ -133,6 +133,13 @@ class RuntimeGates(unittest.TestCase):
             self.suite('probe')
         self.native.smoke.assert_not_called()
 
+    def test_direct_keychain_diagnostic_cannot_unlock_formal_native_probe(self):
+        self.state.update(smoke='PASS', direct_keychain_diagnostic={'status': 'PASS'})
+        self.native.smoke = mock.Mock()
+        with self.assertRaisesRegex(RuntimeError, 'ACTUAL_KEYCHAIN_DIAGNOSTIC_PASS_REQUIRED'):
+            self.suite('probe')
+        self.native.smoke.assert_not_called()
+
     def test_unrecorded_worktree_change_cannot_reuse_original_source(self):
         (self.root / 'App.tsx').write_text('changed')
         with mock.patch.object(runtime.subprocess, 'check_output', return_value='App.tsx\n'):

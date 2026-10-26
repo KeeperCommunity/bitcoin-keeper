@@ -94,6 +94,20 @@ class DriverDiagnosisTest(unittest.TestCase):
         self.assertEqual(diagnosis.safe_error(private_exception), 'OTHER_ERROR')
         self.assertEqual(diagnosis.safe_error(ValueError('PRIVATE_SENTINEL')), 'ValueError')
 
+    def test_retained_startup_selects_its_actual_private_xctest_logs(self):
+        logs = self.private / 'maestro-output'
+        logs.mkdir()
+        (logs / 'xctest_runner_1.log').write_text('Failed to load the test bundle PRIVATE_SENTINEL')
+        with mock.patch.object(diagnosis, 'bundled_runner', return_value={}), \
+                mock.patch.object(diagnosis, 'capture', return_value=('', {'exit_code': 0})):
+            facts = diagnosis.collect(self.device, {'commands': []},
+                command_label='Assert startup and disposable passcode transition', log_directory=logs)
+            self.assertEqual(facts['logs'][0]['kind'], 'xctest')
+            self.assertIn('TEST_BUNDLE_LOAD_FAILED', facts['logs'][0]['categories'])
+            self.assertNotIn('PRIVATE_SENTINEL', json.dumps(facts))
+            with self.assertRaises(ValueError):
+                diagnosis.collect(self.device, {'commands': []}, log_directory=self.root / 'outside')
+
     def test_bounded_logs_export_only_prefix_facts_and_reject_escape(self):
         log = self.private / 'private.log'
         payload = b'Library not loaded: PRIVATE_SENTINEL\n' + b'x' * diagnosis.LIMIT
