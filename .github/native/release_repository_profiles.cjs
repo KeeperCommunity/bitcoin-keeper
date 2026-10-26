@@ -3,10 +3,10 @@
 // live protected refs, pins, Actions origin, native/security and custody gates
 // still run for the selected actual repository. Never rewrite a GitHub context.
 const PUBLIC = Object.freeze({ repository: 'KeeperCommunity/bitcoin-keeper',
-  repositoryId: 470904030, private: false, parentProfile: 'r5-f0-intel-20261025',
+  repositoryId: 470904030, private: false, parentProfile: 'r5-f0-normal-arm64-20261026',
   artifactAudience: 'GitHub Actions public-repository readers (14 days)' });
 const PRIVATE = Object.freeze({ repository: 'KeeperCommunity/bitcoin-keeper-private',
-  repositoryId: 839671816, private: true, parentProfile: 'r5-private-mobile-f0-intel-20261026',
+  repositoryId: 839671816, private: true, parentProfile: 'r5-private-mobile-f0-normal-arm64-20261026',
   artifactAudience: 'GitHub Actions private-repository readers (14 days)' });
 const profiles = Object.freeze({ [PUBLIC.repository]: PUBLIC, [PRIVATE.repository]: PRIVATE });
 function forRepository(repository) {

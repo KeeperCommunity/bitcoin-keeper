@@ -4,6 +4,7 @@ Uses the existing hosted harness's exact artifact/device policies; does not buil
 change trust on the host, modify app/native sources or declare full R5.2 acceptance.
 """
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,15 @@ import signal
 import subprocess
 import time
 import urllib.request
+
+
+_BOUNDARY_SPEC = importlib.util.spec_from_file_location('r52_source_boundary', Path(__file__).with_name('r52_source_boundary.py'))
+_BOUNDARY = importlib.util.module_from_spec(_BOUNDARY_SPEC)
+_BOUNDARY_SPEC.loader.exec_module(_BOUNDARY)
+verify_source = _BOUNDARY.verify_source
+owned_device = _BOUNDARY.owned_device
+require_free_metro_port = _BOUNDARY.require_free_metro_port
+SOURCE_PATHS = _BOUNDARY.SOURCE_PATHS
 
 
 def receive(process, seconds=60):
@@ -45,7 +55,7 @@ def validate(config, payload, witnesses, platform):
     expected = config['cases']
     if (payload.get('schema') != 1 or payload.get('scope') != 'ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE'
             or payload.get('nonce') != config['nonce'] or payload.get('platform') != platform
-            or payload.get('status') != 'PASS' or len(payload.get('cases', [])) != len(expected)
+            or payload.get('transport_status', payload.get('status')) != 'PASS' or len(payload.get('cases', [])) != len(expected)
             or set(witnesses) != {row['id'] for row in expected}):
         raise ValueError('TLS_APP_EVIDENCE_INVALID')
     result = []
@@ -66,20 +76,35 @@ def validate(config, payload, witnesses, platform):
 
 
 def run(h):
+    _run(h)
+
+
+def run_retained(h):
+    # Explicit private diagnostic route; ordinary run(h) keeps its strict gates.
+    spec = importlib.util.spec_from_file_location('r52_retained_admission', Path(__file__).with_name('r52_retained_admission.py'))
+    retained = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(retained)
+    _run(h, retained.admit(h))
+
+
+def _run(h, retained=None):
     data = h.read()
-    if (os.environ.get('GITHUB_ACTIONS') != 'true'
-            or os.environ.get('GITHUB_REPOSITORY') != 'KeeperCommunity/bitcoin-keeper-private'
-            or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
-            or h.PLATFORM not in ['IOS', 'ANDROID'] or data.get('build') != 'PASS'
+    context_spec = importlib.util.spec_from_file_location('native_phase_context', Path(__file__).with_name('native_phase_context.py'))
+    context = importlib.util.module_from_spec(context_spec); context_spec.loader.exec_module(context)
+    if (not context.hosted_context(h, data)
+            or h.PLATFORM not in ['IOS', 'ANDROID'] or (retained is None and data.get('build') != 'PASS')
             or data.get('smoke') != 'PASS' or h.artifact_identity() != data['built_artifact']):
         raise RuntimeError('TLS_PRIVATE_HOSTED_EXACT_APP_STARTUP_REQUIRED')
     source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=h.ROOT, text=True).strip()
     if source != data['source_sha'] or source != os.environ.get('KEEPER_SOURCE_SHA'):
         raise RuntimeError('TLS_EXACT_SOURCE_REQUIRED')
-    paths = ['.github/native', 'tests/electrum', 'src/services/electrum/tls.js',
-             'patches/react-native-tcp-socket+6.4.1.patch', 'package.json', 'yarn.lock']
-    h.command(['git', 'diff', '--exit-code', 'HEAD', '--', *paths],
-              'Verify committed native TLS driver and production inputs', error_details=False)
+    if retained is None:
+        h.command(['git', 'diff', '--exit-code', 'HEAD', '--', *[p for p in SOURCE_PATHS if p != 'package.json']],
+                  'Verify committed native driver and production source', error_details=False)
+        verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+    else:
+        retained.verify_source()
+    require_free_metro_port()
     generated = h.ROOT / '.github/native/.generated/r52_tls_fixture.json'
     if generated.exists() or generated.is_symlink():
         raise RuntimeError('TLS_STALE_FIXTURE_EXISTS')
@@ -94,6 +119,8 @@ def run(h):
               'limits': ['Custom-trust UI, persistence, installed109to110 upgrade, Tor and physical devices are separate.',
                          'Withdrawn/SPKI explicit-anchor rejection is a bridge result, not isolated policy-method discrimination.',
                          'Android system-root positive is NOT RUN; no system trust configuration is changed.']}
+    if retained is not None:
+        result.update(retained.result_binding())
     error = None
     try:
         fixture = subprocess.Popen(['node', '.github/native/r52_tls_fixture.cjs', h.PLATFORM, str(generated)],
@@ -101,24 +128,30 @@ def run(h):
                                    stderr=fixture_log, text=True)
         ready = receive(fixture)
         raw = generated.read_bytes()
+        configuration_json = raw.decode()
         if len(raw) > 262144 or hashlib.sha256(raw).hexdigest() != ready.get('config_sha256'):
             raise RuntimeError('TLS_FIXTURE_BINDING')
         config = json.loads(raw)
-        ports = [row['port'] for row in config['cases']]
+        ports = [row['port'] for row in config['cases']] + [config['rpc']['selected']['port'],
+            config['rpc']['other']['port'], config['rpc']['control_port']]
         if (ready.get('ready') is not True or ready.get('ports') != ports
                 or len(set(ports)) != len(ports) or any(type(p) is not int or not 1024 < p < 65536 for p in ports)
                 or config.get('platform') != h.PLATFORM or config.get('schema') != 1
                 or not re.fullmatch('[a-f0-9]{48}', config.get('nonce', ''))):
             raise RuntimeError('TLS_FIXTURE_BINDING')
+        if retained is None:
+            context.register_generated(h, 'tls', ready['config_sha256'])
         if h.PLATFORM == 'IOS':
-            device = h.command(['xcrun', 'simctl', 'create', 'Keeper-r52-tls-disposable',
+            candidate = h.command(['xcrun', 'simctl', 'create', 'Keeper-r52-tls-disposable',
                                 'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
                                 'com.apple.CoreSimulator.SimRuntime.iOS-18-5'], 'Create owned TLS simulator', capture=True)
-            if not re.fullmatch(r'[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}', device):
-                raise RuntimeError('TLS_OWNED_SIMULATOR_REQUIRED')
+            device = owned_device(candidate, h.PLATFORM)
             h.command(['xcrun', 'simctl', 'boot', device], 'Boot owned TLS simulator')
             h.command(['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for owned TLS simulator', timeout=240)
-            h.wait_for_simulator_app_services(device)
+            if retained is None and data.get('toolchain', {}).get('ios_simulator_build_profile') == 'normal-xcode':
+                h.wait_for_simulator_app_services(device, suite='tls')
+            else:
+                h.wait_for_simulator_app_services(device)
             # Only this newly created disposable simulator receives the fixture root.
             h.command(['xcrun', 'simctl', 'keychain', device, 'add-root-cert', ready['rootPath']],
                       'Trust disposable fixture root in owned simulator only', error_details=False)
@@ -132,15 +165,18 @@ def run(h):
                        str(h.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app')],
                       'Install exact app for native TLS bridge', timeout=120)
         else:
-            device = h.command(['adb', 'get-serialno'], 'Identify owned TLS emulator', capture=True)
-            if not re.fullmatch('emulator-[0-9]+', device):
-                raise RuntimeError('TLS_OWNED_EMULATOR_REQUIRED')
+            candidate = h.command(['adb', 'get-serialno'], 'Identify owned TLS emulator', capture=True)
+            device = owned_device(candidate, h.PLATFORM)
             for port in [8081, *ports]:
                 h.command(['adb', '-s', device, 'reverse', 'tcp:' + str(port), 'tcp:' + str(port)],
                           'Connect owned emulator to loopback TLS fixture', error_details=False)
             h.command(['adb', '-s', device, 'install', '-r',
                        'android/app/build/outputs/apk/development/debug/app-development-debug.apk'],
                       'Install exact app for native TLS bridge', timeout=120)
+            cleared = h.command(['adb', '-s', device, 'shell', 'pm', 'clear', h.APP_IDS[h.PLATFORM]],
+                                'Create empty owned app state for synthetic RPC', capture=True)
+            if cleared != 'Success':
+                raise RuntimeError('TLS_EMPTY_DISPOSABLE_APP_REQUIRED')
         h.verify_installed_artifact(device)
         metro = subprocess.Popen(['node', 'node_modules/react-native/cli.js', 'start', '--port', '8081',
                                   '--config', '.github/native/r52_tls_metro.cjs'], cwd=h.ROOT,
@@ -161,7 +197,7 @@ def run(h):
         h.command([data['maestro']['binary'], '--device', device, 'test', '--env', 'APP_ID=' + h.APP_IDS[h.PLATFORM],
                    '--flatten-debug-output', '--debug-output', str(output), '--test-output-dir', str(output),
                    '--format', 'junit', '--output', str(report), '.github/native/r52_tls_probe.yaml'],
-                  'Execute actual production native TLS bridge matrix', timeout=300, error_details=False)
+                  'Execute actual production native TLS bridge and synthetic RPC matrix', timeout=480, error_details=False)
         h.successful_junit(report)
         if h.PLATFORM == 'IOS':
             container = Path(h.command(['xcrun', 'simctl', 'get_app_container', device, h.APP_IDS[h.PLATFORM], 'data'],
@@ -182,10 +218,22 @@ def run(h):
                 raise RuntimeError('TLS_APP_RECEIPT_SIZE')
             payload = json.loads(raw)
         fixture.stdin.write('snapshot\n'); fixture.stdin.flush()
-        result['cases'] = validate(config, payload, receive(fixture), h.PLATFORM)
+        witness = receive(fixture)
+        result['cases'] = validate(config, payload, witness['tls'], h.PLATFORM)
+        spec = importlib.util.spec_from_file_location('r52_rpc_evidence', Path(__file__).with_name('r52_rpc_evidence.py'))
+        rpc_evidence = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rpc_evidence)
+        result['rpc'] = rpc_evidence.validate_rpc(config, payload.get('rpc', {}), witness.get('rpc', {}), h.PLATFORM)
+        if retained is None:
+            verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+        else:
+            retained.verify_source()
         if h.artifact_identity() != data['built_artifact']:
             raise RuntimeError('TLS_BUILT_ARTIFACT_CHANGED')
         h.verify_installed_artifact(device)
+        if retained is None:
+            result['binding'] = context.result_binding(h)
+            result['raw_evidence'] = dict(configuration_json=configuration_json, app_payload=payload, server_witnesses=witness)
         result.update(status='PASS', installed_bytes_verified=True, fixture_sha256=ready['config_sha256'])
     except Exception as exc:
         error = exc

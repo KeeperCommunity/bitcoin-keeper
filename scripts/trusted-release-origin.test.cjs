@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
-const { collectTrustedOrigin, isTrustedOrigin, CASES, EXECUTED, PIN } = require('./trusted-release-origin.cjs');
+const { collectTrustedOrigin, isTrustedOrigin, CASES, EXECUTED, PIN, unpackReadOnlyArtifact } = require('./trusted-release-origin.cjs');
 const { attach: attachPublicCompanions } = require('../.github/tests/fixtures/public-companions.cjs');
 const { attach: attachPublicSoftware } = require('../.github/tests/fixtures/public-software.cjs');
 const REPOSITORY = 'KeeperCommunity/bitcoin-keeper';
@@ -59,6 +59,15 @@ function zip(name, bytes, { deflate = false, descriptor = false } = {}) {
   end.writeUInt32LE(local.length + filename.length + content.length + trailer.length, 16);
   return Buffer.concat([local, filename, content, trailer, central, filename, end]);
 }
+
+test('native receipt archive retains a fixed inflated limit with richer original phase evidence', () => {
+  const limit = 512 * 1024;
+  const bytes = Buffer.alloc(limit, 0x20);
+  assert.deepEqual(unpackReadOnlyArtifact(zip('metadata.json', bytes,
+    { deflate: true, descriptor: true }), 'metadata.json'), bytes);
+  assert.throws(() => unpackReadOnlyArtifact(zip('metadata.json', Buffer.alloc(limit + 1, 0x20),
+    { deflate: true, descriptor: true }), 'metadata.json'), /ARTIFACT_ZIP_INVALID/);
+});
 
 function fixture() {
   const repository = { id: 470904030, full_name: REPOSITORY, default_branch: 'sprint' };
@@ -131,7 +140,10 @@ function fixture() {
       app_id: platform === 'IOS' ? 'io.hexawallet.hexakeeper.dev' : 'io.hexawallet.keeper.development',
       build: 'PASS', smoke: 'PASS', native_probe: 'PASS', r5_features: 'PASS',
       installed_artifact_verified: true, installed_artifact: { ...installed },
-      built_artifact: platform === 'IOS' ? { executable_sha256: installed.executable_sha256 } : { sha256: installed.sha256 },
+      built_artifact: platform === 'IOS' ? {
+        path: '/runner/hexa_keeper_dev.app', executable: 'hexa_keeper_dev',
+        executable_sha256: installed.executable_sha256, bundle_tree_sha256: 'e'.repeat(64),
+      } : { path: 'android/app/build/outputs/apk/development/debug/app-development-debug.apk', sha256: installed.sha256 },
       r5_feature_evidence: { schema: 1, scope: 'production-worker-native-storage', status: 'PASS',
         scenarios: ['production-setup-offline-retry-native-counts', 'production-deletion-retained-native-references', 'production-deletion-native-rollback',
           'production-worker-stale-session-rejection', 'native-worker-process-relaunch-counts'].map(id => ({ id, status: 'PASS' })),

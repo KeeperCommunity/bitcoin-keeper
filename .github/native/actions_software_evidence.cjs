@@ -6,6 +6,7 @@ const { execFileSync } = require('node:child_process');
 const { preflight, fingerprint } = require('./release_preflight.cjs');
 const { parseStrictJson } = require('./strict_json.cjs');
 const { SCOPES: COMPANION_SCOPES } = require('./public_companion_receipts.cjs');
+const { SCOPES: NATIVE_PHASE_SCOPES } = require('./native_phase_receipts.cjs');
 const REPOSITORY = 'KeeperCommunity/bitcoin-keeper', REPOSITORY_ID = 470904030;
 const OWNER = 'KeeperCommunity', REPO = 'bitcoin-keeper';
 const WORKFLOW = '.github/workflows/keeper-release-acceptance.yml';
@@ -28,6 +29,7 @@ const PUBLIC_CHECKS = Object.freeze({
   'key-management-discoverability': 'ordinary app Keys Manage Keys entry and return',
   'unused-key-and-pin-ui': 'unused Mobile Key delete cancel wrong PIN and cold persistence; not protected backup or physical biometrics',
   ...COMPANION_SCOPES,
+  ...NATIVE_PHASE_SCOPES,
 });
 
 function complete(response, key) {
@@ -43,9 +45,13 @@ function data(response) {
 }
 function checkApp(value) { return value?.app?.id === 15368 && value.app.slug === 'github-actions'; }
 function selectedSteps(platform) {
-  return ['Build development app', ...(platform === 'IOS' ? ['Run disposable startup smoke',
+  return [...(platform === 'IOS' ? ['Build development app', 'Run disposable startup smoke',
+    'Run disposable native Keychain across three processes',
     'Run disposable native persistence probe', 'Run R5 production worker native scenarios',
-    'Measure five full-product startup and first-wallet runs'] : ['Run Android startup and native persistence probes']),
+    'Run strict native TLS and production Electrum RPC matrix', 'Run historical Realm109 migration matrix',
+    'Measure five full-product startup and first-wallet runs'] : ['Verify Android hosted source admission',
+      'Verify exact Android compile artifact before download', 'Restore exact Android compile artifact',
+      'Run Android startup persistence worker TLS Realm trust and product flows']),
   'Retain safe Phase A evidence'];
 }
 function exactPR(value, original) {
@@ -132,14 +138,16 @@ async function platformJobs(github, request, run) {
   const jobs = complete(await github.rest.actions.listJobsForWorkflowRunAttempt({ ...args, run_id: request.runId,
     attempt_number: request.attempt, per_page: 100 }), 'jobs');
   const selected = {};
-  for (const platform of ['IOS', 'ANDROID']) {
-    const name = `${platform.toLowerCase()} / Native ${platform} build and probes`;
+  for (const platform of ['IOS', 'ANDROID', 'ANDROID_PRODUCER']) {
+    const name = platform === 'ANDROID_PRODUCER' ? 'android / Native ANDROID compile producer' : `${platform.toLowerCase()} / Native ${platform} build and probes`;
     const matches = jobs.filter(job => job.name === name);
     demand(matches.length === 1, 'SOFTWARE_PLATFORM_JOB_MISSING');
     const job = matches[0];
     demand(id(job.id) && job.run_id === request.runId && job.run_attempt === request.attempt && job.head_sha === request.sourceSha &&
-      job.status === 'completed' && job.conclusion === 'success', 'SOFTWARE_PLATFORM_JOB_INVALID');
-    for (const name of selectedSteps(platform)) {
+      job.status === 'completed' && job.conclusion === 'success' && Array.isArray(job.labels) &&
+      job.labels.includes(platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04') && !job.labels.includes('self-hosted'),
+    'SOFTWARE_PLATFORM_JOB_INVALID');
+    for (const name of platform === 'ANDROID_PRODUCER' ? require('./canonical_native.cjs').producerSteps(false) : selectedSteps(platform)) {
       const steps = job.steps?.filter(step => step.name === name) || [];
       demand(steps.length === 1 && steps[0].status === 'completed' && steps[0].conclusion === 'success', 'SOFTWARE_PLATFORM_STEP_INVALID');
     }
@@ -149,7 +157,8 @@ async function platformJobs(github, request, run) {
     demand(check.id === Number(match[1]) && check.name === job.name && check.check_suite?.id === run.check_suite_id &&
       check.head_sha === request.sourceSha && check.status === 'completed' && check.conclusion === 'success' && checkApp(check),
     'SOFTWARE_CHECK_ORIGIN_INVALID');
-    selected[platform] = { job_id: job.id, check_run_id: check.id };
+    selected[platform] = { job_id: job.id, check_run_id: check.id,
+      ...(platform === 'ANDROID_PRODUCER' ? { name: job.name, check_run_url: job.check_run_url } : {}) };
   }
   return selected;
 }
@@ -261,6 +270,15 @@ async function collectPublicSoftwareEvidence(github, context, input, { clock = D
     const sources = await workerSources(github, request.sourceSha, WORKER_SOURCES);
     const artifacts = complete(await github.rest.actions.listWorkflowRunArtifacts({ ...args, run_id: request.runId, per_page: 100 }), 'artifacts');
     const platforms = {}, identities = [];
+    let androidMetadata, producerAuthority;
+    const verifyProducer = async (metadata, selectedJobs, run) => {
+      const row = selectedJobs.ANDROID_PRODUCER;
+      const proof = await require('./canonical_native.cjs').androidCustody(github, context, request, run,
+        { ANDROID_PRODUCER: { id: row.job_id, name: row.name, check_run_url: row.check_run_url } }, metadata,
+        { callerPath: WORKFLOW, workerPath: WORKER });
+      demand(proof.sourceTree === first.appTree, 'SOFTWARE_PRODUCER_SOURCE_INVALID');
+      return proof;
+    };
     for (const platform of ['IOS', 'ANDROID']) {
       const name = `keeper-release-native-${platform}-${request.sourceSha}-${request.runId}-${request.attempt}`;
       const matches = artifacts.filter(artifact => artifact.name === name);
@@ -272,11 +290,12 @@ async function collectPublicSoftwareEvidence(github, context, input, { clock = D
       demand(archive.length === info.size_in_bytes && `sha256:${digest(archive)}` === info.digest, 'SOFTWARE_ARTIFACT_DIGEST_MISMATCH');
       const bytes = unpack(archive, platform);
       const metadata = parseStrictJson(bytes, MAX_MEMBER);
+      if (platform === 'ANDROID') { androidMetadata = metadata; producerAuthority = await verifyProducer(metadata, jobs, first.run); }
       const validated = validatePublicSoftware(metadata, { platform, sourceSha: request.sourceSha, workflowSha: request.workflowSha,
         workflowRef: request.workflowRef, runId: request.runId, runAttempt: request.attempt, workerSources: sources });
       platforms[platform] = Object.freeze({ ...jobs[platform], artifact_id: info.id, archive_sha256: digest(archive),
         receipt_sha256: digest(bytes), installed_artifact: validated.installed_artifact,
-        executed_checks: Object.freeze(Object.fromEntries(Object.entries(PUBLIC_CHECKS).map(([id, scope]) =>
+        executed_checks: Object.freeze(Object.fromEntries(Object.entries(PUBLIC_CHECKS).filter(([id]) => platform === 'IOS' || id !== 'native-keychain').map(([id, scope]) =>
           [id, Object.freeze({ status: 'PASS', scope })]))) });
       identities.push(info);
     }
@@ -287,6 +306,7 @@ async function collectPublicSoftwareEvidence(github, context, input, { clock = D
       first.workflow.id === final.workflow.id && first.run.check_suite_id === final.run.check_suite_id,
     'SOFTWARE_ORIGIN_CHANGED_DURING_COLLECTION');
     demand(JSON.stringify(await platformJobs(github, request, final.run)) === JSON.stringify(jobs), 'SOFTWARE_JOBS_CHANGED_DURING_COLLECTION');
+    demand(JSON.stringify(await verifyProducer(androidMetadata, jobs, final.run)) === JSON.stringify(producerAuthority), 'SOFTWARE_PRODUCER_CHANGED');
     const finalArtifacts = complete(await github.rest.actions.listWorkflowRunArtifacts({ ...args, run_id: request.runId, per_page: 100 }), 'artifacts');
     for (const info of identities) {
       demand(finalArtifacts.filter(value => value.name === info.name).length === 1 &&

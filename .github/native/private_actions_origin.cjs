@@ -128,9 +128,9 @@ function stepNames(platform, appRepository) {
     'Record actual hosted toolchain', 'Install immutable native app dependencies and synthetic configuration',
     'Verify exact sources after dependency preparation',
     ...(platform === 'IOS' ? ['Set up Ruby for hosted iOS', 'Select reviewed Xcode16.4',
-      'Check hosted iOS driver before the app build'] : ['Set up Android tools', 'Enable owned Android emulator acceleration']),
+      ] : ['Set up Android tools', 'Enable owned Android emulator acceleration']),
     'Start only this run\'s pinned owned loopback Mongo replica', 'Characterize the actual fixture and source contracts',
-    'Build one unsigned development native candidate', platform === 'IOS' ?
+    'Build one current-source development native candidate', platform === 'IOS' ?
       'Run one iOS startup then public phases and three serial private suites' :
       'Run one Android startup then public phases and three serial private suites',
     'Verify exact source after native attempts', 'Remove only this run\'s owned Mongo runtime', 'Retain metadata only'];
@@ -146,7 +146,7 @@ async function selectedJob(github, value, run, now) {
   const job = jobs[0], match = job.check_run_url?.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper-relay\/check-runs\/([1-9]\d*)$/);
   demand(job.name === 'native' && job.run_id === e.runId && job.run_attempt === e.runAttempt && job.head_sha === control.sha &&
     job.status === 'completed' && job.conclusion === 'success' && match && id(Number(match[1])) &&
-    Array.isArray(job.labels) && job.labels.includes(platform === 'IOS' ? 'macos-15-intel' : 'ubuntu-24.04') &&
+    Array.isArray(job.labels) && job.labels.includes(platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04') &&
     !job.labels.includes('self-hosted') && instant(job.started_at) > 0 &&
     instant(job.completed_at) > instant(job.started_at) && instant(job.completed_at) <= now, 'PRIVATE_ACTIONS_JOB_INVALID');
   for (const name of stepNames(platform, value.app.repository)) {
@@ -195,6 +195,9 @@ async function windowOrigin(github, value, workflow, backendTree, baselinePolicy
   // The reviewed control commit selects the app itself; the artifact cannot choose it.
   const workflowText = workflowBytes.toString('utf8');
   demand(workflowText.includes(`KEEPER_SOURCE_SHA: ${app.sha}`), 'PRIVATE_ACTIONS_APP_SELECTION_INVALID');
+  demand(workflowText.includes("'macos-15'") && !workflowText.includes('macos-15-intel') &&
+    !workflowText.includes('Check hosted iOS driver before the app build') &&
+    workflowText.includes('Build one current-source development native candidate'), 'PRIVATE_ACTIONS_NORMAL_BUILD_PROFILE_REQUIRED');
   if (repositories.forRepository(app.repository).private) {
     // Exact reviewed transport shape. Actions removes the temporary read token
     // before dependencies/native tools; subsequent raw-source checks still bind

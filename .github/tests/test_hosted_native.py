@@ -406,8 +406,11 @@ class HostedNativeHarnessTest(unittest.TestCase):
         body = b'disposable development bundle PRIVATE_SENTINEL'
 
         def warmup(args, *unused, **kwargs):
-            self.assertEqual(args[-1], 'http://127.0.0.1:8081/index.bundle?platform=%s&dev=true&minify=false'
-                             % platform.lower())
+            expected = 'http://127.0.0.1:8081/index.bundle?platform=%s&dev=true&minify=false' % platform.lower()
+            if platform == 'IOS':
+                expected += ('&lazy=true&excludeSource=true&modulesOnly=false&runModule=true'
+                             '&sourcePaths=url-server&app=io.hexawallet.hexakeeper.dev')
+            self.assertEqual(args[-1], expected)
             Path(args[args.index('--output') + 1]).write_bytes(body)
             return '200'
 
@@ -524,7 +527,8 @@ class HostedNativeHarnessTest(unittest.TestCase):
         popen.assert_not_called()
 
     def test_ios_build_rejects_unsupported_architecture_before_invoking_xcode(self):
-        with mock.patch.object(native, 'PLATFORM', 'IOS'), \
+        with mock.patch.dict(os.environ, {'KEEPER_IOS_BUILD_PROFILE': 'legacy-unsigned'}), \
+                mock.patch.object(native, 'PLATFORM', 'IOS'), \
                 mock.patch.object(native, 'disk_preflight'), \
                 mock.patch.object(native.platform, 'machine', return_value='riscv64'), \
                 mock.patch.object(native, 'command') as command, \
@@ -535,6 +539,7 @@ class HostedNativeHarnessTest(unittest.TestCase):
     def test_ios_build_uses_only_the_supported_host_simulator_architecture(self):
         for architecture in ['arm64', 'x86_64']:
             with self.subTest(architecture=architecture), \
+                    mock.patch.dict(os.environ, {'KEEPER_IOS_BUILD_PROFILE': 'legacy-unsigned'}), \
                     mock.patch.object(native, 'disk_preflight'), \
                     mock.patch.object(native, 'PLATFORM', 'IOS'), \
                     mock.patch.object(native.platform, 'machine', return_value=architecture), \

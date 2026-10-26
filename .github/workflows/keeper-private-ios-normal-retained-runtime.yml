@@ -1,0 +1,111 @@
+name: Keeper private normal-Xcode retained app runtime
+on:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+jobs:
+  artifact_admission:
+    if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 74 && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-normal-retained-runtime' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-fresh-runtime') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-retained-runtime') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-launch-debug') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-signature-comparison') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-runtime-evidence-readout')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_NATIVE_PLATFORM: IOS
+      KEEPER_PRIVATE_IOS_NORMAL_RETAINED: '1'
+    steps:
+      - name: Check out exact private artifact admission controller
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify read-only Linux selection without native execution
+        run: python3 .github/native/ios_normal_retained_runtime.py preflight_verify
+      - name: Fetch only original hash-pinned simulator app with official successful checkpoint proof
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            await require('./.github/native/ios_normal_retained_download.cjs')({ github, context });
+      - name: Admit actual original ZIP tar manifest source and every app byte without codesign
+        run: python3 .github/native/ios_normal_retained_runtime.py preflight
+      - name: Retain private archive admission facts only
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-normal-artifact-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-normal-artifact-admission/summary.json
+          retention-days: 7
+          if-no-files-found: error
+  runtime:
+    needs: artifact_admission
+    concurrency:
+      group: private-ios-launch-debug-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 74 && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-normal-retained-runtime' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-fresh-runtime') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-retained-runtime') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-launch-debug') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-signature-comparison') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-runtime-evidence-readout')
+    runs-on: macos-15
+    timeout-minutes: 75
+    env:
+      CI: 'true'
+      HUSKY: '0'
+      KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_NATIVE_PLATFORM: IOS
+      KEEPER_DIAGNOSTIC: 'true'
+      KEEPER_PRIVATE_IOS_NORMAL_RETAINED: '1'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out exact private diagnostic controller
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 30
+          persist-credentials: false
+      - name: Verify isolated normal-retained selection and all original app inputs
+        run: python3 .github/native/ios_normal_retained_runtime.py verify
+      - name: Admit exact successful original compile checkpoint and unchanged signed artifact
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            await require('./.github/native/ios_normal_retained_download.cjs')({ github, context });
+      - name: Set up pinned Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.4'
+          cache: yarn
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up frozen Ruby toolchain
+        uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
+        with:
+          ruby-version: '3.3.8'
+      - name: Record original build and separate controller without app compilation
+        run: python3 .github/native/ios_normal_retained_runtime.py record
+      - name: Prepare immutable dependencies and disposable configuration
+        run: python3 .github/native/ios_normal_retained_runtime.py prepare
+      - name: Restore byte-identical normal-Xcode app without any resigning
+        run: python3 .github/native/ios_normal_retained_runtime.py restore
+      - name: Run actual app startup with recorded-option warmup and unchanged UI gate
+        run: python3 .github/native/ios_normal_retained_runtime.py startup
+      - name: Run actual three-launch native Keychain after startup PASS
+        run: python3 .github/native/ios_normal_retained_runtime.py keychain
+      - name: Run actual persistence after startup and Keychain PASS
+        run: python3 .github/native/ios_normal_retained_runtime.py probe
+      - name: Run actual production workers after persistence PASS
+        run: python3 .github/native/ios_normal_retained_runtime.py features
+      - name: Run existing reviewed full-product samples and companions after all baseline gates PASS
+        run: python3 .github/native/ios_normal_retained_runtime.py product
+      - name: Retain source-qualified normal-retained evidence
+        if: always()
+        run: python3 .github/native/ios_normal_retained_runtime.py retain
+      - name: Save private normal-retained evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-normal-retained-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-normal-retained-runtime/
+          retention-days: 7
+          if-no-files-found: error

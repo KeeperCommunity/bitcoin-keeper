@@ -1,0 +1,54 @@
+name: Keeper private exact iOS metadata readout
+on:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+jobs:
+  readout:
+    if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 74 && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-runtime-evidence-readout' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-fresh-runtime') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-retained-runtime') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-launch-debug')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      KEEPER_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_READ_ONLY_IOS_METADATA: '1'
+    steps:
+      - name: Check out exact private read-only iOS projector
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify private selection and exact original failed iOS evidence
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+            const assert = value => { if (!value) throw new Error('Exact read-only iOS artifact admission rejected.'); };
+            assert(process.env.GITHUB_RUN_ATTEMPT === '1');
+            const { data: repo } = await github.rest.repos.get(context.repo);
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: 74 });
+            const labels = pr.labels.map(x => x.name);
+            assert(repo.id === 839671816 && repo.private && pr.state === 'open' && !pr.merged && pr.head.repo.id === repo.id && pr.head.sha === process.env.KEEPER_SOURCE_SHA);
+            assert(labels.includes('keeper/ios-runtime-evidence-readout') && !['keeper/native-diagnostic', 'keeper/ios-fresh-runtime', 'keeper/ios-retained-runtime', 'keeper/ios-launch-debug'].some(x => labels.includes(x)));
+            const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: 40351735911 });
+            const { data: job } = await github.rest.actions.getJobForWorkflowRun({ ...context.repo, job_id: 121673312232 });
+            const { data: artifact } = await github.rest.actions.getArtifact({ ...context.repo, artifact_id: 12669375034 });
+            assert(run.id === 40351735911 && run.run_attempt === 1 && run.head_sha === 'ff3cc6b2721de986d9f6211ef333df57ebc3b1fa' && run.status === 'completed' && run.conclusion === 'failure' && run.workflow_id === 397077786 && run.check_suite_id === 109366289849 && run.path === '.github/workflows/keeper-private-ios-fresh-runtime.yml' && run.event === 'pull_request' && run.repository.id === repo.id && run.repository.private);
+            assert(job.id === 121673312232 && job.run_id === run.id && job.head_sha === run.head_sha && job.run_attempt === 1 && job.name === 'fresh' && job.status === 'completed' && job.conclusion === 'failure');
+            assert(artifact.id === 12669375034 && artifact.expired === false && artifact.size_in_bytes === 88291 && artifact.name === 'keeper-private-ios-fresh-runtime-ff3cc6b2721de986d9f6211ef333df57ebc3b1fa-40351735911-1' && artifact.digest === 'sha256:f90a2788ff2ca7ab5ee83067a5d2ccbad0cf2b1a4abd7b439f1f74c302a305ca');
+            assert(artifact.workflow_run.id === run.id && artifact.workflow_run.head_sha === run.head_sha && artifact.workflow_run.repository_id === repo.id && artifact.workflow_run.head_repository_id === repo.id);
+            const { data } = await github.rest.actions.downloadArtifact({ ...context.repo, artifact_id: artifact.id, archive_format: 'zip' });
+            const raw = Buffer.from(data);
+            assert(raw.length === artifact.size_in_bytes && crypto.createHash('sha256').update(raw).digest('hex') === artifact.digest.slice(7));
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'keeper-exact-ios-metadata.zip'), raw, { flag: 'wx', mode: 0o600 });
+      - name: Project bounded original observations without app execution
+        run: python3 .github/native/ios_runtime_evidence_readout.py
+      - name: Retain private read-only iOS metadata projection
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-ios-metadata-readout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-ios-metadata-readout/summary.json
+          retention-days: 7
+          if-no-files-found: error

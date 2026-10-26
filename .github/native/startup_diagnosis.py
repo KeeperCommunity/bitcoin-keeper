@@ -300,8 +300,17 @@ def collect(native, device, handle=None):
                     result.update(runtime_row(row))
                 elif kind == 'SYMBOLICATE_RESPONSE':
                     result.update(symbolication_row(row))
-                elif kind in ['REQUEST', 'RESPONSE'] and row.get('request') in ['ENTRY_BUNDLE', 'SPLIT_BUNDLE', 'SYMBOLICATE']:
+                elif kind in ['REQUEST', 'RESPONSE', 'TRANSPORT'] and row.get('request') in ['ENTRY_BUNDLE', 'SPLIT_BUNDLE', 'SYMBOLICATE']:
                     result.update(kind=kind, request=row['request'])
+                    if 'request_id' in row:
+                        if type(row['request_id']) is not int or not 1 <= row['request_id'] <= 512:
+                            raise ValueError('Invalid fixed request identifier.')
+                        result['request_id'] = row['request_id']
+                    if kind in ('RESPONSE', 'TRANSPORT') and 'duration_ms' in row:
+                        duration = row['duration_ms']
+                        if duration is not None and (type(duration) is not int or not 0 <= duration <= 600000):
+                            raise ValueError('Invalid bounded request duration.')
+                        result['duration_ms'] = duration
                     if kind == 'REQUEST':
                         options = row.get('options', {})
                         if not isinstance(options, dict):
@@ -309,9 +318,26 @@ def collect(native, device, handle=None):
                         result['options'] = {key: options.get(key) if type(options.get(key)) is bool or options.get(key) in [None, 'OTHER'] else 'OTHER' for key in ['dev', 'lazy', 'minify', 'modulesOnly', 'runModule', 'excludeSource']}
                         for key, allowed in {'platform': ['android', 'ios'], 'sourcePaths': ['url-server', 'absolute'], 'engine': ['hermes', 'jsc'], 'app': ['EXPECTED']}.items():
                             result['options'][key] = options.get(key) if options.get(key) in [*allowed, None] else 'OTHER'
-                    else:
+                    elif kind == 'RESPONSE':
                         code = row.get('outer_http_status')
                         result['outer_http_status'] = code if type(code) is int and 100 <= code <= 599 else None
+                    else:
+                        event = row.get('event')
+                        if event not in ('RESPONSE_CLOSE', 'RESPONSE_ERROR', 'REQUEST_ABORTED') or 'request_id' not in result:
+                            raise ValueError('Invalid fixed transport event.')
+                        result['event'] = event
+                        if event == 'RESPONSE_CLOSE':
+                            for key in ('headers_sent', 'writable_ended', 'writable_finished'):
+                                if type(row.get(key)) is not bool:
+                                    raise ValueError('Invalid transport completion flag.')
+                                result[key] = row[key]
+                            code = row.get('outer_http_status')
+                            result['outer_http_status'] = code if type(code) is int and 100 <= code <= 599 else None
+                        elif event == 'RESPONSE_ERROR':
+                            code = row.get('error_code')
+                            if code not in ('ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ERR_STREAM_PREMATURE_CLOSE', 'OTHER'):
+                                raise ValueError('Invalid fixed transport error code.')
+                            result['error_code'] = code
                 else:
                     raise ValueError('Invalid observation kind.')
                 rows.append(result)

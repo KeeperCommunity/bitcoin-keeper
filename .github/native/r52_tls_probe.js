@@ -44,10 +44,13 @@ function NativeTlsProbe() {
         throw new Error('TLS_DEVELOPMENT_FIXTURE_REQUIRED');
       const rows = [];
       for (const row of fixture.cases) rows.push(await probe(row));
-      const status = rows.every((row, i) => row.outcome === fixture.cases[i].expected) ? 'PASS' : 'FAIL';
+      const transportStatus = rows.every((row, i) => row.outcome === fixture.cases[i].expected) ? 'PASS' : 'FAIL';
+      const rpc = transportStatus === 'PASS' ? await require('./r52_rpc_probe').runActualRpc(fixture) :
+        { status: 'NOT RUN', reason: 'TLS_MATRIX_FAILED' };
+      const status = transportStatus === 'PASS' && rpc.status === 'PASS' ? 'PASS' : 'FAIL';
       await RNFS.writeFile(`${RNFS.DocumentDirectoryPath}/keeper-r52-tls-evidence.json`, JSON.stringify({
         schema: 1, scope: 'ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE', nonce: fixture.nonce,
-        platform: fixture.platform, status, cases: rows,
+        platform: fixture.platform, status, transport_status: transportStatus, cases: rows, rpc,
       }), 'utf8');
       return status === 'PASS' ? 'pass' : 'failed';
     })().catch(() => 'failed');

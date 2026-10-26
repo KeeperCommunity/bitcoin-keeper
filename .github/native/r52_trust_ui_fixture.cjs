@@ -6,7 +6,6 @@ const crypto = require('node:crypto');
 const tls = require('node:tls');
 const http = require('node:http');
 const readline = require('node:readline');
-const { certificates } = require('../../tests/electrum/fixtures.cjs');
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const STAGES = ['baseline', 'custom_saved', 'failed_update_preserved', 'cold_reopen',
   'disconnected', 'reconnected', 'untrusted_peer_rejected', 'selfsigned_saved', 'fixture_nodes_removed'];
@@ -70,6 +69,9 @@ function verifyStage(config, previous, stage, observation, witness) {
 
 async function createFixture(platform, httpPort = 8768) {
   if (!['IOS', 'ANDROID'].includes(platform)) throw new Error('TRUST_PLATFORM');
+  // Bootstrap imports the pure receipt validators before app/test files exist.
+  // Actual fixture execution still requires the unchanged certificate producer.
+  const { certificates } = require('../../tests/electrum/fixtures.cjs');
   const identity = certificates(), services = [], sockets = new Set(), stages = [];
   const nonce = crypto.randomBytes(24).toString('hex'), metricToken = crypto.randomBytes(24).toString('hex');
   const witness = Object.fromEntries(['a', 'b', 'c'].map(name => [name, { connections: 0, versions: 0, invalid: 0 }]));

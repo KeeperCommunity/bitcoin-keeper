@@ -91,7 +91,7 @@ for (const [name, mutate] of [
   ['duplicate source check', f => { f.jobs[1001][0].steps.push({ name: 'Verify exact source after native attempts', status: 'completed', conclusion: 'success' }); }],
   ['failed cleanup', f => { f.jobs[1001][0].steps.find(v => v.name.startsWith('Remove only')).conclusion = 'failure'; }],
   ['selected UI skipped', f => { f.jobs[1001][0].steps.find(v => v.name.startsWith('Run one iOS')).conclusion = 'skipped'; }],
-  ['missing actual iOS driver', f => { f.jobs[1001][0].steps = f.jobs[1001][0].steps.filter(v => v.name !== 'Check hosted iOS driver before the app build'); }],
+  ['missing actual current-source build', f => { f.jobs[1001][0].steps = f.jobs[1001][0].steps.filter(v => v.name !== 'Build one current-source development native candidate'); }],
   ['unselected platform credited', f => { f.jobs[1001][0].steps.find(v => v.name.startsWith('Run one Android')).conclusion = 'success'; }],
   ['unselected step still running', f => { f.jobs[1001][0].steps.find(v => v.name.startsWith('Run one Android')).status = 'in_progress'; }],
 ]) test(`rejects job/check ownership or incomplete matrix: ${name}`, async () => {
@@ -226,7 +226,7 @@ test('f0 route pins the stable baseline and rejects former host or former execut
   const f = fixture(); await run(f);
   assert(f.calls.some(row => row.name === 'source' && row.args.path === POLICY &&
     row.args.ref === 'f0a695a6bba068ba93962e90ab52e8901ef4a852'));
-  const host = fixture(); host.jobs[1001][0].labels = ['macos-15'];
+  const host = fixture(); host.jobs[1001][0].labels = ['macos-15-intel'];
   await assert.rejects(run(host), /PRIVATE_ACTIONS_JOB_INVALID/);
   const previous = fixture(); previous.expected.IOS.execution.ref = 'refs/heads/codex/r5-native-integration-execution-20261022';
   await assert.rejects(run(previous), /PRIVATE_ACTIONS_ORIGIN_INVALID/);

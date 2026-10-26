@@ -1,6 +1,335 @@
 name: Keeper reusable native platform
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+  checks: read
+jobs:
+  android-build:
+    name: Native ANDROID compile producer
+    if: inputs.platform == 'ANDROID' && (github.event_name == 'pull_request' && github.event.pull_request.number != 7045 && inputs.source_sha
+      == github.event.pull_request.head.sha && (!inputs.prepare_only || (inputs.diagnostic && inputs.platform == 'IOS')) && (toJSON(github.event.pull_request.draft)
+      == 'false' || (inputs.diagnostic && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic'))))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      PYTHONPYCACHEPREFIX: /dev/null
+      PYTHONDONTWRITEBYTECODE: '1'
+      HUSKY: '0'
+      KEEPER_SOURCE_SHA: ${{ inputs.source_sha }}
+      KEEPER_NATIVE_PLATFORM: ANDROID
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      KEEPER_DIAGNOSTIC: ${{ inputs.diagnostic }}
+      KEEPER_DEPENDENCIES_ONLY: ${{ inputs.prepare_only }}
+      KEEPER_ANDROID_CUSTODY_ROLE: producer
+    outputs:
+      artifact_id: ${{ steps.checkpoint.outputs.artifact-id }}
+      artifact_digest: ${{ steps.checkpoint.outputs.artifact-digest }}
+    steps:
+    - name: Check out exact app source
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      with:
+        ref: ${{ inputs.source_sha }}
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Verify current diagnostic source
+      if: inputs.diagnostic
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      env:
+        EXPECTED_SOURCE: ${{ inputs.source_sha }}
+        PREPARE_ONLY: ${{ inputs.prepare_only }}
+      with:
+        script: "const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });\nif\
+          \ (pr.head.sha !== process.env.EXPECTED_SOURCE || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !pr.labels.some(label\
+          \ => label.name === 'keeper/native-diagnostic')) {\n  core.setFailed('Diagnostic source moved or opt-in removed; no native credit');\n\
+          }\nconst privateAndroid = '${{ inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id ==\
+          \ '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id\
+          \ == 839671816 }}' === 'true';\nif (privateAndroid && ((process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true') !== pr.labels.some(label\
+          \ => label.name === 'keeper/android-compile-checkpoint-only'))) {\n  core.setFailed('Private compile-only mode changed; no native credit');\n\
+          }\nif (process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true' &&\n    (!pr.labels.some(label => label.name === 'keeper/android-compile-checkpoint-only')\
+          \ ||\n     !pr.labels.some(label => label.name === 'keeper/android-diagnostic-only') ||\n     pr.labels.some(label => ['keeper/ios-diagnostic-only',\
+          \ 'keeper/ios-dependencies-only'].includes(label.name)))) {\n  core.setFailed('Private compile-checkpoint-only selection moved; no native\
+          \ credit');\n}\nif ((process.env.PREPARE_ONLY === 'true') !== pr.labels.some(label => label.name === 'keeper/ios-dependencies-only'))\
+          \ {\n  core.setFailed('Dependency-only selection changed; no native credit');\n}\n"
+    - name: Set up Node
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      with:
+        node-version: 22.23.4
+    - name: Set up Java
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+      with:
+        distribution: temurin
+        java-version: '17'
+        cache: gradle
+    - name: Set up Android command-line tools
+      uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+      with:
+        cmdline-tools-version: '13114758'
+        packages: platform-tools
+        log-accepted-android-sdk-licenses: false
+    - name: Verify Android hosted source admission
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      with:
+        script: try { await require('./.github/native/android_canonical_custody.cjs').host(github, context, process.env); } catch { core.setFailed('Exact
+          current-source Android producer, artifact or hosted admission rejected.'); }
+    - name: Prepare bounded Android runner disk
+      run: python3 .github/native/android_canonical_disk.py
+    - name: Record runner and toolchain
+      run: python3 .github/native/hosted_native.py record
+    - name: Install immutable native dependencies
+      run: python3 .github/native/hosted_native.py prepare
+    - name: Build development app
+      run: python3 .github/native/hosted_native.py build
+    - name: Record official Android compile producer
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      with:
+        script: try { await require('./.github/native/android_canonical_custody.cjs').producer(github, context, process.env); } catch { core.setFailed('Exact
+          current-source Android producer, artifact or hosted admission rejected.'); }
+    - name: Prepare exact Android build checkpoint
+      run: python3 .github/native/android_canonical_custody.py prepare
+    - name: Upload exact Android build checkpoint
+      id: checkpoint
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      with:
+        name: keeper-android-build-checkpoint-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: artifacts/android-build-checkpoint/
+        if-no-files-found: error
+        retention-days: 1
+  native:
+    name: Native ${{ inputs.platform }} build and probes
+    if: always() && (github.event_name == 'pull_request' && github.event.pull_request.number != 7045 && inputs.source_sha == github.event.pull_request.head.sha
+      && (!inputs.prepare_only || (inputs.diagnostic && inputs.platform == 'IOS')) && (toJSON(github.event.pull_request.draft) == 'false' || (inputs.diagnostic
+      && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')))) && (inputs.platform == 'IOS' || needs.android-build.result
+      == 'success')
+    runs-on: ${{ inputs.platform == 'IOS' && 'macos-15' || 'ubuntu-24.04' }}
+    timeout-minutes: ${{ inputs.platform == 'IOS' && 240 || 120 }}
+    env:
+      CI: 'true'
+      PYTHONPYCACHEPREFIX: /dev/null
+      PYTHONDONTWRITEBYTECODE: '1'
+      HUSKY: '0'
+      KEEPER_SOURCE_SHA: ${{ inputs.source_sha }}
+      KEEPER_NATIVE_PLATFORM: ${{ inputs.platform }}
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      KEEPER_DIAGNOSTIC: ${{ inputs.diagnostic }}
+      KEEPER_DEPENDENCIES_ONLY: ${{ inputs.prepare_only }}
+      KEEPER_ANDROID_CUSTODY_ROLE: runtime
+      KEEPER_ANDROID_ARTIFACT_ID: ${{ needs.android-build.outputs.artifact_id }}
+      KEEPER_ANDROID_ARTIFACT_DIGEST: ${{ needs.android-build.outputs.artifact_digest }}
+    steps:
+    - name: Check out exact app source
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      with:
+        ref: ${{ inputs.source_sha }}
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Verify current diagnostic source
+      if: inputs.diagnostic
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      env:
+        EXPECTED_SOURCE: ${{ inputs.source_sha }}
+        PREPARE_ONLY: ${{ inputs.prepare_only }}
+      with:
+        script: "const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });\nif\
+          \ (pr.head.sha !== process.env.EXPECTED_SOURCE || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !pr.labels.some(label\
+          \ => label.name === 'keeper/native-diagnostic')) {\n  core.setFailed('Diagnostic source moved or opt-in removed; no native credit');\n\
+          }\nconst privateAndroid = '${{ inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id ==\
+          \ '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id\
+          \ == 839671816 }}' === 'true';\nif (privateAndroid && ((process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true') !== pr.labels.some(label\
+          \ => label.name === 'keeper/android-compile-checkpoint-only'))) {\n  core.setFailed('Private compile-only mode changed; no native credit');\n\
+          }\nif (process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true' &&\n    (!pr.labels.some(label => label.name === 'keeper/android-compile-checkpoint-only')\
+          \ ||\n     !pr.labels.some(label => label.name === 'keeper/android-diagnostic-only') ||\n     pr.labels.some(label => ['keeper/ios-diagnostic-only',\
+          \ 'keeper/ios-dependencies-only'].includes(label.name)))) {\n  core.setFailed('Private compile-checkpoint-only selection moved; no native\
+          \ credit');\n}\nif ((process.env.PREPARE_ONLY === 'true') !== pr.labels.some(label => label.name === 'keeper/ios-dependencies-only'))\
+          \ {\n  core.setFailed('Dependency-only selection changed; no native credit');\n}\n"
+    - name: Set up Node
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      with:
+        node-version: 22.23.4
+        cache: yarn
+    - name: Set up Java
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+      with:
+        distribution: temurin
+        java-version: '17'
+        cache: gradle
+    - name: Set up Ruby
+      if: inputs.platform == 'IOS'
+      uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647
+      with:
+        ruby-version: 3.3.8
+    - name: Select reviewed Xcode
+      if: inputs.platform == 'IOS'
+      run: echo 'DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer' >> "$GITHUB_ENV"
+    - name: Set up Android command-line tools
+      if: inputs.platform == 'ANDROID'
+      uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+      with:
+        cmdline-tools-version: '13114758'
+        packages: platform-tools
+        log-accepted-android-sdk-licenses: false
+    - name: Verify Android hosted source admission
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      with:
+        script: try { await require('./.github/native/android_canonical_custody.cjs').host(github, context, process.env); } catch { core.setFailed('Exact
+          current-source Android producer, artifact or hosted admission rejected.'); }
+      if: inputs.platform == 'ANDROID'
+    - name: Prepare bounded Android runner disk
+      run: python3 .github/native/android_canonical_disk.py
+      if: inputs.platform == 'ANDROID'
+    - name: Record runner and toolchain
+      run: python3 .github/native/hosted_native.py record
+    - name: Install immutable native dependencies
+      run: python3 .github/native/hosted_native.py prepare
+    - name: Verify exact Android compile artifact before download
+      if: inputs.platform == 'ANDROID'
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      with:
+        script: try { await require('./.github/native/android_canonical_custody.cjs').download(github, context, process.env); } catch { core.setFailed('Exact
+          current-source Android producer, artifact or hosted admission rejected.'); }
+    - name: Restore exact Android compile artifact
+      if: inputs.platform == 'ANDROID'
+      run: python3 .github/native/android_canonical_custody.py restore
+    - name: Require unchanged Android runtime disk reserve
+      if: inputs.platform == 'ANDROID'
+      run: 'python3 - <<''PYCODE''
 
-on:
+        import importlib.util
+
+        from pathlib import Path
+
+        p=Path(''.github/native/hosted_native.py'')
+
+        spec=importlib.util.spec_from_file_location(''runtime_disk_reserve'',p)
+
+        h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+
+        h.disk_preflight(''before_fresh_android_emulator'')
+
+        PYCODE
+
+        '
+    - name: Warm unchanged development bundle before emulator contention
+      run: "python3 - <<'PYCODE'\nimport importlib.util, os, signal, subprocess\nfrom pathlib import Path\nroot = Path.cwd()\nsubprocess.run(['git',\
+        \ 'diff', '--exit-code', 'HEAD', '--', '.github/native', '.github/workflows'], check=True)\ndef pinned(name):\n    path = root / '.github/native'\
+        \ / (name + '.py')\n    raw = path.read_bytes()\n    expected = subprocess.check_output(['git', 'show', 'HEAD:.github/native/' + name\
+        \ + '.py'])\n    if raw != expected:\n        raise RuntimeError('PRE_EMULATOR_BUNDLE_SOURCE_CHANGED')\n    spec = importlib.util.spec_from_file_location('pre_emulator_'\
+        \ + name, path)\n    value = importlib.util.module_from_spec(spec)\n    exec(compile(raw, str(path), 'exec'), value.__dict__)\n    return\
+        \ value\nos.environ.update({'ENVFILE': '.env.ci', 'RCT_NO_LAUNCH_PACKAGER': '1',\n                   'RCT_NEW_ARCH_ENABLED': '1', 'MAESTRO_CLI_NO_ANALYTICS':\
+        \ '1'})\nh, owned = pinned('hosted_native'), pinned('product_metro')\nbefore = h.read()\ngates = ('smoke', 'native_probe', 'r5_features',\
+        \ 'hardware', 'signing')\nif (h.PLATFORM != 'ANDROID' or before.get('source_sha') != os.environ['KEEPER_SOURCE_SHA'] or\n        before.get('build_execution_scope')\
+        \ != 'SAME_CURRENT_SOURCE_SAME_RUN_OFFICIAL_ANDROID_COMPILE_PRODUCER' or\n        before.get('build') != 'PASS' or any(before.get(key)\
+        \ != 'NOT RUN' for key in gates)):\n    raise RuntimeError('EXACT_REUSED_APK_BEFORE_EMULATOR_REQUIRED')\nprivate = h.PRIVATE / 'pre-emulator-bundle'\n\
+        private.mkdir(mode=0o700, exist_ok=False)\nos.environ['KEEPER_STARTUP_OBSERVER_PATH'] = str(private / 'setup-observer.jsonl')\n# Identical\
+        \ app resolver/transformer/entrypoint; retain its normal observer.\nowned.PHASE_CONFIGS = {**owned.PHASE_CONFIGS, 'product': 'startup_observer.cjs'}\n\
+        metro = owned.OwnedMetro(h, private)\nprevious, received = {}, False\ndef interrupted(signum, _frame):\n    global received\n    if not\
+        \ received:\n        received = True\n        raise SystemExit(128 + signum)\ntry:\n    for signum in (signal.SIGTERM, signal.SIGINT):\n\
+        \        previous[signum] = signal.signal(signum, interrupted)\n    metro.start('product', initial=True)\nfinally:\n    try:\n       \
+        \ metro.close()\n    finally:\n        for signum, handler in previous.items():\n            signal.signal(signum, handler)\nsubprocess.run(['git',\
+        \ 'diff', '--exit-code', 'HEAD', '--', '.github/native', '.github/workflows'], check=True)\nafter = h.read()\nif any(after.get(key) !=\
+        \ before.get(key) for key in gates):\n    raise RuntimeError('BUNDLE_SETUP_CANNOT_CHANGE_NATIVE_GATES')\nwarm = after['metro_warmup']\n\
+        after['pre_emulator_bundle'] = {'scope': 'DEVELOPMENT_BUNDLE_SETUP_ONLY_NOT_NATIVE_ACCEPTANCE',\n    'status': warm['result'], 'http_status':\
+        \ warm['http_status'],\n    'bytes': warm.get('bytes'), 'sha256': warm.get('sha256'),\n    'duration_seconds': warm['duration_seconds'],\
+        \ 'unchanged_request_timeout_seconds': 240,\n    'native_acceptance': False, 'owned_metro_closed': True}\nh.save(after)\nprint('UNCHANGED_ANDROID_BUNDLE_PREPARED_BEFORE_EMULATOR_NO_NATIVE_CREDIT',\
+        \ flush=True)\nPYCODE\n"
+      if: inputs.platform == 'ANDROID'
+    - name: Build development app
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: python3 .github/native/hosted_native.py build
+    - name: Run disposable startup smoke
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: 'test "$(git rev-parse HEAD)" = ''${{ inputs.source_sha }}''
+
+        git diff --exit-code HEAD -- .github/native .github/workflows
+
+        python3 .github/native/hosted_native.py smoke
+
+        '
+    - name: Run disposable native Keychain across three processes
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: python3 .github/native/hosted_native.py keychain
+    - name: Run disposable native persistence probe
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: 'test "$(git rev-parse HEAD)" = ''${{ inputs.source_sha }}''
+
+        git diff --exit-code HEAD -- .github/native .github/workflows
+
+        python3 .github/native/hosted_native.py probe
+
+        '
+    - name: Run R5 production worker native scenarios
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: 'test "$(git rev-parse HEAD)" = ''${{ inputs.source_sha }}''
+
+        git diff --exit-code HEAD -- .github/native .github/workflows
+
+        python3 .github/native/hosted_native.py features
+
+        '
+    - name: Run strict native TLS and production Electrum RPC matrix
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: python3 .github/native/hosted_native.py tls
+    - name: Run historical Realm109 migration matrix
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: python3 .github/native/r52_realm109_native.py
+    - name: Measure five full-product startup and first-wallet runs
+      if: inputs.platform == 'IOS' && !inputs.prepare_only
+      run: 'test "$(git rev-parse HEAD)" = ''${{ inputs.source_sha }}''
+
+        git diff --exit-code HEAD -- .github/native .github/workflows
+
+        python3 .github/native/product_measurements.py run
+
+        '
+    - name: Enable emulator acceleration
+      if: inputs.platform == 'ANDROID' && !inputs.prepare_only
+      run: 'echo ''KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"'' | sudo tee /etc/udev/rules.d/99-keeper-kvm.rules
+
+        sudo udevadm control --reload-rules
+
+        sudo udevadm trigger --name-match=kvm
+
+        '
+    - name: Run Android startup persistence worker TLS Realm trust and product flows
+      if: inputs.platform == 'ANDROID'
+      uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed
+      with:
+        api-level: 35
+        target: google_apis
+        arch: x86_64
+        profile: pixel_6
+        cores: 2
+        ram-size: 3072M
+        force-avd-creation: true
+        disable-animations: true
+        emulator-boot-timeout: 240
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+        script: 'test "$(git rev-parse HEAD)" = "$KEEPER_SOURCE_SHA"
+
+          python3 .github/native/hosted_native.py smoke
+
+          python3 .github/native/hosted_native.py probe
+
+          python3 .github/native/hosted_native.py features
+
+          python3 .github/native/hosted_native.py tls
+
+          python3 .github/native/r52_realm109_native.py
+
+          python3 .github/native/product_measurements.py run'
+    - name: Retain safe Phase A evidence
+      if: always()
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      with:
+        name: keeper-${{ inputs.diagnostic && 'diagnostic' || 'release' }}-native-${{ inputs.platform }}-${{ inputs.source_sha }}-${{ github.run_id
+          }}-${{ github.run_attempt }}
+        path: artifacts/native/*/metadata.json
+        if-no-files-found: error
+        retention-days: 7
+    needs:
+    - android-build
+'on':
   workflow_call:
     inputs:
       source_sha:
@@ -9,7 +338,6 @@ on:
       platform:
         type: string
         required: true
-
       diagnostic:
         type: boolean
         default: false
@@ -18,200 +346,3 @@ on:
         type: boolean
         default: false
         required: false
-
-# This worker has no environment, release credentials, secret inputs or dispatch.
-permissions:
-  contents: read
-  pull-requests: read
-  actions: read
-
-jobs:
-  native:
-    name: Native ${{ inputs.platform }} build and probes
-    if: github.event_name == 'pull_request' && github.event.pull_request.number != 7045 && inputs.source_sha == github.event.pull_request.head.sha && (!inputs.prepare_only || (inputs.diagnostic && inputs.platform == 'IOS')) && (toJSON(github.event.pull_request.draft) == 'false' || (inputs.diagnostic && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')))
-    # Preserve the explicit Intel host used by pinned Maestro's iOS18.5 CI.
-    runs-on: ${{ inputs.platform == 'IOS' && 'macos-15-intel' || 'ubuntu-24.04' }}
-    # One build/device per platform includes all scoped companion UI phases.
-    # Standard hosted runners only; this is a global fail-closed runtime ceiling.
-    timeout-minutes: 240
-    env:
-      CI: 'true'
-      HUSKY: '0'
-      KEEPER_SOURCE_SHA: ${{ inputs.source_sha }}
-      KEEPER_NATIVE_PLATFORM: ${{ inputs.platform }}
-      MAESTRO_CLI_NO_ANALYTICS: '1'
-      KEEPER_DIAGNOSTIC: ${{ inputs.diagnostic }}
-      KEEPER_DEPENDENCIES_ONLY: ${{ inputs.prepare_only }}
-      KEEPER_ANDROID_CHECKPOINT_ONLY: ${{ inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id == 839671816 && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only') && contains(github.event.pull_request.labels.*.name, 'keeper/android-compile-checkpoint-only') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only') }}
-    steps:
-      - name: Check out exact app source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ inputs.source_sha }}
-          persist-credentials: false
-      - name: Verify current diagnostic source
-        if: inputs.diagnostic
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          EXPECTED_SOURCE: ${{ inputs.source_sha }}
-          PREPARE_ONLY: ${{ inputs.prepare_only }}
-        with:
-          script: |
-            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
-            if (pr.head.sha !== process.env.EXPECTED_SOURCE || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !pr.labels.some(label => label.name === 'keeper/native-diagnostic')) {
-              core.setFailed('Diagnostic source moved or opt-in removed; no native credit');
-            }
-            const privateAndroid = '${{ inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id == 839671816 }}' === 'true';
-            if (privateAndroid && ((process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true') !== pr.labels.some(label => label.name === 'keeper/android-compile-checkpoint-only'))) {
-              core.setFailed('Private compile-only mode changed; no native credit');
-            }
-            if (process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true' &&
-                (!pr.labels.some(label => label.name === 'keeper/android-compile-checkpoint-only') ||
-                 !pr.labels.some(label => label.name === 'keeper/android-diagnostic-only') ||
-                 pr.labels.some(label => ['keeper/ios-diagnostic-only', 'keeper/ios-dependencies-only'].includes(label.name)))) {
-              core.setFailed('Private compile-checkpoint-only selection moved; no native credit');
-            }
-            if ((process.env.PREPARE_ONLY === 'true') !== pr.labels.some(label => label.name === 'keeper/ios-dependencies-only')) {
-              core.setFailed('Dependency-only selection changed; no native credit');
-            }
-      - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '22.23.4'
-          cache: yarn
-      - name: Set up Java
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
-      - name: Set up Ruby
-        if: inputs.platform == 'IOS'
-        uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647 # v1.281.0
-        with:
-          ruby-version: '3.3.8'
-      - name: Select reviewed Xcode
-        if: inputs.platform == 'IOS'
-        run: echo 'DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer' >> "$GITHUB_ENV"
-      - name: Set up Android command-line tools
-        if: inputs.platform == 'ANDROID'
-        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
-        with:
-          cmdline-tools-version: '13114758'
-          packages: platform-tools
-          log-accepted-android-sdk-licenses: false
-      - name: Prepare disposable Android runner disk
-        if: inputs.platform == 'ANDROID' && inputs.diagnostic && github.repository_id == '839671816' && github.event.repository.private == true
-        run: python3 .github/native/android_runner_disk.py
-      - name: Record runner and toolchain
-        run: python3 .github/native/hosted_native.py record
-      - name: Install immutable native dependencies
-        run: python3 .github/native/hosted_native.py prepare
-      - name: Check disposable iOS driver readiness
-        if: inputs.platform == 'IOS' && !inputs.prepare_only
-        run: |
-          test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-          git diff --exit-code HEAD -- .github/native .github/workflows
-          python3 .github/native/hosted_native.py driver
-      - name: Build development app
-        if: ${{ !inputs.prepare_only }}
-        run: |
-          test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-          git diff --exit-code HEAD -- .github/native .github/workflows
-          if [ "$KEEPER_NATIVE_PLATFORM" = ANDROID ] && [ "$KEEPER_DIAGNOSTIC" = true ] && [ "$GITHUB_REPOSITORY_ID" = 839671816 ] && [ '${{ github.event.repository.private && github.event.pull_request.number == 73 }}' = true ]; then
-            python3 .github/native/android_build_watch.py
-          else
-            python3 .github/native/hosted_native.py build
-          fi
-      - name: Record official private Android checkpoint origin
-        if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          KEEPER_ANDROID_ORIGIN_MODE: checkpoint
-        with:
-          script: |
-            const origin = require('./.github/native/android_checkpoint_origin.cjs');
-            await origin({ github, context });
-      - name: Prepare exact private Android build checkpoint
-        if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
-        run: python3 .github/native/android_apk_checkpoint.py
-      - name: Upload private Android build checkpoint
-        id: android_checkpoint
-        if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: keeper-private-android-checkpoint-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/private-android-checkpoint/
-          if-no-files-found: error
-          retention-days: 1
-      - name: Finalize explicit private Android compile-only outcome
-        if: env.KEEPER_ANDROID_CHECKPOINT_ONLY == 'true'
-        env:
-          KEEPER_CHECKPOINT_ARTIFACT_ID: ${{ steps.android_checkpoint.outputs.artifact-id }}
-          KEEPER_CHECKPOINT_ARTIFACT_DIGEST: ${{ steps.android_checkpoint.outputs.artifact-digest }}
-        run: python3 .github/native/android_compile_checkpoint_only.py
-      - name: Run disposable startup smoke
-        if: inputs.platform == 'IOS' && !inputs.prepare_only
-        run: |
-          test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-          git diff --exit-code HEAD -- .github/native .github/workflows
-          python3 .github/native/hosted_native.py smoke
-      - name: Run disposable native persistence probe
-        if: inputs.platform == 'IOS' && !inputs.prepare_only
-        run: |
-          test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-          git diff --exit-code HEAD -- .github/native .github/workflows
-          python3 .github/native/hosted_native.py probe
-      - name: Run R5 production worker native scenarios
-        if: inputs.platform == 'IOS' && !inputs.prepare_only
-        run: |
-          test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-          git diff --exit-code HEAD -- .github/native .github/workflows
-          python3 .github/native/hosted_native.py features
-      - name: Measure five full-product startup and first-wallet runs
-        if: inputs.platform == 'IOS' && !inputs.prepare_only
-        run: |
-          test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-          git diff --exit-code HEAD -- .github/native .github/workflows
-          python3 .github/native/product_measurements.py run
-      - name: Enable emulator acceleration
-        if: inputs.platform == 'ANDROID' && !inputs.prepare_only && env.KEEPER_ANDROID_CHECKPOINT_ONLY != 'true'
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-keeper-kvm.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - name: Run Android startup and native persistence probes
-        if: inputs.platform == 'ANDROID' && !inputs.prepare_only && env.KEEPER_ANDROID_CHECKPOINT_ONLY != 'true'
-        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          cores: 2
-          ram-size: 3072M
-          force-avd-creation: true
-          disable-animations: true
-          emulator-boot-timeout: 240
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
-          script: |
-            test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
-            git diff --exit-code HEAD -- .github/native .github/workflows
-            python3 .github/native/hosted_native.py smoke
-            git diff --exit-code HEAD -- .github/native .github/workflows
-            python3 .github/native/hosted_native.py probe
-            git diff --exit-code HEAD -- .github/native .github/workflows
-            python3 .github/native/hosted_native.py features
-            git diff --exit-code HEAD -- .github/native .github/workflows
-            python3 .github/native/product_measurements.py run
-      - name: Project bounded private Android terminal observations
-        if: always() && inputs.platform == 'ANDROID' && inputs.diagnostic && github.repository_id == '839671816' && github.event.repository.private == true
-        run: python3 .github/native/android_runtime_evidence_readout.py terminal
-      - name: Retain safe Phase A evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: keeper-${{ inputs.diagnostic && 'diagnostic' || 'release' }}-native-${{ inputs.platform }}-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/native/*/metadata.json
-          if-no-files-found: error
-          retention-days: 7

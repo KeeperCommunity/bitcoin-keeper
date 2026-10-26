@@ -4,6 +4,7 @@ Maestro clearState replaces the first installed instance. Inspect the remaining
 owned instance after failure without a launch, retry or metadata promotion.
 """
 import importlib.util
+import hashlib
 from pathlib import Path
 import plistlib
 import re
@@ -64,6 +65,48 @@ def unknown(stage='NOT_RUN'):
             'scope': 'POST_FAILURE_CURRENT_INSTANCE_NOT_LAUNCH_CAUSE_OR_ACCEPTANCE'}
 
 
+def recorded_xcode_entitlements(payload, data, bytes_state):
+    """Compare only to the recorded normal producer; never grant native credit."""
+    signature = data.get('toolchain', {}).get('ios_simulator_signature', {})
+    if signature.get('entitlement_policy') != 'XCODE_GENERATED_SIGNED_AND_LINKER_EMBEDDED_SIMULATOR_ENTITLEMENTS':
+        return None  # Preserve the original fixed-policy diagnostic by default.
+    result = {'profile': 'RECORDED_XCODE_GENERATED_SIMULATOR_SIGNATURE', 'state': 'UNKNOWN',
+        'legacy_fixed_policy_comparison': entitlement_state(payload),
+        'full_installed_bytes': bytes_state,
+        'scope': 'POST_FAILURE_RECORDED_PRODUCER_COMPARISON_NOT_NATIVE_ACCEPTANCE'}
+    source, expected = data.get('compiled_app_source_sha'), signature.get('entitlements_sha256')
+    original = data.get('original_build', {})
+    if not (data.get('build_execution_scope') == 'REUSED_EXACT_NORMAL_XCODE_APP_NO_CURRENT_COMPILATION_OR_RESIGNING'
+            and data.get('retained_xcode_restore') == 'PASS' and data.get('original_signature_preserved') is True
+            and data.get('native_acceptance') is False
+            and data.get('installed_artifact_verified') is True and bytes_state == 'MATCH'
+            and source == original.get('source_sha') == 'ff3cc6b2721de986d9f6211ef333df57ebc3b1fa'
+            and original.get('artifact_id') == 12667427189
+            and original.get('artifact_zip_sha256') == '89806c9d8d71dc032d2ce3ca8b444768705d1ca3ab565aa9ec0652f0277b76f5'
+            and data.get('app_inputs_sha256') == '6112e0e18e093e5e65e754fc607aa7e44ee73682576a31a168a6ad01f06a2b85'
+            and signature.get('verified') is True and signature.get('bundle_id') == APP
+            and signature.get('certificate_or_profile_used') is False
+            and signature.get('scope') == 'XCODE_GENERATED_ADHOC_SIMULATOR_ONLY_NOT_RELEASE_SIGNING'
+            and expected == '97704a8960b4facceef54397a08fb5d0a456247c3627359215aa2a27df22656c'):
+        return result
+    result.update(recorded_source_sha=source, expected_canonical_sha256=expected,
+                  canonicalization='PLISTLIB_SORTED_XML')
+    try:
+        if type(payload) is not bytes or len(payload) > LIMIT:
+            return result
+        begin, end = payload.find(b'<?xml'), payload.find(b'</plist>')
+        if begin < 0 or end < begin or payload.count(b'<?xml') != 1 or payload.count(b'</plist>') != 1:
+            return result
+        effective = plistlib.loads(payload[begin:end + len(b'</plist>')])
+        if type(effective) is not dict:
+            return result
+        digest = hashlib.sha256(plistlib.dumps(effective, sort_keys=True)).hexdigest()
+        result.update(observed_canonical_sha256=digest, state='MATCH' if digest == expected else 'MISMATCH')
+    except Exception:
+        pass
+    return result
+
+
 def owned_observation_bundle_path(native, value, device, built):
     """Admit the pinned producer's name without changing acceptance policy.
 
@@ -90,7 +133,8 @@ def collect(native, device):
                 not re.fullmatch(UUID, device)):
             return unknown(stage)
         stage = 'BUILT_ARTIFACT_STABILITY'
-        expected = native.read()['built_artifact']
+        recorded = native.read()
+        expected = recorded['built_artifact']
         if native.artifact_identity() != expected:
             return unknown(stage)
         built = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
@@ -124,6 +168,9 @@ def collect(native, device):
         result['queries']['entitlements'] = status
         if status == 'EXIT_ZERO':
             result['entitlements'] = entitlement_state(payload)
+            comparison = recorded_xcode_entitlements(payload, recorded, result['bytes'])
+            if comparison is not None:
+                result['entitlement_comparison'] = comparison
         # All conclusions refer to one unchanged current instance and built input.
         stage = 'FINAL_CONTAINER_QUERY'
         status, payload = query(native.PRIVATE, get_container)

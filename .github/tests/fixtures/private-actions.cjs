@@ -49,7 +49,7 @@ function fixture({ appProfile = require('../../native/release_repository_profile
       '          persist-credentials: false',
       '          token: ${{ secrets.KEEPER_PRIVATE_APP_CONTENTS_READ_TOKEN }}',
     ].join('\n') + '\n' : `origin ${app.sha}\n--detach ${app.sha}\n`;
-    state.files[`${PRIVATE}:${sha}`] = { ...backendFiles, [WORKFLOW]: Buffer.from(`KEEPER_SOURCE_SHA: ${app.sha}\n${checkout}`),
+    state.files[`${PRIVATE}:${sha}`] = { ...backendFiles, [WORKFLOW]: Buffer.from(`KEEPER_SOURCE_SHA: ${app.sha}\nruns-on: 'macos-15'\nBuild one current-source development native candidate\n${checkout}`),
       [POLICY]: bytes(policy), [MARKER]: bytes({ schema: 1, app_sha: app.sha, platform }), [TOOL]: Buffer.from('// immutable reviewed tool\n') };
     state.commits[`${PRIVATE}:${sha}`] = { sha, tree: { sha: tree }, message: `ci(r5): run combined native ${platform}`,
       parents: [{ sha: platform === 'ANDROID' ? state.expected.IOS.control.sha : '8'.repeat(40) }] };
@@ -65,15 +65,14 @@ function fixture({ appProfile = require('../../native/release_repository_profile
       appProfile.private ? 'Fetch fixed private app with scoped read identity' : 'Fetch fixed public app anonymously',
       'Set up reviewed Node runtime', 'Verify bounded exact source before installation', 'Install frozen backend dependencies without scripts',
       'Set up Java17', 'Record actual hosted toolchain', 'Install immutable native app dependencies and synthetic configuration',
-      'Verify exact sources after dependency preparation', ...(platform === 'IOS' ? ['Set up Ruby for hosted iOS', 'Select reviewed Xcode16.4',
-        'Check hosted iOS driver before the app build'] : ['Set up Android tools', 'Enable owned Android emulator acceleration']),
+      'Verify exact sources after dependency preparation', ...(platform === 'IOS' ? ['Set up Ruby for hosted iOS', 'Select reviewed Xcode16.4'] : ['Set up Android tools', 'Enable owned Android emulator acceleration']),
       "Start only this run's pinned owned loopback Mongo replica", 'Characterize the actual fixture and source contracts',
-      'Build one unsigned development native candidate', 'Run one iOS startup then public phases and three serial private suites',
+      'Build one current-source development native candidate', 'Run one iOS startup then public phases and three serial private suites',
       'Run one Android startup then public phases and three serial private suites', 'Verify exact source after native attempts',
       "Remove only this run's owned Mongo runtime", 'Retain metadata only'].map(name => ({ name, status: 'completed',
         conclusion: name.startsWith('Run one ') && !name.includes(platform === 'IOS' ? 'iOS' : 'Android') ? 'skipped' : 'success' }));
     state.jobs[runId] = [{ id: runId + 300, name: 'native', run_id: runId, run_attempt: 1, head_sha: sha,
-      labels: [platform === 'IOS' ? 'macos-15-intel' : 'ubuntu-24.04'],
+      labels: [platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04'],
       started_at: platform === 'IOS' ? '2026-10-22T23:10:00Z' : '2026-10-22T23:21:00Z',
       completed_at: platform === 'IOS' ? '2026-10-22T23:20:00Z' : '2026-10-22T23:29:00Z',
       status: 'completed', conclusion: 'success', check_run_url: `https://api.github.com/repos/${PRIVATE}/check-runs/${runId + 400}`, steps }];

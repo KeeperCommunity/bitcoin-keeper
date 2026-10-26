@@ -120,17 +120,21 @@ test('reusable paths keep explicit draft and diagnostic boundaries with no dispa
   assert.equal(workflows['android-diagnostic-build.yml'].concurrency['cancel-in-progress'], 'false');
 });
 
-test('canonical iOS uses the reviewed Intel host while Android retains its runner', () => {
+test('canonical current-source iOS uses normal ARM Xcode while Android retains its own runner', () => {
   const canonical = workflows['keeper-canonical-native-platform.yml'];
   const diagnostic = workflows['keeper-native-platform.yml'];
   function select(workflow, platform) {
     const expression = workflow.jobs.native['runs-on'].replace(/^\$\{\{\s*|\s*\}\}$/g, '');
     return new Function('inputs', `return (${expression});`)({ platform });
   }
-  assert.equal(select(canonical, 'IOS'), 'macos-15-intel');
+  assert.equal(select(canonical, 'IOS'), 'macos-15');
   assert.equal(select(canonical, 'ANDROID'), 'ubuntu-24.04');
   assert.equal(select(canonical, 'IOS'), select(diagnostic, 'IOS'));
-  assert.equal(canonical.jobs.native['timeout-minutes'], '240');
+  const timeout = canonical.jobs.native['timeout-minutes'].replace(/^\$\{\{\s*|\s*\}\}$/g, '');
+  assert.equal(new Function('inputs', `return (${timeout});`)({ platform: 'IOS' }), 240);
+  assert.equal(new Function('inputs', `return (${timeout});`)({ platform: 'ANDROID' }), 120);
+  assert.equal(canonical.jobs['android-build']['timeout-minutes'], '120');
+  assert.deepEqual(canonical.jobs.native.needs, ['android-build']);
   assert.ok(!canonical.jobs.native.environment && !canonical.jobs.native.secrets);
 });
 

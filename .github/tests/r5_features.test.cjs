@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
-const { extract, prepare, SELECTION } = require('../native/r5_prepare.cjs');
+const { extract, prepare, render, SELECTION } = require('../native/r5_prepare.cjs');
 const {
   recordBuilder,
   runFeatures,
@@ -15,6 +15,15 @@ const {
   LIMITS,
 } = require('../native/r5_features_core');
 const root = path.resolve(__dirname, '../..');
+
+test('source guard render is pure and byte-identical to the existing worker writer', () => {
+  const generated = path.join(root, '.github/native/.generated/r5_workers.js');
+  const before = fs.existsSync(generated) ? fs.readFileSync(generated) : null;
+  const result = render(root);
+  assert.deepEqual(fs.existsSync(generated) ? fs.readFileSync(generated) : null, before);
+  assert.deepEqual(prepare(root), result.provenance);
+  assert.equal(fs.readFileSync(generated, 'utf8'), result.outputText);
+});
 
 test('build-time probe extracts every selected production definition and records its source hash', () => {
   const provenance = prepare();

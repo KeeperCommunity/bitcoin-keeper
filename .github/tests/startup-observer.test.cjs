@@ -21,7 +21,8 @@ function load(config, enabled = true) {
   const context = { module: { exports: {} }, URL, Date, __dirname: path.resolve(__dirname, '../native'),
     process: { env: { RUNNER_TEMP: '/tmp/keeper-fixture', KEEPER_STARTUP_OBSERVER_PATH: enabled ? '/tmp/keeper-fixture/keeper-native-private/startup-observer.jsonl' : '/unsafe/PRIVATE_SENTINEL' } },
     require(name) {
-      if (name === '../../metro.config.js') return config;
+      if (name === 'node:events') return require('node:events');
+    if (name === '../../metro.config.js') return config;
       if (name === './startup_reporter.cjs') return Reporter;
       if (name === './startup_source_frames.cjs') return require('../native/startup_source_frames.cjs');
       if (name === 'metro') return { TerminalReporter };

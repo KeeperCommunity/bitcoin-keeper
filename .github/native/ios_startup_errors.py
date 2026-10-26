@@ -50,6 +50,10 @@ _SEVERITIES = {'a', 'd', 'db', 'df', 'i', 'info', 'default', 'debug',
 _ERROR_SEVERITIES = {'e', 'er', 'error', 'f', 'ft', 'fault'}
 _ERROR_MARKER = re.compile(
     r'\b(?:error|exception|fatal)\b|\b[\w.$]*(?:Exception|Error)\b', re.IGNORECASE)
+URL_ERROR_CODES = frozenset((-999, -1001, -1003, -1004, -1005, -1006,
+                             -1008, -1009, -1011, -1016, -1022, -1200))
+_URL_ERROR = re.compile(r'\b(?:Error Domain=NSURLErrorDomain Code=|NSURLErrorDomain (?:Code=|error ))'
+                        r'(-[0-9]{3,4})(?![0-9.])', re.ASCII)
 
 
 def classify(payload, executable, started_ms=None, ended_ms=None, input_partial=False):
@@ -98,7 +102,9 @@ def classify(payload, executable, started_ms=None, ended_ms=None, input_partial=
         'scan_limit_reached': False, 'record_limit_reached': False,
         'parse_status': 'UNKNOWN', 'cause': 'UNDETERMINED',
         'scope': 'PREFIXED_OWN_PROCESS_MARKERS_ONLY_NOT_CAUSE_OR_ACCEPTANCE',
+        'url_error_codes': [],
     }
+    url_counts = {}
     for index, raw in enumerate(io.StringIO(prefix)):
         if index >= MAX_SCAN_LINES:
             result['scan_limit_reached'] = True
@@ -144,6 +150,8 @@ def classify(payload, executable, started_ms=None, ended_ms=None, input_partial=
         if match['process'] != executable:
             continue
         result['matching_process_records'] += 1
+        for code in {int(value) for value in _URL_ERROR.findall(match['message'])} & URL_ERROR_CODES:
+            url_counts[code] = url_counts.get(code, 0) + 1
         categories = [name for name, pattern in _CATEGORY_PATTERNS.items()
                       if pattern.search(match['message'])]
         error = (bool(categories) or match['severity'].lower() in _ERROR_SEVERITIES or
@@ -155,6 +163,8 @@ def classify(payload, executable, started_ms=None, ended_ms=None, input_partial=
             result['unclassified_error_records'] += int(not categories)
     if result['error_records']:
         result['errors'] = ['IOS_STARTUP_ERROR']
+    result['url_error_codes'] = [{'domain': 'NSURLErrorDomain', 'code': code, 'records': count}
+                                for code, count in sorted(url_counts.items())]
     partial = any(result[name] for name in (
         'input_truncated', 'scan_limit_reached', 'record_limit_reached',
         'malformed_record_lines', 'oversized_record_lines',

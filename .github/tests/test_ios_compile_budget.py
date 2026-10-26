@@ -34,7 +34,8 @@ class CompileBudgets(unittest.TestCase):
                 if label == LABEL and fail:
                     raise primary
                 return 'synthetic Gradle version' if kwargs.get('capture') else ''
-            with mock.patch.multiple(native, PLATFORM=platform, PRIVATE=private,
+            with mock.patch.dict(os.environ, {'KEEPER_IOS_BUILD_PROFILE': 'legacy-unsigned'}), \
+                    mock.patch.multiple(native, PLATFORM=platform, PRIVATE=private,
                     EVIDENCE=private / 'metadata.json'), \
                     mock.patch.object(native.platform, 'machine', return_value=architecture), \
                     mock.patch.object(native, 'disk_preflight'), \

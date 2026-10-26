@@ -50,12 +50,18 @@ function fixture() {
   for (const row of [run.pull_requests[0].head, run.pull_requests[0].base])
     row.repo = { id: repo.id, url: `https://api.github.com/repos/${repo.full_name}`, name: 'bitcoin-keeper' };
   const jobs = ['IOS', 'ANDROID'].map((platform, index) => ({ id: 20 + index, run_id: 90, run_attempt: 2,
+    labels: [platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04'],
     head_sha: pr.head.sha, name: `${platform.toLowerCase()} / Native ${platform} build and probes`,
     status: 'completed', conclusion: 'success', check_run_url: `https://api.github.com/repos/${repo.full_name}/check-runs/${30 + index}`,
-    steps: ['Build development app', ...(platform === 'IOS' ? ['Run disposable startup smoke', 'Run disposable native persistence probe',
-      'Run R5 production worker native scenarios', 'Measure five full-product startup and first-wallet runs'] :
-      ['Run Android startup and native persistence probes']), 'Retain safe Phase A evidence'].map(name =>
+    steps: [...(platform === 'IOS' ? ['Build development app', 'Run disposable startup smoke', 'Run disposable native Keychain across three processes', 'Run disposable native persistence probe',
+      'Run R5 production worker native scenarios', 'Run strict native TLS and production Electrum RPC matrix', 'Run historical Realm109 migration matrix', 'Measure five full-product startup and first-wallet runs'] :
+      ['Verify Android hosted source admission', 'Verify exact Android compile artifact before download', 'Restore exact Android compile artifact',
+        'Run Android startup persistence worker TLS Realm trust and product flows']), 'Retain safe Phase A evidence'].map(name =>
       ({ name, status: 'completed', conclusion: 'success' })) }));
+  jobs.push({ id: 22, run_id: 90, run_attempt: 2, head_sha: pr.head.sha, name: 'android / Native ANDROID compile producer',
+    labels: ['ubuntu-24.04'],
+    status: 'completed', conclusion: 'success', check_run_url: `https://api.github.com/repos/${repo.full_name}/check-runs/32`,
+    steps: require('../../native/canonical_native.cjs').producerSteps(false).map(name => ({ name, status: 'completed', conclusion: 'success' })) });
   const state = { input, context, pr, repo, run, runs: [structuredClone(run)], jobs, calls: [], fetches: 0,
     now: Date.parse('2026-10-22T20:30:00Z'), branch: { name: 'sprint', protected: true, commit: { sha: pr.base.sha } },
     workflow: { id: 8, path: run.path, state: 'active' }, checks: {},
@@ -66,7 +72,14 @@ function fixture() {
   jobs.forEach((job, index) => { state.checks[30 + index] = { id: 30 + index, name: job.name, check_suite: { id: 9 },
     head_sha: pr.head.sha, status: 'completed', conclusion: 'success', app: structuredClone(app) }; });
   state.replaceReceipt = (platform, change = () => {}) => {
-    const value = metadata(platform, input); change(value); state.metadata[platform] = value;
+    const value = metadata(platform, input);
+    if (platform === 'ANDROID') {
+      state.producerArtifact = require('./android-compile.cjs').attach(value,
+        { sourceSha: pr.head.sha, workflowSha: input.workflowSha, workflowRef: input.workflowRef, runId: 90, attempt: 2 }, jobs[2],
+        { repository: repo.full_name, repositoryId: repo.id, private: false }, run.path, '.github/workflows/keeper-native-platform.yml');
+      value.android_compile_custody.workflow_id = 8; value.android_compile_custody.source_tree = 'e'.repeat(40);
+    }
+    change(value); state.metadata[platform] = value;
     const bytes = archive(value), artifactId = platform === 'IOS' ? 101 : 102;
     state.archives[artifactId] = bytes;
     const artifact = { id: artifactId, name: `keeper-release-native-${platform}-${pr.head.sha}-90-2`, expired: false,
@@ -79,7 +92,7 @@ function fixture() {
   const response = (value, headers = {}) => ({ status: 200, headers, data: structuredClone(value) });
   const endpoint = (name, fn) => async options => {
     state.calls.push({ name, options }); if (state.apiError) throw new Error('PRIVATE_PAYLOAD https://private.invalid/?secret=value');
-    if (name === 'artifact') { state.artifactReads = (state.artifactReads || 0) + 1; if (state.artifactReads === 4) state.afterArtifactRead?.(state); }
+    if (name === 'artifact') { state.artifactReads = (state.artifactReads || 0) + 1; if (state.artifactReads === 6) state.afterArtifactRead?.(state); }
     return fn(options);
   };
   const list = (name, rows, key) => endpoint(name, () => response({ total_count: state.total[key] ?? rows().length, [key]: rows() }, state.headers));
@@ -94,8 +107,8 @@ function fixture() {
     actions: { getWorkflow: endpoint('workflow', () => response(state.workflow)),
       listWorkflowRuns: list('runs', () => state.runs, 'workflow_runs'), getWorkflowRun: endpoint('run', () => response(state.run)),
       listJobsForWorkflowRunAttempt: list('jobs', () => state.jobs, 'jobs'),
-      listWorkflowRunArtifacts: list('artifacts', () => state.artifacts, 'artifacts'),
-      getArtifact: endpoint('artifact', options => response(state.artifacts.find(row => row.id === options.artifact_id))),
+      listWorkflowRunArtifacts: list('artifacts', () => [...state.artifacts, state.producerArtifact], 'artifacts'),
+      getArtifact: endpoint('artifact', options => response(options.artifact_id === 103 ? state.producerArtifact : state.artifacts.find(row => row.id === options.artifact_id))),
       downloadArtifact: endpoint('download', options => sdkDownloadArtifact(options, state.options.fetchImpl, state.sdkShape || {})) },
   } };
   state.options = { clock: () => state.now, fetchImpl: async (url, options) => {

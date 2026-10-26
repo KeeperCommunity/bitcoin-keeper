@@ -39,6 +39,10 @@ jobs:
       - name: Stage hash-bound controller and exact original app selection
         id: selection
         run: python3 .github/native/android_runtime_checkpoint.py stage
+      - name: Stage reviewed R52 retained diagnostic harness separately from original app
+        run: python3 .github/native/r52_retained_admission.py stage
+      - name: Stage hash-bound single-Skip observer and selected history objects
+        run: python3 .github/native/android_skip_delivery_observer.py stage
       - name: Check out exact original APK app source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -76,6 +80,9 @@ jobs:
       - name: Admit original source and artifact without acceptance transfer
         run: |
           python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-android-reuse-controller/android_runtime_checkpoint.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" finalize
+      - name: Provision only selected authenticated Realm109 historical Git objects
+        run: |
+          python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-skip-delivery-controller/android_skip_delivery_observer.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_SKIP_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" provision-history
       - name: Set up Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -92,6 +99,9 @@ jobs:
           cmdline-tools-version: '13114758'
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
+      - name: Reclaim two measured fixed unused stock tools before unchanged disk budget
+        run: |
+          python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-android-reuse-controller/android_runtime_stock_codeql.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_STOCK_CODEQL_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})"
       - name: Prepare disposable runtime runner disk with existing budget
         run: python3 .github/native/android_runner_disk.py
       - name: Record exact original app source on this runtime host
@@ -197,9 +207,17 @@ jobs:
             git diff --exit-code HEAD -- .github/native .github/workflows
             python3 .github/native/hosted_native.py features
             git diff --exit-code HEAD -- .github/native .github/workflows
-            python3 .github/native/product_measurements.py run
+            python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-skip-delivery-controller/android_skip_delivery_observer.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_SKIP_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" suite
+      - name: Retain bounded single-Skip observer and independent diagnostic phase results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-android-skip-delivery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-android-skip-delivery/
+          if-no-files-found: warn
+          retention-days: 1
       - name: Project bounded private Android terminal observations
-        if: always() && hashFiles('.github/native/android_runtime_evidence_readout.py') != ''
+        if: always() && hashFiles('.github/native/android_runtime_evidence_readout.py') != '' && hashFiles('artifacts/native/android/metadata.json') != ''
         run: python3 .github/native/android_runtime_evidence_readout.py terminal
       - name: Retain source-qualified runtime diagnostic metadata
         if: always()

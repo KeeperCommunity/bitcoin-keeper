@@ -307,6 +307,39 @@ def version_expectation(manifest, platform):
             'history_regex': '^' + escaped + r'\(' + str(build) + r'\)$'}
 
 
+def first_ios_sample_is_new_owned_device(h, device, sample, create_index):
+    """Only the just-created simulator can omit an uninstall of an absent app."""
+    if h.PLATFORM != 'IOS' or sample != 1:
+        return False
+    if (type(device) is not str or not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', device)
+            or type(create_index) is not int or create_index < 1):
+        raise RuntimeError('PRODUCT_FIRST_SAMPLE_FRESH_DEVICE_PROOF_REQUIRED')
+    rows = h.read().get('commands', [])
+    proof = rows[create_index - 1:create_index + 2]
+    expected = [(['xcrun', 'simctl', 'create', 'Keeper-product-ui-disposable',
+                 'com.apple.CoreSimulator.SimDeviceType.iPhone-16', 'com.apple.CoreSimulator.SimRuntime.iOS-18-5'],
+                 'Create task-owned product UI simulator'),
+                (['xcrun', 'simctl', 'boot', device], 'Boot product UI simulator'),
+                (['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for product UI simulator')]
+    if (len(proof) != 3 or any(row.get('command') != args or row.get('label') != label or
+            type(row.get('exit_code')) is not int or row['exit_code'] != 0
+            for row, (args, label) in zip(proof, expected)) or proof[-1].get('timeout_seconds') != 240 or
+            any(row.get('command', [])[:4] == ['xcrun', 'simctl', 'install', device] for row in rows)):
+        raise RuntimeError('PRODUCT_FIRST_SAMPLE_FRESH_DEVICE_PROOF_REQUIRED')
+    return True
+
+
+def install_ios_product_sample(h, device, app, artifact, sample, create_index, result, save):
+    if first_ios_sample_is_new_owned_device(h, device, sample, create_index):
+        result['first_sample_uninstall'] = 'NOT_NEEDED_PROVEN_NEW_OWNED_DEVICE_NO_PRIOR_INSTALL'
+        save()
+    else:
+        subprocess.run(['xcrun', 'simctl', 'uninstall', device, app],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30, check=True)
+    h.command(['xcrun', 'simctl', 'keychain', device, 'reset'], 'Reset task-owned simulator credentials')
+    h.command(['xcrun', 'simctl', 'install', device, artifact], 'Install exact product UI app', timeout=120)
+
+
 def run(h):
     if (os.environ.get('GITHUB_ACTIONS') != 'true' or
             os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'):
@@ -374,6 +407,7 @@ def run(h):
         # Only this manager starts/records the ordinary or fixed fixture Metro.
         metro.start('product', initial=True)
         if h.PLATFORM == 'IOS':
+            product_create_index = len(h.read().get('commands', [])) + 1
             device = h.command(['xcrun', 'simctl', 'create', 'Keeper-product-ui-disposable',
                                 'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
                                 'com.apple.CoreSimulator.SimRuntime.iOS-18-5'],
@@ -407,12 +441,9 @@ def run(h):
             output.mkdir()
             report = output / 'junit.xml'
             if h.PLATFORM == 'IOS':
-                # Uninstall plus reset of this newly-created simulator's
-                # keychain prevents prior sample credentials persisting.
-                subprocess.run(['xcrun', 'simctl', 'uninstall', device, app],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30, check=False)
-                h.command(['xcrun', 'simctl', 'keychain', device, 'reset'], 'Reset task-owned simulator credentials')
-                h.command(['xcrun', 'simctl', 'install', device, artifact], 'Install exact product UI app', timeout=120)
+                # The first proven fresh simulator has no app to uninstall.
+                # Later samples still require the existing uninstall/reset.
+                install_ios_product_sample(h, device, app, artifact, sample, product_create_index, result, save)
             else:
                 h.command(['adb', '-s', device, 'install', '-r', artifact], 'Install exact product UI APK', timeout=120)
                 h.command(['adb', '-s', device, 'shell', 'pm', 'clear', app], 'Clear only disposable development app')

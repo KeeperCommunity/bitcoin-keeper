@@ -29,12 +29,18 @@ function fixture({ profile = require('../native/release_repository_profiles.cjs'
       pull_requests: [], status: 'in_progress', check_suite_id: 77 },
     suite: { id: 77, app: { id: 15368, slug: 'github-actions' }, head_sha: source }, active: [] };
   state.jobs = ['IOS', 'ANDROID'].map((platform, index) => ({
+    labels: [platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04'],
     id: 800 + index,
     name: `${platform.toLowerCase()} / Canonical ${platform} build and features`, run_id: 400, run_attempt: 2,
     head_sha: source, status: 'completed', conclusion: 'success',
     check_run_url: `https://api.github.com/repos/${repository}/check-runs/${90 + index}`,
     steps: driver.requiredSteps(platform).map(name => ({ name, status: 'completed', conclusion: 'success' })),
   }));
+  state.jobs.push({ id: 802, name: 'android / Canonical ANDROID compile producer', run_id: 400, run_attempt: 2,
+    labels: ['ubuntu-24.04'],
+    head_sha: source, status: 'completed', conclusion: 'success',
+    check_run_url: `https://api.github.com/repos/${repository}/check-runs/92`,
+    steps: driver.producerSteps().map(name => ({ name, status: 'completed', conclusion: 'success' })) });
   state.metadata = Object.fromEntries(['IOS', 'ANDROID'].map(platform => [platform, {
     schema: 1, platform, source_sha: source, workflow_sha: source, workflow_ref: env.GITHUB_WORKFLOW_REF,
     run_id: '400', run_attempt: '2', diagnostic_only: false,
@@ -54,6 +60,7 @@ function fixture({ profile = require('../native/release_repository_profiles.cjs'
       scenarios: SCENARIOS.map(id => ({ id, status: 'PASS' })), limits: [...LIMITS], source_functions: structuredClone(state.workerSources),
       measurements: [1, 2, 3, 4, 5].map(iteration => ({ iteration, probe_ready_ms: 1, setup_first_wallet_ms: 2 })) };
   }
+  state.producerArtifact = require('./fixtures/android-compile.cjs').attach(state.metadata.ANDROID, request, state.jobs[2], profile, driver.WORKFLOW, driver.WORKER);
   state.archives = Object.values(state.metadata).map(value => Buffer.from(JSON.stringify(value)));
   state.artifacts = ['IOS', 'ANDROID'].map((platform, index) => ({ id: 101 + index,
     name: driver.artifactName(platform, request), expired: false, size_in_bytes: state.archives[index].length,
@@ -79,7 +86,7 @@ function fixture({ profile = require('../native/release_repository_profiles.cjs'
       }),
       listJobsForWorkflowRunAttempt: () => {},
       listWorkflowRunArtifacts: wrap('artifacts', () => ({ total_count: state.artifacts.length, artifacts: state.artifacts })),
-      getArtifact: wrap('artifact-current', args => ({ ...state.artifacts[args.artifact_id - 101],
+      getArtifact: wrap('artifact-current', args => ({ ...(args.artifact_id === 103 ? state.producerArtifact : state.artifacts[args.artifact_id - 101]),
         ...(state.expireAfterDownload ? { expired: true } : {}) })),
       downloadArtifact: wrap('download', args => {
         state.downloaded = true;
@@ -347,7 +354,7 @@ test('complete native subsets emit bounded BLOCKED readiness and no reusable att
     assert.equal(fs.existsSync(path.join(output, 'keeper-canonical-native-attestation.json')), false);
     const raw = fs.readFileSync(path.join(output, 'keeper-canonical-native-readiness.json'), 'utf8');
     const result = JSON.parse(raw); assert.equal(result.feature_matrix_complete, false);
-    assert.equal(Object.keys(result.platforms.IOS.executed_checks).length, 13);
+    assert.equal(Object.keys(result.platforms.IOS.executed_checks).length, 17);
     assert.equal(result.platforms.IOS.executed_checks['public-raw-software-evidence'].status, 'PASS');
     for (const name of ['controlled-credential-json-ui', 'controlled-version-history-ui', 'vault-reference-and-logical-archive-ui'])
       assert.equal(result.platforms.IOS.executed_checks[name].status, 'PASS');
@@ -355,6 +362,36 @@ test('complete native subsets emit bounded BLOCKED readiness and no reusable att
     assert.equal(result.platforms.IOS.receipt_sha256, hash(f.archives[0]));
     assert.equal(raw.includes('PRIVATE_SENTINEL'), false);
   } finally { fs.rmSync(output, { recursive: true, force: true }); }
+});
+
+for (const [name, change] of Object.entries({
+  missingCompileProducer: f => f.jobs.pop(),
+  skippedCompile: f => f.jobs[2].steps.find(row => row.name === 'Build development app').conclusion = 'skipped',
+  failedCompile: f => f.jobs[2].conclusion = 'failure',
+  cancelledRuntime: f => f.jobs[1].conclusion = 'cancelled',
+  wrongProducerSource: f => f.jobs[2].head_sha = 'f'.repeat(40),
+  selfHostedProducer: f => f.jobs[2].labels.push('self-hosted'),
+  oldIntelHost: f => f.jobs[0].labels = ['macos-15-intel'],
+  wrongProducerCheck: f => f.metadata.ANDROID.android_compile_custody.producer_check_run_id = 99,
+  wrongProducerAttempt: f => f.metadata.ANDROID.android_compile_custody.run_attempt = 1,
+  wrongProducerTree: f => f.metadata.ANDROID.android_compile_custody.source_tree = 'f'.repeat(40),
+  differentApk: f => f.metadata.ANDROID.android_compile_custody.apk_sha256 = '0'.repeat(64),
+  uncheckedArchive: f => f.metadata.ANDROID.android_compile_custody.raw_zip_purged = false,
+  oldPrivateArtifact: f => f.producerArtifact.workflow_run.head_sha = 'f'.repeat(40),
+  expiredCompileArtifact: f => f.producerArtifact.expired = true,
+  retainedCompilation: f => f.metadata.ANDROID.build_execution_scope = 'REUSED_ORIGINAL_PRIVATE_FF_APK',
+  missingKeychain: f => delete f.metadata.IOS.native_keychain,
+  skippedTls: f => f.metadata.IOS.r52_tls_native.status = 'SKIP',
+  cancelledRealm: f => f.metadata.ANDROID.r52_realm109_native.status = 'CANCELLED',
+  missingTrust: f => delete f.metadata.ANDROID.r52_trust_ui,
+  oldPhaseSource: f => f.metadata.IOS.r52_tls_native.binding.source_sha = 'f'.repeat(40),
+})) test(`canonical authority rejects ${name} despite top-level PASS and rebound receipt digest`, async () => {
+  const f = fixture(); change(f);
+  for (const [i, platform] of ['IOS', 'ANDROID'].entries()) {
+    f.archives[i] = Buffer.from(JSON.stringify(f.metadata[platform]));
+    Object.assign(f.artifacts[i], { digest: 'sha256:' + hash(f.archives[i]), size_in_bytes: f.archives[i].length });
+  }
+  await assert.rejects(driver.collectInstalledPublicEvidence(f.github, f.context, f.request, bytes => bytes, { pinReader: f.pinReader }));
 });
 test('collector rejects missing reader and deletes an old positive artifact before any API read', async () => {
   const f = fixture(), output = fs.mkdtempSync(path.join(os.tmpdir(), 'canonical-test-'));

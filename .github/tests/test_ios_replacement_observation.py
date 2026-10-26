@@ -92,6 +92,28 @@ class ReplacementObservation(unittest.TestCase):
         self.assertEqual(result['bytes'], 'MISMATCH')
         self.assertEqual((result['built_internal_links'], result['installed_internal_links']), (1, 0))
 
+    def test_normal_retained_profile_adds_recorded_comparison_without_overwriting_legacy_mismatch(self):
+        self.state.update(compiled_app_source_sha='ff3cc6b2721de986d9f6211ef333df57ebc3b1fa',
+            source_sha='a' * 40, native_acceptance=False,
+            build_execution_scope='REUSED_EXACT_NORMAL_XCODE_APP_NO_CURRENT_COMPILATION_OR_RESIGNING',
+            retained_xcode_restore='PASS', original_signature_preserved=True,
+            app_inputs_sha256='6112e0e18e093e5e65e754fc607aa7e44ee73682576a31a168a6ad01f06a2b85',
+            original_build={'source_sha': 'ff3cc6b2721de986d9f6211ef333df57ebc3b1fa', 'artifact_id': 12667427189,
+                'artifact_zip_sha256': '89806c9d8d71dc032d2ce3ca8b444768705d1ca3ab565aa9ec0652f0277b76f5'},
+            toolchain={'ios_simulator_signature': {'verified': True, 'certificate_or_profile_used': False,
+                'scope': 'XCODE_GENERATED_ADHOC_SIMULATOR_ONLY_NOT_RELEASE_SIGNING', 'bundle_id': observe.APP,
+                'entitlement_policy': 'XCODE_GENERATED_SIGNED_AND_LINKER_EMBEDDED_SIMULATOR_ENTITLEMENTS',
+                'entitlements_sha256': '97704a8960b4facceef54397a08fb5d0a456247c3627359215aa2a27df22656c'}})
+        self.original = copy.deepcopy(self.state)
+        def tool(private, args):
+            if args[1:3] == ['--display', '--entitlements']:
+                return 'EXIT_ZERO', plistlib.dumps({})
+            return self.tool(private, args)
+        result = self.collect(tool)
+        self.assertEqual(result['entitlements'], 'MISMATCH')
+        self.assertEqual(result['entitlement_comparison']['state'], 'MATCH')
+        self.assertEqual(result['bytes'], 'MATCH')
+
     def test_pinned_maestro_timestamped_name_is_observed_but_canonical_acceptance_stays_strict(self):
         replacement = self.installed.with_name(observe.APP + '-1792838180000.app')
         self.installed.rename(replacement)

@@ -14,20 +14,18 @@ assert.equal(parsed.status, 0, parsed.stderr);
 const workflows = JSON.parse(parsed.stdout);
 const diagnostic = workflows['keeper-native-diagnostic.yml'];
 const worker = workflows['keeper-native-platform.yml'];
-test('pinned Maestro iOS routes select its explicit Intel host while Android keeps its own runner', () => {
-  // cli-2.11.0's own iOS18.5 CI selects macos-15-intel. The unsuffixed
-  // macos-15 label now selects ARM64, so it cannot preserve that host contract.
-  // Evaluate the real reusable selector instead of accepting a label in a comment.
+test('normal current-source iOS uses ARM while the isolated legacy driver keeps its own Intel host', () => {
+  // Evaluate the actual normal-Xcode selector; the driver-only diagnostic stays separate.
   const selector = worker.jobs.native['runs-on'];
   assert.match(selector, /^\$\{\{[\s\S]*\}\}$/);
   const select = new Function('inputs', `return (${selector.replace(/^\$\{\{\s*|\s*\}\}$/g, '')});`);
-  assert.equal(select({ platform: 'IOS' }), 'macos-15-intel');
+  assert.equal(select({ platform: 'IOS' }), 'macos-15');
   assert.equal(select({ platform: 'ANDROID' }), 'ubuntu-24.04');
-  assert.equal(diagnostic.jobs['driver-preflight']['runs-on'], select({ platform: 'IOS' }));
+  assert.equal(diagnostic.jobs['driver-preflight']['runs-on'], 'macos-15-intel');
   assert.equal(diagnostic.jobs.ios.with.platform, 'IOS');
   assert.equal(diagnostic.jobs.android.with.platform, 'ANDROID');
 });
-function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, androidOnly = false, dependenciesOnly = false, prepareOnly = false, platform = 'IOS', sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true } = {}) {
+function enabled(condition, { draft = null, labeled = false, preflightLabeled = false, iosOnly = false, androidOnly = false, dependenciesOnly = false, prepareOnly = false, platform = 'IOS', sameRepo = true, number = 8000, eventName = 'pull_request', diagnostic = false, sameSha = true, producerResult = 'success' } = {}) {
   const expression = condition
     .replace(/^\$\{\{\s*|\s*\}\}$/g, '')
     .replaceAll('github.event_name', 'eventName')
@@ -43,8 +41,9 @@ function enabled(condition, { draft = null, labeled = false, preflightLabeled = 
     .replaceAll('inputs.diagnostic', 'diagnostic')
     .replaceAll('inputs.prepare_only', 'prepareOnly')
     .replaceAll('inputs.platform', 'platform')
+    .replaceAll('needs.android-build.result', 'producerResult')
     .replaceAll('always()', 'true');
-  return new Function('draft', 'labeled', 'preflightLabeled', 'iosOnly', 'androidOnly', 'dependenciesOnly', 'prepareOnly', 'platform', 'sameRepo', 'number', 'eventName', 'diagnostic', 'sameSha', 'toJSON', `return (${expression});`)(draft, labeled, preflightLabeled, iosOnly, androidOnly, dependenciesOnly, prepareOnly, platform, sameRepo, number, eventName, diagnostic, sameSha, JSON.stringify);
+  return new Function('draft', 'labeled', 'preflightLabeled', 'iosOnly', 'androidOnly', 'dependenciesOnly', 'prepareOnly', 'platform', 'sameRepo', 'number', 'eventName', 'diagnostic', 'sameSha', 'producerResult', 'toJSON', `return (${expression});`)(draft, labeled, preflightLabeled, iosOnly, androidOnly, dependenciesOnly, prepareOnly, platform, sameRepo, number, eventName, diagnostic, sameSha, producerResult, JSON.stringify);
 }
 test('dependency-only modifier is explicit, defaults off and stops all native phases', () => {
   assert.equal(worker.on.workflow_call.inputs.prepare_only.default, 'false');
@@ -63,13 +62,16 @@ test('dependency-only modifier is explicit, defaults off and stops all native ph
   assert.equal(enabled(worker.jobs.native.if, { draft: true, labeled: true, diagnostic: true, prepareOnly: true }), true);
   for (const override of [{ diagnostic: false }, { platform: 'ANDROID' }, { labeled: false }])
     assert.equal(enabled(worker.jobs.native.if, { draft: true, labeled: true, diagnostic: true, prepareOnly: true, ...override }), false);
-  const names = ['Check disposable iOS driver readiness', 'Build development app',
-    'Run disposable startup smoke', 'Run disposable native persistence probe',
-    'Run R5 production worker native scenarios', 'Measure five full-product startup and first-wallet runs',
-    'Enable emulator acceleration', 'Run Android startup and native persistence probes'];
+  const names = ['Build development app',
+    'Run disposable startup smoke', 'Run disposable native Keychain across three processes', 'Run disposable native persistence probe',
+    'Run R5 production worker native scenarios', 'Run strict native TLS and production Electrum RPC matrix',
+    'Run historical Realm109 migration matrix', 'Measure five full-product startup and first-wallet runs',
+    'Enable emulator acceleration', 'Run Android startup persistence worker TLS Realm trust and product flows'];
   for (const name of names) {
     const step = worker.jobs.native.steps.find(value => value.name === name);
-    assert.equal(enabled(step.if, { prepareOnly: true }), false, name);
+    const platform = name.startsWith('Enable') || name.startsWith('Run Android') ? 'ANDROID' : 'IOS';
+    assert.equal(enabled(worker.jobs.native.if, { prepareOnly: true, platform }) &&
+      enabled(step.if, { prepareOnly: true, platform }), false, name);
     assert.equal(enabled(step.if, { prepareOnly: false, platform: name.startsWith('Enable') || name.startsWith('Run Android') ? 'ANDROID' : 'IOS' }), true, name);
   }
 });
@@ -226,7 +228,8 @@ test('reusable worker cannot silently run a draft, non-PR or wrong SHA', () => {
 });
 test('current-source recheck denies moved head, removed opt-in and foreign repository', async () => {
   const step = worker.jobs.native.steps.find(step => step.name === 'Verify current diagnostic source');
-  const script = new vm.Script(`(async()=>{${step.with.script}})()`);
+  const source = step.with.script.replace(/const privateAndroid = '\$\{\{[\s\S]*?\}\}' === 'true';/, 'const privateAndroid = false;');
+  const script = new vm.Script(`(async()=>{${source}})()`);
   for (const mutation of [null, 'sha', 'labels', 'repo']) {
     const pr = { head: { sha: 'a'.repeat(40), repo: { full_name: 'KeeperCommunity/bitcoin-keeper' } }, labels: [{ name: 'keeper/native-diagnostic' }] };
     if (mutation === 'sha') pr.head.sha = 'b'.repeat(40);

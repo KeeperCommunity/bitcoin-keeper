@@ -107,9 +107,9 @@ def source_bytes(native, prepared=True):
                 for name in extra.decode().splitlines()))
 
 
-def verify_xcode_signature(native):
+def verify_xcode_signature(native, app=None):
     """Inspect Xcode's real outputs; never manufacture entitlement dictionaries."""
-    app = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
+    app = app or native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
     require(not app.is_symlink() and app.is_dir())
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     require(info.get('CFBundleIdentifier') == native.APP_IDS['IOS'] and

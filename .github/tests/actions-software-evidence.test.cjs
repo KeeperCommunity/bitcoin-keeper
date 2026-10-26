@@ -18,7 +18,7 @@ test('actual producer-shaped public facts bind app and different merge control w
   for (const name of ['release_ready', 'authorization_eligible', 'release_authorized', 'execution_allowed']) assert.equal(result[name], false);
   assert.equal(result.platforms.IOS.archive_sha256, digest(state.archives[101]));
   for (const row of Object.values(result.platforms)) {
-    assert.deepEqual(Object.keys(row.executed_checks), Object.keys(PUBLIC_CHECKS));
+    assert.deepEqual(Object.keys(row.executed_checks), Object.keys(PUBLIC_CHECKS).filter(name => row === result.platforms.IOS || name !== 'native-keychain'));
     assert.ok(Object.values(row.executed_checks).every(check => check.status === 'PASS'));
   }
   assert.equal(state.fetchOptions.redirect, 'error'); assert.equal('headers' in state.fetchOptions, false);
@@ -85,6 +85,14 @@ const negative = {
   'job stale attempt': s => { s.jobs[0].run_attempt = 1; },
   'job wrong run': s => { s.jobs[0].run_id = 91; },
   'job skipped': s => { s.jobs[0].conclusion = 'skipped'; },
+  'old Intel host': s => { s.jobs[0].labels = ['macos-15-intel']; },
+  'self-hosted producer': s => { s.jobs[2].labels.push('self-hosted'); },
+  'producer wrong source': s => { s.jobs[2].head_sha = '0'.repeat(40); },
+  'producer compile skipped': s => { s.jobs[2].steps.find(row => row.name === 'Build development app').conclusion = 'skipped'; },
+  'producer expired artifact': s => { s.producerArtifact.expired = true; },
+  'producer different APK': s => { s.replaceReceipt('ANDROID', row => row.android_compile_custody.apk_sha256 = '0'.repeat(64)); },
+  'producer retained source': s => { s.replaceReceipt('ANDROID', row => row.android_compile_custody.source_sha = '0'.repeat(40)); },
+  'producer unchecked archive': s => { s.replaceReceipt('ANDROID', row => row.android_compile_custody.raw_zip_purged = false); },
   'missing feature step': s => { s.jobs[0].steps.splice(3, 1); },
   'duplicate feature step': s => { s.jobs[0].steps.push(s.jobs[0].steps[3]); },
   'failed product step': s => { s.jobs[0].steps[4].conclusion = 'failure'; },
@@ -173,7 +181,7 @@ test('authority movement during final artifact readback cannot reuse the earlier
     s => { s.runs.push({ ...s.run, id: 91, status: 'queued' }); }]) {
     const state = fixture(); state.afterArtifactRead = change;
     await assert.rejects(collect(state), /^Error: SOFTWARE_[A-Z0-9_]+$/);
-    assert.equal(state.artifactReads, 4);
+    assert.equal(state.artifactReads, 6);
   }
 });
 for (const [name, transform] of Object.entries({

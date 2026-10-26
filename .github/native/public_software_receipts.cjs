@@ -1,6 +1,7 @@
 'use strict';
 // Pure scoped software facts. Installed provenance and authorization remain external.
 const { validatePublicCompanions } = require('./public_companion_receipts.cjs');
+const { validateNativePhases } = require('./native_phase_receipts.cjs');
 const PUBLIC_SOFTWARE_SCOPE = 'ordered public raw product and worker proofs; private route and installed trust unverified';
 const WORKER_SOURCES = Object.freeze(Object.fromEntries(Object.entries({
   'src/utils/utilities.ts': ['getAccountFromSigner', 'getKeyUID'],
@@ -96,6 +97,11 @@ function validatePublicSoftware(value, expected) {
       key.recovery_key_preservation === 'Not selected or exported; excluded by production deletion filters.');
     proof(key, platform, installed);
     validatePublicCompanions(value, platform);
+    // Relay parent windows validate their own five obligation-specific raw
+    // suites. Main mobile routes additionally require the canonical phases;
+    // the authenticated caller selects this fixed workflow path, never payload.
+    if (/^KeeperCommunity\/bitcoin-keeper(?:-private)?\/\.github\/workflows\/keeper-(?:canonical-native|release-acceptance)\.yml@/.test(workflowRef))
+      validateNativePhases(value, expected);
     const feature = value.r5_feature_evidence;
     consistentCleanup(feature);
     demand(feature.schema === 1 && feature.scope === 'production-worker-native-storage' && feature.status === 'PASS' &&

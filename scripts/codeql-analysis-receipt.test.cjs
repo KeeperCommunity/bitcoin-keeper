@@ -12,6 +12,47 @@ const env = { GITHUB_REPOSITORY: 'KeeperCommunity/bitcoin-keeper', GITHUB_EVENT_
   GITHUB_WORKFLOW_REF: 'KeeperCommunity/bitcoin-keeper/.github/workflows/codeql.yml@refs/heads/sprint',
   GITHUB_RUN_ID: '200', GITHUB_RUN_ATTEMPT: '1', KEEPER_CODEQL_SARIF_ID: '11111111-2222-3333-4444-555555555555' };
 
+const privateEnv = { ...env, GITHUB_REPOSITORY: 'KeeperCommunity/bitcoin-keeper-private',
+  GITHUB_REPOSITORY_ID: '839671816', KEEPER_PRIVATE_CODEQL_ENABLED: 'true',
+  GITHUB_WORKFLOW_REF: 'KeeperCommunity/bitcoin-keeper-private/.github/workflows/codeql.yml@refs/heads/sprint' };
+
+test('finite private opt-in records its actual repository without claiming entitlement or security clearance', () => {
+  const value = receipt(privateEnv);
+  assert.equal(value.repository, privateEnv.GITHUB_REPOSITORY);
+  assert.equal(value.source_sha, privateEnv.GITHUB_SHA);
+  assert.equal(value.sarif_id, privateEnv.KEEPER_CODEQL_SARIF_ID);
+  assert.equal(Object.hasOwn(value, 'security_passed'), false);
+  assert.equal(Object.hasOwn(value, 'entitlement_enabled'), false);
+});
+
+test('pre-analysis process rejects case-insensitive lookalikes before any output or upload receipt', () => {
+  for (const enabled of ['TRUE', 'True', 'true ', 'false', '']) {
+    const child = spawnSync(process.execPath, [path.join(__dirname, 'codeql-analysis-receipt.cjs'), '--check-selection'], {
+      env: { ...privateEnv, KEEPER_PRIVATE_CODEQL_ENABLED: enabled }, encoding: 'utf8',
+    });
+    assert.notEqual(child.status, 0);
+    assert.equal(child.stdout, '');
+  }
+  const selected = spawnSync(process.execPath, [path.join(__dirname, 'codeql-analysis-receipt.cjs'), '--check-selection'], {
+    env: { GITHUB_REPOSITORY: privateEnv.GITHUB_REPOSITORY, GITHUB_REPOSITORY_ID: '839671816',
+      KEEPER_PRIVATE_CODEQL_ENABLED: 'true' }, encoding: 'utf8',
+  });
+  assert.equal(selected.status, 0, selected.stderr);
+  assert.equal(selected.stdout, '');
+});
+
+for (const [name, fields] of [
+  ['unset private selection', { KEEPER_PRIVATE_CODEQL_ENABLED: undefined }],
+  ['false private selection', { KEEPER_PRIVATE_CODEQL_ENABLED: 'false' }],
+  ['nonliteral private selection', { KEEPER_PRIVATE_CODEQL_ENABLED: 'TRUE' }],
+  ['missing private repository ID', { GITHUB_REPOSITORY_ID: undefined }],
+  ['another repository ID', { GITHUB_REPOSITORY_ID: '470904030' }],
+  ['another private copy', { GITHUB_REPOSITORY: 'KeeperCommunity/another-private-copy' }],
+  ['public workflow substituted into private receipt', { GITHUB_WORKFLOW_REF: env.GITHUB_WORKFLOW_REF }],
+]) test(`private upload receipt rejects ${name}`, () => {
+  assert.throws(() => receipt({ ...privateEnv, ...fields }), /CODEQL_UPLOAD_RECEIPT_CONTEXT_INVALID/);
+});
+
 test('official upload ID becomes bounded metadata only; credentials and SARIF never enter artifact', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'keeper-codeql-receipt-'));
   try {
@@ -55,4 +96,7 @@ test('installed workflow captures the official action output and requires upload
   assert.match(workflow, /path: \$\{\{ runner.temp \}\}\/keeper-codeql-analysis\/analysis.json/);
   assert.match(workflow, /if-no-files-found: error/);
   assert.doesNotMatch(workflow, /continue-on-error|workflow_dispatch|workflow_call/);
+  assert.match(workflow, /fromJSON\(vars\.KEEPER_PRIVATE_CODEQL_ENABLED \|\| 'false'\) == true/);
+  assert(workflow.indexOf('run: node scripts/codeql-analysis-receipt.cjs --check-selection') <
+    workflow.indexOf('uses: github/codeql-action/init@'));
 });

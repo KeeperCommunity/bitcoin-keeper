@@ -59,6 +59,7 @@ const hostedRun = (overrides = {}) => ({
   status: 'completed',
   conclusion: 'success',
   run_attempt: 2,
+  check_suite_id: 77,
   html_url: `https://github.com/${repository}/actions/runs/90`,
   pull_requests: [{
     number: prNumber,
@@ -140,6 +141,12 @@ async function evaluate(comments, options = {}) {
         listFiles: filesRoute
       },
       actions: { listWorkflowRuns: runsRoute, listJobsForWorkflowRunAttempt: jobsRoute },
+      checks: { get: async ({ check_run_id }) => {
+        const job = options.jobs?.find(row => row.check_run_url?.endsWith('/' + check_run_id));
+        return { data: { id: check_run_id, name: job?.name, head_sha: sha, check_suite: { id: 77 },
+          status: 'completed', conclusion: 'success', app: { id: 15368, slug: 'github-actions' },
+          ...(options.checkMutation?.(check_run_id) || {}) } };
+      } },
       git: {
         getTree: async ({ tree_sha }) => {
           if (options.treeErrors?.includes(tree_sha)) throw new Error('Tree unavailable');
@@ -553,19 +560,28 @@ const reusableRun = overrides => hostedRun({
   pull_requests: [{ ...hostedRun().pull_requests[0], number: 8000 }], ...overrides,
 });
 const reusableJob = (platform, overrides) => hostedJob(platform, {
+  id: platform === 'IOS' ? 1 : 2, labels: [platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04'],
+  check_run_url: `https://api.github.com/repos/${repository}/check-runs/${platform === 'IOS' ? 30 : 31}`,
   name: `${platform.toLowerCase()} / Native ${platform} build and probes`,
-  steps: ['Build development app', ...(platform === 'IOS'
-    ? ['Run disposable startup smoke', 'Run disposable native persistence probe']
-    : ['Run Android startup and native persistence probes'])].map(name => ({ name, status: 'completed', conclusion: 'success' })),
+  steps: (platform === 'IOS'
+    ? ['Build development app', 'Run disposable startup smoke', 'Run disposable native persistence probe']
+    : ['Verify Android hosted source admission', 'Verify exact Android compile artifact before download',
+      'Restore exact Android compile artifact', 'Run Android startup persistence worker TLS Realm trust and product flows'])
+    .map(name => ({ name, status: 'completed', conclusion: 'success' })),
   ...overrides,
 });
+const reusableProducer = overrides => hostedJob('ANDROID', { id: 3, name: 'android / Native ANDROID compile producer',
+  labels: ['ubuntu-24.04'], check_run_url: `https://api.github.com/repos/${repository}/check-runs/32`,
+  steps: ['Verify Android hosted source admission', 'Record runner and toolchain', 'Install immutable native dependencies',
+    'Build development app', 'Record official Android compile producer', 'Prepare exact Android build checkpoint',
+    'Upload exact Android build checkpoint'].map(name => ({ name, status: 'completed', conclusion: 'success' })), ...overrides });
 const reusableTree = () => ({ ...trustedTree(), tree: [...trustedTree().tree,
   { path: '.github/workflows/keeper-release-acceptance.yml', mode: '100644', type: 'blob', sha: '6'.repeat(40) },
   { path: '.github/workflows/keeper-native-platform.yml', mode: '100644', type: 'blob', sha: '7'.repeat(40) },
 ] });
 const reusableOptions = overrides => ({
   context: { issue: { number: 8000 } }, labels: [],
-  runs: [reusableRun()], jobs: [reusableJob('IOS'), reusableJob('ANDROID')],
+  runs: [reusableRun()], jobs: [reusableJob('IOS'), reusableJob('ANDROID'), reusableProducer()],
   trees: { [sha]: reusableTree(), [baseSha]: reusableTree(), [runBaseSha]: reusableTree() },
   ...overrides,
 });
@@ -576,6 +592,45 @@ test('reusable exact-head native scope can satisfy platform gate without claimin
   const hardware = await evaluate([handoff()], reusableOptions());
   assert.equal(hardware.status.state, 'failure');
   assert.match(hardware.status.description, /HARDWARE/);
+});
+for (const [name, mutate] of Object.entries({
+  missing_producer: o => o.jobs.pop(),
+  duplicate_producer: o => o.jobs.push(reusableProducer({ id: 4 })),
+  same_job: o => o.jobs[2].id = o.jobs[1].id,
+  producer_failed: o => o.jobs[2].conclusion = 'failure',
+  producer_skipped: o => o.jobs[2].conclusion = 'skipped',
+  producer_cancelled: o => o.jobs[2].conclusion = 'cancelled',
+  producer_wrong_source: o => o.jobs[2].head_sha = '0'.repeat(40),
+  producer_wrong_run: o => o.jobs[2].run_id = 89,
+  producer_old_attempt: o => o.jobs[2].run_attempt = 1,
+  producer_self_hosted: o => o.jobs[2].labels.push('self-hosted'),
+  producer_wrong_host: o => o.jobs[2].labels = ['ubuntu-22.04'],
+  missing_checkpoint: o => o.jobs[2].steps.pop(),
+  skipped_compile: o => o.jobs[2].steps.find(s => s.name === 'Build development app').conclusion = 'skipped',
+  failed_checkpoint: o => o.jobs[2].steps.at(-1).conclusion = 'failure',
+  duplicate_checkpoint: o => o.jobs[2].steps.push({ ...o.jobs[2].steps.at(-1) }),
+  runtime_failed: o => o.jobs[1].conclusion = 'failure',
+  runtime_skipped: o => o.jobs[1].conclusion = 'skipped',
+  runtime_wrong_source: o => o.jobs[1].head_sha = '0'.repeat(40),
+  runtime_old_attempt: o => o.jobs[1].run_attempt = 1,
+  runtime_self_hosted: o => o.jobs[1].labels.push('self-hosted'),
+  runtime_wrong_host: o => o.jobs[1].labels = ['ubuntu-22.04'],
+  runtime_phase_failed: o => o.jobs[1].steps.at(-1).conclusion = 'failure',
+  runtime_phase_skipped: o => o.jobs[1].steps.at(-1).conclusion = 'skipped',
+  runtime_no_restore: o => o.jobs[1].steps.splice(2, 1),
+  producer_foreign_check: o => o.jobs[2].check_run_url = 'https://api.github.com/repos/other/repo/check-runs/32',
+  producer_foreign_app: o => o.checkMutation = id => id === 32 ? { app: { id: 1, slug: 'github-actions' } } : {},
+  producer_check_failed: o => o.checkMutation = id => id === 32 ? { conclusion: 'failure' } : {},
+  runtime_wrong_suite: o => o.checkMutation = id => id === 31 ? { check_suite: { id: 78 } } : {},
+  runtime_wrong_check_source: o => o.checkMutation = id => id === 31 ? { head_sha: '0'.repeat(40) } : {},
+  newer_failed_attempt: o => o.runs = [reusableRun({ run_attempt: 3, conclusion: 'failure' })],
+  newer_failed_run: o => o.runs.push(reusableRun({ id: 91, conclusion: 'failure' })),
+})) test(`reusable Android denies ${name} without producer/runtime borrowing`, async () => {
+  const options = reusableOptions(); mutate(options);
+  const result = await evaluate([handoff(sha, 'ANDROID')], options);
+  assert.equal(result.status.state, 'failure');
+  if (name === 'newer_failed_attempt') assert(result.jobsCalls.every(c => c.args.attempt_number === 3));
+  if (name === 'newer_failed_run') assert(result.jobsCalls.every(c => c.args.run_id === 91));
 });
 test('reusable evidence requires probe steps, latest attempt and matching protected worker in both bases', async () => {
   for (const overrides of [
@@ -612,7 +667,7 @@ test('a deliberately skipped alternate route cannot shadow actual selected-route
   for (const legacy of [false, true]) {
     const { status } = await evaluate([handoff(sha, 'IOS, ANDROID')], reusableOptions({
       labels: legacy ? [{ name: 'keeper/legacy-native' }] : [],
-      jobs: legacy ? [hostedJob('IOS'), hostedJob('ANDROID')] : [reusableJob('IOS'), reusableJob('ANDROID')],
+      jobs: legacy ? [hostedJob('IOS'), hostedJob('ANDROID')] : [reusableJob('IOS'), reusableJob('ANDROID'), reusableProducer()],
       runsByWorkflow: {
         'keeper-hosted-native.yml': [hostedRun({ id: legacy ? 90 : 92, pull_requests: [linked], conclusion: legacy ? 'success' : 'skipped' })],
         'keeper-release-acceptance.yml': [reusableRun({ id: legacy ? 92 : 90, conclusion: legacy ? 'skipped' : 'failure' })],

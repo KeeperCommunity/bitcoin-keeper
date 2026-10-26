@@ -42,8 +42,10 @@ const PRODUCERS = Object.freeze([
 const proofs = new WeakSet();
 const hex40 = /^[a-f0-9]{40}$/;
 const hex64 = /^[a-f0-9]{64}$/;
-const MAX_ARCHIVE = 128 * 1024;
-const MAX_JSON = 64 * 1024;
+// Match the bounded software-evidence reader: required native phase receipts
+// now retain original TLS/RPC/Realm witnesses and exceed the former 64 KiB cap.
+const MAX_ARCHIVE = 1024 * 1024;
+const MAX_JSON = 512 * 1024;
 const check = (value, code) => { if (!value) throw new Error(code); };
 const id = value => Number.isSafeInteger(value) && value > 0;
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');

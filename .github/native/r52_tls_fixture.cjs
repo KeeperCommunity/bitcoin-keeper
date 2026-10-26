@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const tls = require('node:tls');
 const readline = require('node:readline');
 const { certificates, publicKeyCertificates } = require('../../tests/electrum/fixtures.cjs');
+const { createRpcFixture } = require('./r52_rpc_fixture.cjs');
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 
 async function server(fixture, identity, handler) {
@@ -19,7 +20,11 @@ async function server(fixture, identity, handler) {
     sockets.add(socket); socket.on('error', () => {}); socket.on('close', () => sockets.delete(socket));
   });
   await new Promise((resolve, reject) => { service.once('error', reject); service.listen(0, '127.0.0.1', resolve); });
-  return { service, port: service.address().port, close: async () => {
+  return { service, port: service.address().port, resetConnections: () => {
+    const active = [...sockets];
+    for (const socket of active) socket.resetAndDestroy();
+    return active.length;
+  }, close: async () => {
     for (const socket of sockets) socket.destroy();
     await new Promise(resolve => service.close(resolve));
   } };
@@ -93,9 +98,12 @@ async function createMatrix(platform) {
       await add('compromised_spki_anchor_' + i, 'valid', fs.readFileSync(entry.cert, 'utf8'), 'REJECT');
     await add('explicit_root_valid_after', 'valid', root, 'ACCEPT');
     if (platform === 'IOS') await add('disposable_simulator_system_root', 'valid', null, 'ACCEPT');
-    const config = { schema: 1, platform, nonce, cases };
+    const rpc = await createRpcFixture({ fixture, nonce, createServer: server });
+    services.push(rpc);
+    const config = { schema: 1, platform, nonce, cases, rpc: rpc.config };
     return { config, config_sha256: sha(JSON.stringify(config)), rootPath: path.join(fixture.dir, 'root.pem'),
-      snapshot: () => JSON.parse(JSON.stringify(witnesses)),
+      snapshot: () => JSON.parse(JSON.stringify(witnesses)), rpcSnapshot: rpc.snapshot,
+      ports: [...cases.map(row => row.port), ...rpc.ports],
       close: async () => { await Promise.all(services.map(s => s.close())); fixture.cleanup(); } };
   } catch (error) { await Promise.all(services.map(s => s.close())); fixture.cleanup(); throw error; }
 }
@@ -117,11 +125,11 @@ async function main() {
     fs.writeFileSync(target, JSON.stringify(matrix.config), { mode: 0o600, flag: 'wx' });
     ownsTarget = true;
     process.stdout.write(JSON.stringify({ ready: true, config_sha256: matrix.config_sha256,
-      ports: matrix.config.cases.map(c => c.port), rootPath: matrix.rootPath,
+      ports: matrix.ports, rootPath: matrix.rootPath,
       cases: matrix.config.cases.map(({ id, expected }) => ({ id, expected })) }) + '\n');
     const input = readline.createInterface({ input: process.stdin });
     for await (const line of input) {
-      if (line === 'snapshot') process.stdout.write(JSON.stringify(matrix.snapshot()) + '\n');
+      if (line === 'snapshot') process.stdout.write(JSON.stringify({ tls: matrix.snapshot(), rpc: matrix.rpcSnapshot() }) + '\n');
       else if (line === 'close') break;
       else throw new Error('TLS_FIXTURE_COMMAND');
     }

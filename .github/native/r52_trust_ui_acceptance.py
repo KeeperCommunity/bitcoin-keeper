@@ -35,9 +35,8 @@ def validate_receipt(value, config, platform):
 
 
 def run_companion(h, data, device, private, backend_receipt, switch_entrypoint):
-    if (os.environ.get('GITHUB_ACTIONS') != 'true' or
-            os.environ.get('GITHUB_REPOSITORY') != 'KeeperCommunity/bitcoin-keeper-private' or
-            os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted' or
+    context = module('native_phase_context')
+    if (not context.hosted_context(h, data) or
             h.PLATFORM not in ('IOS', 'ANDROID') or
             (h.PLATFORM == 'ANDROID' and not re.fullmatch('emulator-[0-9]+', device))):
         raise RuntimeError('TRUST_UI_PRIVATE_OWNED_HOSTED_DEVICE_REQUIRED')
@@ -46,10 +45,10 @@ def run_companion(h, data, device, private, backend_receipt, switch_entrypoint):
             source != data['source_sha'] or source != os.environ.get('KEEPER_SOURCE_SHA') or
             h.artifact_identity() != data['built_artifact']):
         raise RuntimeError('TRUST_UI_EXACT_APP_STARTUP_REQUIRED')
-    if subprocess.run(['git', 'diff', '--quiet', 'HEAD', '--', '.github/native', 'src', 'tests/electrum',
-                       'index.js', 'App.tsx', 'metro.config.js', 'babel.config.js', 'package.json', 'yarn.lock'],
-                      cwd=h.ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
-        raise RuntimeError('TRUST_UI_COMMITTED_SOURCE_REQUIRED')
+    try:
+        module('r52_source_boundary').verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+    except Exception:
+        raise RuntimeError('TRUST_UI_COMMITTED_SOURCE_REQUIRED') from None
     before = backend_receipt.snapshot(passed=True)
     if (before.get('status') != 'PASS' or before.get('sample') != 6 or
             before.get('scenario') != 'CONTROLLED_DISCONNECT_BEFORE_COMMIT_NOT_WAN_OFFLINE' or
@@ -89,6 +88,7 @@ def run_companion(h, data, device, private, backend_receipt, switch_entrypoint):
                 config.get('platform') != h.PLATFORM or config.get('schema') != 1 or
                 not re.fullmatch('[a-f0-9]{48}', config.get('nonce', ''))):
             raise RuntimeError('TRUST_UI_CONFIG_BINDING')
+        context.register_generated(h, 'trust', ready['sha256'])
         h.reverse_trust_loopback(config)
         switch_entrypoint('trust')
         report = output / 'junit.xml'
@@ -110,7 +110,8 @@ def run_companion(h, data, device, private, backend_receipt, switch_entrypoint):
             raise RuntimeError('TRUST_UI_ACCOUNT_CHANGED')
         switch_entrypoint('product')
         result.update(status='PASS', installed_artifact=installed, installed_artifact_verified=True,
-                      fixture_nodes_removed_by_product_ui=True, configuration_sha256=ready['sha256'])
+                      fixture_nodes_removed_by_product_ui=True, configuration_sha256=ready['sha256'],
+                      configuration_json=raw.decode(), binding=context.result_binding(h))
     except Exception as error:
         result.update(status='FAIL', failure_category=type(error).__name__)
         raise
@@ -128,4 +129,6 @@ def run_companion(h, data, device, private, backend_receipt, switch_entrypoint):
         key_ui.finalize_companion(result, save, [('fixture-keys-and-config', close),
             ('private-ui-output', lambda: shutil.rmtree(output))], 'failure_category' in result,
             'TRUST_UI_CLEANUP_FAILED')
+        if result.get('status') == 'PASS':
+            result['cleanup'] = 'PASS'; save()
     return result

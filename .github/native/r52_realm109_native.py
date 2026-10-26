@@ -170,19 +170,38 @@ def verify_source(root, source, overlay=None):
 
 
 def run(h):
+    _run(h)
+
+
+def run_retained(h):
+    # Retained diagnostics have a separate immutable original-artifact admission.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('r52_retained_admission', Path(__file__).with_name('r52_retained_admission.py'))
+    retained = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(retained)
+    admission = retained.admit(h)
+    retained.require_history(h, admission)
+    _run(h, admission)
+
+
+def _run(h, retained=None):
     data = h.read()
-    if (os.environ.get('GITHUB_ACTIONS') != 'true'
-            or os.environ.get('GITHUB_REPOSITORY') != 'KeeperCommunity/bitcoin-keeper-private'
-            or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
-            or h.PLATFORM not in ['IOS', 'ANDROID'] or data.get('build') != 'PASS'
+    import importlib.util
+    context_spec = importlib.util.spec_from_file_location('native_phase_context', Path(__file__).with_name('native_phase_context.py'))
+    context = importlib.util.module_from_spec(context_spec); context_spec.loader.exec_module(context)
+    if (not context.hosted_context(h, data)
+            or h.PLATFORM not in ['IOS', 'ANDROID'] or (retained is None and data.get('build') != 'PASS')
             or data.get('smoke') != 'PASS' or h.artifact_identity() != data['built_artifact']):
         raise RuntimeError('REALM109_PRIVATE_HOSTED_EXACT_APP_STARTUP_REQUIRED')
     source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=h.ROOT, text=True).strip()
     if source != data['source_sha'] or source != os.environ.get('KEEPER_SOURCE_SHA'):
         raise RuntimeError('REALM109_EXACT_SOURCE_REQUIRED')
-    h.command(['git', 'diff', '--exit-code', 'HEAD', '--', *[p for p in SOURCE_PATHS if p != 'package.json']],
-              'Verify committed Realm fixture and production source', error_details=False)
-    verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+    if retained is None:
+        h.command(['git', 'diff', '--exit-code', 'HEAD', '--', *[p for p in SOURCE_PATHS if p != 'package.json']],
+                  'Verify committed Realm fixture and production source', error_details=False)
+        verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+    else:
+        retained.verify_source()
     require_free_metro_port()
     generated = h.ROOT / '.github/native/.generated/r52_realm109'
     if generated.exists() or generated.is_symlink():
@@ -196,6 +215,8 @@ def run(h):
                   published_app_upgrade='NOT RUN', full_r52_acceptance=False,
                   limits=['Synthetic encrypted native database from exact historical schema sources; no old APK/IPA or existing account.',
                           'CA assignment is a fixture write; normal UI persistence and physical devices are separate.'])
+    if retained is not None:
+        result.update(retained.result_binding())
     error = None
     try:
         owned_generated = True
@@ -209,6 +230,8 @@ def run(h):
                 or config.get('realm_package') != '12.15.0' or config.get('schema_count') != 50
                 or not re.fullmatch('[a-f0-9]{48}', config.get('nonce', ''))):
             raise RuntimeError('REALM109_CONFIG_IDENTITY')
+        if retained is None:
+            context.register_generated(h, 'realm109', prepared['config_sha256'])
         if h.PLATFORM == 'IOS':
             candidate = h.command(['xcrun', 'simctl', 'create', 'Keeper-realm109-disposable',
                                 'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
@@ -216,7 +239,10 @@ def run(h):
             device = owned_device(candidate, h.PLATFORM)
             h.command(['xcrun', 'simctl', 'boot', device], 'Boot owned Realm109 simulator')
             h.command(['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for owned Realm109 simulator', timeout=240)
-            h.wait_for_simulator_app_services(device)
+            if retained is None and data.get('toolchain', {}).get('ios_simulator_build_profile') == 'normal-xcode':
+                h.wait_for_simulator_app_services(device, suite='realm109')
+            else:
+                h.wait_for_simulator_app_services(device)
             h.command(['xcrun', 'simctl', 'install', device,
                        str(h.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app')],
                       'Install exact app for native Realm migration', timeout=120)
@@ -273,10 +299,16 @@ def run(h):
             payload = json.loads(raw)
         result['cases'] = validate(config, payload, h.PLATFORM, source)
         verify_generated(generated, prepared['config_sha256'])
-        verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+        if retained is None:
+            verify_source(h.ROOT, source, data.get('nodeify_overlay'))
+        else:
+            retained.verify_source()
         if h.artifact_identity() != data['built_artifact']:
             raise RuntimeError('REALM109_BUILT_ARTIFACT_CHANGED')
         h.verify_installed_artifact(device)
+        if retained is None:
+            result['binding'] = context.result_binding(h)
+            result['raw_evidence'] = dict(configuration_json=(generated / 'config.json').read_text(), app_payload=payload)
         result.update(status='PASS', installed_bytes_verified=True, config_sha256=prepared['config_sha256'],
                       historical_commit=HISTORICAL, manifest_sha256=MANIFEST)
     except Exception as exc:

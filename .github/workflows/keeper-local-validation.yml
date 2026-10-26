@@ -16,6 +16,7 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
+  checks: read
   statuses: write
 
 concurrency:
@@ -152,6 +153,24 @@ jobs:
                 const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt, {
                   owner, repo, run_id: run.id, attempt_number: run.run_attempt, per_page: 100
                 });
+                const successfulSteps = (job, names) => names.every(name =>
+                  job.steps?.filter(s => s.name === name && s.status === 'completed' &&
+                    s.conclusion === 'success').length === 1 && job.steps.filter(s => s.name === name).length === 1);
+                const exactAndroidJob = job => job && Number.isSafeInteger(job.id) && job.id > 0 &&
+                  job.head_sha === sha && job.run_id === run.id &&
+                  job.run_attempt === run.run_attempt && job.status === 'completed' && job.conclusion === 'success' &&
+                  Array.isArray(job.labels) && job.labels.includes('ubuntu-24.04') && !job.labels.includes('self-hosted');
+                const officialAndroidCheck = async job => {
+                  const prefix = `https://api.github.com/repos/${repository}/check-runs/`;
+                  if (!job.check_run_url?.startsWith(prefix)) return false;
+                  const literal = job.check_run_url.slice(prefix.length), id = Number(literal);
+                  if (!/^[1-9][0-9]*$/.test(literal) || !Number.isSafeInteger(id) ||
+                      !Number.isSafeInteger(run.check_suite_id) || run.check_suite_id < 1) return false;
+                  const { data: check } = await github.rest.checks.get({ owner, repo, check_run_id: id });
+                  return check.id === id && check.name === job.name && check.head_sha === sha &&
+                    check.check_suite?.id === run.check_suite_id && check.status === 'completed' &&
+                    check.conclusion === 'success' && check.app?.id === 15368 && check.app.slug === 'github-actions';
+                };
                 for (const [platform, legacyName] of [['IOS', 'Hosted iOS simulator'],
                   ['ANDROID', 'Hosted Android emulator']]) {
                   const name = reusable ? `${platform.toLowerCase()} / Native ${platform} build and probes` : legacyName;
@@ -160,10 +179,23 @@ jobs:
                   const job = matches[0];
                   if (job.head_sha !== sha || job.run_id !== run.id || job.run_attempt !== run.run_attempt ||
                       job.status !== 'completed' || job.conclusion !== 'success') continue;
+                  if (reusable && platform === 'ANDROID') {
+                    const producers = jobs.filter(j => j.name === 'android / Native ANDROID compile producer');
+                    if (producers.length !== 1 || producers[0].id === job.id || !exactAndroidJob(job) ||
+                        !exactAndroidJob(producers[0]) ||
+                        !successfulSteps(job, ['Verify Android hosted source admission',
+                          'Verify exact Android compile artifact before download', 'Restore exact Android compile artifact',
+                          'Run Android startup persistence worker TLS Realm trust and product flows']) ||
+                        !successfulSteps(producers[0], ['Verify Android hosted source admission', 'Record runner and toolchain',
+                          'Install immutable native dependencies', 'Build development app', 'Record official Android compile producer',
+                          'Prepare exact Android build checkpoint', 'Upload exact Android build checkpoint']) ||
+                        !await officialAndroidCheck(job) || !await officialAndroidCheck(producers[0])) continue;
+                    passed.add(platform);
+                    core.info(platform + ' hosted producer/runtime evidence: ' + run.html_url + ', attempt ' + run.run_attempt);
+                    continue;
+                  }
                   const steps = reusable
-                    ? ['Build development app', ...(platform === 'IOS'
-                      ? ['Run disposable startup smoke', 'Run disposable native persistence probe']
-                      : ['Run Android startup and native persistence probes'])]
+                    ? ['Build development app', 'Run disposable startup smoke', 'Run disposable native persistence probe']
                     : ['Build development app', 'Run disposable startup smoke'];
                   if (steps.every(name => job.steps?.filter(s => s.name === name &&
                       s.status === 'completed' && s.conclusion === 'success').length === 1)) {

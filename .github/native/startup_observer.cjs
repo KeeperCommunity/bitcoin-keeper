@@ -4,7 +4,9 @@
 const config = require('../../metro.config.js');
 const { record: emit } = require('./startup_reporter.cjs');
 const { fromSymbolicatedStack } = require('./startup_source_frames.cjs');
+const { errorMonitor } = require('node:events');
 const RESPONSE_LIMIT = 256 * 1024;
+let requestId = 0;
 
 function observeSymbolication(res) {
   const originalWrite = res.write;
@@ -125,15 +127,30 @@ function enhanceMiddleware(middleware, server) {
         const appIds = { android: 'io.hexawallet.keeper.development', ios: 'io.hexawallet.hexakeeper.dev' };
         options.app = query.has('app') ? query.get('app') === appIds[options.platform] ? 'EXPECTED' : 'OTHER' : null;
         const started = Date.now();
-        emit({ kind: 'REQUEST', request: kind, options });
+        const request_id = ++requestId;
+        const duration = () => {
+          const value = Date.now() - started;
+          return Number.isInteger(value) && value >= 0 && value <= 600000 ? value : null;
+        };
+        const status = () => Number.isInteger(res.statusCode) && res.statusCode >= 100 && res.statusCode <= 599 ? res.statusCode : null;
+        emit({ kind: 'REQUEST', request: kind, request_id, options });
         if (kind === 'SYMBOLICATE') observeSymbolication(res);
         res.once('finish', () => {
-          const duration = Date.now() - started;
-          emit({ kind: 'RESPONSE', request: kind,
-            outer_http_status: Number.isInteger(res.statusCode) && res.statusCode >= 100 && res.statusCode <= 599 ? res.statusCode : null,
-            duration_ms: duration >= 0 && duration <= 600000 ? duration : null,
-          });
+          emit({ kind: 'RESPONSE', request: kind, request_id,
+            outer_http_status: status(), duration_ms: duration() });
         });
+        res.once('close', () => emit({ kind: 'TRANSPORT', request: kind, request_id,
+          event: 'RESPONSE_CLOSE', duration_ms: duration(), outer_http_status: status(),
+          headers_sent: res.headersSent === true, writable_ended: res.writableEnded === true,
+          writable_finished: res.writableFinished === true }));
+        req.once('aborted', () => emit({ kind: 'TRANSPORT', request: kind, request_id,
+          event: 'REQUEST_ABORTED', duration_ms: duration() }));
+        // Monitor observes without handling/swallowing an otherwise unhandled
+        // stream error. No error message, URL, header or body is retained.
+        res.once(errorMonitor, error => emit({ kind: 'TRANSPORT', request: kind, request_id,
+          event: 'RESPONSE_ERROR', duration_ms: duration(), error_code:
+            ['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ERR_STREAM_PREMATURE_CLOSE'].includes(error?.code)
+              ? error.code : 'OTHER' }));
       }
     } catch (_) { /* Request observation is optional. */ }
     return inner.call(this, req, res, next);

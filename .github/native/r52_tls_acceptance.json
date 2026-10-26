@@ -29,10 +29,25 @@
     "Normal AddNode custom trust paste/probe/save UI",
     "Persisted selected-node trust across process relaunch",
     "Actual installed109-to110 app upgrade",
-    "Full app Electrum RPC sync/fee/fakebroadcast and reconnect/failover",
     "Actual Tor/onion provider",
-    "Physical HWI/biometric/camera/NFC/USB"
+    "Physical HWI/biometric/camera/NFC/USB",
+    "Public predefined-peer automatic rotation",
+    "Existing explicit plaintext node native app-caller path"
   ],
   "no_release_acceptance": true,
-  "automatic_native_runs_added": false
+  "automatic_native_runs_added": false,
+  "synthetic_rpc_app_caller": {
+    "status": "SOURCE_PREPARED_NATIVE_NOT_RUN",
+    "cases": 9,
+    "entrypoint": "r52_rpc_probe.js inside existing TLS probe after all24/25bridge cases pass",
+    "uses": "Unchanged production ElectrumClient getBlockchainHeaders, syncUTXOByAddress, syncHistoryByAddress, estimateFee, broadcast, connect, testConnection and forceDisconnect; actual RN TLS bridge; fresh owned empty app",
+    "forced_retry": "Owned server sends real TCP reset; pass requires production connection generation advances, replacement client, same selected CA and exactly one eligible private peer; no direct reconnect/onError invocation",
+    "trust_isolation": "Other port uses the same CA/leaf, rejects absent CA before explicit sameCA positive; separate server stage witnesses",
+    "fixture_scope": "One synthetic Testnet script hash, synthetic header/history/UTXO/fee; exact nonce-bound invalid nontransaction text only. No public network, actual transaction, funds, account, normal product UI or Realm mutation.",
+    "not_claimed": [
+      "Automatic public predefined-peer rotation",
+      "Actual Tor provider",
+      "Product account persistence or UI"
+    ]
+  }
 }

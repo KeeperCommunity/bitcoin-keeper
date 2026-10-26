@@ -72,7 +72,7 @@ test('live manifest bytes, public pin and protected source are rechecked and rev
   }
 });
 test('one finite f0 profile admits the selected exact window without embedding app or controller identities', async () => {
-  const f = withWindow(canonicalFixture()); f.window.profile = 'r5-f0-intel-20261025';
+  const f = withWindow(canonicalFixture()); f.window.profile = 'r5-f0-normal-arm64-20261026';
   const proof = await auth(actual, f);
   assert.equal(actual.isInstalledParentWindow(proof), true);
   assert.equal(proof.profile, f.window.profile);

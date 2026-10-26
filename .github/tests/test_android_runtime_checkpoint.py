@@ -44,7 +44,7 @@ class RuntimeCheckpointTest(unittest.TestCase):
         self.put('src/app.ts', b'export const source = 1;\n')
         self.put('firebase.json', b'{}\n')
         self.put('android/app/google-services.json', b'{}\n')
-        for name in ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs', 'android_apk_checkpoint.py'):
+        for name in ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs', 'android_apk_checkpoint.py', 'android_runner_disk.py', 'hosted_native.py'):
             self.put('.github/native/' + name, (NATIVE / name).read_bytes())
         self.git('init', '-q')
         self.git('add', '.')
@@ -109,6 +109,7 @@ class RuntimeCheckpointTest(unittest.TestCase):
 
     def stage(self):
         self.put('.github/native/android_reuse_selection.json', encoded(self.selected))
+        self.put('.github/native/android_runtime_stock_codeql.py', (NATIVE / 'android_runtime_stock_codeql.py').read_bytes())
         self.git('add', '.')
         self.git('-c', 'user.name=Runtime test', '-c', 'user.email=runtime@example.invalid', 'commit', '-qm', 'reviewed controller')
         self.env['KEEPER_CONTROLLER_SHA'] = self.git('rev-parse', 'HEAD').decode().strip()
@@ -241,7 +242,7 @@ class RuntimeCheckpointTest(unittest.TestCase):
 
     def test_modified_staged_helper_and_selection_fail_before_download(self):
         self.stage()
-        for name in ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs', 'android_reuse_selection.json'):
+        for name in ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs', 'android_reuse_selection.json', 'android_runtime_stock_codeql.py'):
             path = self.control / name
             original = path.read_bytes()
             path.write_bytes(original + b' ')

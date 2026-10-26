@@ -5,20 +5,40 @@ Native and Maestro output stays under RUNNER_TEMP, never in an uploaded glob.
 The gate trusts protected workflow/job provenance, never this writable artifact.
 """
 
+import os
+import stat
+import sys
+
+
+def source_only_python():
+    """Never read/write executable bytecode, including downstream loaders.
+
+    A cache prefix beneath the real null character device cannot contain a
+    bytecode file. Unlike -B alone, this also prevents existing cache reads.
+    Controllers importing this harness must set the same interpreter-start
+    environment, before Python has a chance to load this module's own cache.
+    """
+    if not stat.S_ISCHR(os.stat(os.devnull, follow_symlinks=False).st_mode):
+        raise RuntimeError('SOURCE_ONLY_PYTHON_NULL_DEVICE_REQUIRED')
+    sys.pycache_prefix = os.devnull
+    sys.dont_write_bytecode = True
+    os.environ['PYTHONPYCACHEPREFIX'] = os.devnull
+    os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+
+
+source_only_python()
+
 import contextlib
 import hashlib
 import importlib.util
 import json
 import math
-import os
 from pathlib import Path
 import platform
 import re
 import shutil
 import signal
-import stat
 import subprocess
-import sys
 import tempfile
 import time
 from types import SimpleNamespace
@@ -33,6 +53,29 @@ EVIDENCE = ROOT / 'artifacts' / 'native' / PLATFORM.lower() / 'metadata.json'
 MAESTRO_VERSION = 'cli-2.11.0'
 MAESTRO_SHA256 = '5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a'
 APP_IDS = {'IOS': 'io.hexawallet.hexakeeper.dev', 'ANDROID': 'io.hexawallet.keeper.development'}
+_IOS_ACTUAL_INSTALL_PROOF = None
+
+
+def normal_ios():
+    spec = importlib.util.spec_from_file_location('normal_ios', Path(__file__).with_name('ios_normal_xcode.py'))
+    value = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(value)
+    return value
+
+
+def normal_ios_selected():
+    return PLATFORM == 'IOS' and read().get('build_execution_scope') == 'FRESH_CURRENT_SOURCE_NORMAL_XCODE_SIMULATOR'
+
+
+def native_context():
+    # Also works when this harness was loaded by a controller without being
+    # registered in sys.modules (the product and private compatibility routes).
+    return SimpleNamespace(**globals())
+
+
+def finish_ios_actual_install():
+    if _IOS_ACTUAL_INSTALL_PROOF is not None:
+        _IOS_ACTUAL_INSTALL_PROOF.finish()
 
 
 def save(data):
@@ -615,6 +658,8 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
         for line in entry['redacted_tool_errors']:
             print(line, flush=True)
         save(data)
+        if PLATFORM == 'IOS' and args[:3] == ['xcrun', 'simctl', 'install']:
+            finish_ios_actual_install()
         raise RuntimeError('%s failed (exit %s). %s' % (label, code, entry['diagnostic']))
     save(data)
     return output_file.read_text(errors='replace').strip() if capture else None
@@ -931,6 +976,8 @@ def verify_installed_artifact(device):
     """Attest owned installed bytes, never installation argv or app assertions."""
     data = read()
     data['installed_artifact_verified'] = False
+    if normal_ios_selected():
+        data['installed_normal_signature_verified'] = False
     data['installed_artifact_scope'] = 'NOT VERIFIED: installed bytes require full comparison.'
     data.pop('installed_artifact', None)
     save(data)
@@ -996,18 +1043,48 @@ def verify_installed_artifact(device):
         # Fixed labels distinguish a rejected path from pull/byte failures.
         # Never print pm output, installed paths, exception text or APK bytes.
         print('Installed artifact verification failed at ' + stage, flush=True)
+        if normal_ios_selected():
+            finish_ios_actual_install()
         raise RuntimeError('Installed artifact bytes were not verified; no equivalence claimed.') from None
     data = read()
     data.update(installed_artifact_verified=True, installed_artifact=result,
                 installed_artifact_scope='Full installed artifact byte comparison; no installer transformations accepted.')
     save(data)
+    if normal_ios_selected():
+        try:
+            normal_ios().verify_installed(native_context(), device)
+            if _IOS_ACTUAL_INSTALL_PROOF is None:
+                raise RuntimeError('ACTUAL_INSTALL_READINESS_PROOF_REQUIRED')
+            _IOS_ACTUAL_INSTALL_PROOF.verified(device)
+        except Exception:
+            data = read()
+            data.update(installed_artifact_verified=False, installed_normal_signature_verified=False)
+            save(data)
+            finish_ios_actual_install()
+            raise
     return result
 
 
-def wait_for_simulator_app_services(device):
+def wait_for_simulator_app_services(device, suite=None):
     """Boot completion alone did not establish app-service responsiveness."""
     if PLATFORM != 'IOS':
         raise ValueError('Simulator app-service readiness is iOS-only.')
+    if normal_ios_selected():
+        global _IOS_ACTUAL_INSTALL_PROOF
+        finish_ios_actual_install()
+        spec = importlib.util.spec_from_file_location('ios_actual_install', Path(__file__).with_name('ios_actual_install.py'))
+        observer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(observer)
+        _IOS_ACTUAL_INSTALL_PROOF = observer.ActualInstallReadiness(native_context(), suite)
+        entry = _IOS_ACTUAL_INSTALL_PROOF.wait(device)
+        try:
+            # Capture the contiguous owned boot commands before signature
+            # queries append their own receipts. No app is installed yet.
+            normal_ios().require_runtime(native_context())
+        except Exception:
+            finish_ios_actual_install()
+            raise
+        return entry
     spec = importlib.util.spec_from_file_location('simulator_readiness', Path(__file__).with_name('simulator_readiness.py'))
     readiness = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(readiness)
@@ -1110,6 +1187,12 @@ def sign_simulator_app():
 
 
 def build():
+    if PLATFORM == 'IOS':
+        profile = os.environ.get('KEEPER_IOS_BUILD_PROFILE', 'normal-xcode')
+        if profile == 'normal-xcode':
+            return normal_ios().build(native_context())
+        if profile != 'legacy-unsigned':
+            raise RuntimeError('Unknown hosted iOS build profile.')
     disk_preflight('before_native_build')
     if PLATFORM == 'IOS':
         architecture = platform.machine()
@@ -1180,8 +1263,16 @@ def warm_metro_bundle(suite='startup'):
     if bundle_platform is None:
         raise ValueError('Unsupported native bundle platform.')
     url = 'http://127.0.0.1:8081/index.bundle?platform=%s&dev=true&minify=false' % bundle_platform
+    profile = 'PLATFORM_DEV_MINIFY'
+    if PLATFORM == 'IOS' and suite == 'startup':
+        # Exact option tuple observed from this pinned RN iOS app in the
+        # ff3cc6 run. Warm its lazy graph before the unchanged native UI wait.
+        url += ('&lazy=true&excludeSource=true&modulesOnly=false&runModule=true'
+                '&sourcePaths=url-server&app=io.hexawallet.hexakeeper.dev')
+        profile = 'OBSERVED_RN_IOS_APP_REQUEST_OPTIONS_FF3CC6'
     body = PRIVATE / ('%s-development-warmup.bundle' % bundle_platform)
     details = {'scope': 'Development bundle setup only; not native or UI evidence.',
+               'request_profile': profile,
                'platform': bundle_platform, 'url': url, 'timeout_seconds': 240,
                'result': 'FAIL', 'http_status': None}
     started = time.monotonic()
@@ -1288,7 +1379,20 @@ def collect_keychain_evidence(device):
     return observer.collect(SimpleNamespace(PLATFORM=PLATFORM, APP_IDS=APP_IDS, command=command), device)
 
 
-def smoke(suite='startup', debug_session=None):
+def smoke(suite='startup', debug_session=None, normal_retained_install=False):
+    generic_normal_ios = normal_ios_selected()
+    if generic_normal_ios:
+        normal_ios().require_runtime(native_context())
+        if suite in ('probe', 'features') and read().get('native_keychain') != 'PASS':
+            raise RuntimeError('The three-launch native Keychain suite must pass before module probes.')
+    if normal_retained_install:
+        state = read()
+        if (normal_retained_install is not True or PLATFORM != 'IOS' or suite != 'startup' or debug_session is None or
+                state.get('build_execution_scope') != 'REUSED_EXACT_NORMAL_XCODE_APP_NO_CURRENT_COMPILATION_OR_RESIGNING' or
+                state.get('retained_xcode_restore') != 'PASS' or state.get('original_signature_preserved') is not True or
+                state.get('compiled_app_source_sha') != 'ff3cc6b2721de986d9f6211ef333df57ebc3b1fa' or
+                state.get('native_acceptance') is not False):
+            raise RuntimeError('EXACT_NORMAL_RETAINED_INSTALL_PATH_REQUIRED')
     if debug_session is not None and (PLATFORM != 'IOS' or suite != 'startup'):
         raise ValueError('Private launch capture is limited to iOS startup.')
     if suite not in ['startup', 'keychain', 'probe', 'features']:
@@ -1369,10 +1473,15 @@ def smoke(suite='startup', debug_session=None):
                 debug_session.before_boot(device)
             command(['xcrun', 'simctl', 'boot', device], 'Boot disposable simulator')
             command(['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for simulator boot', timeout=240)
-            wait_for_simulator_app_services(device)
+            if generic_normal_ios:
+                wait_for_simulator_app_services(device, suite=suite)
+            else:
+                wait_for_simulator_app_services(device)
             install_args = ['xcrun', 'simctl', 'install', device,
                             str(PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app')]
-            if not is_module:
+            if generic_normal_ios:
+                command(install_args, 'Install Xcode-signed development app', timeout=120)
+            elif not is_module and not normal_retained_install:
                 spec = importlib.util.spec_from_file_location('install_diagnosis', Path(__file__).with_name('install_diagnosis.py'))
                 installer = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(installer)
@@ -1436,6 +1545,8 @@ def smoke(suite='startup', debug_session=None):
             data['native_keychain_scope'] = ('Actual react-native-keychain on one fixed synthetic service; '
                 'write/read, process reopen/update/read, process reopen/delete/read-absent. '
                 'No product credentials, PIN persistence, biometrics, shared access groups or release acceptance.')
+            if generic_normal_ios:
+                data['native_keychain_binding'] = normal_ios().keychain_binding(native_context())
         data[result_key] = 'PASS'
         data[result_key + '_test_cases'] = cases
         if is_features:
@@ -1587,6 +1698,8 @@ def smoke(suite='startup', debug_session=None):
                 pass
         if cleanup_errors and startup_error is None:
             raise RuntimeError('Startup cleanup or receipt failed; subsequent probes cannot run.') from None
+        if generic_normal_ios:
+            finish_ios_actual_install()
 
 
 def successful_junit(report):
@@ -1609,6 +1722,10 @@ def probe():
     smoke('probe')
 
 
+def keychain():
+    smoke('keychain')
+
+
 def features():
     smoke('features')
 
@@ -1621,8 +1738,8 @@ def tls():
 
 
 def main():
-    if PLATFORM not in APP_IDS or len(sys.argv) != 2 or sys.argv[1] not in ['record', 'prepare', 'driver', 'build', 'smoke', 'probe', 'features', 'tls']:
-        raise RuntimeError('Expected a hosted platform and record|prepare|driver|build|smoke|probe|features|tls.')
+    if PLATFORM not in APP_IDS or len(sys.argv) != 2 or sys.argv[1] not in ['record', 'prepare', 'driver', 'build', 'smoke', 'keychain', 'probe', 'features', 'tls']:
+        raise RuntimeError('Expected a hosted platform and record|prepare|driver|build|smoke|keychain|probe|features|tls.')
     os.environ.update({'ENVFILE': '.env.ci', 'RCT_NO_LAUNCH_PACKAGER': '1',
                        'RCT_NEW_ARCH_ENABLED': '1', 'MAESTRO_CLI_NO_ANALYTICS': '1'})
     run_phase(sys.argv[1])
@@ -1638,14 +1755,16 @@ def run_phase(phase):
                 evidence['failed_phase'] = phase
                 if phase == 'prepare' and 'dependency_preparation' in evidence:
                     evidence['dependency_preparation']['status'] = 'FAIL'
-                if phase in ['build', 'smoke', 'probe', 'features']:
-                    evidence['r5_features' if phase == 'features' else 'native_probe' if phase == 'probe' else phase] = 'FAIL'
+                if phase in ['build', 'smoke', 'keychain', 'probe', 'features']:
+                    evidence['r5_features' if phase == 'features' else 'native_probe' if phase == 'probe' else 'native_keychain' if phase == 'keychain' else phase] = 'FAIL'
                 if phase == 'tls':
                     evidence.setdefault('r52_tls_native', {})['status'] = 'FAIL'
                 save(evidence)
         except Exception:
             pass
         raise
+    finally:
+        finish_ios_actual_install()
 
 
 if __name__ == '__main__':

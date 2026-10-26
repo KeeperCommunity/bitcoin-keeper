@@ -10,6 +10,7 @@ const { publicCompanionChecks } = require('./public_companion_receipts.cjs');
 const { validatePublicSoftware, WORKER_SOURCES, PUBLIC_SOFTWARE_SCOPE } = require('./public_software_receipts.cjs');
 const { parseStrictJson } = require('./strict_json.cjs');
 const repositories = require('./release_repository_profiles.cjs');
+const { SCOPES: NATIVE_PHASE_SCOPES } = require('./native_phase_receipts.cjs');
 const REPOSITORY = 'KeeperCommunity/bitcoin-keeper';
 const REPOSITORY_ID = 470904030;
 const WORKFLOW = '.github/workflows/keeper-canonical-native.yml';
@@ -122,10 +123,18 @@ async function origin(github, context, request, { admission = false, pinReader }
 
 function requiredSteps(platform) {
   return ['Verify canonical installed source', 'Record runner and toolchain', 'Install immutable native dependencies',
-    'Build development app', ...(platform === 'IOS' ? ['Check disposable iOS driver readiness',
-      'Run disposable startup smoke', 'Run disposable native persistence probe',
-      'Run R5 production worker native scenarios', 'Measure full-product startup wallet and Retry flows']
-      : ['Run Android startup persistence worker and product flows'])];
+    ...(platform === 'IOS' ? ['Build development app',
+      'Run disposable startup smoke', 'Run disposable native Keychain across three processes',
+      'Run disposable native persistence probe', 'Run R5 production worker native scenarios',
+      'Run strict native TLS and production Electrum RPC matrix', 'Run historical Realm109 migration matrix',
+      'Measure full-product startup wallet and Retry flows'] : ['Verify Android hosted source admission', 'Verify exact Android compile artifact before download',
+      'Restore exact Android compile artifact', 'Run Android startup persistence worker TLS Realm trust and product flows'])];
+}
+
+function producerSteps(canonical = true) {
+  return [...(canonical ? ['Verify canonical installed source'] : []), 'Verify Android hosted source admission', 'Record runner and toolchain', 'Install immutable native dependencies',
+    'Build development app', 'Record official Android compile producer', 'Prepare exact Android build checkpoint',
+    'Upload exact Android build checkpoint'];
 }
 
 async function platformJobs(github, context, request, run) {
@@ -133,14 +142,18 @@ async function platformJobs(github, context, request, run) {
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt,
     { ...context.repo, run_id: request.runId, attempt_number: request.attempt, per_page: 100 });
   const result = {};
-  for (const platform of ['IOS', 'ANDROID']) {
-    const matches = jobs.filter(job => job.name === `${platform.toLowerCase()} / Canonical ${platform} build and features`);
+  for (const platform of ['IOS', 'ANDROID', 'ANDROID_PRODUCER']) {
+    const selectedName = platform === 'ANDROID_PRODUCER' ? 'android / Canonical ANDROID compile producer' :
+      `${platform.toLowerCase()} / Canonical ${platform} build and features`;
+    const matches = jobs.filter(job => job.name === selectedName);
     demand(matches.length === 1, 'CANONICAL_PLATFORM_JOB_MISSING_OR_AMBIGUOUS');
     const job = matches[0];
     demand(Number.isSafeInteger(job.id) && job.id > 0 && !Object.values(result).some(previous => previous.id === job.id) &&
       job.run_id === request.runId && job.run_attempt === request.attempt && job.head_sha === request.sourceSha &&
-      job.status === 'completed' && job.conclusion === 'success', 'CANONICAL_PLATFORM_NOT_EXACT_SUCCESS');
-    for (const name of requiredSteps(platform)) {
+      job.status === 'completed' && job.conclusion === 'success' && Array.isArray(job.labels) &&
+      job.labels.includes(platform === 'IOS' ? 'macos-15' : 'ubuntu-24.04') && !job.labels.includes('self-hosted'),
+    'CANONICAL_PLATFORM_NOT_EXACT_SUCCESS');
+    for (const name of platform === 'ANDROID_PRODUCER' ? producerSteps() : requiredSteps(platform)) {
       const steps = job.steps?.filter(step => step.name === name) ?? [];
       demand(steps.length === 1 && steps[0].status === 'completed' && steps[0].conclusion === 'success', 'CANONICAL_REQUIRED_STEP_NOT_SUCCESS');
     }
@@ -153,6 +166,50 @@ async function platformJobs(github, context, request, run) {
     result[platform] = job;
   }
   return result;
+}
+
+async function androidCustody(github, context, request, run, jobs, metadata, { callerPath = WORKFLOW, workerPath = WORKER } = {}) {
+  demand((callerPath === WORKFLOW && workerPath === WORKER) ||
+    (callerPath === '.github/workflows/keeper-release-acceptance.yml' && workerPath === '.github/workflows/keeper-native-platform.yml'),
+  'CANONICAL_ANDROID_PRODUCER_ROUTE_INVALID');
+  const c = metadata.android_compile_custody, profile = repositories.forContext(context), producer = jobs.ANDROID_PRODUCER;
+  demand(c?.schema === 1 && c.status === 'PASS' && c.native_acceptance === false &&
+    c.repository === profile.repository && c.repository_id === profile.repositoryId && c.repository_private === profile.private &&
+    c.source_sha === request.sourceSha && SHA.test(c.source_tree || '') && c.run_id === request.runId && c.run_attempt === request.attempt &&
+    c.workflow_id === run.workflow_id && c.workflow_sha === request.workflowSha && c.workflow_ref === request.workflowRef &&
+    c.caller_path === callerPath && c.worker_path === workerPath && c.diagnostic_only === false &&
+    c.producer_job_id === producer.id && c.producer_job_name === producer.name &&
+    c.producer_check_run_id === repositories.checkId(producer.check_run_url, profile) &&
+    c.raw_zip_purged === true && /^[a-f0-9]{64}$/.test(c.manifest_sha256 || '') &&
+    /^[a-f0-9]{64}$/.test(c.producer_metadata_sha256 || '') && /^[a-f0-9]{64}$/.test(c.apk_sha256 || '') &&
+    Number.isSafeInteger(c.apk_size_bytes) && c.apk_size_bytes > 0 && c.apk_size_bytes <= 536870912 &&
+    metadata.built_artifact?.sha256 === c.apk_sha256 && metadata.build === 'PASS' &&
+    metadata.build_execution_scope === 'SAME_CURRENT_SOURCE_SAME_RUN_OFFICIAL_ANDROID_COMPILE_PRODUCER' &&
+    metadata.current_source_compilation === 'PASS_OFFICIAL_SAME_RUN_PRODUCER_JOB' && metadata.runtime_host_compilation === 'NOT RUN',
+  'CANONICAL_ANDROID_PRODUCER_CUSTODY_INVALID');
+  const build = c.producer_build, argv = build?.command;
+  demand(build?.label === 'Build debug-key-only development APK' && build.exit_code === 0 &&
+    Number.isFinite(build.duration_seconds) && build.duration_seconds >= 0 &&
+    build.timeout_seconds === 2100 &&
+    Array.isArray(argv) && argv.length === 11 &&
+    JSON.stringify(argv.slice(0, 8)) === JSON.stringify(['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon', '--max-workers=2',
+      '-PreactNativeArchitectures=x86_64', '-Pandroid.buildOnlyTargetAbi=true', '-Pandroid.injected.build.abi=x86_64', '-Pandroid.injected.testOnly=false']) &&
+    /^-Pandroid\.injected\.apk\.location=\/[^\x00-\x1f]+\/android\/app\/build\/outputs\/apk$/.test(argv[8]) &&
+    !argv[8].split('/').includes('..') && JSON.stringify(argv.slice(9)) === JSON.stringify(['--info', '--console=plain']),
+  'CANONICAL_ANDROID_PRODUCER_BUILD_INVALID');
+  const a = c.artifact;
+  demand(Number.isSafeInteger(a?.id) && a.id > 0 &&
+    a.name === `keeper-android-build-checkpoint-${request.sourceSha}-${request.runId}-${request.attempt}` &&
+    /^[a-f0-9]{64}$/.test(a.sha256 || '') && Number.isSafeInteger(a.size_bytes) && a.size_bytes > 0 && a.size_bytes <= 539000000,
+  'CANONICAL_ANDROID_PRODUCER_ARTIFACT_INVALID');
+  const current = (await github.rest.actions.getArtifact({ ...context.repo, artifact_id: a.id })).data;
+  demand(current.id === a.id && current.name === a.name && current.digest === 'sha256:' + a.sha256 &&
+    current.size_in_bytes === a.size_bytes && current.expired === false && current.workflow_run?.id === request.runId &&
+    current.workflow_run.head_sha === request.sourceSha && current.workflow_run.repository_id === profile.repositoryId &&
+    current.workflow_run.head_repository_id === profile.repositoryId, 'CANONICAL_ANDROID_PRODUCER_ARTIFACT_INVALID');
+  return { id: current.id, name: current.name, digest: current.digest, size: current.size_in_bytes,
+    runId: request.runId, sourceSha: request.sourceSha, expiresAt: current.expires_at ?? null, sourceTree: c.source_tree,
+    repositoryId: profile.repositoryId };
 }
 
 function validateMetadata(metadata, request, platform, workerSources) {
@@ -173,6 +230,8 @@ function validateMetadata(metadata, request, platform, workerSources) {
     'key-management-discoverability': { status: 'NOT VERIFIED', scope: 'ordinary app Keys Manage Keys entry and return' },
     'unused-key-and-pin-ui': { status: 'NOT VERIFIED', scope: 'unused Mobile Key delete cancel wrong PIN and cold persistence; not live-Vault references or physical biometrics' },
   };
+  for (const [name, scope] of Object.entries(NATIVE_PHASE_SCOPES))
+    if (platform === 'IOS' || name !== 'native-keychain') checks[name] = { status: 'NOT VERIFIED', scope };
   const samples = metadata.product_ui?.samples;
   if (metadata.product_ui?.status === 'PASS' && metadata.product_ui.requested_samples === 5 &&
     Array.isArray(samples) && samples.length === 5 && samples.every((sample, index) =>
@@ -207,6 +266,7 @@ function validateMetadata(metadata, request, platform, workerSources) {
       workflowSha: request.workflowSha, workflowRef: request.workflowRef,
       runId: request.runId, runAttempt: request.attempt, workerSources });
     checks['public-raw-software-evidence'].status = 'PASS';
+    for (const name of Object.keys(NATIVE_PHASE_SCOPES)) if (checks[name]) checks[name].status = 'PASS';
   } catch { /* A label or payload-owned source hash cannot satisfy this subcheck. */ }
   // Parent obligations remain explicit. Scoped companion UI does not establish
   // private bytes, protocol/account isolation, WAN offline, recovery or a budget.
@@ -219,7 +279,7 @@ async function collectPublic(github, context, request, readZip, { pinReader } = 
     GITHUB_RUN_ID: String(request.runId), GITHUB_RUN_ATTEMPT: String(request.attempt) });
   const { run } = await origin(github, context, request, { pinReader });
   const jobs = await platformJobs(github, context, request, run);
-  const jobAuthorities = Object.fromEntries(['IOS', 'ANDROID'].map(platform => [platform,
+  const jobAuthorities = Object.fromEntries(['IOS', 'ANDROID', 'ANDROID_PRODUCER'].map(platform => [platform,
     { id: jobs[platform].id, name: jobs[platform].name, check_run_url: jobs[platform].check_run_url }]));
   // Compare full-file worker hashes with fixed committed inputs, independently
   // of the downloaded receipt. No artifact ingestion or private-route admission.
@@ -258,17 +318,21 @@ async function collectPublic(github, context, request, readZip, { pinReader } = 
     'CANONICAL_ARTIFACT_EXPIRED_OR_CHANGED');
     const raw = readZip(archive);
     const metadata = parseStrictJson(raw);
+    if (platform === 'ANDROID') artifactAuthorities.push(await androidCustody(github, context, request, run, jobs, metadata));
     platforms[platform] = { conclusion: 'success', artifact_id: artifact.id,
       receipt_sha256: digest(raw), ...validateMetadata(metadata, request, platform, workerSources) };
   }
   const commit = (await github.rest.git.getCommit({ ...context.repo, commit_sha: request.sourceSha })).data;
   demand(commit.sha === request.sourceSha && SHA.test(commit.tree?.sha || ''), 'CANONICAL_SOURCE_TREE_UNVERIFIED');
+  demand(artifactAuthorities.every(row => !row.sourceTree || row.sourceTree === commit.tree.sha), 'CANONICAL_ANDROID_PRODUCER_SOURCE_TREE_INVALID');
   for (const original of artifactAuthorities) {
     const current = (await github.rest.actions.getArtifact({ ...context.repo, artifact_id: original.id })).data;
     demand(current.id === original.id && current.name === original.name && current.expired === false &&
       current.digest === original.digest && current.size_in_bytes === original.size &&
       current.workflow_run?.id === original.runId && current.workflow_run.head_sha === original.sourceSha,
     'CANONICAL_ARTIFACT_EXPIRED_OR_CHANGED');
+    demand(!original.repositoryId || (current.workflow_run.repository_id === original.repositoryId &&
+      current.workflow_run.head_repository_id === original.repositoryId), 'CANONICAL_ANDROID_PRODUCER_ARTIFACT_INVALID');
   }
   // The source/pin/run fence must be terminal: commit-tree and final artifact
   // reads above can observe a revocation that occurred after initial admission.
@@ -301,7 +365,7 @@ async function revalidateInstalledPublicEvidence(github, context, request, proof
   demand(run.check_suite_id === original.suiteId && run.workflow_id === original.workflowId,
     'CANONICAL_PUBLIC_AUTHORITY_CHANGED');
   const jobs = await platformJobs(github, context, request, run);
-  for (const platform of ['IOS', 'ANDROID']) {
+  for (const platform of ['IOS', 'ANDROID', 'ANDROID_PRODUCER']) {
     const current = jobs[platform], previous = original.jobs[platform];
     demand(current.id === previous.id && current.name === previous.name && current.check_run_url === previous.check_run_url,
       'CANONICAL_PUBLIC_AUTHORITY_CHANGED');
@@ -316,6 +380,8 @@ async function revalidateInstalledPublicEvidence(github, context, request, proof
       current.workflow_run?.id === previous.runId && current.workflow_run.head_sha === previous.sourceSha &&
       expiry === previous.expiresAt && (expiry === null || (typeof expiry === 'string' && Date.parse(expiry) > clock())),
     'CANONICAL_ARTIFACT_EXPIRED_OR_CHANGED');
+    demand(!previous.repositoryId || (current.workflow_run.repository_id === previous.repositoryId &&
+      current.workflow_run.head_repository_id === previous.repositoryId), 'CANONICAL_ANDROID_PRODUCER_ARTIFACT_INVALID');
   }
   // Long private network/ZIP work cannot preserve stale public proof authority.
   // This final public phase also rechecks source/workflow/current run and live pin.
@@ -354,7 +420,7 @@ function readMetadataZip(archive) {
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 }
 module.exports = { REPOSITORY, REPOSITORY_ID, WORKFLOW, WORKER, APP_ID, requestFromEnvironment,
-  pinReaderFromEnvironment, privateReaderFromEnvironment, origin, requiredSteps, platformJobs, validateMetadata, collect,
+  pinReaderFromEnvironment, privateReaderFromEnvironment, origin, requiredSteps, producerSteps, platformJobs, androidCustody, validateMetadata, collect,
   artifactName, attestationName, readMetadataZip, collectInstalledPublicEvidence,
   revalidateInstalledPublicEvidence,
   isInstalledPublicEvidence: value => publicProofs.has(value) };

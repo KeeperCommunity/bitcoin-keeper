@@ -48,7 +48,8 @@ class PrivateLaunchDebug(unittest.TestCase):
                     native.command(debug.xcode_simulator_build_command(native),
                         'Build Xcode-signed development simulator app',timeout=2400)
                 else:
-                    native.build()
+                    with mock.patch.dict(os.environ, {'KEEPER_IOS_BUILD_PROFILE': 'legacy-unsigned'}):
+                        native.build()
         data=native.read();data['build']='FAIL';native.save(data)
         return native
 
@@ -306,7 +307,11 @@ class PrivateLaunchDebug(unittest.TestCase):
         self.assertLess(workflow.index('hosted_native.py build'),workflow.index('ios_launch_debug.py run'))
         self.assertIn('name: Retain exact build and scoped private error evidence\n        if: always()',workflow)
         ordinary=(ROOT/'workflows/keeper-native-platform.yml').read_text()
-        self.assertIn('hosted_native.py driver',ordinary)
+        self.assertNotIn('hosted_native.py driver',ordinary)
+        self.assertLess(ordinary.index('hosted_native.py build'),ordinary.index('hosted_native.py smoke'))
+        self.assertIn('Run disposable native Keychain across three processes',ordinary)
+        legacy=(ROOT/'workflows/keeper-hosted-native.yml').read_text()
+        self.assertIn('hosted_native.py driver',legacy)
 
     def test_public_or_moved_source_cannot_enter_private_capture(self):
         event = {'repository': {'id':839671816,'private':True}, 'pull_request': {'head': {

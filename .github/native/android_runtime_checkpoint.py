@@ -24,6 +24,8 @@ MAX_APK = 512 * 1024 ** 2
 MAX_META = 1024 ** 2
 MAX_ARCHIVE = MAX_APK + 2 * MAX_META
 FILES = {'app-development-debug.apk': APK, 'build-metadata.json': METADATA}
+CONTROLLER_FILES = ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs',
+                    'android_reuse_selection.json', 'android_runtime_stock_codeql.py')
 ORIGIN_KEYS = {'repository_id', 'repository_private', 'source_sha', 'source_tree', 'run_id',
                'run_attempt', 'job_id', 'job_name', 'workflow_id', 'workflow_sha', 'workflow_ref'}
 
@@ -131,7 +133,7 @@ def stage(env):
     root, control, _ = directories(env)
     require(git(root, 'rev-parse', 'HEAD').decode().strip() == env['KEEPER_CONTROLLER_SHA'])
     git(root, 'diff', '--exit-code', 'HEAD', '--')
-    names = ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs', 'android_reuse_selection.json')
+    names = CONTROLLER_FILES
     source = {name: regular(root / '.github/native' / name, MAX_META) for name in names}
     for name, data in source.items():
         require(data == git(root, 'show', 'HEAD:.github/native/' + name))
@@ -151,7 +153,8 @@ def stage(env):
         for key, value in (('KEEPER_SOURCE_SHA', selected['source_sha']),
                            ('KEEPER_HELPER_SHA256', hashes[names[0]]),
                            ('KEEPER_ORIGIN_SHA256', hashes[names[1]]),
-                           ('KEEPER_SELECTION_SHA256', hashes[names[2]])):
+                           ('KEEPER_SELECTION_SHA256', hashes[names[2]]),
+                           ('KEEPER_STOCK_CODEQL_SHA256', hashes[names[3]])):
             target.write(key + '=' + value + '\n')
 
 
@@ -162,12 +165,13 @@ def guarded(env):
     identity = parse(regular(control / 'identity.json', 16384))
     require(identity['controller_sha'] == env['KEEPER_CONTROLLER_SHA'])
     for name, digest in identity['hashes'].items():
-        require(name in ('android_runtime_checkpoint.py', 'android_checkpoint_origin.cjs', 'android_reuse_selection.json'))
+        require(name in CONTROLLER_FILES)
         require(hex_value(digest, 64) and hashlib.sha256(regular(control / name, MAX_META)).hexdigest() == digest)
-    require(len(identity['hashes']) == 3)
+    require(set(identity['hashes']) == set(CONTROLLER_FILES))
     require(identity['hashes']['android_runtime_checkpoint.py'] == env['KEEPER_HELPER_SHA256'])
     require(identity['hashes']['android_checkpoint_origin.cjs'] == env['KEEPER_ORIGIN_SHA256'])
     require(identity['hashes']['android_reuse_selection.json'] == env['KEEPER_SELECTION_SHA256'])
+    require(identity['hashes']['android_runtime_stock_codeql.py'] == env['KEEPER_STOCK_CODEQL_SHA256'])
     selected = selection(regular(control / 'android_reuse_selection.json', 16384))
     require(git(root, 'rev-parse', 'HEAD').decode().strip() == selected['source_sha'])
     require(git(root, 'rev-parse', 'HEAD^{tree}').decode().strip() == selected['source_tree'])

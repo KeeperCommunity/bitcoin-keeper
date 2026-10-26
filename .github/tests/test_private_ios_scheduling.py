@@ -10,6 +10,7 @@ class PrivateIOSScheduling(unittest.TestCase):
         cases = (
             ('keeper-private-ios-fresh-runtime.yml', 'fresh', 'keeper/ios-fresh-runtime'),
             ('keeper-private-ios-retained-runtime.yml', 'runtime', 'keeper/ios-retained-runtime'),
+            ('keeper-private-ios-normal-retained-runtime.yml', 'runtime', 'keeper/ios-normal-retained-runtime'),
             ('keeper-private-ios-signature-comparison.yml', 'compare', 'keeper/ios-signature-comparison'),
             ('keeper-private-ios-launch-debug.yml', 'investigate', 'keeper/ios-launch-debug'),
         )

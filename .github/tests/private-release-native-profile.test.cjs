@@ -109,11 +109,18 @@ for (const [name, mutate] of Object.entries({
   wrongAppRepository: ({ p }) => p.window.app.repository = PUBLIC.repository,
   unprotected: ({ p }) => p.branch.protected = false,
   movedPin: ({ p }) => p.pin.value = 'e'.repeat(40),
-  privateNativeFailure: ({ f }) => f.jobs[1001][0].steps.find(step => step.name === 'Build one unsigned development native candidate').conclusion = 'failure',
+  privateNativeFailure: ({ f }) => f.jobs[1001][0].steps.find(step => step.name === 'Build one current-source development native candidate').conclusion = 'failure',
   artifactExpiry: ({ f }) => f.artifacts[1101].expired = true,
   wrongSourceTransport: ({ f }) => f.jobs[1001][0].steps.find(step => step.name === 'Fetch fixed private app with scoped read identity').name = 'Fetch fixed public app anonymously',
+  oldIntelParent: ({ f }) => f.jobs[1001][0].labels = ['macos-15-intel'],
+  incompleteKeychain: ({ p }) => { p.metadata.IOS.native_keychain_process_launches = 2; },
+  skippedTls: ({ p }) => { p.metadata.IOS.r52_tls_native.status = 'SKIP'; },
+  missingMigration: ({ p }) => { delete p.metadata.ANDROID.r52_realm109_native; },
 })) test(`private installed native profile rejects ${name}`, async () => {
   const state = nativeFixture(); mutate(state);
+  state.p.archives = Object.values(state.p.metadata).map(value => Buffer.from(JSON.stringify(value)));
+  for (const [i, artifact] of state.p.artifacts.entries()) Object.assign(artifact,
+    { digest: `sha256:${hash(state.p.archives[i])}`, size_in_bytes: state.p.archives[i].length });
   await assert.rejects(collect(state));
 });
 

@@ -23,6 +23,7 @@ function fixture(options = {}) {
   const rows = [], calls = [], receiver = {}, next = () => {};
   const config = { resolver: {}, transformer: {}, serializer: {}, server: {} };
   const context = { module: { exports: {} }, URL, Date, Buffer, Uint8Array, require(name) {
+    if (name === 'node:events') return require('node:events');
     if (name === '../../metro.config.js') return config;
     if (name === './startup_reporter.cjs') return { record: row => rows.push(JSON.parse(JSON.stringify(row))) };
     if (name === './startup_source_frames.cjs') return frames;
@@ -170,6 +171,7 @@ test('invalid UTF-8 and missing response methods report fixed capture gaps witho
   assert.deepEqual(Buffer.concat(f.chunks), payload);
   const rows = [];
   const context = { module: { exports: {} }, URL, Date, Buffer, Uint8Array, require(name) {
+    if (name === 'node:events') return require('node:events');
     if (name === '../../metro.config.js') return { server: {} };
     if (name === './startup_reporter.cjs') return { record: row => rows.push(row) };
     if (name === './startup_source_frames.cjs') return frames;
@@ -210,6 +212,7 @@ test('actual Node HTTP streamed symbolication preserves bytes headers callbacks 
   const rows = [], completions = [];
   const payload = JSON.stringify({ codeFrame: { content: 'PRIVATE_SENTINEL' }, stack: [publicFrame()] });
   const context = { module: { exports: {} }, URL, Date, Buffer, Uint8Array, require(name) {
+    if (name === 'node:events') return require('node:events');
     if (name === '../../metro.config.js') return { server: {} };
     if (name === './startup_reporter.cjs') return { record: row => rows.push(row) };
     if (name === './startup_source_frames.cjs') return frames;
@@ -265,6 +268,7 @@ test('actual pinned compression layer keeps gzip wire bytes while observer reads
   const payload = JSON.stringify({ stack: [publicFrame()], codeFrame: { content: 'PRIVATE_SENTINEL'.repeat(200) } });
   assert(payload.length > 1024);
   const context = { module: { exports: {} }, URL, Date, Buffer, Uint8Array, require(name) {
+    if (name === 'node:events') return require('node:events');
     if (name === '../../metro.config.js') return { server: {} };
     if (name === './startup_reporter.cjs') return { record: row => rows.push(row) };
     if (name === './startup_source_frames.cjs') return frames;

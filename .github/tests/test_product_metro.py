@@ -206,6 +206,8 @@ class IntegrationTests(unittest.TestCase):
 
                 def command(args, label, **kwargs):
                     order.append(label)
+                    state['commands'].append({'command': args, 'label': label, 'exit_code': 0,
+                                              'timeout_seconds': kwargs.get('timeout', 120)})
                     if label == 'Create task-owned product UI simulator':
                         return owned
                     if label == 'Install exact product UI app':
@@ -248,6 +250,9 @@ class IntegrationTests(unittest.TestCase):
                     self.assertNotIn('Reset task-owned simulator credentials', order)
                 else:
                     self.assertLess(order.index('app-services-ready'), order.index('Install exact product UI app'))
+                    self.assertNotIn('device-uninstall', order)
+                    self.assertEqual(state['product_ui']['first_sample_uninstall'],
+                                     'NOT_NEEDED_PROVEN_NEW_OWNED_DEVICE_NO_PRIOR_INSTALL')
                 self.assertLess(order.index('metro-close'), order.index('device-shutdown'))
                 self.assertLess(order.index('device-shutdown'), order.index('device-delete'))
                 self.assertEqual(state['product_ui']['samples'], [])

@@ -22,17 +22,29 @@ permissions:
 
 jobs:
   analyze:
-    # Public CodeQL is free. Private test copies must not request the paid feature.
-    if: github.repository == 'KeeperCommunity/bitcoin-keeper' && github.event.repository.private == false
+    # Keep private copies off until an administrator explicitly selects their
+    # existing Code Security entitlement. This variable does not enable/buy it;
+    # the real analysis/upload must still succeed before release acceptance.
+    if: (github.repository == 'KeeperCommunity/bitcoin-keeper' && github.repository_id == '470904030' && github.event.repository.private == false) || (github.repository == 'KeeperCommunity/bitcoin-keeper-private' && github.repository_id == '839671816' && github.event.repository.private == true && vars.KEEPER_PRIVATE_CODEQL_ENABLED == 'true' && fromJSON(vars.KEEPER_PRIVATE_CODEQL_ENABLED || 'false') == true)
     name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      KEEPER_PRIVATE_CODEQL_ENABLED: ${{ vars.KEEPER_PRIVATE_CODEQL_ENABLED }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      - name: Set up supported receipt tooling
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.4'
+
+      - name: Validate exact repository opt-in before any CodeQL request
+        run: node scripts/codeql-analysis-receipt.cjs --check-selection
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4

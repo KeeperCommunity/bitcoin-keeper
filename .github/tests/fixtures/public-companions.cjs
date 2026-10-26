@@ -15,7 +15,9 @@ function attach(metadata, platform) {
     { method: 'SINGLE_INSTALLED_BASE_APK_SHA256', sha256: 'f'.repeat(64) });
   metadata.installed_artifact_verified = true;
   metadata.installed_artifact = structuredClone(proof);
-  metadata.built_artifact ||= platform === 'IOS' ? { executable_sha256: proof.executable_sha256 } : { sha256: proof.sha256 };
+  metadata.built_artifact ||= platform === 'IOS' ? { path: '/runner/DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app',
+    executable: 'hexa_keeper_dev', executable_sha256: proof.executable_sha256, bundle_tree_sha256: 'c'.repeat(64) } :
+    { path: 'android/app/build/outputs/apk/development/debug/app-development-debug.apk', sha256: proof.sha256 };
   metadata.product_ui ||= { status: 'PASS' };
   metadata.product_ui.companion_metro_switches = original.switches.map(phase => ({ phase, status: 'PASS', scope: 'BUNDLE_SETUP_ONLY' }));
   for (const [name, root, nested] of [
@@ -29,6 +31,6 @@ function attach(metadata, platform) {
     metadata[root] = row;
     metadata.product_ui[nested] = structuredClone(row);
   }
-  return metadata;
+  return require('./native-phases.cjs').attach(metadata, platform);
 }
 module.exports = { attach };

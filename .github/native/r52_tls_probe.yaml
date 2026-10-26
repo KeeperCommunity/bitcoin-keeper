@@ -8,7 +8,7 @@ name: Actual installed app production TLS bridge against owned loopback identiti
 - extendedWaitUntil:
     visible:
       id: r52-tls-pass
-    timeout: 240000
+    timeout: 360000
 - assertNotVisible:
     id: r52-tls-failed
 - stopApp

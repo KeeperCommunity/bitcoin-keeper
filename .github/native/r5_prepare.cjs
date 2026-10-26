@@ -92,7 +92,7 @@ function extract(file, names) {
   };
 }
 
-function prepare(root = ROOT) {
+function render(root = ROOT) {
   const sources = [];
   const provenance = [];
   for (const [relative, names] of Object.entries(SELECTION)) {
@@ -115,13 +115,17 @@ function prepare(root = ROOT) {
   });
   if (result.diagnostics.some((d) => d.category === ts.DiagnosticCategory.Error))
     throw new Error('Probe extraction syntax failed');
+  return { outputText: result.outputText, provenance };
+}
+function prepare(root = ROOT) {
+  const { outputText, provenance } = render(root);
   const directory = path.join(root, '.github/native/.generated');
   fs.mkdirSync(directory, { recursive: true });
-  fs.writeFileSync(path.join(directory, 'r5_workers.js'), result.outputText);
+  fs.writeFileSync(path.join(directory, 'r5_workers.js'), outputText);
   return provenance;
 }
 if (require.main === module) {
   prepare();
   process.stdout.write('R5 production worker extraction prepared\n');
 }
-module.exports = { prepare, extract, SELECTION, DEPENDENCIES };
+module.exports = { prepare, render, extract, SELECTION, DEPENDENCIES };
