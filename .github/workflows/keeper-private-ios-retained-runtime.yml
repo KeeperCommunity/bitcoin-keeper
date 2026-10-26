@@ -6,11 +6,13 @@ permissions:
   contents: read
   pull-requests: read
   actions: read
-concurrency:
-  group: private-ios-launch-debug-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
 jobs:
   runtime:
+    # Only an admitted job occupies the shared private iOS slot. Wrong-label
+    # workflows must skip without replacing another pending diagnostic.
+    concurrency:
+      group: private-ios-launch-debug-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/ios-retained-runtime' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
     runs-on: macos-15
     timeout-minutes: 90
