@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 import yaml
+from frozen_private_ff_profile import original_bytes
 
 ROOT = Path(__file__).resolve().parents[2]
 def load(path, name):
@@ -156,7 +157,14 @@ class ExtraStockTests(unittest.TestCase):
                 with self.assertRaises(m.Rejected): m.stock_identity(self.policy(), m.NDK)
 
     def test_real_git_controller_staging_context_and_hash_before_any_cleanup(self):
-        fixture = consumer.RuntimeCheckpointTest(methodName='runTest'); fixture.setUp()
+        fixture = consumer.RuntimeCheckpointTest(methodName='runTest')
+        put = fixture.put
+        hosted_path = '.github/native/hosted_native.py'
+        # Build the legacy app fixture with its actually recorded hosted helper;
+        # the current generic helper is deliberately outside this frozen profile.
+        with mock.patch.object(fixture, 'put', side_effect=lambda path, raw:
+                put(path, original_bytes(hosted_path) if path == hosted_path else raw)):
+            fixture.setUp()
         self.addCleanup(fixture.doCleanups); fixture.admitted()
         self.assertFalse((fixture.root / '.github/native/android_runtime_stock_codeql.py').exists(), 'new helper belongs only to controller')
         staged = load(fixture.control / 'android_runtime_stock_codeql.py', 'actual_staged_cleanup')
@@ -169,6 +177,12 @@ class ExtraStockTests(unittest.TestCase):
         with mock.patch.object(platform, 'freedesktop_os_release', return_value={'ID': 'ubuntu', 'VERSION_ID': '24.04'}):
             policy = staged.admitted_context(env)
             self.assertEqual(policy.TARGET, m.TARGET); self.assertEqual(policy.RESERVE, m.RESERVE)
+            hosted = fixture.root / hosted_path
+            hosted.write_bytes((ROOT / hosted_path).read_bytes())
+            with self.assertRaisesRegex(staged.Rejected, 'PINNED_NDK_DEPENDENCY_REJECTED'):
+                staged.admitted_context(env)
+            hosted.write_bytes(original_bytes(hosted_path))
+            staged.admitted_context(env)
             with (fixture.control / 'android_runtime_stock_codeql.py').open('a') as target: target.write('\n# changed\n')
             with self.assertRaises(Exception): staged.admitted_context(env)
         for key, bad in [('GITHUB_REPOSITORY_ID', '1'), ('KEEPER_DIAGNOSTIC', 'false'), ('GITHUB_RUN_ATTEMPT', '2'), ('RUNNER_TOOL_CACHE', '/other')]:

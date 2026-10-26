@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 import yaml
+import frozen_private_ff_profile as frozen
 
 ROOT = Path(__file__).resolve().parents[2]
 def load(name):
@@ -21,7 +22,8 @@ def load(name):
     return module
 m = load('android_compile_checkpoint_only')
 projection = load('android_runtime_evidence_readout')
-WORKER = yaml.load((ROOT / '.github/workflows/keeper-native-platform.yml').read_text(), Loader=yaml.BaseLoader)['jobs']['native']
+WORKFLOW_PATH = '.github/workflows/keeper-native-platform.yml'
+WORKER = yaml.load(frozen.original_bytes(WORKFLOW_PATH), Loader=yaml.BaseLoader)['jobs']['native']
 
 
 def expression(raw, values):
@@ -43,7 +45,7 @@ def context(**updates):
 
 
 class CompileOnlyControls(unittest.TestCase):
-    def test_actual_workflow_scope_skips_only_android_emulator_after_retention(self):
+    def test_frozen_ff_workflow_scope_skips_only_android_emulator_after_retention(self):
         for change, expected in [({}, True), ({'inputs.diagnostic': False}, False),
             ({'inputs.platform': 'IOS'}, False), ({'github.repository_id': '1'}, False),
             ({'github.event.repository.private': False}, False), ({'github.event.pull_request.number': 74}, False),
@@ -64,7 +66,7 @@ class CompileOnlyControls(unittest.TestCase):
         self.assertLess(steps.index('Finalize explicit private Android compile-only outcome'), steps.index('Enable emulator acceleration'))
         self.assertIn('android_build_watch.py', next(row['run'] for row in WORKER['steps'] if row['name'] == 'Build development app'))
 
-    def test_actual_fresh_pr_check_rejects_removed_added_or_conflicting_modifier(self):
+    def test_frozen_ff_fresh_pr_check_rejects_removed_added_or_conflicting_modifier(self):
         step = next(row for row in WORKER['steps'] if row['name'] == 'Verify current diagnostic source')
         script = re.sub(r'\$\{\{(.*?)\}\}', lambda match: str(expression(match[1], context())).lower(), step['with']['script'])
         initial = context()['github.event.pull_request.labels.*.name']
@@ -77,6 +79,31 @@ class CompileOnlyControls(unittest.TestCase):
                 run = subprocess.run(['node', '-e', code], env={**os.environ, 'EXPECTED_SOURCE': 'a' * 40,
                     'KEEPER_ANDROID_CHECKPOINT_ONLY': flag, 'PREPARE_ONLY': 'false'}, text=True, capture_output=True, check=True)
                 self.assertEqual(bool(json.loads(run.stdout)), rejected)
+
+    def test_recorded_ff_inputs_reject_current_generic_or_tampered_bytes_without_fallback(self):
+        for path in frozen.FILES:
+            self.assertEqual(hashlib.sha256(frozen.original_bytes(path)).hexdigest(), frozen.FILES[path])
+        for raw in ((ROOT / WORKFLOW_PATH).read_bytes(), frozen.original_bytes(WORKFLOW_PATH) + b'\n# changed\n'):
+            with mock.patch.object(frozen.subprocess, 'check_output', return_value=raw), self.assertRaises(AssertionError):
+                frozen.original_bytes(WORKFLOW_PATH)
+        with mock.patch.object(frozen.subprocess, 'check_output') as git:
+            with self.assertRaises(AssertionError): frozen.original_bytes('src/unknown.ts')
+            git.assert_not_called()
+
+    def test_current_generic_two_host_worker_does_not_claim_frozen_compile_only_mode(self):
+        jobs = yaml.load((ROOT / WORKFLOW_PATH).read_text(), Loader=yaml.BaseLoader)['jobs']
+        producer, runtime = jobs['android-build'], jobs['native']
+        for job in (producer, runtime):
+            self.assertNotIn('KEEPER_ANDROID_CHECKPOINT_ONLY', job['env'])
+            self.assertNotIn('Finalize explicit private Android compile-only outcome', [s.get('name') for s in job['steps']])
+        self.assertEqual(producer['env']['KEEPER_ANDROID_CUSTODY_ROLE'], 'producer')
+        self.assertEqual(runtime['env']['KEEPER_ANDROID_CUSTODY_ROLE'], 'runtime')
+        self.assertIn('android-build', runtime['needs'])
+        self.assertTrue(any(s.get('name') == 'Upload exact Android build checkpoint' for s in producer['steps']))
+        self.assertFalse(any('android-emulator-runner' in s.get('uses', '') for s in producer['steps']))
+        script = next(s for s in runtime['steps'] if 'android-emulator-runner' in s.get('uses', ''))['with']['script']
+        self.assertIn('hosted_native.py smoke', script)
+        self.assertIn('product_measurements.py run', script)
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)

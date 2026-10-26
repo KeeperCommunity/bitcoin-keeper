@@ -1,4 +1,5 @@
 import copy
+import errno
 import hashlib
 import io
 import json
@@ -53,12 +54,21 @@ class EvidenceControls(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     matrix.validate(*args, 'IOS')
 
-    def test_local_or_public_runner_never_executes_app_probe(self):
+    def test_local_or_unbound_public_runner_never_executes_app_probe(self):
         class Harness:
+            PLATFORM = 'IOS'
             def read(self):
                 return {'build': 'PASS', 'smoke': 'PASS'}
-        with self.assertRaisesRegex(RuntimeError, 'TLS_PRIVATE_HOSTED'):
-            matrix.run(Harness())
+            def artifact_identity(self):
+                raise AssertionError('Rejected context must not inspect an app artifact')
+        for env in ({}, dict(GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
+                             GITHUB_REPOSITORY='KeeperCommunity/bitcoin-keeper',
+                             GITHUB_REPOSITORY_ID='470904030', KEEPER_DIAGNOSTIC='false')):
+            with self.subTest(env=env), patch.dict('os.environ', env, clear=True), \
+                    patch.object(matrix.subprocess, 'Popen') as spawn, patch.object(matrix.subprocess, 'run') as cleanup:
+                with self.assertRaisesRegex(RuntimeError, 'TLS_PRIVATE_HOSTED'):
+                    matrix.run(Harness())
+                spawn.assert_not_called(); cleanup.assert_not_called()
 
     def test_rejected_android_serial_and_ios_udid_never_become_cleanup_targets(self):
         for platform, candidate in [('ANDROID', 'physical-serial'), ('IOS', 'all')]:
@@ -106,11 +116,19 @@ class EvidenceControls(unittest.TestCase):
                     self.assertFalse(any('install' in args or 'reverse' in args for args in commands))
 
     def test_existing_metro_listener_is_rejected(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            listener.bind(('127.0.0.1', 8081)); listener.listen()
-            with self.assertRaisesRegex(RuntimeError, 'TLS_METRO_PORT_OCCUPIED'):
-                matrix.require_free_metro_port()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener, \
+                socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            listener.bind(('127.0.0.1', 0)); listener.listen()
+            # Keep real EADDRINUSE, but isolate it from shared/foreign port8081.
+            def bind_owned(address):
+                self.assertEqual(address, ('127.0.0.1', 8081))
+                probe.bind(listener.getsockname())
+            with patch.object(matrix._BOUNDARY.socket, 'socket') as sockets:
+                sockets.return_value.__enter__.return_value.bind.side_effect = bind_owned
+                with self.assertRaisesRegex(RuntimeError, 'TLS_METRO_PORT_OCCUPIED') as rejected:
+                    matrix.require_free_metro_port()
+                sockets.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
+            self.assertEqual(rejected.exception.__cause__.errno, errno.EADDRINUSE)
 
     def test_child_failure_before_ready_is_not_successful_cleanup(self):
         class DeadFixture:

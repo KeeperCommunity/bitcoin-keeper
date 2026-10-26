@@ -9,6 +9,10 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest import mock
+import yaml
+from frozen_private_ff_profile import original_bytes
+
+FROZEN_FF_WORKFLOW = original_bytes('.github/workflows/keeper-native-platform.yml').decode()
 
 SPEC = importlib.util.spec_from_file_location('android_disk_test',
     Path(__file__).resolve().parents[1] / 'native/android_runner_disk.py')
@@ -235,8 +239,8 @@ class AndroidDiskTest(unittest.TestCase):
         self.assertEqual(result['reason'], 'STOCK_DIRECTORY_REMAINS')
         self.remove_mock.assert_called_once()
 
-    def test_workflow_runs_prep_only_for_android_diagnostics_before_existing_preflight(self):
-        text = (Path(__file__).resolve().parents[1] / 'workflows/keeper-native-platform.yml').read_text()
+    def test_frozen_ff_workflow_runs_private_disk_prep_before_existing_preflight(self):
+        text = FROZEN_FF_WORKFLOW
         block = ("      - name: Prepare disposable Android runner disk\n"
                  "        if: inputs.platform == 'ANDROID' && inputs.diagnostic && github.repository_id == '839671816' && github.event.repository.private == true\n"
                  "        run: python3 .github/native/android_runner_disk.py\n")
@@ -268,6 +272,18 @@ class AndroidDiskTest(unittest.TestCase):
                       'github': SimpleNamespace(repository_id=repo,
                           event=SimpleNamespace(repository=SimpleNamespace(private=private)))}
             self.assertEqual(selected(expression, values), expected)
+
+    def test_current_generic_disk_admission_precedes_both_host_preparation_phases(self):
+        path = Path(__file__).resolve().parents[1] / 'workflows/keeper-native-platform.yml'
+        jobs = yaml.load(path.read_text(), Loader=yaml.BaseLoader)['jobs']
+        for name in ('android-build', 'native'):
+            steps = jobs[name]['steps']; names = [s.get('name') for s in steps]
+            self.assertLess(names.index('Verify Android hosted source admission'), names.index('Prepare bounded Android runner disk'))
+            self.assertLess(names.index('Prepare bounded Android runner disk'), names.index('Record runner and toolchain'))
+            self.assertLess(names.index('Prepare bounded Android runner disk'), names.index('Install immutable native dependencies'))
+            step = next(s for s in steps if s.get('name') == 'Prepare bounded Android runner disk')
+            self.assertEqual(step['run'], 'python3 .github/native/android_canonical_disk.py')
+            self.assertNotIn('android_runner_disk.py', step['run'])
 
     def test_no_path_or_override_arguments_are_accepted(self):
         with mock.patch.object(disk.sys, 'argv', ['helper', '/tmp/PRIVATE_SENTINEL']), \

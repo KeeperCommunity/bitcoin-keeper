@@ -1,4 +1,5 @@
 import copy
+import errno
 import hashlib
 import importlib.util
 import json
@@ -45,12 +46,21 @@ class NativeReceiptContracts(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.validate(payload)
 
-    def test_local_context_cannot_execute_native_probe(self):
+    def test_local_or_unbound_public_context_cannot_execute_native_probe(self):
         class Harness:
+            PLATFORM = 'IOS'
             def read(self):
                 return {'build': 'PASS', 'smoke': 'PASS'}
-        with self.assertRaisesRegex(RuntimeError, 'PRIVATE_HOSTED'):
-            fixture.run(Harness())
+            def artifact_identity(self):
+                raise AssertionError('Rejected context must not inspect an app artifact')
+        for env in ({}, dict(GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
+                             GITHUB_REPOSITORY='KeeperCommunity/bitcoin-keeper',
+                             GITHUB_REPOSITORY_ID='470904030', KEEPER_DIAGNOSTIC='false')):
+            with self.subTest(env=env), patch.dict('os.environ', env, clear=True), \
+                    patch.object(fixture.subprocess, 'Popen') as spawn, patch.object(fixture.subprocess, 'run') as cleanup:
+                with self.assertRaisesRegex(RuntimeError, 'PRIVATE_HOSTED'):
+                    fixture.run(Harness())
+                spawn.assert_not_called(); cleanup.assert_not_called()
 
     def test_generated_bytes_digest_and_path_boundaries(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -119,10 +129,19 @@ class NativeReceiptContracts(unittest.TestCase):
                     self.assertEqual(saved[-1]['r52_realm109_native']['status'], 'FAIL')
 
     def test_existing_loopback_metro_listener_is_rejected(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-            listener.bind(('127.0.0.1', 8081)); listener.listen()
-            with self.assertRaisesRegex(RuntimeError, 'PORT_OCCUPIED'):
-                fixture.require_free_metro_port()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener, \
+                socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            listener.bind(('127.0.0.1', 0)); listener.listen()
+            # Keep real EADDRINUSE, but isolate it from shared/foreign port8081.
+            def bind_owned(address):
+                self.assertEqual(address, ('127.0.0.1', 8081))
+                probe.bind(listener.getsockname())
+            with patch.object(fixture.socket, 'socket') as sockets:
+                sockets.return_value.__enter__.return_value.bind.side_effect = bind_owned
+                with self.assertRaisesRegex(RuntimeError, 'PORT_OCCUPIED') as rejected:
+                    fixture.require_free_metro_port()
+                sockets.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
+            self.assertEqual(rejected.exception.__cause__.errno, errno.EADDRINUSE)
 
     def test_raw_source_detects_assume_unchanged_and_untracked_platform_substitution(self):
         with tempfile.TemporaryDirectory() as temporary:

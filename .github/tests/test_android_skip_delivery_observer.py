@@ -13,6 +13,7 @@ import unittest
 from unittest import mock
 from urllib import request, error
 import yaml
+from frozen_private_ff_profile import original_bytes, original_module
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -24,7 +25,7 @@ def load(path, name):
 
 
 m = load(ROOT / '.github/native/android_skip_delivery_observer.py', 'skip_delivery_test')
-p = load(ROOT / '.github/native/product_measurements.py', 'original_product_test')
+p = original_module('.github/native/product_measurements.py', 'original_product_test')
 consumer = load(Path(__file__).with_name('test_android_runtime_checkpoint.py'), 'skip_admission_fixture')
 
 WINDOWS = b'''WINDOW MANAGER WINDOWS (dumpsys window windows)
@@ -118,8 +119,23 @@ class SkipObserverTests(unittest.TestCase):
         self.assertEqual(execution.count('hosted_native.py features'), 1)
         self.assertIn('KEEPER_SKIP_HELPER_SHA256', execution); self.assertIn('" suite', execution)
         self.assertEqual(p.SAMPLE_COUNT, 5)
-        self.assertEqual(m.digest((ROOT / '.github/native/product_measurements.py').read_bytes()), m.PRODUCT_SHA)
+        self.assertEqual(m.digest(original_bytes('.github/native/product_measurements.py')), m.PRODUCT_SHA)
         self.assertEqual(m.digest((ROOT / '.github/native/android_runtime_checkpoint.py').read_bytes()), m.CHECKPOINT_SHA)
+
+    def test_frozen_product_pin_accepts_original_ff_and_rejects_committed_updated_source(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            product = root / '.github/native/product_measurements.py'; product.parent.mkdir(parents=True)
+            product.write_bytes(original_bytes('.github/native/product_measurements.py'))
+            def git(*args): subprocess.run(['git', *args], cwd=root, check=True, capture_output=True)
+            git('init', '-q'); git('add', '.')
+            git('-c', 'user.name=Profile', '-c', 'user.email=profile@example.invalid', 'commit', '-qm', 'original ff product')
+            original = m.pinned(root, 'product_measurements', m.PRODUCT_SHA)
+            self.assertEqual(original.SAMPLE_COUNT, 5)
+            product.write_bytes((ROOT / '.github/native/product_measurements.py').read_bytes())
+            git('add', '.'); git('-c', 'user.name=Profile', '-c', 'user.email=profile@example.invalid',
+                                'commit', '-qm', 'updated generic product')
+            with self.assertRaises(RuntimeError): m.pinned(root, 'product_measurements', m.PRODUCT_SHA)
 
     def test_api35_window_inset_and_input_formats_project_only_allowlisted_numbers_and_enums(self):
         window = m.window_facts(WINDOWS, 1234)
