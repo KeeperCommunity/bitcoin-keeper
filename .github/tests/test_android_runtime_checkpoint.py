@@ -131,7 +131,7 @@ class RuntimeCheckpointTest(unittest.TestCase):
             'job': {'id': self.selected['job_id'], 'run_id': self.selected['run_id'], 'head_sha': self.source,
                 'run_attempt': 1, 'name': runtime.JOB_NAME, 'status': 'completed', 'conclusion': 'failure',
                 'steps': [{'name': name, 'status': 'completed', 'conclusion': 'success'} for name in
-                    ('Verify current diagnostic source', 'Build development app', 'Prepare exact private Android build checkpoint', 'Upload private Android build checkpoint')]},
+                    ('Verify current diagnostic source', 'Build development app', 'Record official private Android checkpoint origin', 'Prepare exact private Android build checkpoint', 'Upload private Android build checkpoint')]},
             'artifact': {'id': self.selected['artifact_id'], 'name': 'keeper-private-android-checkpoint-%s-%s-1' % (self.source, self.selected['run_id']),
                 'size_in_bytes': self.selected['archive_size_bytes'], 'digest': 'sha256:' + self.selected['archive_sha256'],
                 'expired': False, 'workflow_run': {'id': self.selected['run_id'], 'head_sha': self.source,
@@ -141,6 +141,19 @@ class RuntimeCheckpointTest(unittest.TestCase):
         path = self.runner / ('keeper-android-reuse-' + phase + '.json')
         path.write_bytes(encoded(self.receipt() if receipt is None else receipt))
         return path
+
+    def test_completed_success_or_failure_producer_still_requires_every_checkpoint_step(self):
+        self.stage()
+        for conclusion in ('success', 'failure'):
+            receipt = self.receipt()
+            receipt['job']['conclusion'] = conclusion
+            admitted = runtime.api_identity(receipt, self.selected, self.env)
+            self.assertEqual(admitted['job_conclusion'], conclusion)
+            for index in range(len(receipt['job']['steps'])):
+                failed = copy.deepcopy(receipt)
+                failed['job']['steps'][index]['conclusion'] = 'failure'
+                with self.subTest(conclusion=conclusion, step=index), self.assertRaises(runtime.Rejected):
+                    runtime.api_identity(failed, self.selected, self.env)
 
     def download(self):
         self.write_receipt('before')

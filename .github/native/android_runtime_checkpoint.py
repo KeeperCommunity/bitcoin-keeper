@@ -196,6 +196,7 @@ def api_identity(receipt, selected, env):
     require(job['name'] == JOB_NAME and job['status'] == 'completed' and job['conclusion'] in ('success', 'failure'))
     require(type(job['steps']) is list and len(job['steps']) <= 100)
     for name in ('Verify current diagnostic source', 'Build development app',
+                 'Record official private Android checkpoint origin',
                  'Prepare exact private Android build checkpoint', 'Upload private Android build checkpoint'):
         matches = [row for row in job['steps'] if row['name'] == name]
         require(len(matches) == 1 and matches[0]['status'] == 'completed' and matches[0]['conclusion'] == 'success')

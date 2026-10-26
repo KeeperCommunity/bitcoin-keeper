@@ -59,6 +59,10 @@ jobs:
         run: python3 .github/native/ios_retained_runtime.py prepare
       - name: Restore exact app and reproduce diagnostic empty-entitlement signature
         run: python3 .github/native/ios_retained_runtime.py restore
+      - name: Diagnose actual native Keychain across three direct process launches
+        # Separate diagnostic only; cannot satisfy startup/UI or native_keychain gates.
+        continue-on-error: true
+        run: python3 .github/native/ios_retained_runtime.py direct_keychain
       - name: Run actual app startup and disposable PIN transition
         run: python3 .github/native/ios_retained_runtime.py startup
       - name: Test actual disposable Keychain write reopen update and deletion

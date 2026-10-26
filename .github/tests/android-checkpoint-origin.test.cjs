@@ -38,6 +38,12 @@ function fixture(t, mode = 'checkpoint') {
     status: mode === 'checkpoint' ? 'in_progress' : 'completed', conclusion: mode === 'checkpoint' ? null : 'failure',
     steps: ['Build development app', 'Verify current diagnostic source'].map(name => ({ name, status: 'completed', conclusion: 'success' })) };
   const jobs = { total_count: 1, jobs: [job] };
+  if (mode !== 'checkpoint') {
+    for (const name of ['Record official private Android checkpoint origin',
+      'Prepare exact private Android build checkpoint', 'Upload private Android build checkpoint']) {
+      job.steps.push({ name, status: 'completed', conclusion: 'success' });
+    }
+  }
   const artifact = { id: 999, name: 'synthetic-checkpoint', size_in_bytes: 123, digest: 'sha256:' + 'd'.repeat(64),
     expired: false, workflow_run: { id: run.id, head_sha: source } };
   const calls = [];
@@ -86,6 +92,23 @@ const rejected = {
   'ambiguous matching job': f => { f.jobs.jobs.push({ ...f.job }); f.jobs.total_count += 1; },
   'truncated job list': f => { f.jobs.total_count = 101; },
 };
+
+for (const conclusion of ['success', 'failure']) {
+  test(`runtime admission preserves ${conclusion} producer while requiring successful checkpoint steps`, async t => {
+    const f = fixture(t, 'before');
+    f.job.conclusion = conclusion;
+    await f.call();
+    const receipt = JSON.parse(fs.readFileSync(f.output(), 'utf8'));
+    assert.equal(receipt.job.conclusion, conclusion);
+    for (const name of ['Record official private Android checkpoint origin',
+      'Prepare exact private Android build checkpoint', 'Upload private Android build checkpoint']) {
+      const row = f.job.steps.find(x => x.name === name);
+      row.conclusion = 'failure';
+      await assert.rejects(f.call(), /provenance rejected/);
+      row.conclusion = 'success';
+    }
+  });
+}
 for (const [name, mutate] of Object.entries(rejected)) {
   test(`checkpoint rejects ${name} without writing provenance`, async t => {
     const f = fixture(t); mutate(f);

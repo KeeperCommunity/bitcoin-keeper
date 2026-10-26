@@ -62,6 +62,11 @@ module.exports = async function ({ github, context }) {
     fs.writeFileSync(path.join(env.RUNNER_TEMP, 'keeper-android-checkpoint-origin.json'), JSON.stringify(result) + '\n', { mode: 0o600, flag: 'wx' });
   } else {
     assert(job.status === 'completed' && ['success', 'failure'].includes(job.conclusion));
+    for (const name of ['Record official private Android checkpoint origin',
+      'Prepare exact private Android build checkpoint', 'Upload private Android build checkpoint']) {
+      const matches = job.steps.filter(x => x.name === name);
+      assert(matches.length === 1 && matches[0].status === 'completed' && matches[0].conclusion === 'success');
+    }
     const { data: artifact } = await github.rest.actions.getArtifact({ ...context.repo, artifact_id: selection.artifact_id });
     const result = { schema: 1, observed_unix_seconds: Math.floor(Date.now() / 1000),
       current_pr: { head: { sha: pr.head.sha, repo: { id: pr.head.repo.id } }, merge_commit_sha: pr.merge_commit_sha,

@@ -309,15 +309,34 @@ def private_compiler_text(raw):
     return text.encode()[-65536:].decode(errors='ignore')
 
 
-def retain_build_failure(native, data, output):
+def xcode_simulator_build_command(native):
+    """Exact private fresh-build command; ad-hoc simulator only, no account access."""
+    return ['xcodebuild', '-workspace', 'ios/hexa_keeper.xcworkspace', '-scheme', 'hexa_keeper_dev',
+        '-configuration', 'Debug', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
+        '-derivedDataPath', str(native.PRIVATE / 'DerivedData'), 'CODE_SIGNING_ALLOWED=YES',
+        'CODE_SIGN_IDENTITY=-', 'CODE_SIGN_LOCAL_EXECUTION_IDENTITY=Ad Hoc', 'CODE_SIGN_STYLE=Manual',
+        'DEVELOPMENT_TEAM=', 'PROVISIONING_PROFILE=', 'PROVISIONING_PROFILE_SPECIFIER=',
+        'ARCHS=arm64', 'ONLY_ACTIVE_ARCH=YES', 'build']
+
+
+def retain_build_failure(native, data, output, profile='legacy_unsigned'):
     """Private compiler evidence only; never retry or change the build result."""
     architecture = data.get('toolchain', {}).get('ios_simulator_architecture')
     expected = ['xcodebuild', '-workspace', 'ios/hexa_keeper.xcworkspace', '-scheme', 'hexa_keeper_dev',
         '-configuration', 'Debug', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
         '-derivedDataPath', str(native.PRIVATE / 'DerivedData'), 'CODE_SIGNING_ALLOWED=NO',
         'CODE_SIGNING_REQUIRED=NO', 'ARCHS=' + str(architecture), 'ONLY_ACTIVE_ARCH=YES', 'build']
+    label, timeout = 'Build unsigned development simulator app', None
+    if profile == 'xcode_simulator':
+        if (architecture != 'arm64' or data.get('build') != 'FAIL' or data.get('native_acceptance') is not False or
+                data.get('build_execution_scope') != 'FRESH_PRIVATE_SIMULATOR_BUILD_CURRENT_CONTROLLER_NO_RELEASE_ACCEPTANCE'):
+            return
+        expected, label, timeout = xcode_simulator_build_command(native), 'Build Xcode-signed development simulator app', 2400
+    elif profile != 'legacy_unsigned':
+        raise ValueError('Unknown private compiler evidence profile.')
     selected = [(index, row) for index, row in enumerate(data.get('commands', []), 1)
-        if row.get('command') == expected and row.get('label') == 'Build unsigned development simulator app'
+        if row.get('command') == expected and row.get('label') == label and
+        (timeout is None or type(row.get('timeout_seconds')) is int and row['timeout_seconds'] == timeout)
         and type(row.get('exit_code')) is int and row['exit_code'] != 0]
     if architecture not in ('arm64', 'x86_64') or len(selected) != 1:
         return

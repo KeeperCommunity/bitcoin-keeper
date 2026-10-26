@@ -5,8 +5,10 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import stat
 import subprocess
+import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,7 +21,8 @@ MAX_META = 1024 * 1024
 SCOPE = 'EXACT_RETAINED_ANDROID_RUNTIME_OBSERVATION_NOT_NATIVE_ACCEPTANCE'
 POLICIES = ('product_measurements.py', 'product_failure_diagnosis.py',
     'maestro_failure_snapshot.py', 'maestro_skip_tap.py',
-    'android_startup_diagnosis.py', 'startup_diagnosis.py')
+    'android_startup_diagnosis.py', 'startup_diagnosis.py',
+    'onboarding_failure_receipts.py', 'startup_boundary_receipts.py', 'startup_failure_receipts.py')
 GATES = ('build', 'smoke', 'native_keychain', 'native_probe', 'r5_features', 'hardware', 'signing')
 
 
@@ -89,10 +92,8 @@ def decode(raw, expected_sha=ZIP_SHA, expected_size=ZIP_SIZE):
     return value
 
 
-def summary(value, allowed):
+def terminal_summary(value, allowed):
     result = {'schema': 1, 'scope': SCOPE, 'native_acceptance': False,
-        'app_source': SOURCE, 'runtime_controller': CONTROLLER, 'run': RUN, 'job': JOB,
-        'artifact': ARTIFACT, 'archive_sha256': ZIP_SHA,
         'phase_results': {key: value.get(key) if value.get(key) in ('PASS', 'FAIL', 'NOT RUN') else 'UNKNOWN' for key in GATES},
         'case_counts': {key: value[key] for key in ('smoke_test_cases', 'native_probe_test_cases', 'r5_features_test_cases')
                         if type(value.get(key)) is int and 0 <= value[key] <= 4096}}
@@ -103,6 +104,37 @@ def summary(value, allowed):
     result['product_status'] = product.get('status') if product.get('status') in ('PASS', 'FAIL', 'NOT RUN') else 'UNKNOWN'
     result['product_samples'] = [project(row, allowed) for row in samples]
     return result
+
+
+def summary(value, allowed):
+    result = terminal_summary(value, allowed)
+    result.update(app_source=SOURCE, runtime_controller=CONTROLLER, run=RUN, job=JOB,
+        artifact=ARTIFACT, archive_sha256=ZIP_SHA)
+    return result
+
+
+def emit_terminal():
+    require(all(os.environ.get(key) == value for key, value in {
+        'GITHUB_ACTIONS': 'true', 'GITHUB_REPOSITORY_ID': '839671816',
+        'KEEPER_NATIVE_PLATFORM': 'ANDROID', 'KEEPER_DIAGNOSTIC': 'true', 'GITHUB_RUN_ATTEMPT': '1',
+    }.items()))
+    source = os.environ.get('KEEPER_SOURCE_SHA', '')
+    controller = os.environ.get('KEEPER_CONTROLLER_SHA', source)
+    run = os.environ.get('GITHUB_RUN_ID', '')
+    require(re.fullmatch('[0-9a-f]{40}', source) and re.fullmatch('[0-9a-f]{40}', controller) and
+        re.fullmatch('[1-9][0-9]{0,15}', run) and int(run) < 2 ** 53)
+    path = ROOT / 'artifacts/native/android/metadata.json'
+    info = path.lstat()
+    require(stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and 0 < info.st_size <= MAX_META)
+    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), 'rb') as stream:
+        value = strict(stream.read(MAX_META + 1))
+    require(type(value.get('schema')) is int and value['schema'] == 1 and
+        value.get('source_sha') == source and value.get('run_id') == run and value.get('run_attempt') == '1' and
+        value.get('platform') == 'ANDROID' and value.get('diagnostic_only') is True)
+    result = terminal_summary(value, vocabulary())
+    result.update(scope='CURRENT_PRIVATE_ANDROID_TERMINAL_OBSERVATIONS_NOT_NATIVE_ACCEPTANCE',
+        app_source=source, runtime_controller=controller, run=int(run))
+    print('KEEPER_PRIVATE_ANDROID_TERMINAL ' + json.dumps(result, sort_keys=True), flush=True)
 
 
 def main():
@@ -127,4 +159,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if sys.argv[1:] == ['terminal']:
+        emit_terminal()
+    else:
+        require(not sys.argv[1:])
+        main()

@@ -219,8 +219,12 @@ def run_suite(native, suite):
     # only to the byte-verified original build; it is never exported as a new build.
     data['build'] = 'PASS'
     native.save(data)
+    original_command = native.command if suite == 'startup' else None
     try:
         if suite == 'startup':
+            driver = module('ios_retained_driver_observation')
+            native.command = lambda args, label, **kwargs: driver.observe(
+                native, original_command, args, label, **kwargs)
             native.smoke(debug_session=module('ios_launch_debug').Session(native))
         else:
             native.smoke(suite)
@@ -230,6 +234,8 @@ def run_suite(native, suite):
         native.save(data)
         raise
     finally:
+        if original_command is not None:
+            native.command = original_command
         qualify(native)
 
 
@@ -250,6 +256,11 @@ def retain(native):
             shutil.copyfile(source, output / name)
             (output / name).chmod(0o600)
     print('KEEPER_RETAINED_RUNTIME_SUMMARY=' + json.dumps(project_summary(native), sort_keys=True))
+    if native.EVIDENCE.is_file():
+        data = native.read()
+        for key in ('retained_live_driver_observation', 'direct_keychain_diagnostic'):
+            if key in data:
+                print('KEEPER_RETAINED_DIAGNOSTIC=' + json.dumps({key: data[key]}, sort_keys=True))
 
 
 def project_summary(native):
@@ -281,6 +292,7 @@ def project_summary(native):
         'dependencies': status(data.get('retained_runtime_dependencies')),
         'restore': status(data.get('retained_runtime_restore')), 'startup': status(data.get('smoke')),
         'native_keychain': status(data.get('native_keychain')),
+        'direct_keychain_diagnostic': status(data.get('direct_keychain_diagnostic', {}).get('status')),
         'keychain_stage': keychain.get('stage') if keychain.get('stage') in ('seeded', 'updated', 'pass', 'failed', 'unavailable') else 'UNKNOWN',
         'keychain_failure': keychain.get('failure_code') if keychain.get('failure_code') in
             (*module('keychain_evidence').CODES, 'RECEIPT_UNAVAILABLE') else None,
@@ -328,6 +340,14 @@ def main(phase):
             native.save(data)
         elif phase == 'restore':
             restore_app(native)
+        elif phase == 'direct_keychain':
+            data = require_state(native)
+            require_worktree(native)
+            if (data.get('retained_runtime_restore') != 'PASS' or data.get('reused_original_build') != 'PASS' or
+                    data.get('retained_runtime_policy_proof') != require_policy() or
+                    native.artifact_identity() != data.get('built_artifact')):
+                raise RuntimeError('EXACT_RESTORED_APP_REQUIRED')
+            module('ios_keychain_direct').run(native)
         elif phase in ('startup', 'keychain', 'probe', 'features'):
             run_suite(native, phase)
         else:

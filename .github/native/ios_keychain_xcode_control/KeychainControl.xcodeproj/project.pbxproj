@@ -1,0 +1,28 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1; classes = {}; objectVersion = 56;
+ objects = {
+  A00000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 1640; TargetAttributes = {A00000000000000000000014 = {TestTargetID = A00000000000000000000004;};};}; buildConfigurationList = A00000000000000000000010; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = A00000000000000000000002; productRefGroup = A00000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (A00000000000000000000004, A00000000000000000000014);};
+  A00000000000000000000002 = {isa = PBXGroup; children = (A00000000000000000000005, A00000000000000000000015, A00000000000000000000003); sourceTree = "<group>";};
+  A00000000000000000000003 = {isa = PBXGroup; children = (A00000000000000000000006, A00000000000000000000016); name = Products; sourceTree = "<group>";};
+  A00000000000000000000004 = {isa = PBXNativeTarget; buildConfigurationList = A00000000000000000000011; buildPhases = (A00000000000000000000007); buildRules = (); dependencies = (); name = KeychainControl; productName = KeychainControl; productReference = A00000000000000000000006; productType = "com.apple.product-type.application";};
+  A00000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>";};
+  A00000000000000000000006 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KeychainControl.app; sourceTree = BUILT_PRODUCTS_DIR;};
+  A00000000000000000000007 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000008); runOnlyForDeploymentPostprocessing = 0;};
+  A00000000000000000000008 = {isa = PBXBuildFile; fileRef = A00000000000000000000005;};
+  A00000000000000000000010 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000012); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+  A00000000000000000000011 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000013); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+  A00000000000000000000012 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_OBJC_ARC = YES; SDKROOT = iphonesimulator; IPHONEOS_DEPLOYMENT_TARGET = 15.1;}; name = Debug;};
+  A00000000000000000000013 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = YES; CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_LOCAL_EXECUTION_IDENTITY = "Ad Hoc"; DEVELOPMENT_TEAM = ""; PROVISIONING_PROFILE_SPECIFIER = ""; PROVISIONING_PROFILE = ""; PRODUCT_BUNDLE_IDENTIFIER = io.hexawallet.hexakeeper.ci.xcode-keychain-control; PRODUCT_NAME = "$(TARGET_NAME)"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; OTHER_LDFLAGS = ("-framework", UIKit, "-framework", Security); TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug;};
+  A00000000000000000000014 = {isa = PBXNativeTarget; buildConfigurationList = A00000000000000000000020; buildPhases = (A00000000000000000000017); buildRules = (); dependencies = (A00000000000000000000018); name = ControlUITests; productName = ControlUITests; productReference = A00000000000000000000016; productType = "com.apple.product-type.bundle.ui-testing";};
+  A00000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ControlUITests.m; sourceTree = "<group>";};
+  A00000000000000000000016 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ControlUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;};
+  A00000000000000000000017 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000019); runOnlyForDeploymentPostprocessing = 0;};
+  A00000000000000000000018 = {isa = PBXTargetDependency; target = A00000000000000000000004; targetProxy = A00000000000000000000022;};
+  A00000000000000000000019 = {isa = PBXBuildFile; fileRef = A00000000000000000000015;};
+  A00000000000000000000020 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000021); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+  A00000000000000000000021 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = YES; CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_LOCAL_EXECUTION_IDENTITY = "Ad Hoc"; DEVELOPMENT_TEAM = ""; PROVISIONING_PROFILE_SPECIFIER = ""; PROVISIONING_PROFILE = ""; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = io.hexawallet.hexakeeper.ci.xcode-keychain-control.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TEST_TARGET_NAME = KeychainControl; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug;};
+  A00000000000000000000022 = {isa = PBXContainerItemProxy; containerPortal = A00000000000000000000001; proxyType = 1; remoteGlobalIDString = A00000000000000000000004; remoteInfo = KeychainControl;};
+ };
+ rootObject = A00000000000000000000001;
+}

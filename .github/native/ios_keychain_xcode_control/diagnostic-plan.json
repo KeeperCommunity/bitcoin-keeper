@@ -1,0 +1,85 @@
+{
+  "build_command": [
+    "xcodebuild",
+    "-project",
+    "<build_project>",
+    "-scheme",
+    "KeychainControl",
+    "-configuration",
+    "Debug",
+    "-sdk",
+    "iphonesimulator",
+    "-destination",
+    "generic/platform=iOS Simulator",
+    "-derivedDataPath",
+    "<owned-private>/DerivedData",
+    "ARCHS=arm64",
+    "ONLY_ACTIVE_ARCH=YES",
+    "build-for-testing"
+  ],
+  "build_project": ".github/native/ios_keychain_xcode_control/KeychainControl.xcodeproj",
+  "combined_candidate": [
+    "Private normal-signing fresh build entrypoint is prepared separately in ios_fresh_runtime.py; old manual signer and empty outer re-sign are bypassed only for this new private path.",
+    "App-input fingerprint is pinned to frozen25440c33 CreatePin fix. Old840-only tree is intentionally not admitted. Publisher must assemble both reviewed deltas and check the fingerprint.",
+    "Actual new controller source/tree/run and new app hashes remain authoritative; no old golden hash, expired artifact, or Keychain result is borrowed."
+  ],
+  "commands_are_templates_only": true,
+  "driver_followup": [
+    "Keep existing pinned Maestro archive and 240000ms startup budget unchanged. Do not infer incompatibility from SDK26.2 alone.",
+    "The pinned runner/test bundle contain arm64 simulator slices with minOS14.0, below selected18.5. Same tuple historical startup PASS is recorded.",
+    "Current failure boundary: app installation/full byte verification precedes Maestro; during ownedxcodebuild, simctl listapps/get_app_container time out while spawn true succeeds.",
+    "Collect bounded pre/during app-service operation status, generated xctestrun target/platform/architecture metadata, and exact owned xcodebuild result-bundle/error categories before any further unchanged Maestro invocation.",
+    "A successful selected-SDK XCTest control does not alone prove a bundled-runner cause; require actual launch/test/dyld evidence before changing driver or SDK."
+  ],
+  "entitlements": "No custom entitlements plist. Inspect actual Xcode-generated signed entitlements and Mach-O __TEXT,__entitlements plus __ents_der; do not manufacture a team/group dictionary.",
+  "execution": "NOT RUN; no paid workflow or dispatch added",
+  "external_access_needed": "NONE established; no credential or certificate operations requested",
+  "identity": "Xcode normal simulator ad-hoc minus identity; no certificate/private key/profile/team selection",
+  "native_acceptance": false,
+  "schema": 1,
+  "scope": "SOURCE_PREPARED_XCODE_SIMULATOR_SIGNING_AND_XCTEST_CONTROLS_NOT_PRODUCT_ACCEPTANCE",
+  "security_control": [
+    "Create and validate fresh owned simulator UUID; boot/readiness; install exact Xcode control app; verify installed full bundle bytes",
+    "Launch control three times with distinct parsed PIDs; read only its fixed Documents/keeper-ci-xcode-keychain-control.json after each launch",
+    "Require seeded then updated then pass, os_status=0 each, fixed control scope, no production/RN acceptance",
+    "Terminate each successful process; shutdown/delete owned simulator even on failure; keep only bounded statuses/hashes"
+  ],
+  "settings_command": [
+    "xcodebuild",
+    "-project",
+    "<build_project>",
+    "-scheme",
+    "KeychainControl",
+    "-configuration",
+    "Debug",
+    "-sdk",
+    "iphonesimulator",
+    "-destination",
+    "generic/platform=iOS Simulator",
+    "-showBuildSettings",
+    "-json"
+  ],
+  "shared_scheme": "KeychainControl",
+  "toolchain": {
+    "architecture": "arm64",
+    "developer_dir": "/Applications/Xcode_16.4.app/Contents/Developer",
+    "sdk": "iphonesimulator18.5",
+    "simulator_device_type": "com.apple.CoreSimulator.SimDeviceType.iPhone-16",
+    "simulator_runtime": "com.apple.CoreSimulator.SimRuntime.iOS-18-5"
+  },
+  "xctest_control_command": [
+    "xcodebuild",
+    "test-without-building",
+    "-xctestrun",
+    "<owned-generated-ControlUITests.xctestrun>",
+    "-destination",
+    "id=<second-fresh-owned-UUID>",
+    "-parallel-testing-enabled",
+    "NO",
+    "-resultBundlePath",
+    "<owned-private>/control.xcresult",
+    "-resultBundleVersion",
+    "3"
+  ],
+  "xctest_control_scope": "Selected-SDK-generated synthetic UI test separates XCTest/CoreSimulator platform readiness from the unchanged precompiled Maestro runner; never app acceptance."
+}

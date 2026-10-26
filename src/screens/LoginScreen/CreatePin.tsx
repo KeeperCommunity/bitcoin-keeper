@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unstable-nested-components */
 import { Box, StatusBar, useColorMode } from '@gluestack-ui/themed-native-base';
 import { StyleSheet } from 'react-native';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   heightPercentageToDP as hp,
   widthPercentageToDP as wp,
@@ -32,6 +32,7 @@ enum PasscodeStages {
 }
 
 export default function CreatePin(props) {
+  const { navigation } = props;
   useEffect(() => {
     observeStartupBoundary('CREATE_PIN_COMMITTED');
   }, []);
@@ -54,6 +55,17 @@ export default function CreatePin(props) {
   const isConfirmComplete = confirmPin.length === 4;
   const isPinMatch = isConfirmComplete && createPin === confirmPin;
   const [enableBiometric, setEnableBiometric] = useState(false);
+  const onboardingAfterBiometricHide = useRef(false);
+
+  useEffect(() => () => {
+    onboardingAfterBiometricHide.current = false;
+  }, []);
+
+  const onBiometricModalHide = useCallback(() => {
+    if (!onboardingAfterBiometricHide.current) return;
+    onboardingAfterBiometricHide.current = false;
+    navigation.replace('OnBoardingSlides');
+  }, [navigation]);
 
   const { loginMethod }: { loginMethod: LoginMethod } = useAppSelector((state) => state.settings);
   const { allAccounts } = useAppSelector((state) => state.account);
@@ -294,9 +306,11 @@ export default function CreatePin(props) {
           onChangeLoginMethod();
         }}
         secondaryCallback={() => {
-          props.navigation.replace('OnBoardingSlides');
+          if (onboardingAfterBiometricHide.current) return;
+          onboardingAfterBiometricHide.current = true;
           setEnableBiometric(false);
         }}
+        onModalHide={onBiometricModalHide}
         Content={BiometricContent}
       />
     </Box>

@@ -29,10 +29,12 @@ class PrivateLaunchDebug(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
 
-    def failed_compiler(self, folder):
+    def failed_compiler(self, folder, profile='legacy_unsigned'):
         native=debug.load_native();native.ROOT=folder;native.PRIVATE=folder/'private'
         native.PRIVATE.mkdir(parents=True);native.EVIDENCE=folder/'metadata.json';native.PLATFORM='IOS'
-        native.save({'commands':[],'build':'NOT RUN','smoke':'NOT RUN','toolchain':{}})
+        native.save({'commands':[],'build':'NOT RUN','smoke':'NOT RUN','toolchain':{},
+            'native_acceptance':False,
+            'build_execution_scope':'FRESH_PRIVATE_SIMULATOR_BUILD_CURRENT_CONTROLLER_NO_RELEASE_ACCEPTANCE'})
         popen=subprocess.Popen
         def compiler(args,**options):
             self.assertEqual(args[0],'xcodebuild')
@@ -40,9 +42,46 @@ class PrivateLaunchDebug(unittest.TestCase):
         with mock.patch.object(native.platform,'machine',return_value='arm64'),mock.patch.object(
                 native.shutil,'disk_usage',return_value=SimpleNamespace(free=32*1024**3)),mock.patch.object(
                 native.subprocess,'Popen',side_effect=compiler):
-            with self.assertRaises(RuntimeError):native.build()
+            with self.assertRaises(RuntimeError):
+                if profile == 'xcode_simulator':
+                    data=native.read();data['toolchain']['ios_simulator_architecture']='arm64';native.save(data)
+                    native.command(debug.xcode_simulator_build_command(native),
+                        'Build Xcode-signed development simulator app',timeout=2400)
+                else:
+                    native.build()
         data=native.read();data['build']='FAIL';native.save(data)
         return native
+
+    def test_actual_new_xcode_command_failure_retains_owned_redacted_tail_without_pass(self):
+        native=self.failed_compiler(self.root,profile='xcode_simulator')
+        output=self.root/'fresh-output';output.mkdir()
+        with (native.PRIVATE/'command-001.log').open('ab') as target:
+            target.write(b'\nAUTH_TOKEN=PRIVATE_SENTINEL\nclang: error: new xcode controlled reason\n')
+        original=native.EVIDENCE.read_bytes()
+        with mock.patch.object(debug.subprocess,'check_output',return_value=str(16*1024**3)):
+            debug.retain_build_failure(native,native.read(),output,profile='xcode_simulator')
+        summary=json.loads((output/'summary.json').read_text())
+        self.assertIn('new xcode controlled reason',summary['compiler_tail'])
+        self.assertNotIn('PRIVATE_SENTINEL',summary['compiler_tail'])
+        self.assertEqual(summary['command']['label'],'Build Xcode-signed development simulator app')
+        self.assertEqual(summary['command']['timeout_seconds'],2400)
+        self.assertFalse(summary['native_acceptance'])
+        self.assertEqual(native.EVIDENCE.read_bytes(),original)
+        self.assertEqual(native.read()['build'],'FAIL')
+
+    def test_new_compiler_profile_rejects_wrong_mode_label_argv_or_deadline(self):
+        native=self.failed_compiler(self.root,profile='xcode_simulator');original=native.read()
+        import copy
+        for index,change in enumerate(('scope','label','argv','deadline','acceptance')):
+            data=copy.deepcopy(original)
+            if change=='scope':data['build_execution_scope']='REUSED_APK'
+            elif change=='label':data['commands'][0]['label']='UNRELATED'
+            elif change=='argv':data['commands'][0]['command'].append('-allowProvisioningUpdates')
+            elif change=='deadline':data['commands'][0]['timeout_seconds']=2500
+            else:data['native_acceptance']=True
+            output=self.root/('rejected-%d'%index);output.mkdir()
+            debug.retain_build_failure(native,data,output,profile='xcode_simulator')
+            self.assertFalse((output/'summary.json').exists())
 
     def test_actual_failed_arm_build_retains_late_compiler_cause_and_existing_deadline_only_privately(self):
         native=self.failed_compiler(self.root)

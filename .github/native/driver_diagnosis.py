@@ -201,7 +201,7 @@ def baseline(device):
     return facts
 
 
-def collect(device, metadata=None):
+def collect(device, metadata=None, *, command_label='Check disposable iOS driver readiness', log_directory=None):
     facts = {'scope': 'Before owned simulator cleanup; driver setup only.',
              'collection_errors': [], 'commands': [], 'logs': []}
     metadata = metadata if metadata is not None else native.read()
@@ -259,9 +259,11 @@ def collect(device, metadata=None):
 
     paths = []
     for index, entry in enumerate(metadata['commands'], 1):
-        if entry['label'] == 'Check disposable iOS driver readiness':
+        if entry['label'] == command_label:
             paths.append(('hierarchy-command', native.PRIVATE / ('command-%03d.log' % index)))
-    state = native.PRIVATE / 'maestro-preflight-state' / 'maestro' / 'tests'
+    state = log_directory if log_directory is not None else native.PRIVATE / 'maestro-preflight-state' / 'maestro' / 'tests'
+    if not state.resolve().is_relative_to(native.PRIVATE.resolve()):
+        raise ValueError('Expected private driver logs.')
     for pattern, kind in [('**/maestro.log', 'maestro'), ('**/xctest_runner_*.log', 'xctest')]:
         paths.extend((kind, path) for path in sorted(state.glob(pattern))[:4])
     port = None

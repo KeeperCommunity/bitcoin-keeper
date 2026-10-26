@@ -198,6 +198,9 @@ jobs:
             python3 .github/native/hosted_native.py features
             git diff --exit-code HEAD -- .github/native .github/workflows
             python3 .github/native/product_measurements.py run
+      - name: Project bounded private Android terminal observations
+        if: always() && hashFiles('.github/native/android_runtime_evidence_readout.py') != ''
+        run: python3 .github/native/android_runtime_evidence_readout.py terminal
       - name: Retain source-qualified runtime diagnostic metadata
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

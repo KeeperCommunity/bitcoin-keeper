@@ -42,6 +42,7 @@ jobs:
       MAESTRO_CLI_NO_ANALYTICS: '1'
       KEEPER_DIAGNOSTIC: ${{ inputs.diagnostic }}
       KEEPER_DEPENDENCIES_ONLY: ${{ inputs.prepare_only }}
+      KEEPER_ANDROID_CHECKPOINT_ONLY: ${{ inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id == 839671816 && contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic') && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only') && contains(github.event.pull_request.labels.*.name, 'keeper/android-compile-checkpoint-only') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-diagnostic-only') && !contains(github.event.pull_request.labels.*.name, 'keeper/ios-dependencies-only') }}
     steps:
       - name: Check out exact app source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -59,6 +60,16 @@ jobs:
             const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
             if (pr.head.sha !== process.env.EXPECTED_SOURCE || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` || !pr.labels.some(label => label.name === 'keeper/native-diagnostic')) {
               core.setFailed('Diagnostic source moved or opt-in removed; no native credit');
+            }
+            const privateAndroid = '${{ inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id == 839671816 }}' === 'true';
+            if (privateAndroid && ((process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true') !== pr.labels.some(label => label.name === 'keeper/android-compile-checkpoint-only'))) {
+              core.setFailed('Private compile-only mode changed; no native credit');
+            }
+            if (process.env.KEEPER_ANDROID_CHECKPOINT_ONLY === 'true' &&
+                (!pr.labels.some(label => label.name === 'keeper/android-compile-checkpoint-only') ||
+                 !pr.labels.some(label => label.name === 'keeper/android-diagnostic-only') ||
+                 pr.labels.some(label => ['keeper/ios-diagnostic-only', 'keeper/ios-dependencies-only'].includes(label.name)))) {
+              core.setFailed('Private compile-checkpoint-only selection moved; no native credit');
             }
             if ((process.env.PREPARE_ONLY === 'true') !== pr.labels.some(label => label.name === 'keeper/ios-dependencies-only')) {
               core.setFailed('Dependency-only selection changed; no native credit');
@@ -125,6 +136,7 @@ jobs:
         if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
         run: python3 .github/native/android_apk_checkpoint.py
       - name: Upload private Android build checkpoint
+        id: android_checkpoint
         if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -132,6 +144,12 @@ jobs:
           path: artifacts/private-android-checkpoint/
           if-no-files-found: error
           retention-days: 1
+      - name: Finalize explicit private Android compile-only outcome
+        if: env.KEEPER_ANDROID_CHECKPOINT_ONLY == 'true'
+        env:
+          KEEPER_CHECKPOINT_ARTIFACT_ID: ${{ steps.android_checkpoint.outputs.artifact-id }}
+          KEEPER_CHECKPOINT_ARTIFACT_DIGEST: ${{ steps.android_checkpoint.outputs.artifact-digest }}
+        run: python3 .github/native/android_compile_checkpoint_only.py
       - name: Run disposable startup smoke
         if: inputs.platform == 'IOS' && !inputs.prepare_only
         run: |
@@ -157,13 +175,13 @@ jobs:
           git diff --exit-code HEAD -- .github/native .github/workflows
           python3 .github/native/product_measurements.py run
       - name: Enable emulator acceleration
-        if: inputs.platform == 'ANDROID' && !inputs.prepare_only
+        if: inputs.platform == 'ANDROID' && !inputs.prepare_only && env.KEEPER_ANDROID_CHECKPOINT_ONLY != 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-keeper-kvm.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Run Android startup and native persistence probes
-        if: inputs.platform == 'ANDROID' && !inputs.prepare_only
+        if: inputs.platform == 'ANDROID' && !inputs.prepare_only && env.KEEPER_ANDROID_CHECKPOINT_ONLY != 'true'
         uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
         with:
           api-level: 35
@@ -186,6 +204,9 @@ jobs:
             python3 .github/native/hosted_native.py features
             git diff --exit-code HEAD -- .github/native .github/workflows
             python3 .github/native/product_measurements.py run
+      - name: Project bounded private Android terminal observations
+        if: always() && inputs.platform == 'ANDROID' && inputs.diagnostic && github.repository_id == '839671816' && github.event.repository.private == true
+        run: python3 .github/native/android_runtime_evidence_readout.py terminal
       - name: Retain safe Phase A evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
