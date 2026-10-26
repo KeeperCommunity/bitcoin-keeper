@@ -167,7 +167,41 @@ def metadata():
         'scope': 'REUSED_SIMULATOR_APP_OS_SIGNATURE_COMPARISON_NO_COMPILE_METRO_UI_OR_RELEASE_ACCEPTANCE'}
 
 
+def entitlement_policy(name):
+    policy = dict(module('simulator_signing').ENTITLEMENTS)
+    if name == 'without_team_identifier':
+        del policy['com.apple.developer.team-identifier']
+    elif name not in ('original', 'complete_nested'):
+        raise ValueError('Unknown simulator entitlement comparison.')
+    return policy
+
+
+def resign_outer_for_comparison(native, policy):
+    """One diagnostic-only delta on an already validated development simulator app."""
+    expected = entitlement_policy('without_team_identifier')
+    if policy != expected:
+        raise ValueError('Only the reviewed one-key simulator entitlement delta is allowed.')
+    data = native.read()
+    data['toolchain']['ios_simulator_signature'].update(verified=False,
+        entitlement_policy='DIAGNOSTIC_REMOVE_ONLY_SYNTHETIC_TEAM_IDENTIFIER_PENDING')
+    native.save(data)
+    app = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
+    entitlements = native.PRIVATE / 'comparison-debug.entitlements'
+    with entitlements.open('xb') as target:
+        target.write(plistlib.dumps(policy, sort_keys=True))
+    entitlements.chmod(0o600)
+    try:
+        native.command(['codesign', '--force', '--sign', '-', '--timestamp=none', '--entitlements',
+            str(entitlements), '--generate-entitlement-der', str(app)],
+            'Apply one-key simulator entitlement comparison', error_details=False)
+        native.command(['codesign', '--verify', '--deep', '--strict', str(app)],
+            'Verify one-key simulator signature comparison', error_details=False)
+    finally:
+        entitlements.unlink()
+
+
 def compare_variant(name, base, output, input_zip, debug, observer):
+    policy = entitlement_policy(name)
     native = debug.load_native()
     native.PRIVATE = base / name
     native.PRIVATE.mkdir(mode=0o700)
@@ -179,8 +213,10 @@ def compare_variant(name, base, output, input_zip, debug, observer):
     try:
         restore(native, input_zip)
         result['phase'] = 'STATIC_SIGNATURE'
-        if name == 'complete_nested':
+        if name in ('complete_nested', 'without_team_identifier'):
             native.sign_simulator_app()
+            if name == 'without_team_identifier':
+                resign_outer_for_comparison(native, policy)
         else:
             app = native.PRIVATE / 'DerivedData/Build/Products/Debug-iphonesimulator/hexa_keeper_dev.app'
             native.command(['codesign', '--verify', '--deep', '--strict', str(app)],
@@ -192,11 +228,20 @@ def compare_variant(name, base, output, input_zip, debug, observer):
         if start < 0 or end < start:
             raise ValueError('Comparison entitlements unavailable.')
         entitlements = plistlib.loads(effective[start:end + len('</plist>')].encode())
-        if entitlements != module('simulator_signing').ENTITLEMENTS:
+        if entitlements != policy:
             raise ValueError('Comparison entitlement policy changed.')
         result['static_signature_verified'] = True
         result['effective_entitlements_sha256'] = hashlib.sha256(
             plistlib.dumps(entitlements, sort_keys=True)).hexdigest()
+        result['entitlement_keys'] = sorted(entitlements)
+        if name == 'without_team_identifier':
+            data = native.read()
+            data['toolchain']['ios_simulator_signature'].update(
+                verified=True,
+                entitlements_sha256=result['effective_entitlements_sha256'],
+                entitlement_policy='DIAGNOSTIC_REMOVE_ONLY_SYNTHETIC_TEAM_IDENTIFIER',
+                keychain_behavior='NOT_TESTED')
+            native.save(data)
         data = native.read()
         data['built_artifact'] = native.artifact_identity()
         native.save(data)
@@ -315,12 +360,14 @@ def main():
     try:
         input_zip = Path(os.environ['RUNNER_TEMP']) / 'keeper-original-ios-app.zip'
         observer = module('ios_direct_launch_observation')
-        for name in ('original', 'complete_nested'):
+        for name in ('complete_nested', 'without_team_identifier'):
             variants.append(compare_variant(name, base, output, input_zip, debug, observer))
     finally:
         debug.write_json(output / 'summary.json', {'state': 'SIGNATURE_COMPARISON_ONLY',
             'original_build': result['original_build'], 'variants': variants,
-            'entitlement_policy': 'UNCHANGED_EXISTING_SIMULATOR_POLICY', 'native_acceptance': False,
+            'entitlement_policy': 'FULL_POLICY_CONTROL_VS_REMOVE_ONLY_SYNTHETIC_TEAM_IDENTIFIER',
+            'prior_comparison_run': 40278968972, 'prior_full_policy_variants': 'BOTH_CODESIGNING_REJECTED',
+            'native_acceptance': False,
             'original_ddcd_smoke': 'FAIL_PRESERVED', 'metro_ui_keychain_and_r5': 'NOT_RUN'})
     if len(variants) != 2 or any(not value['observation_complete'] or value['cleanup_errors'] for value in variants):
         raise RuntimeError('Signature comparison was incomplete; inspect per-variant phase and outcome.')

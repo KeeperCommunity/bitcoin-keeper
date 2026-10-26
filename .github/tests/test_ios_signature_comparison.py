@@ -51,7 +51,7 @@ class ComparisonTest(unittest.TestCase):
             if label == fail:
                 raise RuntimeError('PRIVATE_REASON')
             if args[:2] == ['codesign', '--display']:
-                return plistlib.dumps(comparison.module('simulator_signing').ENTITLEMENTS).decode()
+                return plistlib.dumps(comparison.entitlement_policy(name)).decode()
             if args[:3] == ['xcrun', 'simctl', 'create']:
                 return DEVICE
             if args[:3] == ['xcrun', 'simctl', 'launch']:
@@ -64,7 +64,11 @@ class ComparisonTest(unittest.TestCase):
         native.verify_installed_artifact = installed
         native.wait_for_simulator_app_services = lambda device: None
         native.artifact_identity = lambda: {'path': 'private/app', 'executable_sha256': 'a' * 64}
-        native.sign_simulator_app = mock.Mock()
+        def sign():
+            data = native.read()
+            data['toolchain']['ios_simulator_signature'] = {'verified': True, 'embedded_code_count': 3}
+            native.save(data)
+        native.sign_simulator_app = mock.Mock(side_effect=sign)
         class Stream:
             def __init__(self, path, args):
                 path.write_bytes(b'')
@@ -114,6 +118,27 @@ class ComparisonTest(unittest.TestCase):
         result, _, _, _ = self.variant('original', stream_failure=True)
         self.assertFalse(result['observation_complete'])
         self.assertIn('host_stream_drain_failed', result['cleanup_errors'])
+
+    def test_one_key_delta_preserves_app_and_keychain_identity_and_default_policy(self):
+        original = comparison.entitlement_policy('complete_nested')
+        changed = comparison.entitlement_policy('without_team_identifier')
+        self.assertEqual(set(original) - set(changed), {'com.apple.developer.team-identifier'})
+        self.assertEqual(changed, {key: value for key, value in original.items() if key != 'com.apple.developer.team-identifier'})
+        self.assertEqual(comparison.entitlement_policy('complete_nested'), original)
+        result, native, _, _ = self.variant('without_team_identifier')
+        self.assertTrue(result['observation_complete'])
+        self.assertEqual(result['entitlement_keys'], sorted(changed))
+        self.assertEqual(result['static_signature']['entitlements_sha256'], result['effective_entitlements_sha256'])
+        self.assertEqual(result['static_signature']['keychain_behavior'], 'NOT_TESTED')
+        self.assertFalse((native.PRIVATE / 'comparison-debug.entitlements').exists())
+        self.assertFalse(result['native_acceptance'])
+
+    def test_one_key_signing_failure_is_incomplete_and_removes_temporary_entitlements(self):
+        result, native, _, _ = self.variant('without_team_identifier', 'Apply one-key simulator entitlement comparison')
+        self.assertFalse(result['observation_complete'])
+        self.assertEqual(result['phase'], 'STATIC_SIGNATURE')
+        self.assertFalse(result['static_signature']['verified'])
+        self.assertFalse((native.PRIVATE / 'comparison-debug.entitlements').exists())
 
 if __name__ == '__main__':
     unittest.main()
