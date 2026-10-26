@@ -23,6 +23,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 
 jobs:
   native:
@@ -107,6 +108,26 @@ jobs:
           test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
           git diff --exit-code HEAD -- .github/native .github/workflows
           python3 .github/native/hosted_native.py build
+      - name: Record official private Android checkpoint origin
+        if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          KEEPER_ANDROID_ORIGIN_MODE: checkpoint
+        with:
+          script: |
+            const origin = require('./.github/native/android_checkpoint_origin.cjs');
+            await origin({ github, context });
+      - name: Prepare exact private Android build checkpoint
+        if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
+        run: python3 .github/native/android_apk_checkpoint.py
+      - name: Upload private Android build checkpoint
+        if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-android-checkpoint-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-android-checkpoint/
+          if-no-files-found: error
+          retention-days: 1
       - name: Run disposable startup smoke
         if: inputs.platform == 'IOS' && !inputs.prepare_only
         run: |

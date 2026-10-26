@@ -92,6 +92,27 @@ class SimulatorSigningTest(unittest.TestCase):
                 self.info[field] = original
                 self.write_info()
 
+    def test_root_debug_and_preview_libraries_are_signed_before_outer_app(self):
+        paths = [self.app / name for name in ('hexa_keeper_dev.debug.dylib', '__preview.dylib')]
+        for path in paths:
+            path.write_bytes(b'LINKER_SIGNED_FIXTURE')
+        signing.sign(self.native)
+        nested = [row[0] for row in self.calls if row[1] == 'Ad-hoc sign embedded simulator code']
+        self.assertEqual({row[-1] for row in nested}, {str(path) for path in paths})
+        self.assertTrue(all('--entitlements' not in row for row in nested))
+        labels = [row[1] for row in self.calls]
+        self.assertLess(max(i for i, label in enumerate(labels) if label == 'Verify signed embedded simulator code'),
+                        labels.index('Ad-hoc sign development simulator app'))
+        self.assertEqual(self.state['toolchain']['ios_simulator_signature']['embedded_code_count'], 2)
+
+    def test_root_library_alias_rejects_before_signing(self):
+        target = self.private / 'foreign.dylib'
+        target.write_bytes(b'UNTOUCHED')
+        (self.app / '__preview.dylib').symlink_to(target)
+        self.rejected()
+        self.assertEqual(target.read_bytes(), b'UNTOUCHED')
+        self.assertFalse(self.calls)
+
     def test_missing_or_extra_effective_entitlements_fail_closed(self):
         for value in [{}, dict(signing.ENTITLEMENTS, **{'aps-environment': 'production'}),
                       dict(signing.ENTITLEMENTS, **{'keychain-access-groups': ['FOREIGN_APP']})]:

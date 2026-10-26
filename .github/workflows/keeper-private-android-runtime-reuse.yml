@@ -1,0 +1,146 @@
+name: Keeper private Android exact-APK runtime continuation
+on:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+concurrency:
+  group: private-android-runtime-reuse-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  reuse:
+    if: github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && github.event.pull_request.head.repo.id == 839671816 && github.event.label.name == 'keeper/android-runtime-reuse' && !contains(github.event.pull_request.labels.*.name, 'keeper/native-diagnostic')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      HUSKY: '0'
+      KEEPER_CONTROLLER_SHA: ${{ github.event.pull_request.head.sha }}
+      KEEPER_NATIVE_PLATFORM: ANDROID
+      KEEPER_DIAGNOSTIC: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+    steps:
+      - name: Check out exact reviewed private controller
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify current isolated private runtime selection
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { data: repo } = await github.rest.repos.get(context.repo);
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: 73 });
+            if (repo.id !== 839671816 || !repo.private || pr.head.repo.id !== repo.id || pr.head.sha !== process.env.KEEPER_CONTROLLER_SHA || pr.merge_commit_sha !== process.env.GITHUB_SHA || !pr.labels.some(x => x.name === 'keeper/android-runtime-reuse') || pr.labels.some(x => x.name === 'keeper/native-diagnostic')) {
+              core.setFailed('Private runtime continuation source or isolated opt-in moved.');
+            }
+      - name: Stage hash-bound controller and exact original app selection
+        id: selection
+        run: python3 .github/native/android_runtime_checkpoint.py stage
+      - name: Check out exact original APK app source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ steps.selection.outputs.app_source }}
+          persist-credentials: false
+      - name: Verify official original build and exact artifact before download
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          KEEPER_ANDROID_ORIGIN_MODE: before
+        with:
+          script: |
+            const fs = require('node:fs'), crypto = require('node:crypto');
+            const bytes = fs.readFileSync(process.env.RUNNER_TEMP + '/keeper-android-reuse-controller/android_checkpoint_origin.cjs');
+            if (crypto.createHash('sha256').update(bytes).digest('hex') !== process.env.KEEPER_ORIGIN_SHA256) throw new Error('Controller bytes changed.');
+            const module = { exports: {} };
+            new Function('module', 'exports', 'require', bytes.toString('utf8'))(module, module.exports, require);
+            await module.exports({ github, context });
+      - name: Download one exact private checkpoint and purge raw archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-android-reuse-controller/android_runtime_checkpoint.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" download
+      - name: Recheck official identity after archive purge
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          KEEPER_ANDROID_ORIGIN_MODE: after
+        with:
+          script: |
+            const fs = require('node:fs'), crypto = require('node:crypto');
+            const bytes = fs.readFileSync(process.env.RUNNER_TEMP + '/keeper-android-reuse-controller/android_checkpoint_origin.cjs');
+            if (crypto.createHash('sha256').update(bytes).digest('hex') !== process.env.KEEPER_ORIGIN_SHA256) throw new Error('Controller bytes changed.');
+            const module = { exports: {} };
+            new Function('module', 'exports', 'require', bytes.toString('utf8'))(module, module.exports, require);
+            await module.exports({ github, context });
+      - name: Admit original source and artifact without acceptance transfer
+        run: |
+          python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-android-reuse-controller/android_runtime_checkpoint.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" finalize
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.4'
+          cache: yarn
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up pinned Android command-line tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Prepare disposable runtime runner disk with existing budget
+        run: python3 .github/native/android_runner_disk.py
+      - name: Record exact original app source on this runtime host
+        run: python3 .github/native/hosted_native.py record
+      - name: Prepare unchanged immutable app dependencies and driver
+        run: python3 .github/native/hosted_native.py prepare
+      - name: Restore admitted exact original debug APK
+        run: |
+          python3 -c "import hashlib,os,pathlib; p=pathlib.Path(os.environ['RUNNER_TEMP'])/'keeper-android-reuse-controller/android_runtime_checkpoint.py'; b=p.read_bytes(); assert hashlib.sha256(b).hexdigest()==os.environ['KEEPER_HELPER_SHA256']; exec(compile(b,str(p),'exec'),{'__name__':'__main__','__file__':str(p)})" restore
+      - name: Retain pre-emulator source and free-byte admission
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-android-runtime-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/private-android-runtime-admission/
+          if-no-files-found: error
+          retention-days: 1
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-keeper-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run unchanged disposable native app scenarios
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          cores: 2
+          ram-size: 3072M
+          force-avd-creation: true
+          disable-animations: true
+          emulator-boot-timeout: 240
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+          script: |
+            test "$(git rev-parse HEAD)" = "$KEEPER_SOURCE_SHA"
+            git diff --exit-code HEAD -- .github/native .github/workflows
+            python3 .github/native/hosted_native.py smoke
+            git diff --exit-code HEAD -- .github/native .github/workflows
+            python3 .github/native/hosted_native.py probe
+            git diff --exit-code HEAD -- .github/native .github/workflows
+            python3 .github/native/hosted_native.py features
+            git diff --exit-code HEAD -- .github/native .github/workflows
+            python3 .github/native/product_measurements.py run
+      - name: Retain source-qualified runtime diagnostic metadata
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: keeper-private-android-runtime-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/native/android/metadata.json
+          if-no-files-found: warn
+          retention-days: 1

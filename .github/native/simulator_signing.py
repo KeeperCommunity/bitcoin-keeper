@@ -46,6 +46,11 @@ def sign(native):
                     (path.suffix == '.dylib' and not path.is_file())):
                 raise ValueError('Unexpected embedded simulator code.')
             embedded.append(path)
+    # Xcode's Debug loader links root-level .debug.dylib code as well.
+    for path in app.glob('*.dylib'):
+        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(app.resolve()):
+            raise ValueError('Unexpected root simulator code.')
+        embedded.append(path)
     entitlements = native.PRIVATE / 'simulator-debug.entitlements'
     payload = plistlib.dumps(ENTITLEMENTS, sort_keys=True)
     # An exclusive file prevents following an existing private-path alias.
@@ -56,6 +61,8 @@ def sign(native):
         for path in sorted(embedded, key=lambda item: (-len(item.parts), str(item))):
             native.command(['codesign', '--force', '--sign', '-', '--timestamp=none', str(path)],
                            'Ad-hoc sign embedded simulator code', error_details=False)
+            native.command(['codesign', '--verify', '--strict', str(path)],
+                           'Verify signed embedded simulator code', error_details=False)
         native.command(['codesign', '--force', '--sign', '-', '--timestamp=none',
                         '--entitlements', str(entitlements), '--generate-entitlement-der', str(app)],
                        'Ad-hoc sign development simulator app', error_details=False)

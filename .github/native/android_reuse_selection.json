@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "armed": false,
+  "scope": "EXACT_PRIVATE_ANDROID_CHECKPOINT_ONLY_NOT_NATIVE_ACCEPTANCE",
+  "repository_id": 839671816,
+  "source_sha": null,
+  "source_tree": null,
+  "run_id": null,
+  "run_attempt": 1,
+  "job_id": null,
+  "workflow_id": 395790359,
+  "check_suite_id": null,
+  "workflow_sha": null,
+  "workflow_ref": "KeeperCommunity/bitcoin-keeper-private/.github/workflows/keeper-native-diagnostic.yml@refs/pull/73/merge",
+  "artifact_id": null,
+  "archive_sha256": null,
+  "archive_size_bytes": null
+}
