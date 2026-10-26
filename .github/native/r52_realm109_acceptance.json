@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "scope": "ACTUAL_NATIVE_SYNTHETIC_REALM109_TO_110",
+  "status": "SOURCE_PREPARED_NATIVE_NOT_RUN",
+  "command": "python3 .github/native/r52_realm109_native.py",
+  "preconditions": [
+    "Exact private app source on a GitHub-hosted iOS/Android runner; existing record/prepare/driver/build/smoke PASS",
+    "Full app Git history contains historical commit 2b6c3ce56857b5dc92f17cc37453ff308d5a3ae8; no network fetch or alternative schema fallback",
+    "Pinned installed Realm12.15.0 and current production schema110; complete built and installed artifact verification",
+    "No prior Metro listener; generated fixture directory and private result directory do not exist",
+    "Run after ordinary startup/TLS and after any same-app normal UI scenarios; Android disposable diagnostic app state is cleared"
+  ],
+  "provenance": "Frozen manifest SHA256bc46b37001c423f96e8aff5ed3e8b63a3ac261224e5647a1dab13179eb54d4d2 verifies17 raw historical Git blobs and actual109 version;16 static isolated modules preserve50 historical schemas without deriving them from110.",
+  "runtime": "Real native Realm creates and reopens an encrypted109 file, then unchanged production RealmDatabase.initializeDatabase invokes production migrations to110. Eleven cases preserve identities/defaults, selected publicCA across close/reopen, other-port/onion/database isolation, and wrong/omitted-key rejection without reset.",
+  "cleanup": "All native Realm handles close; disposable keys are zeroed; own database directory removed before app receipt; generated source, Metro, owned simulator or Android diagnostic package removed before PASS metadata.",
+  "evidence": "r52_realm109_native in private hosted metadata, exact source/config/provenance, complete ordered11-case app receipt and successful native JUnit. Raw Git blobs are reread before/after execution, including assume-unchanged files; only the original hosted preparation's exact recorded three-field nodeify mapping overlay is admitted. Generated source has an exact17-file inventory with no aliases. Host contracts are never native evidence.",
+  "host_checks": "r52-realm109.test.cjs and test_r52_realm109_native.py verify source preparation and admission. Separate r52-realm109-host-realm.proof.cjs requires a real host Realm12.15.0 binding and does not supply native platform credit.",
+  "not_covered": ["Upgrade from a published old APK/IPA", "Existing real account or funds", "Normal UI trust editing", "Physical devices", "Full R5.2 release acceptance"],
+  "no_release_acceptance": true,
+  "automatic_native_runs_added": false
+}

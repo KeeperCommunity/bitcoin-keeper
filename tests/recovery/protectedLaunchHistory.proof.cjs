@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { runSaga } = require('redux-saga');
 const { test: nodeTest, beforeEach, afterEach, after } = require('node:test');
 const { declarations, evaluate, plain, Realm } = require('./automaticWriteRealmRelay.fixture.cjs');
 const { createProtectedServer, createProtectedRealmClient } = require('./protectedWriteRealmRelay.fixture.cjs');
@@ -64,6 +65,7 @@ function assertOwnNextTuple(previous, next) {
 
 function assertPending(f) {
   assert.equal(f.store.getState().bhr.pendingAllBackupByAppId[f.appId], true);
+  assert.notEqual(f.store.getState().bhr.backupRepairCompletedByAppId[f.appId], true);
   assert.equal(f.automatic.isBackupVerificationCurrent(f.appId), false);
   assert.notEqual(f.store.getState().bhr.backupRepairStateByAppId[f.appId], 'verified');
 }
@@ -410,4 +412,127 @@ test('actual complete upgrade cannot become Verified from corrupted final readba
   assert.equal((await f.read()).snapshot.appImage.version, installedVersion,
     'The backend stores the real committed metadata; only the faulted readback differed');
   await assertConsumedNoReplay(f);
+});
+
+// Preserve the historical whole-1.0.5 combinations, rather than treating the
+// related 2.6.3 history-only or direct receipt-replay cases as equivalent.
+// Original obligations: automaticUpgradeProducer.integration.cjs:3,5,7,9.
+test('whole 1.0.5 upgrade without original authority retains every local migration and performs zero HTTP', async t => {
+  const f = await setup(t, { previousVersion: '1.0.5', migration: true });
+  assert.ok(f.transport.captureBackupWriteIntent(f.appId)?.protectedBase,
+    'Keep a fresh current global baseline available so an illegal late fallback would be observed');
+  assert.equal(await f.upgrade({ originBackupWriteIntent: undefined }), true);
+  assertLocalUpgrade(f, true);
+  assert.equal(f.store.getState().storage.appVersion, installedVersion);
+  assert.equal(f.queueCalls.length, 1);
+  assert.equal(f.queueCalls[0].receipt.committed, true);
+  assert.equal(f.queueCalls[0].receipt.intent, undefined);
+  assert.equal(server.trace.length, 0, 'No original authority permits neither reads, enrollment nor mutations');
+  assertPending(f);
+  const remote = await f.read();
+  assert.equal(remote.snapshot.appImage.version, '1.0.5');
+  assert.equal(await f.image.compareImages(await f.decode(f.initial), await f.decode(remote)), 'matched');
+  assert.equal(Object.keys((await f.decode(remote)).labels).length, 0);
+  assertPending(f);
+});
+
+test('whole 1.0.5 upgrade held at its asynchronous label read rejects A-to-B-to-A before every local migration or HTTP', async t => {
+  const f = await setup(t, { previousVersion: '1.0.5', migration: true });
+  const before = await f.repair.captureBackupImage();
+  const signerBefore = plain(f.dbManager.getCollection(f.RealmSchema.Signer)[0]);
+  const entered = deferred(), release = deferred();
+  let paused = false;
+  const holdActualRead = next => effect => {
+    if (!paused && effect.type === 'CALL' && effect.payload.fn === f.dbManager.getCollection &&
+      effect.payload.args[0] === f.RealmSchema.UTXOInfo) {
+      paused = true;
+      next({ ...effect, payload: { ...effect.payload, fn: async (...args) => {
+        // Only control completion time. The actual production DB method reads
+        // the real encrypted Realm after the originating session has changed.
+        entered.resolve(); await release.promise;
+        return f.dbManager.getCollection(...args);
+      } } });
+    } else next(effect);
+  };
+  const upgrading = runSaga({ getState: f.store.getState, dispatch: f.store.dispatch,
+    effectMiddlewares: [holdActualRead] }, f.sagas.scope.applyUpgradeSequence, {
+    previousVersion: '1.0.5', newVersion: installedVersion, ...f.origin,
+  }).toPromise();
+  let primaryFailure;
+  try {
+    await boundedArrival(entered.promise);
+    assert.equal(paused, true, 'The exact pre-commit UTXO label-read checkpoint must be reached');
+    assert.equal(f.dbManager.getObjectById(f.RealmSchema.KeeperApp, f.appId).version, '1.0.5');
+    assert.equal(f.queueCalls.length, 0);
+    await f.selectAccount(otherAppId);
+    await f.selectAccount(f.appId);
+    assert.notEqual(f.transport.currentBackupAccountSession(), f.origin.originBackupAccountSession);
+  } catch (error) { primaryFailure = error; throw error; }
+  finally {
+    release.resolve();
+    try { await upgrading; }
+    catch (error) {
+      if (!primaryFailure) throw error;
+      t.diagnostic('Owned upgrade also failed while draining after the primary assertion');
+    }
+  }
+  assert.equal(await upgrading, false);
+  assert.equal(f.selected(), f.appId);
+  assert.equal(f.dbManager.getObjectById(f.RealmSchema.KeeperApp, f.appId).version, '1.0.5');
+  assert.equal(f.dbManager.getCollection(f.RealmSchema.VersionHistory).length, 0);
+  assert.equal(f.dbManager.getCollection(f.RealmSchema.Tags).length, 0);
+  assert.deepEqual(plain(f.dbManager.getCollection(f.RealmSchema.Signer)[0]), signerBefore);
+  assert.equal(await f.image.compareImages(before, await f.repair.captureBackupImage()), 'matched');
+  assert.equal(f.store.getState().storage.appVersion, f.previousVersion);
+  assert.equal(f.queueCalls.length, 0);
+  assert.equal(f.topics.length, 0);
+  assert.equal(server.trace.length, 0, 'The early session guard must run before any network access');
+  assert.equal((await f.read()).snapshot.appImage.version, '1.0.5');
+});
+
+test('whole 1.0.5 upgrade with its first real CAS ACK lost preserves all migrations pending without later fanout or replay', async t => {
+  const f = await setup(t, { previousVersion: '1.0.5', migration: true });
+  server.armFault({ path: '/backup/v3/mutate', operation: 'updateAppImage', mode: 'lost-reply' });
+  assert.equal(await f.upgrade(), true);
+  assertLocalUpgrade(f, true);
+  assert.equal(f.store.getState().storage.appVersion, installedVersion);
+  assert.deepEqual(writes().map(event => event.operation), ['updateAppImage']);
+  assert.equal(writes()[0].committed, true, 'Drop only the reply to an actual signed-v3 committed mutation');
+  const original = f.origin.originBackupWriteIntent.protectedBase;
+  assert.equal(writes()[0].expectedRevision, original.revision);
+  assert.equal(writes()[0].expectedGeneration, original.generation);
+  assert.equal(writes()[0].authEpoch, original.authEpoch);
+  assertPending(f);
+  const remote = await f.read();
+  assert.equal(remote.snapshot.appImage.version, installedVersion);
+  assert.equal(remote.snapshot.revision, writes()[0].serverRevision);
+  assert.equal(remote.snapshot.generation, original.generation + 1);
+  const image = await f.decode(remote);
+  assert.equal(Object.keys(image.labels).length, 0, 'Lost ACK must withhold both vault members and the label member');
+  assert.notEqual(await f.image.compareImages(await f.repair.captureBackupImage(), image), 'matched');
+  assertPending(f);
+  await assertConsumedNoReplay(f);
+});
+
+test('whole 1.0.5 actual upgrade producer invoked twice with its consumed original baseline sends no second HTTP and preserves one migration group', async t => {
+  const f = await setup(t, { previousVersion: '1.0.5', migration: true });
+  assert.equal(await f.upgrade(), true);
+  assertLocalUpgrade(f, true);
+  await assertConfirmed(f, 4);
+  const before = await f.repair.captureBackupImage();
+  const stateBefore = localUpgradeState(f);
+  const signerBefore = plain(f.dbManager.getCollection(f.RealmSchema.Signer)[0]);
+  server.clearTrace();
+  // Invoke the unchanged whole producer again, with exactly the old original
+  // session and intent. Calling the queue directly is a different obligation.
+  assert.equal(await f.upgrade(), true);
+  assert.equal(f.queueCalls.length, 2);
+  assert.equal(f.queueCalls[1].receipt.committed, true);
+  assert.equal(f.queueCalls[1].receipt.intent, undefined);
+  assert.equal(server.trace.length, 0, 'The second producer may not read, enroll, rebase, repair or mutate');
+  assertLocalUpgrade(f, true);
+  assert.deepEqual(localUpgradeState(f), stateBefore);
+  assert.deepEqual(plain(f.dbManager.getCollection(f.RealmSchema.Signer)[0]), signerBefore);
+  assert.equal(await f.image.compareImages(before, await f.repair.captureBackupImage()), 'matched');
+  assertPending(f);
 });

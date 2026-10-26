@@ -1,4 +1,4 @@
-name: Protected release workers (explicit approval only)
+name: Protected release workers (authorized source only)
 
 on:
   workflow_dispatch:
@@ -48,7 +48,7 @@ jobs:
           ref: ${{ steps.request.outputs.source_sha }}
           path: candidate
           persist-credentials: false
-      - name: Verify exact source, approval and protected environment exist
+      - name: Verify exact source, dispatch authorization and protected environment
         id: plan
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8, Node 24 SDK
         env:
@@ -136,7 +136,7 @@ jobs:
           ref: ${{ needs.plan.outputs.source_sha }}
           path: candidate
           persist-credentials: false
-      - name: Revalidate AFTER protected environment approval, before credentials
+      - name: Revalidate protected environment and authorization before credentials
         env:
           KEEPER_RELEASE_STAGE: revalidate
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
@@ -241,10 +241,24 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8, Node 24 SDK
         with:
           script: *current-installed-release-sdk
-      - name: Retain only the explicitly approved signed artifact or upload receipt
+      - name: Execute only the authorized existing-build store continuation
+        if: needs.plan.outputs.operation == 'ios-submit-review' || needs.plan.outputs.operation == 'ios-release-approved-version' || needs.plan.outputs.operation == 'play-production-rollout'
+        id: live
+        env:
+          KEEPER_RELEASE_STAGE: execute
+          KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
+          KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_ASC_KEY_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_ID || '' }}
+          KEEPER_ASC_ISSUER_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_ISSUER_ID || '' }}
+          KEEPER_ASC_KEY_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_BASE64 || '' }}
+          KEEPER_PLAY_SERVICE_ACCOUNT: ${{ needs.plan.outputs.platform == 'android' && secrets.KEEPER_PLAY_SERVICE_ACCOUNT || '' }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8, Node 24 SDK
+        with:
+          script: *current-installed-release-sdk
+      - name: Retain only the signed artifact or operation receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: keeper-approved-release-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ steps.sign.outputs.artifact_dir || steps.upload.outputs.artifact_dir }}
+          path: ${{ steps.sign.outputs.artifact_dir || steps.upload.outputs.artifact_dir || steps.live.outputs.artifact_dir }}
           if-no-files-found: error
           retention-days: 14

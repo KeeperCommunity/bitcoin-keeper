@@ -1,0 +1,437 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_SIX_RECEIPT_GUARDS_PLUS_CLONED_ORIGIN_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentAckSha": "beacb0a8d7edfbce5334b5f45f40c40a725f6862",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedReceiptOwnershipGrid.proof.cjs",
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:beginBackupLocalOperation",
+    "src/services/backup/automatic.ts:commitBackupLocalOperation",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/automatic.ts:beginBackupDeleteOperation",
+    "src/services/backup/transport.ts:withBackupSession",
+    "src/services/backup/transport.ts:observeBackupAccount"
+  ],
+  "positiveSetup": "Genuine explicit enrollment and complete initial signed snapshot match precede each independent case. Real committed receipts and explicit Delete preparation are completed before no-HTTP measurement; failed transaction is independently witnessed and rolled back.",
+  "preservedAssertions": [
+    "All original per-operation pending, nonverified and completed-flag assertions.",
+    "Real failed Tags transaction rollback preserves the entire original collection and cannot provide intent.",
+    "Same native committed payload is retained after later write/account ABA/closed-and-reopened Realm.",
+    "Copied branded intent is structurally equal but not runtime identity; absent WHOLE receipt is passed as undefined with existing global baseline.",
+    "Post-commit Realm replacement occurs while actual receipt waits behind an owned production session.",
+    "A cloned originating baseline still allows the actual local mutation but yields no branded intent."
+  ],
+  "strongerObservables": [
+    "Zero total HTTP before initial rejection and after original receipt replay, including no read/enroll/repair.",
+    "Full committed local image and entire KeeperApp unchanged; independent retained recovery records remain.",
+    "Actual signed remote snapshot tuple and all encrypted records are unchanged and decrypt to the complete original baseline.",
+    "Rejected Delete never becomes a tombstone or changes saved consent."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:2",
+      "legacyCase": "updateAppImage: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "updateAppImage",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:3",
+      "legacyCase": "updateAppImage: queued A to B to A receipt cannot send in the new session",
+      "operation": "updateAppImage",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:2",
+      "protectedCase": "updateAppImage: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:18",
+      "legacyCase": "updateAppImage: failed actual Realm commit supplies no usable write intent",
+      "operation": "updateAppImage",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:3",
+      "protectedCase": "updateAppImage: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:19",
+      "legacyCase": "updateAppImage: copying a branded committed intent never authorizes a request",
+      "operation": "updateAppImage",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:4",
+      "protectedCase": "updateAppImage: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:20",
+      "legacyCase": "updateAppImage: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "updateAppImage",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:5",
+      "protectedCase": "updateAppImage: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:21",
+      "legacyCase": "updateAppImage: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "updateAppImage",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:6",
+      "protectedCase": "updateAppImage: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:26",
+      "legacyCase": "migrateXfps: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "migrateXfps",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:7",
+      "protectedCase": "migrateXfps: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:27",
+      "legacyCase": "migrateXfps: queued A to B to A receipt cannot send in the new session",
+      "operation": "migrateXfps",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:8",
+      "protectedCase": "migrateXfps: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:42",
+      "legacyCase": "migrateXfps: failed actual Realm commit supplies no usable write intent",
+      "operation": "migrateXfps",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:9",
+      "protectedCase": "migrateXfps: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:43",
+      "legacyCase": "migrateXfps: copying a branded committed intent never authorizes a request",
+      "operation": "migrateXfps",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:10",
+      "protectedCase": "migrateXfps: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:44",
+      "legacyCase": "migrateXfps: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "migrateXfps",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:11",
+      "protectedCase": "migrateXfps: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:45",
+      "legacyCase": "migrateXfps: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "migrateXfps",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:12",
+      "protectedCase": "migrateXfps: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:50",
+      "legacyCase": "deleteAppImageEntity: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "deleteAppImageEntity",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:13",
+      "protectedCase": "deleteAppImageEntity: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:51",
+      "legacyCase": "deleteAppImageEntity: queued A to B to A receipt cannot send in the new session",
+      "operation": "deleteAppImageEntity",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:14",
+      "protectedCase": "deleteAppImageEntity: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:66",
+      "legacyCase": "deleteAppImageEntity: failed actual Realm commit supplies no usable write intent",
+      "operation": "deleteAppImageEntity",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:15",
+      "protectedCase": "deleteAppImageEntity: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:67",
+      "legacyCase": "deleteAppImageEntity: copying a branded committed intent never authorizes a request",
+      "operation": "deleteAppImageEntity",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:16",
+      "protectedCase": "deleteAppImageEntity: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:68",
+      "legacyCase": "deleteAppImageEntity: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "deleteAppImageEntity",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:17",
+      "protectedCase": "deleteAppImageEntity: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:69",
+      "legacyCase": "deleteAppImageEntity: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "deleteAppImageEntity",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:18",
+      "protectedCase": "deleteAppImageEntity: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:74",
+      "legacyCase": "deleteVaults: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "deleteVaults",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:19",
+      "protectedCase": "deleteVaults: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:75",
+      "legacyCase": "deleteVaults: queued A to B to A receipt cannot send in the new session",
+      "operation": "deleteVaults",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:20",
+      "protectedCase": "deleteVaults: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:90",
+      "legacyCase": "deleteVaults: failed actual Realm commit supplies no usable write intent",
+      "operation": "deleteVaults",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:21",
+      "protectedCase": "deleteVaults: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:91",
+      "legacyCase": "deleteVaults: copying a branded committed intent never authorizes a request",
+      "operation": "deleteVaults",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:22",
+      "protectedCase": "deleteVaults: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:92",
+      "legacyCase": "deleteVaults: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "deleteVaults",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:23",
+      "protectedCase": "deleteVaults: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:93",
+      "legacyCase": "deleteVaults: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "deleteVaults",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:24",
+      "protectedCase": "deleteVaults: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:98",
+      "legacyCase": "updateVaultImage: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "updateVaultImage",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:25",
+      "protectedCase": "updateVaultImage: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:99",
+      "legacyCase": "updateVaultImage: queued A to B to A receipt cannot send in the new session",
+      "operation": "updateVaultImage",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:26",
+      "protectedCase": "updateVaultImage: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:114",
+      "legacyCase": "updateVaultImage: failed actual Realm commit supplies no usable write intent",
+      "operation": "updateVaultImage",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:27",
+      "protectedCase": "updateVaultImage: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:115",
+      "legacyCase": "updateVaultImage: copying a branded committed intent never authorizes a request",
+      "operation": "updateVaultImage",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:28",
+      "protectedCase": "updateVaultImage: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:116",
+      "legacyCase": "updateVaultImage: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "updateVaultImage",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:29",
+      "protectedCase": "updateVaultImage: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:117",
+      "legacyCase": "updateVaultImage: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "updateVaultImage",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:30",
+      "protectedCase": "updateVaultImage: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:122",
+      "legacyCase": "modifyLabels: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "modifyLabels",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:31",
+      "protectedCase": "modifyLabels: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:123",
+      "legacyCase": "modifyLabels: queued A to B to A receipt cannot send in the new session",
+      "operation": "modifyLabels",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:32",
+      "protectedCase": "modifyLabels: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:138",
+      "legacyCase": "modifyLabels: failed actual Realm commit supplies no usable write intent",
+      "operation": "modifyLabels",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:33",
+      "protectedCase": "modifyLabels: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:139",
+      "legacyCase": "modifyLabels: copying a branded committed intent never authorizes a request",
+      "operation": "modifyLabels",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:34",
+      "protectedCase": "modifyLabels: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:140",
+      "legacyCase": "modifyLabels: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "modifyLabels",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:35",
+      "protectedCase": "modifyLabels: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:141",
+      "legacyCase": "modifyLabels: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "modifyLabels",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:36",
+      "protectedCase": "modifyLabels: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:146",
+      "legacyCase": "deleteBackup: queued receipt is invalid after a subsequent native local mutation",
+      "operation": "deleteBackup",
+      "fault": "later-local-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:37",
+      "protectedCase": "deleteBackup: signed-v3 later-local-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:147",
+      "legacyCase": "deleteBackup: queued A to B to A receipt cannot send in the new session",
+      "operation": "deleteBackup",
+      "fault": "A-to-B-to-A",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:38",
+      "protectedCase": "deleteBackup: signed-v3 A-to-B-to-A rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:162",
+      "legacyCase": "deleteBackup: failed actual Realm commit supplies no usable write intent",
+      "operation": "deleteBackup",
+      "fault": "failed-native-commit",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:39",
+      "protectedCase": "deleteBackup: signed-v3 failed-native-commit rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:163",
+      "legacyCase": "deleteBackup: copying a branded committed intent never authorizes a request",
+      "operation": "deleteBackup",
+      "fault": "copied-intent",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:40",
+      "protectedCase": "deleteBackup: signed-v3 copied-intent rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:164",
+      "legacyCase": "deleteBackup: a missing committed receipt sends nothing and never borrows the current baseline",
+      "operation": "deleteBackup",
+      "fault": "missing-whole-receipt",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:41",
+      "protectedCase": "deleteBackup: signed-v3 missing-whole-receipt rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:165",
+      "legacyCase": "deleteBackup: closed and reopened native Realm rejects the old queued receipt",
+      "operation": "deleteBackup",
+      "fault": "post-commit-Realm-reopen",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:42",
+      "protectedCase": "deleteBackup: signed-v3 post-commit-Realm-reopen rejects receipt before HTTP and retains complete local and remote records"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:194",
+      "legacyCase": "a cloned originating baseline cannot mint an automatic receipt from a genuine local commit",
+      "operation": "updateAppImage",
+      "fault": "cloned-origin-baseline",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedReceiptOwnershipGrid.proof.cjs:43",
+      "protectedCase": "a cloned original protected baseline permits the genuine local commit but cannot mint a branded automatic receipt"
+    }
+  ],
+  "expectedGenuineCases": 43,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 5,
+    "UNCOVERED": 38
+  },
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged",
+  "remainingUnclosedFamilies": [
+    "Actual delayed HTTP abort per operation",
+    "Other non-ACK operation fault combinations",
+    "Same-ID identity replacement and missing references",
+    "Local fanout/interleave schedules and shared registration fanout"
+  ]
+}

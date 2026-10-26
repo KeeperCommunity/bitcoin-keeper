@@ -107,7 +107,11 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = '${{ inputs.source_sha }}'
           git diff --exit-code HEAD -- .github/native .github/workflows
-          python3 .github/native/hosted_native.py build
+          if [ "$KEEPER_NATIVE_PLATFORM" = ANDROID ] && [ "$KEEPER_DIAGNOSTIC" = true ] && [ "$GITHUB_REPOSITORY_ID" = 839671816 ] && [ '${{ github.event.repository.private && github.event.pull_request.number == 73 }}' = true ]; then
+            python3 .github/native/android_build_watch.py
+          else
+            python3 .github/native/hosted_native.py build
+          fi
       - name: Record official private Android checkpoint origin
         if: inputs.platform == 'ANDROID' && inputs.diagnostic && !inputs.prepare_only && github.repository_id == '839671816' && github.event.repository.private == true && github.event.pull_request.number == 73 && contains(github.event.pull_request.labels.*.name, 'keeper/android-diagnostic-only')
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

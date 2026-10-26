@@ -97,15 +97,15 @@ async function revalidatePrivateActionsSoftware(github, proof, { clock = Date.no
   try {
     demand(issued.has(proof), 'PRIVATE_SOFTWARE_CAPABILITY_REQUIRED');
     const original = authorities.get(proof);
-    const latest = await origin.authenticatePrivateActionsOrigins(github, original.expected, { clock });
+    const latest = await origin.authenticatePrivateActionsOrigins(github, original.expected, { clock, appGithub: original.appGithub });
     demand(origin.isPrivateActionsOrigin(latest) && equal(latest, original.origin), 'PRIVATE_SOFTWARE_ORIGIN_CHANGED');
     return true;
   } catch (error) { throw safeError(error); }
 }
-async function collectPrivateActionsSoftware(github, expectedPerPlatform, { clock = Date.now, fetchImpl = fetch } = {}) {
+async function collectPrivateActionsSoftware(github, expectedPerPlatform, { clock = Date.now, fetchImpl = fetch, appGithub } = {}) {
   try {
     // Origin snapshots independent descriptors and validates complete lists; no success filter.
-    const first = await origin.authenticatePrivateActionsOrigins(github, expectedPerPlatform, { clock });
+    const first = await origin.authenticatePrivateActionsOrigins(github, expectedPerPlatform, { clock, appGithub });
     demand(origin.isPrivateActionsOrigin(first), 'PRIVATE_SOFTWARE_ORIGIN_REQUIRED');
     const platforms = {};
     for (const platform of ['IOS', 'ANDROID']) {
@@ -120,13 +120,13 @@ async function collectPrivateActionsSoftware(github, expectedPerPlatform, { cloc
     }
     // Later platform download/validation can revoke the first artifact or run.
     const expected = Object.fromEntries(['IOS', 'ANDROID'].map(p => [p, first.platforms[p].descriptor]));
-    const latest = await origin.authenticatePrivateActionsOrigins(github, expected, { clock });
+    const latest = await origin.authenticatePrivateActionsOrigins(github, expected, { clock, appGithub });
     demand(origin.isPrivateActionsOrigin(latest) && equal(latest, first), 'PRIVATE_SOFTWARE_ORIGIN_CHANGED');
     const result = frozen({ schema: 1, kind: 'private-actions-original-d13-software', platforms,
       worker_sources: first.platforms.IOS.expected.workerSources,
       installed_trust: 'UNVERIFIED', native_acceptance: false, release_ready: false,
       authorization_eligible: false, execution_allowed: false, release_authorized: false });
-    issued.add(result); authorities.set(result, { expected, origin: first }); return result;
+    issued.add(result); authorities.set(result, { expected, origin: first, appGithub }); return result;
   } catch (error) { throw safeError(error); }
 }
 module.exports = { readPrivateArtifactBytes, unpackPrivateArtifact, collectPrivateActionsSoftware,

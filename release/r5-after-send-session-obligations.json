@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_AFTER_SEND_A_TO_B_TO_A_WITH_DISTINCT_KEY_B_NATIVE_AND_REMOTE_UI_OBLIGATIONS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentFanoutSha": "7b325834a1ce0737ef5afc470bb051207762a799",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedAfterSendSessionGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 3,
+    "UNCOVERED": 4
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/transport.ts:observeBackupAccount",
+    "src/store/reducers/bhr.ts:commitBackupInspection"
+  ],
+  "schedule": "Actual A CAS commits and valid original ACK remains held. Native selection moves to B with a second valid public disposable mnemonic/64-byte seed/original accountID, independent real encrypted Realm and protected enrollment. After real B full readback verification, return to A and capture all per-account UI flags/action boundary before releasing old A ACK.",
+  "preservedAssertions": [
+    "One committed own A mutation and nonconfirmed old-session result.",
+    "Actual distinct-seed/key B native wallet and independently encrypted signed remote image remain untouched.",
+    "All A/B per-account backup flags unchanged by old A completion; no final commitBackupInspection dispatched.",
+    "Old Delete acknowledgement cannot disable new A-session consent.",
+    "Full committed A image and complete account object survive, plus full B native image/account after returning to B."
+  ],
+  "strongerObservables": [
+    "Two actual valid public mnemonics,64-byte bip39 seeds, original sha256(seed) account IDs and distinct real protected namespaces.",
+    "Genuine explicit B enrollment/full backup replaces legacy fixture seed while retaining actual independent recovery and UI state.",
+    "Actual positive A committed ACK and unresolved state before/after entire B setup are required; held writing always released/drained.",
+    "Signed A remote effect matches actual commit/tombstone; B entire snapshot ciphertext/tuple stays unchanged.",
+    "Old A receipt replay sends zero further HTTP."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:173",
+      "legacyCase": "updateAppImage: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:174",
+      "legacyCase": "migrateXfps: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:175",
+      "legacyCase": "deleteAppImageEntity: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:176",
+      "legacyCase": "deleteVaults: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:177",
+      "legacyCase": "updateVaultImage: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:178",
+      "legacyCase": "modifyLabels: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:179",
+      "legacyCase": "deleteBackup: after-send A to B to A rejects an outstanding real acknowledgement without changing the new account UI",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedAfterSendSessionGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: held old A ACK across genuine distinct-key B enrollment and A return preserves both account sessions"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged"
+}

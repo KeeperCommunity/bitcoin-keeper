@@ -1,7 +1,8 @@
 # Current-installed source bridge candidate
 
 This source package completes a bounded bridge between genuine canonical/native
-software evidence and the four existing protected worker adapters. It is
+software evidence and the protected worker adapters, including the three
+[existing-build live operations](../release/cloud/LIVE-CONTINUATION.md). It is
 **unpublished source implementation**, not an installed release capability or
 R4/R5 acceptance. The active protected source retains empty installed-parent
 profiles. This isolated [finite f0 profile candidate](r5/F0-CONSUMER-PROFILE-CANDIDATE.md)
@@ -9,14 +10,21 @@ is reviewable source only and has not been installed. No real
 operation can cross that boundary, and no signing, upload, dispatch, installation,
 credential provisioning or store action was performed to prepare this package.
 
-The supported operation scope is `SIGNED_BUILD_OR_INTERNAL_UPLOAD_ONLY`:
+The original artifact/upload operation scope is `SIGNED_BUILD_OR_INTERNAL_UPLOAD_ONLY`:
 `ios-signed-build`, `android-signed-build`, `testflight-upload`, or
 `play-internal-upload`. Every operation requires the currently installed protected
 sprint source S, including uploads. Older-source uploads remain blocked. Signing
 creates an artifact; the upload adapters only upload the already approved binary
 to TestFlight or Play **internal draft**. They do not distribute externally, submit
-App Review, or roll out production. The existing exact-artifact owner approval,
-independent protected environment review, version/counter baselines, certificate,
+App Review, or roll out production. The separate `EXISTING_BUILD_LIVE_STORE_OPERATION`
+scope now adds `ios-submit-review`, `ios-release-approved-version` and
+`play-production-rollout`. These authenticate the successful upload and original
+signing artifact chain, recheck unchanged signed bytes, and bind fresh provider
+snapshots; no rebuild, resign or counter reallocation occurs. Original signing/
+upload baseline freshness remains unchanged. For live operations, current
+provider state replaces the committed pre-upload baseline timestamp, so Apple
+review may complete days later on the same exact build. Actual repository authorization, optional exact-artifact human receipt/review,
+protected environments, version/counter baselines, certificate,
 configuration, custody and signature guards remain required.
 
 Physical acceptance is `NOT_RUN_NOT_WAIVED`, and `public_release_ready` is false.
@@ -81,9 +89,9 @@ checks or uncertain subset completeness fail closed. Live Code Scanning read
 availability is still unverified for the actual selected credential; source tests
 do not prove it. The workflow requests read-only `security-events:read`.
 
-Long collection/download work never preserves an earlier approval: required
-producer/security/native/window facts are rechecked, followed by current owner
-comment, permission, protected sprint/release refs and environment rereads before
+Long collection/download work never preserves earlier authorization: required
+producer/security/native/window facts are rechecked, followed by current dispatcher authorization, optional supplied owner
+comment/permission, protected sprint/release refs and environment rereads before
 the exact evidence object is branded. Uploads repeat the complete gate after
 immutable artifact download. JSON and copied Symbols cannot enter the private
 evidence set. The standalone old JSON collector remains unprivileged.
@@ -101,7 +109,7 @@ Before any real operation, separately review and install the final combined
 protected source and finite producer profile, run its actual canonical native and
 private parent evidence, resolve the known blocking High or obtain an explicitly
 reviewed policy change, verify official API access and protected-rule enforcement,
-refresh store/version/custody baselines, and obtain exact owner/environment
-approval for the selected operation. Physical and public-release acceptance stay
+refresh store/version/custody baselines, and verify current dispatcher/environment authorization for the selected
+operation. Human approval comments and reviewer rules are optional. Physical and public-release acceptance stay
 separate and incomplete. No single administrator action alone establishes these
 conditions.

@@ -46,3 +46,20 @@ withdrawn-root/SPKI rejection. Use disposable loopback identities from this
 fixture generator. In particular, execute expired explicit self-signed leaf and
 expired configured CA-anchor cases on iOS. Preserve the selected onion transport
 and private-node failure behavior in application smoke checks. Report exact SHAs.
+
+The separate opt-in command below creates genuine encrypted Realm schema109 files
+from the recorded public2b6 source, opens them through the current production
+RealmDatabase/migration callback at schema110, and checks selected node identities,
+post-upgrade CA persistence, cross-file isolation and wrong-key rejection:
+
+    node --test tests/recovery/nodeTrustMigration.proof.cjs
+
+It needs the unchanged frozen app dependencies, the real Realm12.15.0 N-API6
+binding, and Git object 2b6c3ce56857b5dc92f17cc37453ff308d5a3ae8.
+The existing private host setup can install that binding with its normal
+prebuild-install --runtime napi --target 6 step. Historical source blob/digest
+inputs are recorded in tests/recovery/fixtures/realm109-node-source.json.
+Missing source/native prerequisites fail; no mocked or skipped pass is supplied.
+This is host migration and file persistence proof, not a captured old phone
+database, mobile upgrade, custom-trust UI, Tor connectivity or TLS acceptance.
+Schema109 has no CA field: the real disposable CA is supplied only after upgrade.

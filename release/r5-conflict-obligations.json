@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_GENUINE_RAW_CAS409_AFTER_ORIGINAL_SNAPSHOT_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedConflictGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 2,
+    "UNCOVERED": 5
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/protected.ts:protectedBackupMutation"
+  ],
+  "faultModel": "While the actual original snapshot reply is outstanding, an independently signed real peer CAS advances the actual backend. Own operation then sends its original tuple and the unchanged actual router returns409. No HTTP status or backend result is fabricated.",
+  "preservedAssertions": [
+    "Exactly one own actual mutation attempt, nonconfirmed result and all original pending/completed flags.",
+    "Unconfirmed Delete cannot opt out.",
+    "Read-only reconciliation cannot mutate/replay and local backup revision counter cannot regress."
+  ],
+  "strongerObservables": [
+    "Actual successful peer ACK/base independently verified and distinguished from own status409/committedfalse event.",
+    "Own namespace/revision/generation/authEpoch remain original and cannot rebase to peer tuple.",
+    "Complete committed local image/account and retained recovery preserved.",
+    "Actual full signed remote image equals original baseline plus exact independent peer record.",
+    "Old receipt sends zero HTTP before and after fresh read-only reconciliation."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:4",
+      "legacyCase": "updateAppImage: actual HTTP 409 stops the write and never reports verified",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedConflictGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:28",
+      "legacyCase": "migrateXfps: actual HTTP 409 stops the write and never reports verified",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConflictGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:52",
+      "legacyCase": "deleteAppImageEntity: actual HTTP 409 stops the write and never reports verified",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConflictGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:76",
+      "legacyCase": "deleteVaults: actual HTTP 409 stops the write and never reports verified",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConflictGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:100",
+      "legacyCase": "updateVaultImage: actual HTTP 409 stops the write and never reports verified",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConflictGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:124",
+      "legacyCase": "modifyLabels: actual HTTP 409 stops the write and never reports verified",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedConflictGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:148",
+      "legacyCase": "deleteBackup: actual HTTP 409 stops the write and never reports verified",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConflictGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: real competing CAS after original snapshot causes actual409 without retry, rebase or verified claim"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

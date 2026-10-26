@@ -1,5 +1,6 @@
 """Owned process/bundle switching; setup and host contracts supply no native PASS."""
 import os
+import json
 from pathlib import Path
 import signal
 import socket
@@ -7,12 +8,13 @@ import subprocess
 import time
 import urllib.request
 
-PHASE_CONFIGS = {'product': None, 'arm': 'credential_metro.cjs', 'restore': 'credential_metro.cjs',
+PHASE_CONFIGS = {'product': None, 'trust': 'r52_trust_metro.cjs', 'arm': 'credential_metro.cjs', 'restore': 'credential_metro.cjs',
     **{name: name + '_metro.cjs' for name in (
         'history_seed_stale', 'history_verify_stale_first', 'history_verify_stale_repeat',
         'history_seed_empty', 'history_verify_empty_first', 'history_verify_empty_repeat',
         'history_restore', 'history_verify_restored')}}
 FLOW_PHASES = {
+    'r52_trust_ui.yaml': ('trust',),
     'product_key_acceptance.yaml': ('product',),
     'credential_fixture.yaml': ('arm', 'restore'),
     'product_credential_blocked.yaml': ('product',),
@@ -153,6 +155,24 @@ class StoppedFlowHarness:
 
     def __getattr__(self, name):
         return getattr(self.h, name)
+
+    def reverse_trust_loopback(self, expected):
+        """Only ports from the runner-owned fixed trust configuration, never a device selector."""
+        config = self.h.ROOT / '.github/native/.generated/r52_trust_ui.json'
+        if config.is_symlink() or not config.is_file() or config.stat().st_size > 16384:
+            raise RuntimeError('PRODUCT_TRUST_LOOPBACK_CONFIG_REQUIRED')
+        actual = json.loads(config.read_text())
+        if actual != expected or actual.get('schema') != 1 or actual.get('platform') != self.h.PLATFORM:
+            raise RuntimeError('PRODUCT_TRUST_LOOPBACK_CONFIG_REQUIRED')
+        ports = [8768, actual['a']['port'], actual['b']['port'], actual['c']['port']]
+        if len(set(ports)) != 4 or any(type(p) is not int or not 1024 < p < 65536 for p in ports):
+            raise RuntimeError('PRODUCT_TRUST_LOOPBACK_PORTS_REQUIRED')
+        if self.h.PLATFORM == 'ANDROID':
+            for port in ports:
+                value = 'tcp:' + str(port)
+                self.h.command(['adb', '-s', self.device, 'reverse', value, value],
+                    'Connect owned emulator to normal trust UI loopback', error_details=False)
+                self.reverse_ports.add(str(port))
 
     def command(self, args, label, **kwargs):
         reverse = ['adb', '-s', self.device, 'reverse', 'tcp:8767', 'tcp:8767']

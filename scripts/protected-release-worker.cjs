@@ -6,6 +6,8 @@ const path = require('node:path');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 const gate = require('./protected-release-plan.cjs');
+const live = require('./live-store-request.cjs');
+const profiles = require('../.github/native/release_repository_profiles.cjs');
 const hex = /^[a-f0-9]{64}$/;
 function demand(value, code) { if (!value) throw new Error(code); }
 
@@ -14,6 +16,8 @@ function workerRequest(env) {
     const input = require('../.github/native/strict_json.cjs').parseStrictJson(
       Buffer.from(env.KEEPER_RELEASE_REQUEST_JSON), 16384);
     const fields = { source_sha: 'KEEPER_SOURCE_SHA', release_ref: 'KEEPER_RELEASE_REF', operation: 'KEEPER_OPERATION', version: 'KEEPER_VERSION', build: 'KEEPER_BUILD', artifact_sha256: 'KEEPER_ARTIFACT_SHA256', approval_comment_id: 'KEEPER_APPROVAL_COMMENT_ID', certificate_sha256: 'KEEPER_CERT_SHA256', config_sha256: 'KEEPER_CONFIG_SHA256', artifact_id: 'KEEPER_ARTIFACT_ID' };
+    if (live.operations.has(input?.operation)) fields.live_parameters = 'KEEPER_LIVE_PARAMETERS';
+    if (input && typeof input === 'object' && !Array.isArray(input) && !Object.hasOwn(input, 'approval_comment_id')) input.approval_comment_id = 'none';
     demand(input && typeof input === 'object' && !Array.isArray(input) && Object.keys(input).length === Object.keys(fields).length && Object.keys(input).every(key => Object.hasOwn(fields, key) && typeof input[key] === 'string'), 'INVALID_REQUEST_JSON');
     env = { ...env, ...Object.fromEntries(Object.entries(fields).map(([key, name]) => [name, input[key]])) };
   }
@@ -22,7 +26,7 @@ function workerRequest(env) {
   request.configSha256 = env.KEEPER_CONFIG_SHA256;
   request.artifactId = env.KEEPER_ARTIFACT_ID;
   demand(hex.test(request.identitySha256 || '') && hex.test(request.configSha256 || ''), 'EXPECTED_IDENTITIES_REQUIRED');
-  const upload = request.operation.endsWith('-upload');
+  const upload = !request.operation.endsWith('-signed-build');
   demand(upload ? /^[1-9]\d{0,18}$/.test(request.artifactId || '') : request.artifactId === 'none', 'INVALID_ARTIFACT_REFERENCE');
   // A signed build executes native project/dependency code with signing material.
   // Limit that code to the currently installed, protected canonical source.
@@ -31,6 +35,9 @@ function workerRequest(env) {
 }
 
 function validateArtifactRun(request, artifact, run, receipt) {
+  const profile = profiles.forRepository(request.repository);
+  demand(!profile.private || (receipt.repository === profile.repository && receipt.repositoryId === profile.repositoryId && receipt.repositoryPrivate === true), 'SIGNED_RECEIPT_REPOSITORY');
+  demand(!profile.private || (profiles.matches(run.repository, profile) && profiles.matches(run.head_repository, profile)), 'UNTRUSTED_ARTIFACT_REPOSITORY');
   demand(!artifact.expired && artifact.workflow_run?.head_sha === request.sourceSha, 'ARTIFACT_SOURCE_MISMATCH');
   demand(run.head_sha === request.sourceSha && run.head_repository?.full_name === request.repository && run.event === 'workflow_dispatch' && run.conclusion === 'success' && run.path?.split('@')[0] === '.github/workflows/keeper-protected-release-workers.yml', 'UNTRUSTED_ARTIFACT_PRODUCER');
   const operation = request.operation === 'testflight-upload' ? 'ios-signed-build' : 'android-signed-build';
@@ -38,15 +45,17 @@ function validateArtifactRun(request, artifact, run, receipt) {
 }
 
 function excludeOwnExecutionChecks(request, evidence, run, jobs, current) {
+  const profile = profiles.forRepository(request.repository);
+  demand(!profile.private || (profiles.matches(run.repository, profile) && profiles.matches(run.head_repository, profile)), 'CURRENT_WORKER_REPOSITORY_UNVERIFIED');
   demand(String(run.id) === current.runId && run.run_attempt === current.runAttempt && run.head_sha === request.driverSha && run.head_repository?.full_name === request.repository && run.event === 'workflow_dispatch' && run.path?.split('@')[0] === '.github/workflows/keeper-protected-release-workers.yml' && Number.isSafeInteger(run.check_suite_id), 'CURRENT_WORKER_PROVENANCE_UNVERIFIED');
   demand(Number.isSafeInteger(jobs.total_count) && jobs.total_count <= 100 && jobs.total_count === jobs.jobs?.length, 'INCOMPLETE_CURRENT_ATTEMPT_JOBS');
   const ownChecks = new Map();
   for (const job of jobs.jobs) {
     demand(job.run_id === run.id && job.run_attempt === current.runAttempt && job.head_sha === request.driverSha && ['plan', 'approved-operation'].includes(job.name), 'UNTRUSTED_CURRENT_ATTEMPT_JOB');
     if (job.check_run_url) {
-      const match = job.check_run_url.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper\/check-runs\/(\d+)$/);
-      demand(match, 'UNVERIFIED_OWN_CHECK_REFERENCE');
-      ownChecks.set(match[1], job.name);
+      const checkId = profiles.checkId(job.check_run_url, profile);
+      demand(checkId, 'UNVERIFIED_OWN_CHECK_REFERENCE');
+      ownChecks.set(String(checkId), job.name);
     }
   }
   const checks = evidence.checks;
@@ -78,6 +87,9 @@ const OPERATION_SECRETS = Object.freeze({
     'STORE_PASSWORD', 'KEY_PASSWORD', 'KEY_ALIAS'],
   'testflight-upload': ['KEEPER_ASC_KEY_ID', 'KEEPER_ASC_ISSUER_ID', 'KEEPER_ASC_KEY_BASE64'],
   'play-internal-upload': ['KEEPER_PLAY_SERVICE_ACCOUNT'],
+  'ios-submit-review': ['KEEPER_ASC_KEY_ID', 'KEEPER_ASC_ISSUER_ID', 'KEEPER_ASC_KEY_BASE64'],
+  'ios-release-approved-version': ['KEEPER_ASC_KEY_ID', 'KEEPER_ASC_ISSUER_ID', 'KEEPER_ASC_KEY_BASE64'],
+  'play-production-rollout': ['KEEPER_PLAY_SERVICE_ACCOUNT'],
 });
 function withoutReadCredentials(env) {
   return Object.fromEntries(BUILD_ENVIRONMENT.filter(name => typeof env[name] === 'string')
@@ -90,14 +102,15 @@ function childEnvironment(env, operation) {
   return clean;
 }
 
-async function downloadSignedArtifact(github, artifact, destination, { fetchImpl = fetch } = {}) {
+async function downloadSignedArtifact(github, artifact, destination, { fetchImpl = fetch, repository = profiles.PUBLIC.repository } = {}) {
   const crypto = require('node:crypto');
   const limit = 2 * 1024 ** 3;
   demand(Number.isSafeInteger(artifact?.id) && artifact.id > 0 &&
     Number.isSafeInteger(artifact.size_in_bytes) && artifact.size_in_bytes > 0 &&
     artifact.size_in_bytes <= limit && /^sha256:[a-f0-9]{64}$/.test(artifact.digest || ''),
   'SIGNED_ARCHIVE_IDENTITY_INVALID');
-  const url = 'https://api.github.com/repos/KeeperCommunity/bitcoin-keeper/actions/artifacts/' + artifact.id + '/zip';
+  const profile = profiles.forRepository(repository);
+  const url = 'https://api.github.com/repos/' + profile.repository + '/actions/artifacts/' + artifact.id + '/zip';
   let intercepted = false, location;
   const result = await github.request('GET ' + url, { request: {
     retries: 0, parseSuccessResponseBody: false, fetch: async (actual, init) => {
@@ -162,7 +175,8 @@ async function run(stage, { github, context, env = process.env, pinReader, priva
   const options = { pinReader, privateGithub, fetchImpl, stage, workerAttempt: Number(env.GITHUB_RUN_ATTEMPT) };
   const fresh = () => gate.collectEvidenceWithSDK(request, root, github, context, options);
   let evidence = await fresh();
-  const plan = gate.validateEvidence(request, evidence);
+  let plan = gate.validateEvidence(request, evidence);
+  if (live.operations.has(request.operation)) require('./protected-live-runtime.cjs').requireBudget(plan);
   if (env.GITHUB_OUTPUT) fs.appendFileSync(env.GITHUB_OUTPUT, 'environment=' + plan.environment + '\n');
   if (stage !== 'execute') return { state: 'SOURCE_AND_APPROVAL_REVALIDATED', execution_allowed: false };
   demand(env.GITHUB_ACTIONS === 'true' && env.RUNNER_ENVIRONMENT === 'github-hosted' &&
@@ -171,25 +185,36 @@ async function run(stage, { github, context, env = process.env, pinReader, priva
   fs.chmodSync(directory, 0o700);
   try {
     const operationContext = { ...request, runId: String(context.runId), runAttempt: Number(env.GITHUB_RUN_ATTEMPT),
-      approvalExpiresAt: evidence.comment.body.match(/\nExpires at: ([^\n]+)$/)[1] };
+      // Legacy adapter/receipt field name; the bounded deadline now comes from
+      // authenticated run authority, optionally shortened by a human receipt.
+      approvalExpiresAt: plan.authorizationExpiresAt };
     const contextFile = path.join(directory, 'context.json'), adapter = path.join(__dirname, 'cloud_release_worker.py');
     fs.writeFileSync(contextFile, JSON.stringify(operationContext), { mode: 0o600 });
+    if (live.operations.has(request.operation)) {
+      const result = await require('./protected-live-runtime.cjs').execute({ request, root, directory, github, context, env,
+        fresh: async () => gate.validateEvidence(request, await fresh()), fetchImpl,
+        childEnv: childEnvironment(env, request.operation), downloadSignedArtifact, validateArtifactRun });
+      if (env.GITHUB_OUTPUT) fs.appendFileSync(env.GITHUB_OUTPUT, 'artifact_dir=' + path.join(env.RUNNER_TEMP, 'keeper-release-output') + '\n');
+      return result;
+    }
     if (request.operation.endsWith('-upload')) {
-      const api = require('./current-release-origin.cjs').sdk(github, fetchImpl);
+      const api = require('./current-release-origin.cjs').sdk(github, fetchImpl, request.repository);
       const { value: artifact } = await api.json('actions/artifacts/' + request.artifactId);
       demand(artifact.id === Number(request.artifactId) && artifact.expired === false &&
         artifact.workflow_run?.head_sha === request.sourceSha && Number.isSafeInteger(artifact.workflow_run?.id),
       'ARTIFACT_UNAVAILABLE');
       const { value: sourceRun } = await api.json('actions/runs/' + artifact.workflow_run.id);
       const { value: sourceWorkflow } = await api.json('actions/workflows/keeper-protected-release-workers.yml');
-      demand(sourceRun.status === 'completed' && sourceRun.repository?.id === 470904030 &&
-        sourceRun.head_repository?.id === 470904030 && sourceRun.head_branch === 'sprint' &&
+      const profile = profiles.forRepository(request.repository);
+      demand(sourceRun.status === 'completed' && sourceRun.repository?.id === profile.repositoryId &&
+        sourceRun.head_repository?.id === profile.repositoryId &&
+        (!profile.private || (profiles.matches(sourceRun.repository, profile) && profiles.matches(sourceRun.head_repository, profile))) && sourceRun.head_branch === 'sprint' &&
         Number.isSafeInteger(sourceWorkflow.id) && sourceWorkflow.state === 'active' &&
         sourceWorkflow.path === '.github/workflows/keeper-protected-release-workers.yml' &&
         sourceRun.workflow_id === sourceWorkflow.id,
         'SIGNED_PRODUCER_NOT_COMPLETED');
       const archive = path.join(directory, 'artifact.zip');
-      await downloadSignedArtifact(github, artifact, archive, { fetchImpl });
+      await downloadSignedArtifact(github, artifact, archive, { fetchImpl, repository: request.repository });
       const receipt = execFileSync('python3', [adapter, 'unpack', contextFile, directory], {
         env: { PATH: clean.PATH }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       validateArtifactRun(request, artifact, sourceRun, JSON.parse(receipt));
@@ -202,12 +227,12 @@ async function run(stage, { github, context, env = process.env, pinReader, priva
       'SIGNED_ARTIFACT_CHANGED');
       // Artifact transport may be lengthy. Never reuse the earlier owner,
       // security, source, profile, or native evidence for the operation.
-      evidence = await fresh(); gate.validateEvidence(request, evidence);
+      evidence = await fresh(); plan = gate.validateEvidence(request, evidence);
       const { value: currentRun } = await api.json('actions/runs/' + sourceRun.id);
       const { value: currentWorkflow } = await api.json('actions/workflows/keeper-protected-release-workers.yml');
       demand(require('node:util').isDeepStrictEqual(currentRun, sourceRun) &&
         require('node:util').isDeepStrictEqual(currentWorkflow, sourceWorkflow), 'SIGNED_PRODUCER_CHANGED');
-      operationContext.approvalExpiresAt = evidence.comment.body.match(/\nExpires at: ([^\n]+)$/)[1];
+      operationContext.approvalExpiresAt = plan.authorizationExpiresAt;
       fs.writeFileSync(contextFile, JSON.stringify(operationContext), { mode: 0o600 });
     }
     const executionEnv = { ...childEnvironment(env, request.operation), KEEPER_PRIVATE_DIRECTORY: directory };

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "status": "SOURCE_PREPARED_NATIVE_NOT_RUN",
+  "entrypoint": "Existing product_measurements.py run_post_key_companions, after history and before Vault",
+  "command": "python3 .github/native/product_measurements.py run",
+  "scope": "Normal index.js product UI with a development-only read-only native Realm observer; separate from r52_tls_probe transport entrypoint",
+  "preconditions": [
+    "Exact private source, successful real hosted app build and startup, and unchanged installed native artifact",
+    "Existing disposable Testnet product account and one-wallet setup Retry fixture passed",
+    "Only product runner owns device, stopped-app Metro switching and Android reverse mappings",
+    "An older retained app additionally needs independently reviewed controller/app source and native-input equivalence; this same-source runner does not waive it"
+  ],
+  "stages": [
+    "baseline: neither fixture endpoint exists in native Realm",
+    "custom_saved: real AddNode CA paste, exact endpoint probe plus actual connection, saved ID and CA hash",
+    "failed_update_preserved: wrong-CA same-endpoint probe fails without a version RPC or saved-row change",
+    "cold_reopen: fresh app process, same persisted node ID and CA, actual new connection",
+    "disconnected: normal Server Settings disconnect updates the saved row and actual client",
+    "reconnected: normal Server Settings reconnect reaches the TLS fixture with unchanged saved trust",
+    "untrusted_peer_rejected: other-port endpoint under the first endpoint CA, without explicit CA, fails and creates no saved row",
+    "selfsigned_saved: explicit self-signed certificate through normal UI creates distinct endpoint trust and connects",
+    "fixture_nodes_removed: both disposable nodes removed by normal product UI"
+  ],
+  "observer_reads": "Current account-active boolean; real schema110 NodeConnect fixture rows only; public CA hashes; actual Electrum client connection and selected fixture port. No setters, mocks, account IDs, storage keys, credentials, wallet/address data or private CA keys.",
+  "proof": "Each fixed Maestro checkpoint must match a fresh read-only app observation and independent loopback TLS/RPC connection witness. Host-only tests cannot establish any mobile result. JUnit, complete stage receipt, exact installed artifact, existing-account continuity and owned cleanup all required.",
+  "cleanup": "Product UI removes own node rows; owned fixture TLS/HTTP sockets and key directory, generated public config, private UI output, and outer product runner reverse mappings/device/Metro",
+  "not_run": [
+    "Actual iOS and Android UI/Realm execution",
+    "Original installed109to110 old published IPA/APK upgrade",
+    "Socket-loss reconnect and synthetic loopback sync/fee/fakebroadcast through app caller",
+    "Actual Tor provider and physical devices"
+  ],
+  "production_changes": false,
+  "new_native_dependencies": false,
+  "full_r52_acceptance": false,
+  "release_authorization": false
+}

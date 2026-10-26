@@ -1,0 +1,19 @@
+appId: ${APP_ID}
+---
+- tapOn: Add Server
+- tapOn: Private Electrum
+- tapOn: Host
+- inputText: 127.0.0.1
+- tapOn: e.g 8080
+- inputText: ${NODE_PORT}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: input_node-ca
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: input_node-ca
+- inputText: ${NODE_CA}
+- hideKeyboard
+- tapOn: Connect to Server

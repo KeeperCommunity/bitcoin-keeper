@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_LATER_CONSENT_OFF_ORIGINAL_OPERATION_OBLIGATIONS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentPeerSha": "982f9c023c7eec5c308095c3e324835f0affa3ba",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedConsentEpochGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 1,
+    "UNCOVERED": 6
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:assertProof",
+    "src/services/backup/transport.ts:backupConsentEpoch",
+    "src/store/reducers/bhr.ts:setAutomaticCloudBackup"
+  ],
+  "positiveControls": [
+    "Genuine full initial protected enrollment and complete signed readback precede every operation.",
+    "Actual committed receipt retains its original protected tuple and consent epoch.",
+    "Real Redux consent-off dispatch must be observed to advance that original epoch."
+  ],
+  "preservedAssertions": [
+    "Original no mutation, pending/nonverified/completed flags and saved consent false for all seven operations."
+  ],
+  "strongerObservables": [
+    "Zero total HTTP for rejected original operation and replay, including old explicit Delete preparation completed before revocation.",
+    "Full committed local image/account and retained recovery record unchanged.",
+    "Actual signed remote entire snapshot remains present and byte-equivalent; decryption matches whole original image."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:23",
+      "legacyCase": "updateAppImage: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:47",
+      "legacyCase": "migrateXfps: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:71",
+      "legacyCase": "deleteAppImageEntity: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:95",
+      "legacyCase": "deleteVaults: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:119",
+      "legacyCase": "updateVaultImage: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:143",
+      "legacyCase": "modifyLabels: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:167",
+      "legacyCase": "deleteBackup: a later consent-off choice invalidates the previously prepared operation",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedConsentEpochGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: actual later consent-off invalidates the original epoch before HTTP and preserves local and remote copies"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS / 293 FAIL preserved unchanged"
+}

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "scope": "EXACT_CONSENT_ON_DELETE_WORKER_AND_THREE_ORIGINAL_DIRECT_DELETE_COMPLETION_WINDOWS_SOURCE_ONLY",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedDirectDeleteObligations.proof.cjs",
+  "expectedGenuineCases": 4,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 4
+  },
+  "sourceContracts": [
+    "src/store/sagas/bhr.ts:deleteBackupWorker",
+    "src/services/backup/automatic.ts:beginBackupDeleteOperation",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/store/store.ts:setAutomaticBackupVerificationCommit",
+    "src/services/backup/transport.ts:observeBackupConsentAction"
+  ],
+  "preservedAssertions": [
+    "Actual consent-on Delete worker must set deleteBackupSuccessByAppIdtrue, turn consentoff and retain local wallet.",
+    "Fresh explicit direct public Relay wrapper works after consent alreadyoff with its own fresh current deletion scope.",
+    "Actual direct-wrapper heldACK cannot overwrite newer off-to-on choice; pending/nonverified/completed flags retained.",
+    "Actual BEFORE setAutomaticCloudBackup(false) middleware checkpoint reenters newer enable, retaining enabled and pending; not substituted by later success-dispatch subscriber."
+  ],
+  "positiveControls": [
+    "Real explicit current protected Delete receipts and selected genuine committed backend CAS/tombstone required.",
+    "Held real positive ACK remains outstanding through both actual consent choices; real consent epoch advances and request always drains.",
+    "Reentrant pre-disable callback independently witnesses original consenton and actual newer epoch, asserted outside swallowed callback errors."
+  ],
+  "strongerObservables": [
+    "All native image/account/independent recovery retained; actual tombstone tuple/suppressLegacyFallback/empty records match selected CAS.",
+    "No enrollment/recreate and old actual direct receipt replay sends zero additional HTTP."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:203",
+      "legacyCase": "actual BHR Delete Backup worker acknowledges an explicit deletion without discarding native data",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedDirectDeleteObligations.proof.cjs:1",
+      "protectedCase": "actual Delete worker with consent ON records success while retaining the complete native account and recovery"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:204",
+      "legacyCase": "a fresh explicit whole-account deletion works after automatic consent is already off",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedDirectDeleteObligations.proof.cjs:2",
+      "protectedCase": "fresh direct public Delete wrapper after saved consent OFF acknowledges its own explicit current scope"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:205",
+      "legacyCase": "a newer off-to-on choice while the actual delete reply is delayed cannot be overwritten",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedDirectDeleteObligations.proof.cjs:3",
+      "protectedCase": "held real direct Delete ACK cannot overwrite the later actual OFF to ON choice"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:206",
+      "legacyCase": "a reentrant newer enable choice immediately before final consent disable remains selected",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedDirectDeleteObligations.proof.cjs:4",
+      "protectedCase": "reentrant actual newer enable immediately BEFORE final consent-disable dispatch defeats the old direct Delete completion"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

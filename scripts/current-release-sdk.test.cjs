@@ -20,6 +20,36 @@ class ControlledSDK {
     return { status: response.status };
   }
 }
+test('private metadata and signed artifact requests stay scoped and strip storage-hop credentials', async () => {
+  const repository = 'KeeperCommunity/bitcoin-keeper-private';
+  const apiRoot = 'https://api.github.com/repos/' + repository + '/';
+  const payload = Buffer.from('disposable private signed artifact');
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), headers: init.headers, redirect: init.redirect });
+    if (String(url) === apiRoot + 'actions/runs/19') return new Response('{"id":19}');
+    if (String(url) === apiRoot + 'actions/artifacts/23/zip')
+      return new Response(null, { status: 302, headers: { location: 'https://keeper.blob.core.windows.net/disposable-artifact' } });
+    assert.equal(String(url), 'https://keeper.blob.core.windows.net/disposable-artifact');
+    assert.equal(init.headers, undefined);
+    return new Response(payload, { headers: { 'content-length': String(payload.length) } });
+  };
+  const github = new ControlledSDK({ auth: 'DISPOSABLE_PRIVATE_TOKEN' });
+  const api = require('./current-release-origin.cjs').sdk(github, fetchImpl, repository);
+  assert.equal((await api.json('actions/runs/19')).value.id, 19);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'keeper-private-custody-'));
+  try {
+    const destination = path.join(directory, 'artifact.zip');
+    await require('./protected-release-worker.cjs').downloadSignedArtifact(github,
+      { id: 23, size_in_bytes: payload.length, digest: 'sha256:' + crypto.createHash('sha256').update(payload).digest('hex') },
+      destination, { fetchImpl, repository });
+    assert.deepEqual(fs.readFileSync(destination), payload);
+    assert.equal(fs.statSync(destination).mode & 0o777, 0o600);
+    assert.equal(calls.length, 3);
+    assert(calls.slice(0, 2).every(c => c.url.startsWith(apiRoot)));
+    assert.throws(() => require('./current-release-origin.cjs').sdk(github, fetchImpl, 'KeeperCommunity/unreviewed'));
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
 test('new release metadata, provenance archive and signed-archive transports preserve bounded custody', async () => {
   const result = await run(ControlledSDK);
   assert.equal(result.cases.length, 29);
@@ -79,7 +109,8 @@ function uploadControl(mutate) {
     requestFromEnvironment: () => ({ ...request }),
     collectEvidenceWithSDK: async () => ({ comment: { body: 'Scoped approval\nExpires at: ' +
       (++state.gateReads === 1 ? initialExpiry : finalExpiry) } }),
-    validateEvidence: () => ({ environment: 'keeper-release-android' }),
+    validateEvidence: () => ({ environment: 'keeper-release-android',
+      authorizationExpiresAt: state.gateReads === 1 ? initialExpiry : finalExpiry }),
   };
   const api = { json: async endpoint => {
     if (endpoint === 'actions/artifacts/88') return { value: structuredClone(artifact) };

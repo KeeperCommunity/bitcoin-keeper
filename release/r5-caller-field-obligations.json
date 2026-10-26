@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "scope": "THREE_TARGETED_ACTUAL_CALLER_FIELD_CASES_PLUS_ONE_EXISTING_RECOVERY_XPUB_ASSERTION_SOURCE_ONLY",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "newProtectedFile": "tests/recovery/protectedCallerFieldGrid.proof.cjs",
+  "expectedNewGenuineCases": 3,
+  "affectedExistingRecoveryCases": 2,
+  "expectedHostedCases": 5,
+  "mappedLegacyObligations": 4,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 4
+  },
+  "legacyFilesSha256": {
+    "tests/recovery/automaticLabelProducers.integration.cjs": "a6a4681c7df2c2cbb78195347be4ffa852f2a7dd6ced25248d2c0ddadd0b9af4",
+    "tests/recovery/automaticNodeBootstrap.integration.cjs": "ba528ae519e667e04492cf44da3fc8247131fa97d77782e8d0e5b25dd3fd3a6a",
+    "tests/recovery/automaticRecoveryRestore.integration.cjs": "0532b00c25741b2a09d63aa86c3605c614cb8b62cb887ddb21143e27adec763f"
+  },
+  "sourceContracts": [
+    "src/store/sagas/send_and_receive.ts:handleChangeOutputLabels",
+    "src/store/sagas/utxos.ts:transactionLabelsWorker",
+    "src/store/sagas/network.ts:connectToNodeWorker",
+    "src/services/backup/protected.ts:validateRead",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "observationBoundary": "Real source queue export is transparently observed before existing genuine setup binds its workers; original arguments and exact returned promise are preserved. Replay uses the actual caller committed receipt and mutations.",
+  "labelSetupConstructorBoundary": "Entire original label setup declaration runs in host Node context to retain actual AddressCache external/internal Object constructors for native Realm.Mixed. No record data, schema, native positive check or production function is rewritten.",
+  "fieldBoundaries": {
+    "label7": "After real modifyLabels commit, change only valid originalACK newRevision to invalid shape; preserve both original native labels and one actual mutation/pending/captured-intent assertions.",
+    "node15": "After real node updateAppImage commit, change only valid originalACK newRevision to invalid shape; preserve exact native default-node IDs and successful provider-connection outcome.",
+    "node17": "Only publicId in the actual second snapshot changes after a real acknowledged node CAS. Original revision/backend untouched; raw projection hash rejects before later metadata comparison, no branch credit.",
+    "recovery1": "Add original independent Object.values(signerXpubs).some(keys=>keys.length) assertion, retaining full signer/key equality and all existing recovery/callback assertions."
+  },
+  "recoveryRegression": {
+    "file": "tests/recovery/protectedRecoveryCorpus.proof.cjs",
+    "helper": "completeCorpus",
+    "originalFileSha256": "60d5ec51bec696f3b131c0021242cabd957b610d93aae95b2706825f3166b07c",
+    "currentFileSha256": "61c25b0919b8117dfb7f13f7151a6fb7033b4eaacaebca7b8e0b39d6d64e757f",
+    "originalSource": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+    "expectedCases": 2,
+    "originalCallbacksUnchanged": true,
+    "onlyAddedAssertion": "check(Object.values(restored.signers[recoveryId].signerXpubs).some((keys) => keys.length), 'RECOVERY_KEY_XPUB_LIST_MUST_NOT_BE_EMPTY');",
+    "countingLimit": "Two existing affected suite cases, including reopen; zero new recovery tests, exactly one newly completed legacy assertion row."
+  },
+  "rows": [
+    {
+      "legacyId": "automaticLabelProducers.integration.cjs:7",
+      "legacyCase": "native combined send labels survive malformed and keep backup pending after one request",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCallerFieldGrid.proof.cjs:1",
+      "protectedCase": "actual combined send-label caller rejects invalid revision ACK after real commit and preserves its local labels",
+      "newTestCase": true
+    },
+    {
+      "legacyId": "automaticNodeBootstrap.integration.cjs:15",
+      "legacyCase": "node bootstrap malformed preserves defaults and reports backup pending independently of Electrum",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCallerFieldGrid.proof.cjs:2",
+      "protectedCase": "actual node-bootstrap caller rejects invalid revision ACK after real commit without failing Electrum connection",
+      "newTestCase": true
+    },
+    {
+      "legacyId": "automaticNodeBootstrap.integration.cjs:17",
+      "legacyCase": "malformed final snapshot metadata cannot publish Verified after the real node CAS",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCallerFieldGrid.proof.cjs:3",
+      "protectedCase": "actual node-bootstrap caller rejects wrong publicId in its real final snapshot while preserving defaults and connection",
+      "newTestCase": true
+    },
+    {
+      "legacyId": "automaticRecoveryRestore.integration.cjs:1",
+      "legacyCase": "actual Recovery Key worker restores real crypto and every retained recovery collection into blank native Realm",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedRecoveryCorpus.proof.cjs:2",
+      "protectedCase": "protected tombstone suppresses implicit fallback and explicit older selection preserves the entire mixed corpus read-only",
+      "newTestCase": false,
+      "additionalAffectedRegressionId": "protectedRecoveryCorpus.proof.cjs:1"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

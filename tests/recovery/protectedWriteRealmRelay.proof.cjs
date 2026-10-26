@@ -99,6 +99,7 @@ function assertOwnNextTuple(first, next) {
 function pending(f) {
   assert.equal(f.store.getState().bhr.pendingAllBackupByAppId[appId], true);
   assert.notEqual(f.store.getState().bhr.backupRepairStateByAppId[appId], 'verified');
+  assert.notEqual(f.store.getState().bhr.backupRepairCompletedByAppId[appId], true);
 }
 function recoverySagas(f) {
   // Reuse only the existing real-wallet crypto setup declaration. This does not

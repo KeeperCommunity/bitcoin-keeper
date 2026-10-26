@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_ACTUAL_COMMITTED_FINAL_READBACK_WRONG_KEY_CIPHERTEXT_OBLIGATIONS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentNativeEventSha": "c0b75617347f7e11f4f4addbc7b021ab135525ae",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedWrongKeyReadbackGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "UNCOVERED": 7
+  },
+  "sourceContracts": [
+    "src/services/backup/protected.ts:validateRead",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "schedule": "Receive and positively inspect the actual committed original CAS ACK, then corrupt only its second real snapshot response with retained-wallet ciphertext encrypted under the original independent different public disposable key. Preserve original revision and backend bytes.",
+  "protocolBoundary": {
+    "nonDelete": "Changed raw projection fails actual v3 content revision validation before client AES decryption.",
+    "deleteBackup": "Inserted wallet fails actual empty-tombstone schema before content revision or AES.",
+    "noMatchingRevisionFabrication": true,
+    "clientWrongKeyAESBranchCredit": false
+  },
+  "preservedAssertions": [
+    "Exactly one actual selected committed mutation, unconfirmed result and independent pending/nonverified/completed flags.",
+    "Unacknowledged final proof cannot disable Delete consent; all native committed recovery/account data retained."
+  ],
+  "strongerObservables": [
+    "Actual different key and genuine AES ciphertext plaintext roundtrip positively required.",
+    "Captured original ACK must satisfy full positive contract; final fault must execute exactly once after actual initial snapshot and mutation.",
+    "Original full tuple and unaltered revision retained; independently signed read proves full actual backend commit or exact tombstone unchanged by proxy fault.",
+    "Consumed original receipt sends zeroHTTP before and after independent genuine readback.",
+    "Received ACK may legitimately yield updatedtrue; it cannot substitute for current verified backup."
+  ],
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:24",
+      "legacyCase": "updateAppImage: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:48",
+      "legacyCase": "migrateXfps: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:72",
+      "legacyCase": "deleteAppImageEntity: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:96",
+      "legacyCase": "deleteVaults: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:120",
+      "legacyCase": "updateVaultImage: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:144",
+      "legacyCase": "modifyLabels: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:168",
+      "legacyCase": "deleteBackup: wrong-key final ciphertext leaves the acknowledged update pending",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedWrongKeyReadbackGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: wrong-key ciphertext in the real final snapshot cannot verify an acknowledged commit or replay its receipt"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

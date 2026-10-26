@@ -6,8 +6,7 @@ const canonical = require('../.github/native/canonical_native.cjs');
 const parents = require('../.github/native/installed_parent_software.cjs');
 const { parseStrictJson } = require('../.github/native/strict_json.cjs');
 const { unpackReadOnlyArtifact } = require('./trusted-release-origin.cjs');
-const REPOSITORY = 'KeeperCommunity/bitcoin-keeper', REPOSITORY_ID = 470904030;
-const BASE = 'https://api.github.com/repos/' + REPOSITORY + '/';
+const profiles = require('../.github/native/release_repository_profiles.cjs');
 const CODEQL_CATEGORY = 'keeper-javascript-typescript/';
 const MAX_JSON = 1024 * 1024, MAX_SARIF = 2000000, MAX_ARCHIVE = 128 * 1024;
 const SHA = /^[a-f0-9]{40}$/, HASH = /^[a-f0-9]{64}$/;
@@ -16,7 +15,8 @@ const demand = (yes, code) => { if (!yes) throw new Error(code); };
 const id = value => Number.isSafeInteger(value) && value > 0;
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const OPERATIONS = new Set(['ios-signed-build', 'android-signed-build', 'testflight-upload', 'play-internal-upload']);
+const live = require('./live-store-request.cjs');
+const OPERATIONS = new Set(['ios-signed-build', 'android-signed-build', 'testflight-upload', 'play-internal-upload', ...live.operations]);
 const requestFields = ['repository', 'ref', 'driverSha', 'sourceSha', 'releaseRef', 'operation',
   'version', 'build', 'artifactSha256', 'approvalCommentId', 'identitySha256', 'configSha256', 'artifactId'];
 // Entries are exact, independently reviewed workflow bytes. The only
@@ -30,6 +30,7 @@ const TEST_POLICIES = new Set([
   // Reviewed union keeps the existing tests and adds the Node22.23.4 runtime guard.
   'f1bcced79e60159b105efa93c63f88d31349bf00f459c22b03fa3e24abd404ca',
 ]);
+const PRIVATE_V3_POLICY = '202911034ffc8c94d455dfac3a3872f55de4012a3d55d051550b04b8e758865d';
 const CODEQL_POLICY = '213c6a2f87e769853797992879cfb5230df6d97531501795c0d783b524c50641';
 const TEST_JOBS = ['Lint', 'Tests', 'Automatic backup native Realm and Relay'];
 const TEST_STEPS = ['Run tests', 'Run recovery regression tests',
@@ -41,10 +42,12 @@ function frozen(value) {
   return value;
 }
 function snapshot(request) {
-  demand(object(request) && Object.keys(request).length === requestFields.length &&
-    requestFields.every(name => typeof request[name] === 'string') &&
-    Object.keys(request).every(name => requestFields.includes(name)), 'RELEASE_ORIGIN_REQUEST_INVALID');
-  return JSON.stringify(Object.fromEntries(requestFields.map(name => [name, request[name]])));
+  const fields = live.operations.has(request?.operation) ? [...requestFields, 'liveParameters'] : requestFields;
+  if (live.operations.has(request?.operation)) demand(JSON.stringify(live.parameters(request.operation, request.liveParameters)) === request.liveParameters, 'RELEASE_ORIGIN_LIVE_PARAMETERS_INVALID');
+  demand(object(request) && Object.keys(request).length === fields.length &&
+    fields.every(name => typeof request[name] === 'string') &&
+    Object.keys(request).every(name => fields.includes(name)), 'RELEASE_ORIGIN_REQUEST_INVALID');
+  return JSON.stringify(Object.fromEntries(fields.map(name => [name, request[name]])));
 }
 function fixed(error) {
   return new Error(/^RELEASE_ORIGIN_[A-Z0-9_]{1,90}$/.test(error?.message || '') ?
@@ -72,9 +75,12 @@ async function bytes(response, limit) {
     return Buffer.concat(chunks);
   } finally { try { await (reader ? reader.cancel() : response?.body?.cancel()); } catch { /* no raw response errors */ } }
 }
-function sdk(github, fetchImpl = fetch) {
+function sdk(github, fetchImpl = fetch, repository = profiles.PUBLIC.repository) {
+  const profile = profiles.forRepository(repository);
+  const BASE = 'https://api.github.com/repos/' + profile.repository + '/';
   demand(typeof github?.request === 'function', 'RELEASE_ORIGIN_SDK_REQUIRED');
   return {
+    profile,
     async raw(endpoint, accept = 'application/vnd.github+json', limit = MAX_JSON) {
       const url = BASE + endpoint;
       let payload, headers, called = false;
@@ -162,19 +168,20 @@ async function workflowSource(api, file, source) {
     crypto.createHash('sha1').update('blob ' + raw.length + '\0').update(raw).digest('hex') === value.sha,
   'RELEASE_ORIGIN_WORKFLOW_SOURCE_INVALID');
   const hash = digest(raw);
-  demand(file === 'test.yml' ? TEST_POLICIES.has(hash) : hash === CODEQL_POLICY,
+  demand(file === 'test.yml' ? (TEST_POLICIES.has(hash) || hash === PRIVATE_V3_POLICY) : hash === CODEQL_POLICY,
     'RELEASE_ORIGIN_WORKFLOW_POLICY_UNREVIEWED');
+  return hash;
 }
 function actionsApp(value) { return value?.app?.id === 15368 && value.app.slug === 'github-actions'; }
-async function jobIdentity(api, job, run, source, successful) {
+async function jobIdentity(api, job, run, source, successful, inactive = false) {
   demand(id(job?.id) && job.run_id === run.id && job.run_attempt === run.run_attempt &&
     job.head_sha === source && job.status === 'completed' &&
-    (successful ? job.conclusion === 'success' : ['success', 'failure'].includes(job.conclusion)),
+    (inactive ? job.conclusion === 'skipped' : successful ? job.conclusion === 'success' : ['success', 'failure'].includes(job.conclusion)),
   'RELEASE_ORIGIN_JOB_INVALID');
-  const match = job.check_run_url?.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper\/check-runs\/([1-9]\d*)$/);
-  demand(match && id(Number(match[1])), 'RELEASE_ORIGIN_CHECK_LINK_INVALID');
-  const { value: check } = await api.json('check-runs/' + match[1]);
-  demand(check.id === Number(match[1]) && check.name === job.name && check.check_suite?.id === run.check_suite_id &&
+  const checkId = profiles.checkId(job.check_run_url, api.profile);
+  demand(id(checkId), 'RELEASE_ORIGIN_CHECK_LINK_INVALID');
+  const { value: check } = await api.json('check-runs/' + checkId);
+  demand(check.id === checkId && check.name === job.name && check.check_suite?.id === run.check_suite_id &&
     check.head_sha === source && check.status === job.status && check.conclusion === job.conclusion && actionsApp(check),
   'RELEASE_ORIGIN_CHECK_INVALID');
   return { name: job.name, job_id: job.id, check_run_id: check.id, conclusion: check.conclusion };
@@ -183,7 +190,8 @@ async function producer(api, file, event, source, now) {
   const { value: workflow } = await api.json('actions/workflows/' + file);
   demand(id(workflow?.id) && workflow.path === '.github/workflows/' + file && workflow.state === 'active',
     'RELEASE_ORIGIN_WORKFLOW_NOT_INSTALLED');
-  if (file !== 'keeper-canonical-native.yml') await workflowSource(api, file, source);
+  const policy = file !== 'keeper-canonical-native.yml' ? await workflowSource(api, file, source) : null;
+  if (file === 'test.yml' && api.profile.private) demand(policy === PRIVATE_V3_POLICY, 'RELEASE_ORIGIN_PRIVATE_V3_REQUIRED');
   const runs = await list(api, 'actions/workflows/' + workflow.id +
     '/runs?branch=sprint&event=' + event + '&head_sha=' + source, 'workflow_runs');
   demand(runs.length > 0, 'RELEASE_ORIGIN_RUN_MISSING');
@@ -192,8 +200,7 @@ async function producer(api, file, event, source, now) {
     run.head_sha === source && run.head_branch === 'sprint' && run.event === event &&
     id(run.run_attempt) && id(run.check_suite_id) && run.status === 'completed' &&
     (file === 'test.yml' ? ['success', 'failure'].includes(run.conclusion) : run.conclusion === 'success') &&
-    run.repository?.id === REPOSITORY_ID && run.repository.full_name === REPOSITORY &&
-    run.head_repository?.id === REPOSITORY_ID && run.head_repository.full_name === REPOSITORY &&
+    profiles.matches(run.repository, api.profile) && profiles.matches(run.head_repository, api.profile) &&
     runs.some(row => row.id === run.id && row.head_sha === source && row.run_attempt === run.run_attempt) &&
     Number.isFinite(Date.parse(run.updated_at)) && Date.parse(run.updated_at) <= now &&
     Date.parse(run.updated_at) >= now - 86400000, 'RELEASE_ORIGIN_RUN_INVALID');
@@ -203,10 +210,25 @@ async function producer(api, file, event, source, now) {
   const jobs = await list(api, 'actions/runs/' + run.id + '/attempts/' + run.run_attempt + '/jobs', 'jobs');
   const evidence = [];
   if (file === 'test.yml') {
-    demand(jobs.length === TEST_JOBS.length && TEST_JOBS.every(name => jobs.filter(j => j.name === name).length === 1),
+    const v3 = policy === PRIVATE_V3_POLICY;
+    const expected = v3 ? [...TEST_JOBS, 'Protected backup v3 proof'] : TEST_JOBS;
+    demand(jobs.length === expected.length && expected.every(name => jobs.filter(j => j.name === name).length === 1),
       'RELEASE_ORIGIN_TEST_JOBS_UNREVIEWED');
-    for (const job of jobs) evidence.push(await jobIdentity(api, job, run, source,
-      job.name !== 'Automatic backup native Realm and Relay'));
+    for (const job of jobs) {
+      const inactive = v3 && (api.profile.private ? job.name === 'Automatic backup native Realm and Relay' : job.name === 'Protected backup v3 proof');
+      evidence.push(await jobIdentity(api, job, run, source,
+        job.name !== 'Automatic backup native Realm and Relay', inactive));
+    }
+    if (api.profile.private) {
+      const backup = jobs.find(job => job.name === 'Protected backup v3 proof');
+      for (const name of ['Execute all 351 private-v3 cases and verify all 295 retained obligations',
+        'Verify exact source after checks', "Remove only this job's owned disposable replica",
+        'Preserve exact-source private-v3 proof ledger']) {
+        const selected = backup.steps?.filter(step => step.name === name);
+        demand(selected?.length === 1 && selected[0].status === 'completed' && selected[0].conclusion === 'success',
+          'RELEASE_ORIGIN_PRIVATE_V3_STEP_FAILED');
+      }
+    }
     const tests = jobs.find(job => job.name === 'Tests');
     for (const name of TEST_STEPS) {
       const selected = tests.steps?.filter(step => step.name === name);
@@ -239,9 +261,26 @@ async function workerIdentity(api, context, request, options) {
     run.path === workflow.path && run.status === 'in_progress' && run.conclusion === null &&
     Number.isFinite(Date.parse(run.updated_at)) && Date.parse(run.updated_at) <= now &&
     Date.parse(run.updated_at) >= now - 86400000 &&
-    run.repository?.id === REPOSITORY_ID && run.repository.full_name === REPOSITORY &&
-    run.head_repository?.id === REPOSITORY_ID && run.head_repository.full_name === REPOSITORY,
+    profiles.matches(run.repository, api.profile) && profiles.matches(run.head_repository, api.profile),
   'RELEASE_ORIGIN_WORKER_RUN_INVALID');
+  // Workflow access is authorization, not a human approval ceremony. Verify
+  // original and rerun dispatchers against live repository permissions. Neither
+  // a caller-supplied actor nor a copied successful check grants this authority.
+  const actors = [run.actor, run.triggering_actor];
+  demand(actors.every(actor => id(actor?.id) && typeof actor.login === 'string' &&
+    /^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}(?:\[bot\])?$/.test(actor.login)), 'RELEASE_ORIGIN_DISPATCH_ACTOR_INVALID');
+  const distinct = [...new Map(actors.map(actor => [actor.id, actor])).values()];
+  demand(distinct.length === 2 || actors[0].login === actors[1].login,
+    'RELEASE_ORIGIN_DISPATCH_ACTOR_INVALID');
+  const authorized = await Promise.all(distinct.map(async actor => {
+    const { value } = await api.json('collaborators/' + encodeURIComponent(actor.login) + '/permission');
+    demand(value?.user?.id === actor.id && value.user.login === actor.login &&
+      ['admin', 'maintain', 'write'].includes(value.permission), 'RELEASE_ORIGIN_DISPATCH_UNAUTHORIZED');
+    return { id: actor.id, login: actor.login, permission: value.permission };
+  }));
+  const started = Date.parse(run.run_started_at);
+  demand(Number.isFinite(started) && started <= now && started > now - 4 * 3600000,
+    'RELEASE_ORIGIN_DISPATCH_EXPIRED');
   const { value: suite } = await api.json('check-suites/' + run.check_suite_id);
   demand(suite.id === run.check_suite_id && suite.head_sha === request.driverSha && actionsApp(suite),
     'RELEASE_ORIGIN_WORKER_SUITE_INVALID');
@@ -254,14 +293,15 @@ async function workerIdentity(api, context, request, options) {
     selected[0].run_attempt === run.run_attempt && selected[0].head_sha === request.driverSha &&
     selected[0].status === 'in_progress' && selected[0].conclusion === null,
   'RELEASE_ORIGIN_WORKER_JOB_INVALID');
-  const match = selected[0].check_run_url?.match(/^https:\/\/api\.github\.com\/repos\/KeeperCommunity\/bitcoin-keeper\/check-runs\/([1-9]\d*)$/);
-  demand(match && id(Number(match[1])), 'RELEASE_ORIGIN_WORKER_CHECK_INVALID');
-  const { value: check } = await api.json('check-runs/' + match[1]);
-  demand(check.id === Number(match[1]) && check.name === name && check.check_suite?.id === suite.id &&
+  const checkId = profiles.checkId(selected[0].check_run_url, api.profile);
+  demand(id(checkId), 'RELEASE_ORIGIN_WORKER_CHECK_INVALID');
+  const { value: check } = await api.json('check-runs/' + checkId);
+  demand(check.id === checkId && check.name === name && check.check_suite?.id === suite.id &&
     check.head_sha === request.driverSha && check.status === 'in_progress' && check.conclusion === null &&
     actionsApp(check), 'RELEASE_ORIGIN_WORKER_CHECK_INVALID');
   return { run_id: run.id, run_attempt: run.run_attempt, workflow_id: workflow.id,
-    job_id: selected[0].id, check_run_id: check.id, job: name };
+    job_id: selected[0].id, check_run_id: check.id, job: name,
+    authorization: { actors: authorized, expires_at: new Date(started + 4 * 3600000).toISOString() } };
 }
 function securityPolicy(sarif, analysis) {
   demand(object(sarif) && sarif.version === '2.1.0' && Array.isArray(sarif.runs) && sarif.runs.length === 1,
@@ -351,7 +391,7 @@ async function security(api, codeql, source, now) {
   const fields = ['schema', 'kind', 'repository', 'source_sha', 'source_ref', 'workflow_sha', 'workflow_path',
     'run_id', 'run_attempt', 'analysis_key', 'category', 'sarif_id'];
   demand(object(receipt) && Object.keys(receipt).length === fields.length && fields.every(k => Object.hasOwn(receipt, k)) &&
-    receipt.schema === 1 && receipt.kind === 'keeper-codeql-upload' && receipt.repository === REPOSITORY &&
+    receipt.schema === 1 && receipt.kind === 'keeper-codeql-upload' && receipt.repository === api.profile.repository &&
     receipt.source_sha === source && receipt.source_ref === 'refs/heads/sprint' && receipt.workflow_sha === source &&
     receipt.workflow_path === '.github/workflows/codeql.yml' && receipt.run_id === codeql.run.id &&
     receipt.run_attempt === codeql.run.run_attempt && receipt.analysis_key === '.github/workflows/codeql.yml:analyze' &&
@@ -384,12 +424,15 @@ async function security(api, codeql, source, now) {
 async function collectCurrentReleaseOrigin(github, context, request, options = {}) {
   try {
     const bound = snapshot(request), now = (options.clock || Date.now)();
+    demand([profiles.PUBLIC.repository, profiles.PRIVATE.repository].includes(context.repo?.owner + '/' + context.repo?.repo),
+      'RELEASE_ORIGIN_CURRENT_INSTALLED_SOURCE_REQUIRED');
+    const profile = profiles.forContext(context), REPOSITORY = profile.repository;
     demand(OPERATIONS.has(request.operation) && request.repository === REPOSITORY && request.ref === 'refs/heads/sprint' &&
       SHA.test(request.sourceSha) && request.sourceSha === request.driverSha && request.sourceSha === context.sha &&
       context.eventName === 'workflow_dispatch' && context.ref === 'refs/heads/sprint' &&
       context.repo?.owner + '/' + context.repo?.repo === REPOSITORY && id(context.runId),
     'RELEASE_ORIGIN_CURRENT_INSTALLED_SOURCE_REQUIRED');
-    const api = sdk(github, options.fetchImpl), source = request.sourceSha;
+    const api = sdk(github, options.fetchImpl, REPOSITORY), source = request.sourceSha;
     const worker = await workerIdentity(api, context, request, options);
     const canonicalRun = await producer(api, 'keeper-canonical-native.yml', 'workflow_dispatch', source, now);
     const ctx = { ...context, sha: source, runId: canonicalRun.run.id };
@@ -435,7 +478,7 @@ async function collectCurrentReleaseOrigin(github, context, request, options = {
         legacy_v2_characterization_not_release_credit: true },
       codeql: { run_id: codeql.run.id, run_attempt: codeql.run.run_attempt, jobs: codeql.jobs },
       security: securityProof, canonical_cases: 7, physical: 'NOT RUN / separate owner and device scope',
-      operation_scope: 'SIGNED_BUILD_OR_INTERNAL_UPLOAD_ONLY',
+      operation_scope: live.operations.has(request.operation) ? 'EXISTING_BUILD_LIVE_STORE_OPERATION' : 'SIGNED_BUILD_OR_INTERNAL_UPLOAD_ONLY',
       physical_acceptance: 'NOT_RUN_NOT_WAIVED', public_release_ready: false,
       authorization_eligible: false, release_authorized: false, execution_allowed: false });
     issued.set(result, bound); return result;

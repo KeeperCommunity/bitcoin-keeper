@@ -3,12 +3,12 @@
 const crypto = require('node:crypto');
 const { isDeepStrictEqual: equal } = require('node:util');
 const { parseStrictJson } = require('./strict_json.cjs');
+const repositories = require('./release_repository_profiles.cjs');
 const WINDOW_PIN = 'KEEPER_CANONICAL_PRIVATE_WINDOW_JSON';
 // Offline source candidate for one reviewed stable producer baseline. This is
 // not live installation. No environment, artifact, caller option or live variable
 // can add another profile or change the committed producer/ref/raw contract.
-const INSTALLED_PROFILES = Object.freeze({
-  "r5-f0-intel-20261025": {
+const F0_PRODUCER = Object.freeze({
     "repository": "KeeperCommunity/bitcoin-keeper-relay",
     "repositoryId": 496119449,
     "workflowPath": ".github/workflows/r5-native-integration.yml",
@@ -16,13 +16,16 @@ const INSTALLED_PROFILES = Object.freeze({
     "driverBase": "f0a695a6bba068ba93962e90ab52e8901ef4a852",
     "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
     "rawProfile": "D448_RAW13"
-  }
+});
+const INSTALLED_PROFILES = Object.freeze({
+  [repositories.PUBLIC.parentProfile]: F0_PRODUCER,
+  [repositories.PRIVATE.parentProfile]: F0_PRODUCER,
 });
 const issued = new WeakSet(), originals = new WeakMap();
 const SHA = /^[a-f0-9]{40}$/, HEX = /^[a-f0-9]{64}$/;
 const sha = value => typeof value === 'string' && SHA.test(value);
 const hex = value => typeof value === 'string' && HEX.test(value);
-const APP = 'KeeperCommunity/bitcoin-keeper', PRIVATE = 'KeeperCommunity/bitcoin-keeper-relay';
+const PRIVATE = 'KeeperCommunity/bitcoin-keeper-relay';
 const BACKEND = '29597b27eeeb299205bf7d0555db0a90c38cc4be';
 const WORKFLOW = '.github/workflows/r5-native-integration.yml';
 const REF = 'refs/heads/codex/r5-cloud-native-execution-20261025';
@@ -36,15 +39,16 @@ function frozen(value) {
   if (object(value) || Array.isArray(value)) { Object.values(value).forEach(frozen); Object.freeze(value); }
   return value;
 }
-function validateManifest(value, request, tree) {
+function validateManifest(value, request, tree, appProfile) {
   demand(keys(value, ['schema', 'profile', 'window_id', 'app', 'backend', 'public', 'private']) && value.schema === 1 &&
-    hex(value.window_id) && typeof value.profile === 'string' && Object.hasOwn(INSTALLED_PROFILES, value.profile),
+    hex(value.window_id) && typeof value.profile === 'string' && Object.hasOwn(INSTALLED_PROFILES, value.profile) &&
+    value.profile === appProfile.parentProfile,
   'INSTALLED_PARENT_PROFILE_REQUIRED');
   const profile = INSTALLED_PROFILES[value.profile];
   demand(keys(profile, ['repository', 'repositoryId', 'workflowPath', 'ref', 'driverBase', 'backendSha', 'rawProfile']) &&
     profile.repository === PRIVATE && profile.repositoryId === 496119449 && profile.workflowPath === WORKFLOW &&
     profile.ref === REF && profile.driverBase === DRIVER && profile.backendSha === BACKEND && profile.rawProfile === 'D448_RAW13');
-  demand(keys(value.app, ['repository', 'sha', 'tree']) && value.app.repository === APP &&
+  demand(keys(value.app, ['repository', 'sha', 'tree']) && value.app.repository === appProfile.repository &&
     sha(value.app.sha) && value.app.sha === request.sourceSha && sha(value.app.tree) && value.app.tree === tree);
   demand(keys(value.backend, ['repository', 'sha']) && value.backend.repository === PRIVATE && value.backend.sha === BACKEND);
   demand(keys(value.public, ['workflowPath', 'workflowSha', 'ref', 'runId', 'runAttempt']) &&
@@ -88,7 +92,7 @@ async function readWindow(github, context, request, pinReader) {
   demand(sha(commit?.sha) && commit.sha === request.sourceSha && sha(commit.tree?.sha));
   const bytes = Buffer.from(pin.value, 'utf8');
   let value; try { value = parseStrictJson(bytes, 16384); } catch { throw new Error('INSTALLED_PARENT_WINDOW_INVALID'); }
-  validateManifest(value, request, commit.tree.sha);
+  validateManifest(value, request, commit.tree.sha, repositories.forContext(context));
   await driver.origin(github, context, request, { pinReader });
   return { value, sha256: digest(bytes) };
 }

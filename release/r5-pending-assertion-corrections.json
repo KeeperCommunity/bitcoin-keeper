@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "scope": "TWO_INHERITED_FULL_MAPPING_ASSERTION_EXCEPTIONS_COMMON_HELPER_CORRECTION_SOURCE_ONLY",
+  "parentBodyBindingSha": "1d3c2ba9bed7d9c57b4f2f5f8d2bef10710db8f7",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "inheritedFullExceptions": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:17",
+      "legacyCase": "updateAppImage: current generation cannot authorize a mismatched decrypted payload or deletion target",
+      "originalMapClassification": "FULL",
+      "freshSourceFinding": "Original independent completed flag assertion was omitted by inherited common pending helper.",
+      "protectedId": "protectedWalletVault.proof.cjs:7",
+      "protectedCase": "a current wallet receipt cannot send stale encrypted presentation data",
+      "helper": "tests/recovery/protectedWalletVault.proof.cjs:assertPending",
+      "correction": "Add backupRepairCompletedByAppId[appId] !== true alongside pendingAll/nonverified assertions; no old test callback is changed."
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:180",
+      "legacyCase": "real native mutation immediately before Redux final verification commit prevents a verified claim",
+      "originalMapClassification": "FULL",
+      "freshSourceFinding": "Original independent completed flag assertion was omitted by inherited common pending helper.",
+      "protectedId": "protectedWriteRealmRelay.proof.cjs:21",
+      "protectedCase": "a real native change at the final Redux verification commit prevents a Verified claim",
+      "helper": "tests/recovery/protectedWriteRealmRelay.proof.cjs:pending",
+      "correction": "Add backupRepairCompletedByAppId[appId] !== true alongside pendingAll/nonverified assertions; no old test callback is changed."
+    }
+  ],
+  "affectedProofRegressions": [
+    {
+      "file": "tests/recovery/protectedWalletVault.proof.cjs",
+      "expectedCases": 11,
+      "originalFileSha256": "ae29b417de98605ca1bd5ab95e129b3233964c26e628e205cca0f4835c9155e7",
+      "allOriginalCallbacksByteIdentical": true
+    },
+    {
+      "file": "tests/recovery/protectedWriteRealmRelay.proof.cjs",
+      "expectedCases": 43,
+      "originalFileSha256": "2f2078b1d41cdff2dfa234788b29139ec95e3649813da5bb9a5e2bec016df20e",
+      "allOriginalCallbacksByteIdentical": true
+    }
+  ],
+  "expectedAffectedProofCases": 54,
+  "newProductTests": 0,
+  "productionOrNativeBehaviorChange": false,
+  "proof": "Each full original file is restored byte-for-byte to its original47a inventory hash by removing ONLY its one newly added assertion. Thus every original callback, schedule, builder, hook and fixture call is retained.",
+  "countingLimit": "These are two corrections to inherited FULL rows, separate from147 newly mapped previously non-FULL IDs and the following6 body-binding additions. Running54 existing affected tests is a regression for the shared-helper change, not54 new legacy obligations or whole295 acceptance.",
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

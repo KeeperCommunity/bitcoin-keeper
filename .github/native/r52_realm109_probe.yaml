@@ -1,0 +1,14 @@
+appId: ${APP_ID}
+name: Actual native synthetic historical Realm109 migration and trust persistence
+---
+- launchApp:
+    clearState: false
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: r52-realm109-pass
+    timeout: 180000
+- assertNotVisible:
+    id: r52-realm109-failed
+- stopApp

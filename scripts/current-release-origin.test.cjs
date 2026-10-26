@@ -127,10 +127,10 @@ for (const [name, mutate, error] of [
 ]) test(`real collection rejects ${name}`, async () => {
   const f = fixture(); mutate(f); await assert.rejects(f.collect(), error);
 });
-test('reviewed Node22.23.4 Tests union is recognized while any byte edit remains unreviewed', async () => {
+test('reviewed complete v3 CI union is recognized while any byte edit remains unreviewed', async () => {
   const crypto = require('node:crypto'), f = fixture(), item = f.content['test.yml'];
   assert.equal(crypto.createHash('sha256').update(Buffer.from(item.content, 'base64')).digest('hex'),
-    'f1bcced79e60159b105efa93c63f88d31349bf00f459c22b03fa3e24abd404ca');
+    '202911034ffc8c94d455dfac3a3872f55de4012a3d55d051550b04b8e758865d');
   await f.collect();
   const bytes = Buffer.from(Buffer.from(item.content, 'base64').toString() + '\n# unreviewed');
   item.content = bytes.toString('base64'); item.size = bytes.length;
@@ -216,7 +216,7 @@ for (const [name, mutate] of Object.entries({
 for (const [name, mutate, error] of [
   ['expired approval', f => { f.approval.body = f.approval.body.replace('2026-10-23T00:30:00Z', '2026-10-22T22:30:00Z'); }, /APPROVAL_STALE_OR_INVALID/],
   ['wrong approved identity', f => { f.approval.body = f.approval.body.replace('2'.repeat(64), '4'.repeat(64)); }, /APPROVAL_SCOPE_MISMATCH/],
-  ['removed independent reviewer', f => { f.environment.protection_rules[0].reviewers = []; }, /INDEPENDENT_ENVIRONMENT_REVIEW_REQUIRED/],
+  ['malformed optional reviewer rule', f => { f.environment.protection_rules[0].reviewers = []; }, /OPTIONAL_ENVIRONMENT_REVIEW_INVALID/],
   ['stale store counter proof', f => {
     f.manifest.baselines.ios.verifiedAt = '2026-10-20T00:00:00Z';
     require('node:fs').writeFileSync(require('node:path').join(f.candidate, 'release/version.json'), JSON.stringify(f.manifest));
@@ -240,4 +240,78 @@ test('source capability never expands to public submission or distribution opera
   const f = fixture(); f.request.operation = 'public-release';
   await assert.rejects(f.collect(), /CURRENT_INSTALLED_SOURCE_REQUIRED/);
   assert.deepEqual(f.calls, []);
+});
+
+test('authenticated dispatch needs no human receipt or environment reviewer', async () => {
+  const f = gateFixture();
+  try {
+    f.request.approvalCommentId = 'none';
+    f.environment.protection_rules = [];
+    const evidence = await f.collectGate();
+    const plan = f.validate(evidence);
+    assert.equal(evidence.comment, undefined);
+    assert.equal(evidence.ownerPermission, undefined);
+    assert.equal(plan.human_review, 'OPTIONAL_NOT_REQUESTED');
+    assert.equal(plan.authorizationExpiresAt, '2026-10-23T03:00:00.000Z');
+    assert.equal(plan.execution_allowed, false);
+    assert(!f.calls.some(route => route.includes('/issues/comments/')));
+    assert(f.calls.some(route => route.includes('/collaborators/release-operator/permission')));
+  } finally { f.cleanup(); }
+});
+for (const [name, mutate, error] of [
+  ['read-only dispatcher', f => { f.actorPermissions['release-operator'].permission = 'read'; }, /DISPATCH_UNAUTHORIZED/],
+  ['wrong dispatcher identity', f => { f.actorPermissions['release-operator'].user.id++; }, /DISPATCH_UNAUTHORIZED/],
+  ['missing official actor', f => { delete f.runs[900].actor; }, /DISPATCH_ACTOR_INVALID/],
+  ['unauthorized rerun actor', f => {
+    f.runs[900].triggering_actor = { id: 789013, login: 'read-only-operator' };
+    f.actorPermissions['read-only-operator'] = { permission: 'read', user: { id: 789013, login: 'read-only-operator' } };
+  }, /DISPATCH_UNAUTHORIZED/],
+  ['expired workflow execution window', f => { f.runs[900].run_started_at = '2026-10-22T19:00:00Z'; }, /DISPATCH_EXPIRED/],
+]) test(`optional review preserves authorization: ${name}`, async () => {
+  const f = gateFixture();
+  try {
+    f.request.approvalCommentId = 'none'; f.environment.protection_rules = [];
+    mutate(f); await assert.rejects(f.collectGate(), error);
+  } finally { f.cleanup(); }
+});
+test('optional review still rejects a dispatcher revoked during security collection', async () => {
+  const f = gateFixture();
+  try {
+    f.request.approvalCommentId = 'none'; f.environment.protection_rules = [];
+    f.onApi = url => { if (url.pathname.includes('/code-scanning/analyses/990')) f.actorPermissions['release-operator'].permission = 'read'; };
+    await assert.rejects(f.collectGate(), /DISPATCH_UNAUTHORIZED/);
+  } finally { f.cleanup(); }
+});
+
+
+test('full synthetic private release origin keeps actual repository and branded evidence', async () => {
+  const profile = require('../.github/native/release_repository_profiles.cjs').PRIVATE;
+  const f = fixture({ profile }), proof = await f.collect();
+  assert.equal(proof.repository, profile.repository);
+  assert(f.driver.isCurrentReleaseOrigin(proof, f.request));
+  assert.equal(f.driver.isCurrentReleaseOrigin({ ...proof }, f.request), false);
+  assert.equal(proof.execution_allowed, false);
+  assert.equal(proof.security.policy.high_or_critical, 0);
+  assert(f.calls.every(url => url.startsWith('/repos/' + profile.repository + '/')));
+  for (const mutate of [g => { g.runs[900].repository.id = 470904030; },
+    g => { g.runs[900].head_repository.private = false; },
+    g => { delete g.runs[100].repository.private; },
+    g => { g.jobs[100][0].check_run_url = g.jobs[100][0].check_run_url.replace('bitcoin-keeper-private', 'bitcoin-keeper'); },
+    g => { g.request.repository = 'KeeperCommunity/bitcoin-keeper'; }]) {
+    const bad = fixture({ profile }); mutate(bad);
+    await assert.rejects(bad.collect());
+  }
+});
+
+
+test('private complete backup replacement cannot be omitted, skipped, failed or left without cleanup', async () => {
+  const profile = require('../.github/native/release_repository_profiles.cjs').PRIVATE;
+  for (const mutate of [f => { f.jobs[100] = f.jobs[100].filter(j => j.name !== 'Protected backup v3 proof'); },
+    f => { f.jobs[100].find(j => j.name === 'Protected backup v3 proof').conclusion = 'skipped'; },
+    f => { f.jobs[100].find(j => j.name === 'Protected backup v3 proof').conclusion = 'failure'; },
+    f => { f.jobs[100].find(j => j.name === 'Protected backup v3 proof').steps[0].conclusion = 'skipped'; },
+    f => { f.jobs[100].find(j => j.name === 'Protected backup v3 proof').steps[2].conclusion = 'failure'; }]) {
+    const f = fixture({ profile }); mutate(f);
+    await assert.rejects(f.collect());
+  }
 });

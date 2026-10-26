@@ -2,7 +2,7 @@
 // Synthetic fake Actions responses plus actual ZIP/parser/producer-shape composition.
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
-const { fixture, PRIVATE, APP, POLICY } = require('./private-actions.cjs');
+const { fixture, PRIVATE, POLICY } = require('./private-actions.cjs');
 const { syntheticParent } = require('./parent-software.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function zip(members) {
@@ -12,8 +12,8 @@ function zip(members) {
   { input: JSON.stringify(encoded), maxBuffer: 12 * 1024 * 1024,
     env: { PATH: process.env.PATH, PYTHONDONTWRITEBYTECODE: '1', PYTHONNOUSERSITE: '1' } });
 }
-function fixtureSoftware({ appTree } = {}) {
-  const f = fixture();
+function fixtureSoftware({ appTree, appProfile } = {}) {
+  const f = fixture({ appProfile }), APP = f.expected.IOS.app.repository;
   if (appTree) {
     for (const p of ['IOS', 'ANDROID']) f.expected[p].app.tree = appTree;
     f.commits[`${APP}:${f.expected.IOS.app.sha}`].tree.sha = appTree;
@@ -26,7 +26,7 @@ function fixtureSoftware({ appTree } = {}) {
   f.rawFixtures = {}; f.archives = {}; f.downloads = []; f.storageRequests = []; f.afterStorage = () => {};
   for (const platform of ['IOS', 'ANDROID']) {
     const raw = syntheticParent(platform), e = f.expected[platform], old = structuredClone(raw.expected);
-    const replacements = new Map([[old.app.tree, e.app.tree], [old.control.sha, e.control.sha],
+    const replacements = new Map([[old.app.tree, e.app.tree], [old.app.repository, e.app.repository], [old.control.sha, e.control.sha],
       [old.control.tree, e.control.tree], [old.backend.sha, e.backend.sha],
       [old.control.repository, e.control.repository], [old.backend.repository, e.backend.repository],
       [`${old.execution.repository}/${old.execution.workflowPath}@${old.execution.ref}`,

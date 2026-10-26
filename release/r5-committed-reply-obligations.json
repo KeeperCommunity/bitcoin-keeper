@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_MALFORMED_REVISION_AND_LOST_REAL_REPLY_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentConsentSha": "2fbb3bd6bf563779d703d979ac12bd1253c92da6",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedCommittedReplyGrid.proof.cjs",
+  "expectedGenuineCases": 14,
+  "priorSourceDispositionCounts": {
+    "PARTIAL": 5,
+    "UNCOVERED": 9
+  },
+  "sourceContracts": [
+    "src/services/backup/protected.ts:protectedBackupMutation",
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation"
+  ],
+  "faults": [
+    "After real commit, change only newRevision to invalid non-hex shape; preserve every other original valid ACK field.",
+    "After real commit and capture of its actual valid ACK, destroy the actual proxy HTTP reply before delivering it."
+  ],
+  "positiveControls": [
+    "Actual selected operation status200/committedtrue and exact original tuple.",
+    "Captured original ACK must satisfy every full positive production ACK contract before field tamper or lost delivery."
+  ],
+  "preservedAssertions": [
+    "Exactly one actual attempt; result notconfirmed and every original pending/nonverified/completed flag.",
+    "Unacknowledged Delete cannot opt out.",
+    "Original read-only reconciliation cannot mutate or replay; local backup revision counter does not regress."
+  ],
+  "strongerObservables": [
+    "Complete committed native image/account/independent records unchanged.",
+    "Real signed read proves complete actual committed remote effect or exact deletion tombstone.",
+    "Explicit old receipt replay before and after fresh read-only inspection sends zero HTTP."
+  ],
+  "protocolPhaseAdaptation": "After an actual committed Delete, v3 read-only state is explicitly deleted, replacing legacy missing/different without substituting a successful Delete ACK.",
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:6",
+      "legacyCase": "updateAppImage: actual HTTP malformed stops the write and never reports verified",
+      "operation": "updateAppImage",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:7",
+      "legacyCase": "updateAppImage: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "updateAppImage",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:2",
+      "protectedCase": "updateAppImage: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:30",
+      "legacyCase": "migrateXfps: actual HTTP malformed stops the write and never reports verified",
+      "operation": "migrateXfps",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:3",
+      "protectedCase": "migrateXfps: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:31",
+      "legacyCase": "migrateXfps: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "migrateXfps",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:4",
+      "protectedCase": "migrateXfps: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:54",
+      "legacyCase": "deleteAppImageEntity: actual HTTP malformed stops the write and never reports verified",
+      "operation": "deleteAppImageEntity",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:5",
+      "protectedCase": "deleteAppImageEntity: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:55",
+      "legacyCase": "deleteAppImageEntity: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "deleteAppImageEntity",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:6",
+      "protectedCase": "deleteAppImageEntity: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:78",
+      "legacyCase": "deleteVaults: actual HTTP malformed stops the write and never reports verified",
+      "operation": "deleteVaults",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:7",
+      "protectedCase": "deleteVaults: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:79",
+      "legacyCase": "deleteVaults: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "deleteVaults",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:8",
+      "protectedCase": "deleteVaults: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:102",
+      "legacyCase": "updateVaultImage: actual HTTP malformed stops the write and never reports verified",
+      "operation": "updateVaultImage",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:9",
+      "protectedCase": "updateVaultImage: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:103",
+      "legacyCase": "updateVaultImage: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "updateVaultImage",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:10",
+      "protectedCase": "updateVaultImage: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:126",
+      "legacyCase": "modifyLabels: actual HTTP malformed stops the write and never reports verified",
+      "operation": "modifyLabels",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:11",
+      "protectedCase": "modifyLabels: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:127",
+      "legacyCase": "modifyLabels: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "modifyLabels",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:12",
+      "protectedCase": "modifyLabels: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:150",
+      "legacyCase": "deleteBackup: actual HTTP malformed stops the write and never reports verified",
+      "operation": "deleteBackup",
+      "fault": "malformed-revision",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:13",
+      "protectedCase": "deleteBackup: actual committed malformed-revision preserves every pending flag, complete recovery and read-only no replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:151",
+      "legacyCase": "deleteBackup: actual HTTP lost-reply stops the write and never reports verified",
+      "operation": "deleteBackup",
+      "fault": "lost-reply",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedCommittedReplyGrid.proof.cjs:14",
+      "protectedCase": "deleteBackup: actual committed lost-reply preserves every pending flag, complete recovery and read-only no replay"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

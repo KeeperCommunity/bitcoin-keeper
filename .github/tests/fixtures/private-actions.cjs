@@ -11,9 +11,10 @@ const WORKFLOW = '.github/workflows/r5-native-integration.yml', POLICY = 'releas
 const MARKER = 'release/r5-native-integration/native-request.json', TOOL = 'scripts/native-source-identity.cjs';
 const blob = bytes => crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
 const bytes = value => Buffer.from(JSON.stringify(value));
-function fixture() {
+function fixture({ appProfile = require('../../native/release_repository_profiles.cjs').PUBLIC } = {}) {
+  const APP = appProfile.repository;
   const state = { calls: [], now: Date.parse('2026-10-22T23:30:00Z'), privateRepo: { id: 496119449, full_name: PRIVATE, private: true },
-    appRepo: { id: 470904030, full_name: APP, private: false }, workflow: { id: 7001, path: WORKFLOW, state: 'active' },
+    appRepo: { id: appProfile.repositoryId, full_name: APP, private: appProfile.private }, workflow: { id: 7001, path: WORKFLOW, state: 'active' },
     branch: { name: REF.slice(11), commit: { sha: '2'.repeat(40) } }, commits: {}, trees: {}, files: {}, runs: {},
     lists: {}, jobs: {}, checks: {}, suites: {}, artifacts: {}, artifactLists: {}, onRequest: () => {} };
   const app = { repository: APP, sha: 'a'.repeat(40), tree: '9'.repeat(40) };
@@ -37,7 +38,18 @@ function fixture() {
       backend: { repository: PRIVATE, sha: BACKEND }, execution: { repository: PRIVATE, workflowPath: WORKFLOW,
         workflowSha: sha, ref: REF, runId, runAttempt: 1 } };
     state.expected[platform] = expected;
-    state.files[`${PRIVATE}:${sha}`] = { ...backendFiles, [WORKFLOW]: Buffer.from(`KEEPER_SOURCE_SHA: ${app.sha}\norigin ${app.sha}\n--detach ${app.sha}\n`),
+    const checkout = appProfile.private ? [
+      '      - name: Fetch fixed private app with scoped read identity',
+      '        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6',
+      '        with:',
+      '          repository: KeeperCommunity/bitcoin-keeper-private',
+      `          ref: ${app.sha}`,
+      '          path: app',
+      '          fetch-depth: 0',
+      '          persist-credentials: false',
+      '          token: ${{ secrets.KEEPER_PRIVATE_APP_CONTENTS_READ_TOKEN }}',
+    ].join('\n') + '\n' : `origin ${app.sha}\n--detach ${app.sha}\n`;
+    state.files[`${PRIVATE}:${sha}`] = { ...backendFiles, [WORKFLOW]: Buffer.from(`KEEPER_SOURCE_SHA: ${app.sha}\n${checkout}`),
       [POLICY]: bytes(policy), [MARKER]: bytes({ schema: 1, app_sha: app.sha, platform }), [TOOL]: Buffer.from('// immutable reviewed tool\n') };
     state.commits[`${PRIVATE}:${sha}`] = { sha, tree: { sha: tree }, message: `ci(r5): run combined native ${platform}`,
       parents: [{ sha: platform === 'ANDROID' ? state.expected.IOS.control.sha : '8'.repeat(40) }] };
@@ -49,7 +61,8 @@ function fixture() {
     const appIdentity = { id: 15368, slug: 'github-actions' };
     state.suites[runId + 200] = { id: runId + 200, head_sha: sha, status: 'completed', conclusion: 'success', app: appIdentity };
     const steps = ['Record actual shared native window start before checkout or build',
-      'Check out exact private tooling and only required runtime modules', 'Fetch fixed public app anonymously',
+      'Check out exact private tooling and only required runtime modules',
+      appProfile.private ? 'Fetch fixed private app with scoped read identity' : 'Fetch fixed public app anonymously',
       'Set up reviewed Node runtime', 'Verify bounded exact source before installation', 'Install frozen backend dependencies without scripts',
       'Set up Java17', 'Record actual hosted toolchain', 'Install immutable native app dependencies and synthetic configuration',
       'Verify exact sources after dependency preparation', ...(platform === 'IOS' ? ['Set up Ruby for hosted iOS', 'Select reviewed Xcode16.4',
@@ -77,7 +90,7 @@ function fixture() {
   const wrap = (name, action) => async args => { state.calls.push({ name, args }); state.onRequest(name, args); return action(args); };
   state.github = { rest: {
     repos: {
-      get: wrap('repository', a => response(a.repo === 'bitcoin-keeper' ? state.appRepo : state.privateRepo)),
+      get: wrap('repository', a => response(a.repo === APP.split('/')[1] ? state.appRepo : state.privateRepo)),
       getBranch: wrap('branch', () => response(state.branch)),
       getContent: wrap('source', a => {
         const value = state.files[`KeeperCommunity/${a.repo}:${a.ref}`]?.[a.path];

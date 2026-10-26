@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "scope": "ALL_SEVEN_CORE_OPERATIONS_GENUINE_CAS404_FROM_GUARDED_DISPOSABLE_NAMESPACE_LOSS_SOURCE_ONLY",
+  "startingAppSha": "71215dfcc30a370b67c9f3d40bccbf9e9b17d709",
+  "parentConflictSha": "4119197419f2f283e05ab731de0b5456ae57530c",
+  "backendSha": "29597b27eeeb299205bf7d0555db0a90c38cc4be",
+  "baselineMap": "legacy295-protected-v3-reconciliation-20261025.private.json",
+  "baselineMapSha256": "b14320d9da449aa3f2c43ef207df6e6e0b8f1766b4583772ab112523c887b11e",
+  "legacyFile": "tests/recovery/automaticWriteRealmRelay.integration.cjs",
+  "legacyFileSha256": "8d6e8520759de71d0d3329614180097bc92b7782fb236256f27e04c755ee8f28",
+  "protectedFile": "tests/recovery/protectedNotFoundGrid.proof.cjs",
+  "expectedGenuineCases": 7,
+  "priorSourceDispositionCounts": {
+    "UNCOVERED": 6,
+    "PARTIAL": 1
+  },
+  "sourceContracts": [
+    "src/services/backup/automatic.ts:enqueueAutomaticBackupOperation",
+    "src/services/backup/protected.ts:readProtectedBackup",
+    "src/services/backup/repair.ts:inspectBackup"
+  ],
+  "faultModel": "Established genuine label-proof pattern: while actual original snapshot reply is held, remove exactly selected namespace and its encrypted records only in DB whose guarded name and actual connection equal keeper_protected_http_test_[pid]. Unchanged service returns its own404 to old tuple. No error response or success is fabricated.",
+  "positiveControls": [
+    "Actual original successful snapshot tuple captured before deletion.",
+    "Exactly one namespace deleted and positive actual encrypted-record deletion, plus zero remaining selected namespace/records afterward.",
+    "Exactly one own selected mutation request with actual status404/committedfalse/original full tuple."
+  ],
+  "preservedAssertions": [
+    "Original one own attempt, nonconfirmed result and all pending/nonverified/completed flags.",
+    "Old Delete cannot opt out.",
+    "Read-only inspection cannot retry, recreate or claim verification; local revision counter captured immediately before inspection cannot regress."
+  ],
+  "strongerObservables": [
+    "Full committed native image/account and independent recovery remain unchanged despite simulated remote storage loss.",
+    "Known protected history rejects subsequent actual absence and never falls back to legacy/enrollment.",
+    "Original consumed receipt sends zeroHTTP before/after actual read-only reconciliation."
+  ],
+  "remoteOutcomeLimit": "This explicitly injects real storage loss in owned disposable DB, not a normal tombstone. It does not claim remote content was retained after deliberate deletion; local recovery and fail-closed history behavior are observed.",
+  "rows": [
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:5",
+      "legacyCase": "updateAppImage: actual HTTP 404 stops the write and never reports verified",
+      "operation": "updateAppImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:1",
+      "protectedCase": "updateAppImage: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:29",
+      "legacyCase": "migrateXfps: actual HTTP 404 stops the write and never reports verified",
+      "operation": "migrateXfps",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:2",
+      "protectedCase": "migrateXfps: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:53",
+      "legacyCase": "deleteAppImageEntity: actual HTTP 404 stops the write and never reports verified",
+      "operation": "deleteAppImageEntity",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:3",
+      "protectedCase": "deleteAppImageEntity: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:77",
+      "legacyCase": "deleteVaults: actual HTTP 404 stops the write and never reports verified",
+      "operation": "deleteVaults",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:4",
+      "protectedCase": "deleteVaults: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:101",
+      "legacyCase": "updateVaultImage: actual HTTP 404 stops the write and never reports verified",
+      "operation": "updateVaultImage",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:5",
+      "protectedCase": "updateVaultImage: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:125",
+      "legacyCase": "modifyLabels: actual HTTP 404 stops the write and never reports verified",
+      "operation": "modifyLabels",
+      "priorSourceDisposition": "PARTIAL",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:6",
+      "protectedCase": "modifyLabels: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    },
+    {
+      "legacyId": "automaticWriteRealmRelay.integration.cjs:149",
+      "legacyCase": "deleteBackup: actual HTTP 404 stops the write and never reports verified",
+      "operation": "deleteBackup",
+      "priorSourceDisposition": "UNCOVERED",
+      "protectedId": "protectedNotFoundGrid.proof.cjs:7",
+      "protectedCase": "deleteBackup: real missing-namespace CAS404 retains local recovery and refuses history downgrade, repair or replay"
+    }
+  ],
+  "currentSourceRuntimeCredit": false,
+  "oldPublicMatrix": "2 PASS /293 FAIL preserved unchanged"
+}

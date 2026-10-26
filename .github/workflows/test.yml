@@ -139,7 +139,10 @@ jobs:
         if: always()
         run: node .github/scripts/verify-ci-source.cjs
 
+  # Historical public-v2 characterization remains runnable on its public route.
+  # Private candidates require the complete source-bound v3 replacement below.
   automatic-backup-genuine:
+    if: github.repository != 'KeeperCommunity/bitcoin-keeper-private'
     name: Automatic backup native Realm and Relay
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -202,3 +205,85 @@ jobs:
       - name: Remove disposable Mongo container
         if: always()
         run: python3 -B .github/ci/public_ci_mongo.py cleanup
+
+  protected-backup-v3:
+    name: Protected backup v3 proof
+    if: github.repository == 'KeeperCommunity/bitcoin-keeper-private'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    env:
+      KEEPER_PROTECTED_RELAY_CHECKOUT: ${{ github.workspace }}/backend
+      BACKUP_TEST_MONGO_URL: mongodb://127.0.0.1:27038
+      REALM_DISABLE_ANALYTICS: '1'
+    steps:
+      - name: Checkout exact Keeper event source and historical Realm schemas
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: app
+          persist-credentials: false
+
+      - name: Set up reviewed Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.23.4'
+
+      - name: Verify exact event source before setup
+        run: node .github/scripts/verify-ci-source.cjs
+
+      - name: Test selected backend transport and actual proof result controls
+        run: |
+          python3 -B -m unittest discover -s .github/ci -p test_protected_relay_source.py
+          python3 -B -m unittest discover -s .github/ci -p test_r5_combined_proof_mongo.py
+          node --test .github/ci/test-comprehensive351.cjs
+
+      - name: Restore only the reviewed 17 Relay inputs and original Git identity
+        run: python3 -B .github/ci/protected_relay_source.py restore
+
+      - name: Install Keeper dependencies without native app setup
+        run: |
+          test "$(yarn --version)" = 1.22.22
+          yarn install --frozen-lockfile --non-interactive --ignore-scripts
+          node_modules/.bin/patch-package --error-on-fail
+
+      - name: Install frozen selected Relay dependencies
+        working-directory: backend
+        run: yarn install --frozen-lockfile --non-interactive --ignore-scripts
+
+      - name: Install the actual Realm N-API binding
+        working-directory: app/node_modules/realm
+        run: ../.bin/prebuild-install --runtime napi --target 6
+
+      - name: Verify exact source after setup
+        run: |
+          node .github/scripts/verify-ci-source.cjs
+          python3 -B .github/ci/protected_relay_source.py verify
+
+      - name: Start only this job's owned disposable loopback replica
+        run: python3 -B .github/ci/r5_combined_proof_mongo.py start
+
+      - name: Execute all 351 private-v3 cases and verify all 295 retained obligations
+        run: node .github/ci/run-comprehensive351.cjs
+
+      - name: Verify exact source after checks
+        if: always()
+        run: |
+          node .github/scripts/verify-ci-source.cjs
+          python3 -B .github/ci/protected_relay_source.py verify
+
+      - name: Remove only this job's owned disposable replica
+        if: always()
+        run: python3 -B .github/ci/r5_combined_proof_mongo.py cleanup
+
+      - name: Preserve exact-source private-v3 proof ledger
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: protected-backup-v3-${{ github.run_id }}-${{ github.run_attempt }}
+          path: proof-results/
+          if-no-files-found: error
+          retention-days: 30

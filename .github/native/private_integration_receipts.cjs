@@ -2,6 +2,7 @@
 // Pure C2 receipt checks. Authenticated Actions origin and installed trust are external.
 const crypto = require('node:crypto');
 const { parseStrictJson } = require('./strict_json.cjs');
+const repositories = require('./release_repository_profiles.cjs');
 const SUITES = Object.freeze(['protected', 'recovery', 'account']);
 const SOURCE_SCOPES = Object.freeze({
   protected: 'BOUNDED_PRIVATE_NATIVE_ACCEPTANCE_TOOLING',
@@ -84,7 +85,7 @@ function privateIntegrationMembers(platform) {
 function context(expected) {
   const { app, control, backend, execution, platform, recoverySources } = expected;
   const repository = value => typeof value === 'string' && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value);
-  demand(['IOS', 'ANDROID'].includes(platform) && app.repository === 'KeeperCommunity/bitcoin-keeper' &&
+  demand(['IOS', 'ANDROID'].includes(platform) && repositories.forRepository(app.repository) &&
     [app, control].every(row => keys(row, ['repository', 'sha', 'tree']) && repository(row.repository) && hex(row.sha, 40) && hex(row.tree, 40)) &&
     keys(backend, ['repository', 'sha']) && repository(backend.repository) && hex(backend.sha, 40) &&
     keys(execution, ['repository', 'workflowPath', 'workflowSha', 'ref', 'runId', 'runAttempt']) &&

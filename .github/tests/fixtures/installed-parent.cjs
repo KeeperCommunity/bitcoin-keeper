@@ -7,13 +7,13 @@ const profile = { repository: 'KeeperCommunity/bitcoin-keeper-relay', repository
   ref: 'refs/heads/codex/r5-cloud-native-execution-20261025',
   driverBase: 'f0a695a6bba068ba93962e90ab52e8901ef4a852',
   backendSha: '29597b27eeeb299205bf7d0555db0a90c38cc4be', rawProfile: 'D448_RAW13' };
-function canonicalFixture() {
+function canonicalFixture(options) {
   const file = path.join(root, '.github/tests/canonical-native.test.cjs');
   const text = fs.readFileSync(file, 'utf8').split('\nfunction origin(')[0];
   if (!text.endsWith('}\n')) throw new Error('fixture source changed');
   const module = { exports: {} };
   new Function('require', 'module', text + '\nmodule.exports = fixture;')(createRequire(file), module);
-  return module.exports();
+  return module.exports(options);
 }
 function manifest(f) {
   const app = { repository: 'KeeperCommunity/bitcoin-keeper', sha: f.request.sourceSha, tree: 'c'.repeat(40) };
@@ -48,6 +48,9 @@ function loadWindow({ installed = true, typesOnly = false } = {}) {
     const end = text.indexOf(');\nconst issued', start);
     if (start < 0 || end < start) throw new Error('policy seam changed');
     text = text.slice(0, start) + `const INSTALLED_PROFILES = Object.freeze(${JSON.stringify({ 'synthetic-reviewed-profile': profile })});` + text.slice(end + 2);
+    // This evaluated test-only module admits its synthetic profile. Production
+    // source continues to bind each real repository to its own finite profile.
+    text = text.replace('value.profile === appProfile.parentProfile', "value.profile === 'synthetic-reviewed-profile'");
   }
   const module = { exports: {} };
   if (typesOnly) text += '\nmodule.exports.typePredicates = { sha, hex };';
