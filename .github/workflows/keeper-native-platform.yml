@@ -269,17 +269,17 @@ jobs:
         '
     - name: Run strict native TLS and production Electrum RPC matrix
       if: inputs.platform == 'IOS' && !inputs.prepare_only
-      run: python3 .github/native/hosted_native.py tls
+      run: python3 .github/native/ios_security_fixture_phase.py tls
     - name: Run historical Realm109 migration matrix
       if: inputs.platform == 'IOS' && !inputs.prepare_only
-      run: python3 .github/native/r52_realm109_native.py
+      run: python3 .github/native/ios_security_fixture_phase.py realm109
     - name: Measure five full-product startup and first-wallet runs
       if: inputs.platform == 'IOS' && !inputs.prepare_only
       run: 'test "$(git rev-parse HEAD)" = ''${{ inputs.source_sha }}''
 
         git diff --exit-code HEAD -- .github/native .github/workflows
 
-        python3 .github/native/product_measurements.py run
+        python3 .github/native/ios_security_fixture_phase.py trust-ui
 
         '
     - name: Enable emulator acceleration
