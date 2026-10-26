@@ -179,18 +179,26 @@ class RetainedAdmission(unittest.TestCase):
                 adapter.installed_dependencies(root, value)
 
     def test_raw_all_source_and_literal_harness_check_survive_git_index_flags(self):
-        # Uses the real local immutable tree with the same 2398 app entries,
-        # without claiming that the unavailable official ff Git object is local.
-        local = '9f72fd32c7d447edf8f0ab4545e9f77f3be8cc27'
-        try:
-            git(ROOT, 'cat-file', '-e', local)
-        except subprocess.CalledProcessError:
-            self.skipTest('The private original-tree assembly is not in this checkout.')
+        # Require the genuine frozen tree; missing history is a test failure.
+        # The parentless SYNTHETIC fixture commit is not the production ff commit.
+        self.assertEqual(git(ROOT, 'cat-file', '-t', adapter.TREE), 'tree')
         with tempfile.TemporaryDirectory() as name:
             temporary = Path(name); root = temporary / 'app'; root.mkdir(); git(root, 'init', '-q')
+            with self.assertRaises(subprocess.CalledProcessError):
+                git(root, 'cat-file', '-e', adapter.TREE)
             objects = git(ROOT, 'rev-parse', '--path-format=absolute', '--git-path', 'objects')
             write(root / '.git/objects/info/alternates', (objects + '\n').encode())
-            git(root, 'update-ref', 'refs/heads/fixture', local); git(root, 'symbolic-ref', 'HEAD', 'refs/heads/fixture')
+            with patch.dict(os.environ, GIT_AUTHOR_DATE='2000-01-01T00:00:00Z',
+                            GIT_COMMITTER_DATE='2000-01-01T00:00:00Z'):
+                synthetic_fixture_commit = git(root, '-c', 'user.name=Synthetic host test fixture',
+                    '-c', 'user.email=synthetic-fixture@example.invalid', 'commit-tree', adapter.TREE,
+                    '-m', 'SYNTHETIC TEST FIXTURE ONLY: genuine frozen tree; not production ff source')
+            self.assertNotEqual(synthetic_fixture_commit, adapter.SOURCE)
+            self.assertEqual(git(root, 'rev-parse', synthetic_fixture_commit + '^{tree}'), adapter.TREE)
+            self.assertEqual(git(root, 'rev-list', '--parents', '-n', '1', synthetic_fixture_commit),
+                             synthetic_fixture_commit)
+            git(root, 'update-ref', 'refs/heads/synthetic-fixture', synthetic_fixture_commit)
+            git(root, 'symbolic-ref', 'HEAD', 'refs/heads/synthetic-fixture')
             git(root, 'read-tree', 'HEAD'); git(root, 'checkout-index', '-a')
             raw_package = (root / 'package.json').read_bytes()
             configuration = []
@@ -202,8 +210,11 @@ class RetainedAdmission(unittest.TestCase):
             manifest = adapter.parse(manifest_bytes())
             staged = temporary / 'keeper-r52-retained-controller/files'; staged.mkdir(parents=True)
             write(staged / 'r52_source_boundary.py', (ROOT / '.github/native/r52_source_boundary.py').read_bytes())
-            with patch.object(adapter, 'SOURCE', local), patch.dict(os.environ, RUNNER_TEMP=str(temporary)):
+            with patch.object(adapter, 'SOURCE', synthetic_fixture_commit), \
+                 patch.dict(os.environ, RUNNER_TEMP=str(temporary)):
                 adapter.raw_sources(root, data, manifest, overlays=False)
+                with patch.object(adapter, 'TREE', '0' * 40), self.assertRaises(RuntimeError):
+                    adapter.raw_sources(root, data, manifest, overlays=False)
                 target = root / 'src/services/electrum/tls.js'; before = target.read_bytes()
                 git(root, 'update-index', '--assume-unchanged', 'src/services/electrum/tls.js'); target.write_bytes(b'modified')
                 self.assertEqual(git(root, 'diff', '--', 'src/services/electrum/tls.js'), '')
