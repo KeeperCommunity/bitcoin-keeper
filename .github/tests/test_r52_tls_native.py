@@ -137,6 +137,35 @@ class EvidenceControls(unittest.TestCase):
                 sockets.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
             self.assertEqual(rejected.exception.__cause__.errno, errno.EADDRINUSE)
 
+    def test_preparation_failure_keeps_original_error_and_fixed_category(self):
+        for error, expected in [(RuntimeError('TLS_UNTRACKED_SOURCE'), 'TLS_UNTRACKED_SOURCE'),
+                                (RuntimeError('TLS_METRO_PORT_OCCUPIED'), 'TLS_METRO_PORT_OCCUPIED'),
+                                (RuntimeError('PRIVATE_SENTINEL'), 'UNCLASSIFIED_PREPARATION_FAILURE')]:
+            with self.subTest(expected=expected):
+                data = dict(source_sha='a' * 40)
+                saved = []
+                harness = Mock(PLATFORM='ANDROID')
+                harness.read.return_value = data
+                harness.save.side_effect = lambda value: saved.append(copy.deepcopy(value))
+                with patch.object(matrix, '_run_with_preparation', side_effect=error):
+                    with self.assertRaises(RuntimeError) as raised:
+                        matrix.run(harness)
+                self.assertIs(raised.exception, error)
+                outcome = saved[-1]['r52_tls_native']
+                self.assertEqual(outcome['status'], 'FAIL')
+                self.assertEqual(outcome['cases'], [])
+                self.assertEqual(outcome['preparation_failure'], expected)
+                self.assertFalse(outcome['full_r52_acceptance'])
+                self.assertNotIn('PRIVATE_SENTINEL', json.dumps(saved))
+
+    def test_runtime_failure_receipt_is_not_replaced_by_preparation_diagnosis(self):
+        current = dict(r52_tls_native=dict(status='FAIL', scope='ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE', cases=[]))
+        harness = Mock(PLATFORM='ANDROID'); harness.read.return_value = current
+        with patch.object(matrix, '_run_with_preparation', side_effect=RuntimeError('PRIVATE_SENTINEL')):
+            with self.assertRaises(RuntimeError):
+                matrix.run(harness)
+        harness.save.assert_not_called()
+
     def test_child_failure_before_ready_is_not_successful_cleanup(self):
         class DeadFixture:
             def poll(self):

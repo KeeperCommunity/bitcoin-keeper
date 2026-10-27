@@ -84,6 +84,21 @@ class FileObservations(unittest.TestCase):
         path.symlink_to(self.root / 'outside.xml')
         self.assertEqual(diagnosis.junit(self.root, self.flow)['state'], 'UNKNOWN')
 
+    def test_post_wallet_ready_selectors_are_reported_without_failure_body(self):
+        for message, label in [
+            ('Element not found: Text matching regex: Next', 'wallet_next'),
+            ('Assertion is false: "Protect Your Recovery Key" is visible', 'protect_recovery_key'),
+            ('Element not found: Text matching regex: Skip for Now', 'skip_recovery_backup'),
+            ('Assertion is false: "Continue Without Backup?" is visible', 'confirm_skip_backup'),
+            ('Element not found: Text matching regex: Skip Backup', 'skip_backup'),
+            ('Assertion is false: id: home_visible_wallet_count_1 is visible', 'one_wallet_home'),
+        ]:
+            with self.subTest(label=label):
+                observed = self.report(message + '\nPRIVATE_SENTINEL')
+                self.assertEqual(observed['failed_selector'], label)
+                self.assertNotIn('PRIVATE_SENTINEL', json.dumps(observed))
+                self.assertIsNone(self.report(message + ' PRIVATE_SENTINEL')['failed_selector'])
+
     def test_fixed_public_flags_leaf_omissions_and_no_arbitrary_values_escape(self):
         self.snapshot({'children': [
             {'attributes': {'resource-id': 'view_startNewTile', 'text': 'PRIVATE_SENTINEL'}},

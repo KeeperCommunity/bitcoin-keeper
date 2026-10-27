@@ -29,7 +29,15 @@ FLAGS = tuple(dict.fromkeys((*IDS.values(), *TEXT.values(), 'logbox_error_header
     'notification_prompt_phrase', 'notification_permission_controls')))
 SELECTORS = {**{f'id: {key}': value for key, value in IDS.items()},
              **{f'"{key}"': value for key, value in TEXT.items()
-                if value in ('create_passcode', 'confirm_passcode', 'login', 'retry')}}
+                if value in ('create_passcode', 'confirm_passcode', 'login', 'retry')},
+             # These are literal selectors in the checked-in full-product flow.
+             # Keep the label only; never retain an arbitrary Maestro message.
+             '"Next"': 'wallet_next',
+             '"Protect Your Recovery Key"': 'protect_recovery_key',
+             '"Skip for Now"': 'skip_recovery_backup',
+             '"Continue Without Backup?"': 'confirm_skip_backup',
+             '"Skip Backup"': 'skip_backup',
+             'id: home_visible_wallet_count_1': 'one_wallet_home'}
 FAULTS = {'JS_TYPE_ERROR': r'\bTypeError\b', 'JS_REFERENCE_ERROR': r'\bReferenceError\b',
     'JS_SYNTAX_ERROR': r'\bSyntaxError\b', 'MODULE_RESOLUTION_ERROR': r'Unable to resolve module|\bUnableToResolveError\b',
     'TRANSFORM_ERROR': r'\bTransformError\b', 'APP_NOT_REGISTERED': r'has not been registered',

@@ -88,6 +88,37 @@ def run_retained(h):
 
 
 def _run(h, retained=None):
+    try:
+        _run_with_preparation(h, retained)
+    except BaseException as error:
+        # Preparation precedes the fixture's try/finally. Preserve its failure
+        # without exporting exception text, process output or private paths.
+        try:
+            current = h.read()
+            previous = current.get('r52_tls_native', {})
+            if previous.get('scope') != 'ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE':
+                allowed = {'TLS_PRIVATE_HOSTED_EXACT_APP_STARTUP_REQUIRED', 'TLS_EXACT_SOURCE_REQUIRED',
+                    'TLS_PACKAGE_OVERLAY_UNRECORDED', 'TLS_PACKAGE_PROTECTED_FIELDS',
+                    'TLS_RAW_SOURCE_HEAD', 'TLS_RAW_SOURCE_EMPTY', 'TLS_UNTRACKED_SOURCE',
+                    'TLS_RAW_SOURCE_PATH', 'TLS_RAW_SOURCE_OBJECT', 'TLS_RAW_SOURCE_SIZE',
+                    'TLS_RAW_SOURCE_BYTES', 'TLS_RAW_SOURCE_GIT', 'TLS_METRO_PORT_OCCUPIED',
+                    'TLS_STALE_FIXTURE_EXISTS'}
+                category = (error.args[0] if type(error) is RuntimeError and len(error.args) == 1
+                            and type(error.args[0]) is str and error.args[0] in allowed
+                            else 'UNCLASSIFIED_PREPARATION_FAILURE')
+                source = current.get('source_sha')
+                current['r52_tls_native'] = dict(status='FAIL', scope='ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE',
+                    phase='PREPARATION', preparation_failure=category,
+                    source_sha=source if type(source) is str and re.fullmatch('[a-f0-9]{40}', source) else None,
+                    platform=h.PLATFORM if h.PLATFORM in ('IOS', 'ANDROID') else None,
+                    cases=[], full_r52_acceptance=False)
+                h.save(current)
+        except BaseException:
+            pass  # Receipt collection must never replace the original error.
+        raise
+
+
+def _run_with_preparation(h, retained=None):
     data = h.read()
     context_spec = importlib.util.spec_from_file_location('native_phase_context', Path(__file__).with_name('native_phase_context.py'))
     context = importlib.util.module_from_spec(context_spec); context_spec.loader.exec_module(context)
