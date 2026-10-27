@@ -653,7 +653,7 @@
     },
     {
       "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
-      "sha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+      "sha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
       "cases": [
         {
           "id": "protectedLaunchHistory.proof.cjs:1",
@@ -3061,7 +3061,7 @@
           "actualRegisteredName": "actual still-gated 1.0.5 producer atomically migrates label/health/version then confirms app/live/archive/label fanout without receipt replay",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 249,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3084,7 +3084,7 @@
           "actualRegisteredName": "actual late native Realm version validation rolls back every staged migration and emits no HTTP",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 276,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3107,7 +3107,7 @@
           "actualRegisteredName": "whole 1.0.5 upgrade without original authority retains every local migration and performs zero HTTP",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 420,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3131,7 +3131,7 @@
           "actualRegisteredName": "actual originating A-to-B-to-A session is rejected before any local launch write",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 308,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3154,7 +3154,7 @@
           "actualRegisteredName": "whole 1.0.5 upgrade held at its asynchronous label read rejects A-to-B-to-A before every local migration or HTTP",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 439,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3178,7 +3178,7 @@
           "actualRegisteredName": "actual peer CAS after ACK1 rejects upgrade fanout member2 without rebase/retry and preserves all local migrations",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 358,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3206,7 +3206,7 @@
           "actualRegisteredName": "whole 1.0.5 upgrade with its first real CAS ACK lost preserves all migrations pending without later fanout or replay",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 493,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3230,7 +3230,7 @@
           "actualRegisteredName": "actual complete upgrade cannot become Verified from corrupted final readback metadata despite four real committed writes",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 398,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],
@@ -3258,7 +3258,7 @@
           "actualRegisteredName": "whole 1.0.5 actual upgrade producer invoked twice with its consumed original baseline sends no second HTTP and preserves one migration group",
           "file": "tests/recovery/protectedLaunchHistory.proof.cjs",
           "line": 517,
-          "currentFileSha256": "e496ddb5314dd4c31f87e908075ec7871d550f95c5570510d261eed1f8af412b",
+          "currentFileSha256": "9bb56720e7cc3dce450be1a454023c9f1d48d120fec55306a62d351619aef22e",
           "reviewedProducerSha": "d3ece60e782ff58d86dc96d7d1c7988ca4c8c175"
         }
       ],

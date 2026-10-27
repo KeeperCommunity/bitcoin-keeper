@@ -137,6 +137,41 @@ class EvidenceControls(unittest.TestCase):
                 sockets.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
             self.assertEqual(rejected.exception.__cause__.errno, errno.EADDRINUSE)
 
+    def test_closed_reusable_server_does_not_look_like_an_active_metro_listener(self):
+        # Use an owned random loopback port, never the Mac's shared port8081.
+        # Active-close leaves the server tuple in TIME_WAIT after both sockets
+        # and its listener are closed, as when an owned Metro child stops.
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind(('127.0.0.1', 0)); listener.listen()
+            address = listener.getsockname()
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+                client.connect(address); connection, _ = listener.accept()
+                with connection:
+                    connection.shutdown(socket.SHUT_WR)
+                    self.assertEqual(client.recv(1), b'')
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            with patch.object(matrix._BOUNDARY.socket, 'socket') as sockets:
+                wrapped = sockets.return_value.__enter__.return_value
+                def bind_owned(target):
+                    self.assertEqual(target, ('127.0.0.1', 8081))
+                    probe.bind(address)
+                wrapped.bind.side_effect = bind_owned
+                wrapped.setsockopt.side_effect = probe.setsockopt
+                matrix.require_free_metro_port()
+
+    def test_reusable_active_listener_still_blocks_metro_preparation(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener, \
+                socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind(('127.0.0.1', 0)); listener.listen()
+            with patch.object(matrix._BOUNDARY.socket, 'socket') as sockets:
+                wrapped = sockets.return_value.__enter__.return_value
+                wrapped.bind.side_effect = lambda _: probe.bind(listener.getsockname())
+                wrapped.setsockopt.side_effect = probe.setsockopt
+                with self.assertRaisesRegex(RuntimeError, 'TLS_METRO_PORT_OCCUPIED'):
+                    matrix.require_free_metro_port()
+
     def test_preparation_failure_keeps_original_error_and_fixed_category(self):
         for error, expected in [(RuntimeError('TLS_UNTRACKED_SOURCE'), 'TLS_UNTRACKED_SOURCE'),
                                 (RuntimeError('TLS_METRO_PORT_OCCUPIED'), 'TLS_METRO_PORT_OCCUPIED'),
@@ -155,6 +190,7 @@ class EvidenceControls(unittest.TestCase):
                 self.assertEqual(outcome['status'], 'FAIL')
                 self.assertEqual(outcome['cases'], [])
                 self.assertEqual(outcome['preparation_failure'], expected)
+                self.assertEqual(outcome['preparation_stage'], 'HOSTED_ADMISSION')
                 self.assertFalse(outcome['full_r52_acceptance'])
                 self.assertNotIn('PRIVATE_SENTINEL', json.dumps(saved))
 
@@ -165,6 +201,31 @@ class EvidenceControls(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 matrix.run(harness)
         harness.save.assert_not_called()
+
+    def test_unknown_preparation_error_retains_only_the_fixed_operation_stage(self):
+        for name, expected in [('OUTPUT_DIRECTORY', 'OUTPUT_DIRECTORY'),
+                               ('PRIVATE_SENTINEL', 'UNKNOWN_PREPARATION_STAGE')]:
+            with self.subTest(stage=expected):
+                data = dict(source_sha='a' * 40)
+                harness = Mock(PLATFORM='ANDROID'); harness.read.return_value = data
+                def fail_at_output(_h, _retained, stage):
+                    stage(name)
+                    raise FileExistsError('PRIVATE_SENTINEL')
+                with patch.object(matrix, '_run_with_preparation', side_effect=fail_at_output):
+                    with self.assertRaises(FileExistsError):
+                        matrix.run(harness)
+                self.assertEqual(data['r52_tls_native']['preparation_stage'], expected)
+                self.assertEqual(data['r52_tls_native']['preparation_failure'], 'UNCLASSIFIED_PREPARATION_FAILURE')
+                self.assertNotIn('PRIVATE_SENTINEL', json.dumps(data))
+
+    def test_receipt_write_failure_keeps_original_error(self):
+        error = RuntimeError('TLS_METRO_PORT_OCCUPIED')
+        harness = Mock(PLATFORM='ANDROID'); harness.read.return_value = {}
+        harness.save.side_effect = OSError('PRIVATE_SENTINEL')
+        with patch.object(matrix, '_run_with_preparation', side_effect=error):
+            with self.assertRaises(RuntimeError) as raised:
+                matrix.run(harness)
+        self.assertIs(raised.exception, error)
 
     def test_child_failure_before_ready_is_not_successful_cleanup(self):
         class DeadFixture:

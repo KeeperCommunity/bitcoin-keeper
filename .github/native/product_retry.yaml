@@ -39,14 +39,34 @@ name: Full app controlled setup disconnect Retry and cold persistence
     timeout: 180000
 - assertNotVisible: '^Something went wrong$'
 - tapOn: '^Next$'
+- runScript:
+    file: product_wallet_metric.js
+    env:
+      MARKER: next_tapped
 - extendedWaitUntil:
     visible: Protect Your Recovery Key
     timeout: 30000
+- runScript:
+    file: product_wallet_metric.js
+    env:
+      MARKER: education_visible
 - tapOn: Skip for Now
+- runScript:
+    file: product_wallet_metric.js
+    env:
+      MARKER: skip_for_now_tapped
 - extendedWaitUntil:
     visible: Continue Without Backup?
     timeout: 30000
+- runScript:
+    file: product_wallet_metric.js
+    env:
+      MARKER: warning_visible
 - tapOn: Skip Backup
+- runScript:
+    file: product_wallet_metric.js
+    env:
+      MARKER: skip_backup_tapped
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_1
