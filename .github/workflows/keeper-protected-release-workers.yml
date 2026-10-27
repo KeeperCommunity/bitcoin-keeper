@@ -57,15 +57,22 @@ jobs:
           KEEPER_RELEASE_STAGE: plan
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
         with:
           script: &current-installed-release-sdk |
             try {
               const stepEnv = { ...process.env };
               const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: stepEnv.KEEPER_CANONICAL_PIN_READ_TOKEN };
-              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: stepEnv.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN };
+              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: stepEnv.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN,
+                KEEPER_RELAY_READER_APP_ID: stepEnv.KEEPER_RELAY_READER_APP_ID,
+                KEEPER_RELAY_READER_INSTALLATION_ID: stepEnv.KEEPER_RELAY_READER_INSTALLATION_ID,
+                KEEPER_RELAY_READER_PRIVATE_KEY: stepEnv.KEEPER_RELAY_READER_PRIVATE_KEY };
               // Keep reader credentials only in these scoped client closures.
               for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'INPUT_GITHUB-TOKEN', 'INPUT_GITHUB_TOKEN',
                 'KEEPER_CANONICAL_PIN_READ_TOKEN', 'KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN',
+                'KEEPER_RELAY_READER_APP_ID', 'KEEPER_RELAY_READER_INSTALLATION_ID', 'KEEPER_RELAY_READER_PRIVATE_KEY',
                 'KEEPER_RELEASE_PROVENANCE_READ_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN']) delete stepEnv[name];
               // Source Git/Python cannot inherit signing/upload or runner credentials.
               // Preserve configured proxy routing and CA trust for source tools.
@@ -141,6 +148,9 @@ jobs:
           KEEPER_RELEASE_STAGE: revalidate
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8, Node 24 SDK
         with:
           script: *current-installed-release-sdk
@@ -206,6 +216,9 @@ jobs:
           KEEPER_RELEASE_STAGE: revalidate
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8, Node 24 SDK
         with:
           script: *current-installed-release-sdk
@@ -216,6 +229,9 @@ jobs:
           KEEPER_RELEASE_STAGE: execute
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
           KEEPER_PRODUCTION_CONFIG_BASE64: ${{ secrets.KEEPER_PRODUCTION_CONFIG_BASE64 }}
           KEEPER_IOS_P12_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_IOS_P12_BASE64 || '' }}
           KEEPER_IOS_P12_PASSWORD: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_IOS_P12_PASSWORD || '' }}
@@ -234,6 +250,9 @@ jobs:
           KEEPER_RELEASE_STAGE: execute
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
           KEEPER_ASC_KEY_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_ID || '' }}
           KEEPER_ASC_ISSUER_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_ISSUER_ID || '' }}
           KEEPER_ASC_KEY_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_BASE64 || '' }}
@@ -248,6 +267,9 @@ jobs:
           KEEPER_RELEASE_STAGE: execute
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
           KEEPER_ASC_KEY_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_ID || '' }}
           KEEPER_ASC_ISSUER_ID: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_ISSUER_ID || '' }}
           KEEPER_ASC_KEY_BASE64: ${{ needs.plan.outputs.platform == 'ios' && secrets.KEEPER_ASC_KEY_BASE64 || '' }}

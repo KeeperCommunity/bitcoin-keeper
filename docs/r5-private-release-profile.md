@@ -149,6 +149,11 @@ In private mobile's Actions secrets, `KEEPER_CANONICAL_PIN_READ_TOKEN` needs
 Variables read on private mobile, and
 `KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN` needs Actions, Contents and Checks
 read on private Relay. Select only the repository required by each identity.
+The supported alternative for the Relay reader is the
+[dedicated reader App](r5-relay-reader-app.md), whose installation tokens renew
+automatically. In that mode, provision its two ID variables and private-key secret
+instead of the old third-reader PAT secret; do not configure both identities.
+Neither existing pin/source reader is replaced or widened.
 The source driver SHA and window JSON will be supplied after their actual
 source and run identities are established; do not invent provisional values.
 

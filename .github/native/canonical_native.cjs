@@ -10,6 +10,7 @@ const { publicCompanionChecks } = require('./public_companion_receipts.cjs');
 const { validatePublicSoftware, WORKER_SOURCES, PUBLIC_SOFTWARE_SCOPE } = require('./public_software_receipts.cjs');
 const { parseStrictJson } = require('./strict_json.cjs');
 const repositories = require('./release_repository_profiles.cjs');
+const relayReaderApp = require('./relay_reader_app.cjs');
 const { SCOPES: NATIVE_PHASE_SCOPES } = require('./native_phase_receipts.cjs');
 const REPOSITORY = 'KeeperCommunity/bitcoin-keeper';
 const REPOSITORY_ID = 470904030;
@@ -61,6 +62,9 @@ function pinReaderFromEnvironment(github, env) {
 function privateReaderFromEnvironment(github, env) {
   const token = env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
   delete env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+  const app = relayReaderApp.consume(env);
+  demand(!(app && token !== undefined && token !== ''), 'PRIVATE_ACTIONS_READ_IDENTITY_AMBIGUOUS');
+  if (app) return relayReaderApp.client(github, app);
   // Missing private identity preserves incomplete readiness; it never borrows
   // the public Actions client or its token to produce parent facts.
   if (token === undefined || token === '') return undefined;

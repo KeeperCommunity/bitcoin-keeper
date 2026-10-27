@@ -86,13 +86,16 @@ test('semantic workflow discovery rejects a changed producer guard pin', () => {
 });
 test('actual bootstrap loads captured pinned bytes, verifies full Git tree and strips both read credentials before Git', () => {
   const f = fixture(), original = child.execFileSync, saved = {};
-  for (const name of ['KEEPER_CANONICAL_PIN_READ_TOKEN', 'KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN']) {
+  for (const name of ['KEEPER_CANONICAL_PIN_READ_TOKEN', 'KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN',
+    'KEEPER_RELAY_READER_APP_ID', 'KEEPER_RELAY_READER_INSTALLATION_ID', 'KEEPER_RELAY_READER_PRIVATE_KEY']) {
     saved[name] = process.env[name]; process.env[name] = 'DISPOSABLE_HOST_CONTROL_ONLY';
   }
   let calls = 0;
   child.execFileSync = (...args) => {
     assert.equal(process.env.KEEPER_CANONICAL_PIN_READ_TOKEN, undefined);
     assert.equal(process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN, undefined);
+    for (const name of ['KEEPER_RELAY_READER_APP_ID', 'KEEPER_RELAY_READER_INSTALLATION_ID', 'KEEPER_RELAY_READER_PRIVATE_KEY'])
+      assert.equal(process.env[name], undefined, name);
     calls++; return original(...args);
   };
   try { run(f); assert.ok(calls > 0); }

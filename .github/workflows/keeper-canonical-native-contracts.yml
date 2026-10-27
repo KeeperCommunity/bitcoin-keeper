@@ -4,6 +4,11 @@ on:
     branches: [sprint]
     paths:
       - '.github/native/canonical_*'
+      - '.github/native/relay_reader_app.cjs'
+      - '.github/tests/relay-reader-app.test.cjs'
+      - '.github/tests/relay-reader-bootstrap.test.cjs'
+      - '.github/tests/fixtures/relay-reader-real-sdk.cjs'
+      - '.github/workflows/keeper-relay-reader-access.yml'
       - '.github/native/release_repository_profiles.cjs'
       - '.github/tests/private-release-native-profile.test.cjs'
       - 'docs/r5-private-release-profile.md'
@@ -73,6 +78,7 @@ jobs:
         run: node .github/scripts/verify-ci-source.cjs
       - name: Test read-only canonical trust and archive controls
         run: |
+          node --test .github/tests/relay-reader-app.test.cjs .github/tests/relay-reader-bootstrap.test.cjs
           node --test .github/tests/canonical-native.test.cjs .github/tests/strict-json.test.cjs .github/tests/public-software-receipts.test.cjs .github/tests/public-companion-receipts.test.cjs .github/tests/actions-software-evidence.test.cjs .github/tests/release-evidence.test.cjs .github/tests/release-pipeline.test.cjs
           python3 -B -m unittest discover -s .github/tests -p test_canonical_metadata.py
           python3 -B -m unittest discover -s .github/tests -p test_software_artifact_zip.py
@@ -88,6 +94,8 @@ jobs:
           script: |
             const run = require('./.github/tests/fixtures/private-artifact-real-sdk.cjs');
             await run(github.constructor);
+            const reader = require('./.github/tests/fixtures/relay-reader-real-sdk.cjs');
+            await reader(github.constructor);
       - name: Verify exact source after checks
         if: always()
         run: node .github/scripts/verify-ci-source.cjs

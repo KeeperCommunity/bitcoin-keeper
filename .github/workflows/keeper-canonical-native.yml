@@ -42,6 +42,9 @@ jobs:
               const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
               delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
               delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+              delete process.env.KEEPER_RELAY_READER_APP_ID;
+              delete process.env.KEEPER_RELAY_READER_INSTALLATION_ID;
+              delete process.env.KEEPER_RELAY_READER_PRIVATE_KEY;
               // Pinned source bootstrap: validate captured bytes before importing repository code.
               const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
               const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');
@@ -108,6 +111,9 @@ jobs:
         env:
           KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PIN_READ_TOKEN }}
           KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN }}
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
           IOS_RESULT: ${{ needs.ios.result }}
           ANDROID_RESULT: ${{ needs.android.result }}
         with:
@@ -116,11 +122,17 @@ jobs:
               if (process.env.IOS_RESULT !== 'success' || process.env.ANDROID_RESULT !== 'success') {
                 throw new Error('Required platform did not execute successfully');
               }
-              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN };
+              const privateEnv = { KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN: process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN,
+                KEEPER_RELAY_READER_APP_ID: process.env.KEEPER_RELAY_READER_APP_ID,
+                KEEPER_RELAY_READER_INSTALLATION_ID: process.env.KEEPER_RELAY_READER_INSTALLATION_ID,
+                KEEPER_RELAY_READER_PRIVATE_KEY: process.env.KEEPER_RELAY_READER_PRIVATE_KEY };
               // Remove read credentials before raw-source Git/Python subprocesses.
               const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN: process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };
               delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;
               delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;
+              delete process.env.KEEPER_RELAY_READER_APP_ID;
+              delete process.env.KEEPER_RELAY_READER_INSTALLATION_ID;
+              delete process.env.KEEPER_RELAY_READER_PRIVATE_KEY;
               // Pinned source bootstrap: validate captured bytes before importing repository code.
               const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
               const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');

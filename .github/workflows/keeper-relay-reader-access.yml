@@ -1,0 +1,94 @@
+name: Verify scoped Relay reader App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/verify-relay-reader-app-20261027]
+    paths:
+      - .github/workflows/keeper-relay-reader-access.yml
+      - .github/native/relay_reader_app.cjs
+      - .github/native/strict_json.cjs
+      - .github/scripts/verify-ci-source.cjs
+
+permissions:
+  contents: read
+
+jobs:
+  reader-access:
+    if: >-
+      github.repository == 'KeeperCommunity/bitcoin-keeper-private' &&
+      github.event.repository.private == true &&
+      (github.ref == 'refs/heads/sprint' || github.ref == 'refs/heads/codex/verify-relay-reader-app-20261027')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify scoped App identity and actual Relay reads
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          KEEPER_RELAY_READER_APP_ID: ${{ vars.KEEPER_RELAY_READER_APP_ID }}
+          KEEPER_RELAY_READER_INSTALLATION_ID: ${{ vars.KEEPER_RELAY_READER_INSTALLATION_ID }}
+          KEEPER_RELAY_READER_PRIVATE_KEY: ${{ secrets.KEEPER_RELAY_READER_PRIVATE_KEY }}
+        with:
+          script: |
+            try {
+              const appEnv = Object.fromEntries(['KEEPER_RELAY_READER_APP_ID', 'KEEPER_RELAY_READER_INSTALLATION_ID',
+                'KEEPER_RELAY_READER_PRIVATE_KEY'].map(name => [name, process.env[name]]));
+              const sourceNames = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL',
+                'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy',
+                'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE'];
+              for (const name of Object.keys(process.env)) if (!sourceNames.includes(name)) delete process.env[name];
+              const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+              const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');
+              if (fs.realpathSync(root) !== root || fs.realpathSync(guardPath) !== guardPath) throw new Error('SOURCE_ALIAS');
+              const before = fs.lstatSync(guardPath);
+              if (!before.isFile() || before.nlink !== 1 || (before.mode & 0o100)) throw new Error('SOURCE_TYPE');
+              const fd = fs.openSync(guardPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+              let bytes;
+              try {
+                const opened = fs.fstatSync(fd);
+                if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) throw new Error('SOURCE_REPLACED');
+                bytes = fs.readFileSync(fd);
+              } finally { fs.closeSync(fd); }
+              const oid = crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+              if (oid !== '2c36d299851261d68965d37dbda024b950d46d8d') throw new Error('SOURCE_BLOB');
+              const guard = new (require('node:module'))(guardPath);
+              guard.filename = guardPath;
+              guard._compile(bytes.toString('utf8'), guardPath);
+              guard.exports.verifyRawCheckout(root, context.sha);
+              const app = require('./.github/native/relay_reader_app.cjs');
+              const config = app.consume(appEnv);
+              if (!config) throw new Error('APP_NOT_CONFIGURED');
+              const reader = app.client(github, config), repo = { owner: 'KeeperCommunity', repo: 'bitcoin-keeper-relay' };
+              const identity = (await reader.rest.repos.get(repo)).data;
+              if (identity.id !== app.REPOSITORY_ID || identity.full_name !== app.REPOSITORY || identity.private !== true)
+                throw new Error('REPOSITORY_MISMATCH');
+              const branch = (await reader.rest.repos.getBranch({ ...repo, branch: 'dev' })).data;
+              if (!/^[a-f0-9]{40}$/.test(branch.commit?.sha || '')) throw new Error('CONTENTS_UNVERIFIED');
+              const runs = (await reader.rest.actions.listWorkflowRunsForRepo({ ...repo, status: 'completed', per_page: 5 })).data;
+              let checkId;
+              for (const run of runs.workflow_runs || []) {
+                const jobs = (await reader.rest.actions.listJobsForWorkflowRun({ ...repo, run_id: run.id, per_page: 20 })).data;
+                const prefix = 'https://api.github.com/repos/' + app.REPOSITORY + '/check-runs/';
+                for (const job of jobs.jobs || []) if (job.check_run_url?.startsWith(prefix) &&
+                  /^[1-9]\d*$/.test(job.check_run_url.slice(prefix.length))) {
+                  checkId = Number(job.check_run_url.slice(prefix.length)); break;
+                }
+                if (checkId) break;
+              }
+              if (!Number.isSafeInteger(checkId)) throw new Error('CHECK_TARGET_UNAVAILABLE');
+              const check = (await reader.rest.checks.get({ ...repo, check_run_id: checkId })).data;
+              if (check.id !== checkId) throw new Error('CHECKS_UNVERIFIED');
+              let denied = false;
+              try { await reader.request('GET https://api.github.com/repos/KeeperCommunity/bitcoin-keeper-relay/actions/variables'); }
+              catch (error) { denied = error.message === 'PRIVATE_RELAY_READ_DESTINATION_REJECTED'; }
+              if (!denied) throw new Error('READER_BOUNDARY_UNVERIFIED');
+              core.info(JSON.stringify({ kind: 'keeper-relay-app-reader-access', source_sha: context.sha,
+                relay_actions_read: true, relay_contents_read: true, relay_checks_read: true,
+                unnecessary_endpoint_rejected: true, canonical_or_native_acceptance: false }));
+            } catch {
+              core.setFailed('Relay App reader blocked: configuration, scope or API verification incomplete. No release authorization.');
+            }

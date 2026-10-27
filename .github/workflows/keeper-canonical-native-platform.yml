@@ -37,7 +37,7 @@ jobs:
         KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.canonical_pin_read_token }}
       with:
         script: "try {\n  // Remove read credentials before raw-source Git/Python subprocesses.\n  const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN:\
-          \ process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };\n  delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;\n  delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;\n\
+          \ process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };\n  delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;\n  delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;\n  delete process.env.KEEPER_RELAY_READER_APP_ID;\n  delete process.env.KEEPER_RELAY_READER_INSTALLATION_ID;\n  delete process.env.KEEPER_RELAY_READER_PRIVATE_KEY;\n\
           \  // Pinned source bootstrap: validate captured bytes before importing repository code.\n  const fs = require('node:fs'), path = require('node:path'),\
           \ crypto = require('node:crypto');\n  const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');\n\
           \  if (fs.realpathSync(root) !== root || fs.realpathSync(guardPath) !== guardPath) throw new Error('RAW_BOOTSTRAP_ALIAS');\n  const\
@@ -140,7 +140,7 @@ jobs:
         KEEPER_CANONICAL_PIN_READ_TOKEN: ${{ secrets.canonical_pin_read_token }}
       with:
         script: "try {\n  // Remove read credentials before raw-source Git/Python subprocesses.\n  const pinEnv = { KEEPER_CANONICAL_PIN_READ_TOKEN:\
-          \ process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };\n  delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;\n  delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;\n\
+          \ process.env.KEEPER_CANONICAL_PIN_READ_TOKEN };\n  delete process.env.KEEPER_CANONICAL_PIN_READ_TOKEN;\n  delete process.env.KEEPER_CANONICAL_PRIVATE_ACTIONS_READ_TOKEN;\n  delete process.env.KEEPER_RELAY_READER_APP_ID;\n  delete process.env.KEEPER_RELAY_READER_INSTALLATION_ID;\n  delete process.env.KEEPER_RELAY_READER_PRIVATE_KEY;\n\
           \  // Pinned source bootstrap: validate captured bytes before importing repository code.\n  const fs = require('node:fs'), path = require('node:path'),\
           \ crypto = require('node:crypto');\n  const root = path.resolve(process.cwd()), guardPath = path.join(root, '.github/scripts/verify-ci-source.cjs');\n\
           \  if (fs.realpathSync(root) !== root || fs.realpathSync(guardPath) !== guardPath) throw new Error('RAW_BOOTSTRAP_ALIAS');\n  const\
