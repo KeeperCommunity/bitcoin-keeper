@@ -141,7 +141,11 @@ export default class ElectrumClient {
       ); // tcp or tls
       state.electrumClient = client;
 
-      client.onError = (error) => {
+      // The SDK's close policy must report loss to this guarded app owner.
+      // Keep its own pending-request/subscription cleanup even when onError
+      // closes the transport before the socket's close event is delivered.
+      const sdkOnClose = client.onClose.bind(client);
+      const handleTransportFailure = (error, sdkCloseHandled = false) => {
         if (
           stateIsCurrent(state, generation) &&
           state.electrumClient === client &&
@@ -153,10 +157,12 @@ export default class ElectrumClient {
           state.isClientConnected = false;
           peer.isConnected = false;
           if (client?.close) client.close();
+          if (!sdkCloseHandled) sdkOnClose();
           console.log('Error: Close the connection');
           return ElectrumClient.reconnect(generation);
         }
       };
+      client.onError = (error) => handleTransportFailure(error);
 
       console.log('Initiate electrum server...');
 
@@ -164,10 +170,13 @@ export default class ElectrumClient {
         new Promise((resolve) => {
           timeoutId = setTimeout(() => resolve('timeout'), 20000);
         }),
-        client.initElectrum({
-          client: 'btc-k',
-          version: '1.4',
-        }), // should resolve within 4 seconds(prior to timeout)
+        client.initElectrum(
+          { client: 'btc-k', version: '1.4' },
+          {
+            maxRetry: 0,
+            callback: () => handleTransportFailure(new Error('Electrum socket closed'), true),
+          }
+        ), // should resolve within 4 seconds(prior to timeout)
       ]);
       if (!stateIsCurrent(state, generation) || state.electrumClient !== client) {
         if (client?.close) client.close();

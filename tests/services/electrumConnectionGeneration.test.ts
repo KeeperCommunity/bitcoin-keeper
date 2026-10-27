@@ -33,6 +33,7 @@ jest.mock('electrum-client', () => ({
         () => mockInitReplies.shift()?.() || Promise.resolve(['server', '1.4'])
       ),
       close: jest.fn(),
+      onClose: jest.fn(),
       onError: null,
       blockchainScripthash_listunspentBatch: jest.fn(),
       blockchainScripthash_getHistoryBatch: jest.fn(),

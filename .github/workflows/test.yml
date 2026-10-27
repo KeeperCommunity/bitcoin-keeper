@@ -114,6 +114,9 @@ jobs:
       - name: Run tests
         run: npm run test
 
+      - name: Test Electrum transport and TLS security
+        run: npm run test:electrum-security
+
       # Frozen installation intentionally skips lifecycle scripts. The released
       # recovery suite includes genuine encrypted Realm transaction tests.
       - name: Install the Realm N-API binding for recovery tests
