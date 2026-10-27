@@ -79,6 +79,165 @@ def run(h):
     _run(h)
 
 
+def failure_receipt(raw, config, platform, progress=False):
+    """Validate binding and project only fixed diagnostic fields, never raw app data."""
+    if type(raw) is not str or len(raw.encode()) > 65536:
+        raise ValueError('TLS_DIAGNOSTIC_RECEIPT_SIZE')
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError('TLS_DIAGNOSTIC_DUPLICATE_KEY')
+            result[key] = value
+        return result
+    payload = json.loads(raw, object_pairs_hook=unique_object)
+    scope = 'ACTUAL_APP_RN_PRODUCTION_TLS_PROGRESS' if progress else 'ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE'
+    if (type(payload) is not dict or type(payload.get('schema')) is not int or payload.get('schema') != 1 or payload.get('scope') != scope
+            or payload.get('nonce') != config['nonce'] or payload.get('platform') != platform):
+        raise ValueError('TLS_DIAGNOSTIC_RECEIPT_BINDING')
+    rows = payload.get('cases')
+    expected = config['cases']
+    if (type(rows) is not list or len(rows) > len(expected)
+            or (not progress and len(rows) != len(expected))):
+        raise ValueError('TLS_DIAGNOSTIC_RECEIPT_CASES')
+    outcomes = {'ACCEPT', 'REJECT', 'TIMEOUT', 'POST_CONNECT_ERROR', 'BAD_REPLY', 'CLOSED_WITHOUT_RESULT', 'JS_EXCEPTION'}
+    safe = []
+    for index, row in enumerate(rows):
+        if (type(row) is not dict or set(row) != {'id', 'outcome', 'connected'}
+                or row['id'] != expected[index]['id'] or row['outcome'] not in outcomes
+                or type(row['connected']) is not bool):
+            raise ValueError('TLS_DIAGNOSTIC_RECEIPT_CASE')
+        safe.append(dict(id=expected[index]['id'], outcome=row['outcome'], connected=row['connected'],
+                         matches_expected=row['outcome'] == expected[index]['expected']
+                         and row['connected'] is (expected[index]['expected'] == 'ACCEPT')))
+    result = dict(state='BOUND', completed_cases=safe, completed_case_count=len(safe))
+    if progress:
+        if (payload.get('state') not in ('RUNNING', 'COMPLETE', 'EXCEPTION')
+                or payload.get('phase') not in ('TLS', 'RPC', 'WRITE')
+                or (payload.get('phase') == 'TLS' and len(rows) >= len(expected))
+                or (payload.get('phase') != 'TLS' and len(rows) != len(expected))
+                or (payload.get('state') == 'COMPLETE' and payload.get('phase') != 'WRITE')
+                or payload.get('active_case') != (expected[len(rows)]['id']
+                    if payload.get('phase') == 'TLS' and len(rows) < len(expected) else None)):
+            raise ValueError('TLS_DIAGNOSTIC_PROGRESS_STATE')
+        result.update(probe_state=payload['state'], phase=payload['phase'], active_case=payload['active_case'])
+    else:
+        rpc = payload.get('rpc')
+        if (payload.get('status') not in ('PASS', 'FAIL') or payload.get('transport_status') not in ('PASS', 'FAIL')
+                or type(rpc) is not dict or rpc.get('status') not in ('PASS', 'FAIL', 'NOT RUN')):
+            raise ValueError('TLS_DIAGNOSTIC_FINAL_STATE')
+        result.update(probe_status=payload['status'], transport_status=payload['transport_status'], rpc_status=rpc['status'])
+        # No arbitrary exception text, extra RPC fields, nonce, certificates or paths.
+        rpc_cases = ['synthetic_headers', 'synthetic_utxo', 'synthetic_history', 'synthetic_fee',
+                     'synthetic_fake_broadcast', 'forced_selected_socket_retry', 'other_endpoint_no_inherited_ca',
+                     'other_endpoint_explicit_same_ca', 'explicit_disconnect_no_retry']
+        cases = rpc.get('cases', [])
+        if type(cases) is not list or len(cases) > len(rpc_cases) or any(
+                type(row) is not dict or row.get('id') != rpc_cases[index] or row.get('status') != 'PASS'
+                for index, row in enumerate(cases)):
+            raise ValueError('TLS_DIAGNOSTIC_RPC_CASES')
+        result['rpc_completed_cases'] = rpc_cases[:len(cases)]
+        failures = {'RPC_APP_TIMEOUT', 'RPC_DEV_CONFIG', 'RPC_LOOPBACK_ONLY', 'RPC_DISPOSABLE_INPUT',
+                    'RPC_REHYDRATION_REQUIRED', 'RPC_EMPTY_DISPOSABLE_APP_REQUIRED', 'RPC_SELECTED_PRIVATE_POLICY',
+                    'RPC_SERVER_WITNESS_REJECTED', 'RPC_SERVER_WITNESS_REPLY', 'RPC_INITIAL_CONNECTION',
+                    'RPC_HEADERS', 'RPC_UTXO', 'RPC_HISTORY', 'RPC_FEE', 'RPC_FAKE_BROADCAST',
+                    'RPC_PRODUCTION_RETRY_REQUIRED', 'RPC_OTHER_INHERITED_TRUST', 'RPC_OTHER_EXPLICIT_TRUST',
+                    'RPC_EXPLICIT_DISCONNECT', 'RPC_NATIVE_OR_APP_EXCEPTION', 'RPC_APP_CLEANUP_FAILED'}
+        if 'failure' in rpc:
+            result['rpc_failure'] = rpc['failure'] if type(rpc['failure']) is str and rpc['failure'] in failures else 'UNKNOWN_RPC_FAILURE'
+    return result
+
+
+def collect_android_failure(h, device, config, output, fixture=None):
+    """Best-effort observation before owned-app cleanup; cannot supply acceptance."""
+    import xml.etree.ElementTree as ET
+    result = dict(scope='ANDROID_TLS_FAILURE_OBSERVATION_NOT_ACCEPTANCE', native_acceptance=False)
+    if h.PLATFORM != 'ANDROID' or owned_device(device, h.PLATFORM) != device:
+        raise ValueError('TLS_DIAGNOSTIC_OWNED_ANDROID_REQUIRED')
+    for name, progress in [('final_receipt', False), ('progress_receipt', True)]:
+        filename = 'keeper-r52-tls-' + ('progress' if progress else 'evidence') + '.json'
+        try:
+            raw = h.command(['adb', '-s', device, 'exec-out', 'run-as', h.APP_IDS[h.PLATFORM],
+                             'head', '-c', '65537', 'files/' + filename],
+                            'Read bounded owned TLS failure ' + name, timeout=15, capture=True, error_details=False)
+        except Exception:
+            result[name] = dict(state='ABSENT_OR_UNREADABLE')
+        else:
+            try:
+                result[name] = failure_receipt(raw, config, h.PLATFORM, progress)
+            except Exception:
+                result[name] = dict(state='INVALID_OR_UNBOUND')
+    def collect(name, action):
+        try:
+            result[name] = action()
+        except Exception:
+            result[name] = dict(state='COLLECTION_FAILED')
+    def junit():
+        report = output / 'junit.xml'
+        if not report.exists():
+            return dict(state='MISSING')
+        if report.is_symlink() or report.stat().st_size > 1024 * 1024:
+            raise ValueError('TLS_DIAGNOSTIC_JUNIT_SIZE')
+        root = ET.fromstring(report.read_bytes())
+        return dict(state='PRESENT', testcase_count=min(100, len(list(root.iter('testcase')))),
+                    failure_count=min(100, len(list(root.iter('failure')))),
+                    error_count=min(100, len(list(root.iter('error')))),
+                    skipped_count=min(100, len(list(root.iter('skipped')))))
+    collect('junit', junit)
+    collect('maestro_preflight', lambda: h.maestro_preflight_diagnostics(output,
+        'Execute actual production native TLS bridge and synthetic RPC matrix', device))
+    collect('hierarchy_signals', lambda: h.startup_hierarchy_signals(output))
+    def probe_ui():
+        # RN LogBox footer IDs and this probe's IDs; no UI text is exported.
+        ids = {'r52-tls-running', 'r52-tls-pass', 'r52-tls-failed', 'logbox_dismissable_text',
+               'logbox_footer_button_dismiss', 'logbox_footer_button_minimize'}
+        observed = set()
+        import itertools
+        paths = list(itertools.islice(output.glob('**/screen-hierarchy/step-*.json'), 9))
+        for path in paths[:8]:
+            if path.is_symlink() or not path.resolve().is_relative_to(output.resolve()) or path.stat().st_size > 1024 * 1024:
+                raise ValueError('TLS_DIAGNOSTIC_UI_BOUNDARY')
+            pending = [json.loads(path.read_text())]; visited = 0
+            while pending:
+                node = pending.pop(); visited += 1
+                if type(node) is not dict or visited + len(pending) > 10000:
+                    raise ValueError('TLS_DIAGNOSTIC_UI_NODES')
+                attributes = node.get('attributes') or {}
+                children = node.get('children') or []
+                if type(attributes) is not dict or type(children) is not list or visited + len(pending) + len(children) > 10000:
+                    raise ValueError('TLS_DIAGNOSTIC_UI_NODE')
+                identifier = attributes.get('resource-id', '')
+                if type(identifier) is str and identifier.rsplit(':id/', 1)[-1] in ids:
+                    observed.add(identifier.rsplit(':id/', 1)[-1])
+                pending.extend(children)
+        return dict(observed_ids=sorted(observed), snapshots_read=min(8, len(paths)), truncated=len(paths) > 8)
+    collect('probe_ui', probe_ui)
+    collect('metro_errors', lambda: h.metro_startup_errors(h.private_log_prefix(output / 'metro.log')[0]))
+    def android_errors():
+        raw = h.command(['adb', '-s', device, 'logcat', '-d', '-t', '200', '-v', 'brief',
+                         '*:S', 'AndroidRuntime:E', 'ReactNativeJS:E', 'ReactNative:E'],
+                        'Classify bounded owned TLS Android runtime errors', timeout=15,
+                        capture=True, error_details=False)
+        return dict(scope='DEVICE_LOG_NOT_PROCESS_ATTRIBUTED', categories=h.android_startup_errors(raw))
+    collect('android_errors', android_errors)
+    def witnesses():
+        fixture.stdin.write('snapshot\n'); fixture.stdin.flush()
+        rows = receive(fixture, seconds=5)['tls']
+        if type(rows) is not dict or set(rows) != {row['id'] for row in config['cases']}:
+            raise ValueError('TLS_DIAGNOSTIC_WITNESSES')
+        result = []
+        for row in config['cases']:
+            counts = rows[row['id']]
+            if (type(counts) is not dict or set(counts) != {'connections', 'secure_connections', 'requests', 'invalid_payloads'}
+                    or any(type(value) is not int or not 0 <= value <= 4 for value in counts.values())):
+                raise ValueError('TLS_DIAGNOSTIC_WITNESS_COUNTERS')
+            result.append(dict(id=row['id'], **counts))
+        return result
+    if fixture is not None:
+        collect('server_witnesses', witnesses)
+    return result
+
+
 def run_retained(h):
     # Explicit private diagnostic route; ordinary run(h) keeps its strict gates.
     spec = importlib.util.spec_from_file_location('r52_retained_admission', Path(__file__).with_name('r52_retained_admission.py'))
@@ -219,6 +378,7 @@ def _run_with_preparation(h, retained, stage):
         except BaseException:
             result['ios_warm_before_device'] = dict(state='UNAVAILABLE', native_acceptance=False)
 
+    execution_stage = 'SETUP'
     try:
         fixture = subprocess.Popen(['node', '.github/native/r52_tls_fixture.cjs', h.PLATFORM, str(generated)],
                                    cwd=h.ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -280,11 +440,14 @@ def _run_with_preparation(h, retained, stage):
         if h.PLATFORM == 'ANDROID':
             start_and_warm_metro()
         report = output / 'junit.xml'
+        execution_stage = 'MAESTRO'
         h.command([data['maestro']['binary'], '--device', device, 'test', '--env', 'APP_ID=' + h.APP_IDS[h.PLATFORM],
                    '--flatten-debug-output', '--debug-output', str(output), '--test-output-dir', str(output),
                    '--format', 'junit', '--output', str(report), '.github/native/r52_tls_probe.yaml'],
                   'Execute actual production native TLS bridge and synthetic RPC matrix', timeout=480, error_details=False)
+        execution_stage = 'JUNIT'
         h.successful_junit(report)
+        execution_stage = 'APP_RECEIPT'
         if h.PLATFORM == 'IOS':
             container = Path(h.command(['xcrun', 'simctl', 'get_app_container', device, h.APP_IDS[h.PLATFORM], 'data'],
                                        'Locate owned TLS app receipt', capture=True))
@@ -303,8 +466,10 @@ def _run_with_preparation(h, retained, stage):
             if len(raw.encode()) > 65536:
                 raise RuntimeError('TLS_APP_RECEIPT_SIZE')
             payload = json.loads(raw)
+        execution_stage = 'SERVER_WITNESSES'
         fixture.stdin.write('snapshot\n'); fixture.stdin.flush()
         witness = receive(fixture)
+        execution_stage = 'VALIDATION'
         result['cases'] = validate(config, payload, witness['tls'], h.PLATFORM)
         spec = importlib.util.spec_from_file_location('r52_rpc_evidence', Path(__file__).with_name('r52_rpc_evidence.py'))
         rpc_evidence = importlib.util.module_from_spec(spec)
@@ -323,6 +488,13 @@ def _run_with_preparation(h, retained, stage):
         result.update(status='PASS', installed_bytes_verified=True, fixture_sha256=ready['config_sha256'])
     except BaseException as exc:
         error = exc
+        result['failure_stage'] = execution_stage
+        if isinstance(exc, Exception) and h.PLATFORM == 'ANDROID' and device and 'config' in locals():
+            try:
+                result['failure_observation'] = collect_android_failure(h, device, config, output, fixture)
+                result['failure_observation']['fixture_sha256'] = ready['config_sha256']
+            except Exception:
+                result['failure_observation'] = dict(state='COLLECTION_FAILED', native_acceptance=False)
         raise
     finally:
         cleanup = []

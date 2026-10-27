@@ -92,6 +92,7 @@ class FileObservations(unittest.TestCase):
             ('Assertion is false: "Continue Without Backup?" is visible', 'confirm_skip_backup'),
             ('Element not found: Text matching regex: Skip Backup', 'skip_backup'),
             ('Assertion is false: id: home_visible_wallet_count_1 is visible', 'one_wallet_home'),
+            ('Assertion is false: "Mobile Wallet" is visible', 'mobile_wallet'),
         ]:
             with self.subTest(label=label):
                 observed = self.report(message + '\nPRIVATE_SENTINEL')
@@ -115,6 +116,27 @@ class FileObservations(unittest.TestCase):
             self.assertIs(result['flags'][name], True, name)
         self.assertIs(result['flags']['recover_tile'], False)
         self.assertNotIn('PRIVATE_SENTINEL', json.dumps(result))
+
+    def test_remaining_static_product_flow_selectors_keep_only_fixed_labels(self):
+        for selector, label in diagnosis.SELECTORS.items():
+            for suffix, kind in [(' is visible', 'ASSERT_VISIBLE'),
+                                 (' is not visible', 'ASSERT_NOT_VISIBLE')]:
+                message = 'Assertion is false: ' + selector + suffix
+                value = self.report(message + '\nPRIVATE_SENTINEL')
+                self.assertEqual((value['failed_selector'], value['failure_kind']), (label, kind))
+                self.assertNotIn('PRIVATE_SENTINEL', json.dumps(value))
+                self.assertIsNone(self.report(message + ' PRIVATE_SENTINEL')['failed_selector'])
+
+    def test_numeric_version_templates_are_bounded_and_never_export_values(self):
+        for selector, label in [(r'"^2\.6\.5\(621\)$"', 'version_history_value'),
+                (r'"^2\.6\.5 \(621\)$"', 'installed_version_value'),
+                (r'id: text_installedAppVersion, text: "^2\.6\.5 \(621\)$"', 'installed_version_value')]:
+            message = 'Assertion is false: ' + selector + ' is visible'
+            result = self.report(message + '\nPRIVATE_SENTINEL')
+            self.assertEqual(result['failed_selector'], label)
+            self.assertNotIn('621', json.dumps(result))
+            self.assertIsNone(self.report(message + ' PRIVATE_SENTINEL')['failed_selector'])
+            self.assertIsNone(self.report(message.replace('621', 'PRIVATE_SENTINEL'))['failed_selector'])
 
     def test_invalid_truncated_and_bounded_snapshots_do_not_clear_unknown_flags(self):
         self.assertTrue(all(value is None for value in diagnosis.hierarchy(self.root)['flags'].values()))
@@ -303,7 +325,8 @@ class FailureLifecycle(unittest.TestCase):
                 order.append('close')
                 raise OSError('PRIVATE_SENTINEL cleanup')
             manager = types.SimpleNamespace(start=lambda *_a, **_k: None, close=close, events=[])
-            server = types.SimpleNamespace(serve_forever=lambda: None, shutdown=lambda: None, server_close=lambda: None)
+            # Existing non-command return values remain ignored.
+            server = types.SimpleNamespace(serve_forever=lambda: None, shutdown=lambda: 7, server_close=lambda: None)
             def installed(_device):
                 proof = {'method': 'SINGLE_INSTALLED_BASE_APK_SHA256', 'sha256': 'c' * 64}
                 state.update(installed_artifact_verified=True, installed_artifact=proof)
@@ -313,11 +336,13 @@ class FailureLifecycle(unittest.TestCase):
                 verify_installed_artifact=installed)
             def module(name):
                 return observer if name == 'product_failure_diagnosis' else types.SimpleNamespace(OwnedMetro=lambda *_: manager)
+            def host_command(args, **_kwargs):
+                return types.SimpleNamespace(returncode=9 if 'uninstall' in args else 0)
             with contextlib.ExitStack() as stack:
                 stack.enter_context(mock.patch.dict(product.os.environ, {'GITHUB_ACTIONS': 'true',
                     'RUNNER_ENVIRONMENT': 'github-hosted', 'KEEPER_SOURCE_SHA': sha}))
                 stack.enter_context(mock.patch.object(product.subprocess, 'check_output', side_effect=[sha, manifest]))
-                stack.enter_context(mock.patch.object(product.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)))
+                stack.enter_context(mock.patch.object(product.subprocess, 'run', side_effect=host_command))
                 stack.enter_context(mock.patch.object(product, 'native_module', side_effect=module))
                 stack.enter_context(mock.patch.object(product, 'make_server', return_value=server))
                 stack.enter_context(mock.patch.object(product, 'android_failure_observation', return_value={'status': 'UNAVAILABLE'}))
@@ -328,6 +353,9 @@ class FailureLifecycle(unittest.TestCase):
             self.assertEqual(list(private.iterdir()), [])
             self.assertEqual(len(state['product_ui']['samples']), 1)
             self.assertEqual(state['product_ui']['samples'][0]['failure_observation']['status'], 'UNKNOWN')
+            self.assertEqual(state['product_ui']['cleanup_failures'], [
+                {'operation': 'OWNED_METRO_CLOSE', 'category': 'OSError'},
+                {'operation': 'OWNED_ANDROID_APP_UNINSTALL', 'category': 'RuntimeError', 'exit_code': 9}])
             self.assertNotIn('PRIVATE_SENTINEL', json.dumps(receipts))
 
 

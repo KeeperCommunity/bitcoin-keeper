@@ -43,16 +43,44 @@ function NativeTlsProbe() {
       if (!__DEV__ || fixture.schema !== 1 || Platform.OS.toUpperCase() !== fixture.platform)
         throw new Error('TLS_DEVELOPMENT_FIXTURE_REQUIRED');
       const rows = [];
-      for (const row of fixture.cases) rows.push(await probe(row));
-      const transportStatus = rows.every((row, i) => row.outcome === fixture.cases[i].expected) ? 'PASS' : 'FAIL';
-      const rpc = transportStatus === 'PASS' ? await require('./r52_rpc_probe').runActualRpc(fixture) :
-        { status: 'NOT RUN', reason: 'TLS_MATRIX_FAILED' };
-      const status = transportStatus === 'PASS' && rpc.status === 'PASS' ? 'PASS' : 'FAIL';
-      await RNFS.writeFile(`${RNFS.DocumentDirectoryPath}/keeper-r52-tls-evidence.json`, JSON.stringify({
-        schema: 1, scope: 'ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE', nonce: fixture.nonce,
-        platform: fixture.platform, status, transport_status: transportStatus, cases: rows, rpc,
-      }), 'utf8');
-      return status === 'PASS' ? 'pass' : 'failed';
+      let phase = 'TLS', activeCase = null;
+      let progressTail = Promise.resolve();
+      // Android failure diagnostics only. This is never acceptance evidence.
+      function checkpoint(state = 'RUNNING') {
+        if (Platform.OS !== 'android') return;
+        // Capture each finite checkpoint now; a stalled/failed diagnostic write
+        // cannot delay TLS/RPC or the authoritative awaited final receipt.
+        const raw = JSON.stringify({
+          schema: 1, scope: 'ACTUAL_APP_RN_PRODUCTION_TLS_PROGRESS', nonce: fixture.nonce,
+          platform: fixture.platform, state, phase, active_case: activeCase, cases: rows,
+        });
+        progressTail = progressTail.then(() => RNFS.writeFile(
+          `${RNFS.DocumentDirectoryPath}/keeper-r52-tls-progress.json`, raw, 'utf8')).catch(() => {});
+      }
+      try {
+        for (const row of fixture.cases) {
+          activeCase = row.id;
+          checkpoint();
+          rows.push(await probe(row));
+        }
+        phase = 'RPC'; activeCase = null;
+        checkpoint();
+        const transportStatus = rows.every((row, i) => row.outcome === fixture.cases[i].expected) ? 'PASS' : 'FAIL';
+        const rpc = transportStatus === 'PASS' ? await require('./r52_rpc_probe').runActualRpc(fixture) :
+          { status: 'NOT RUN', reason: 'TLS_MATRIX_FAILED' };
+        const status = transportStatus === 'PASS' && rpc.status === 'PASS' ? 'PASS' : 'FAIL';
+        phase = 'WRITE';
+        checkpoint();
+        await RNFS.writeFile(`${RNFS.DocumentDirectoryPath}/keeper-r52-tls-evidence.json`, JSON.stringify({
+          schema: 1, scope: 'ACTUAL_APP_RN_PRODUCTION_TLS_BRIDGE', nonce: fixture.nonce,
+          platform: fixture.platform, status, transport_status: transportStatus, cases: rows, rpc,
+        }), 'utf8');
+        checkpoint('COMPLETE');
+        return status === 'PASS' ? 'pass' : 'failed';
+      } catch {
+        checkpoint('EXCEPTION');
+        return 'failed';
+      }
     })().catch(() => 'failed');
     execution.then(value => { if (alive) setStage(value); });
     return () => { alive = false; };

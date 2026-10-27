@@ -544,45 +544,51 @@ def run(h):
         original_failed = result['status'] == 'FAIL'
         cleanup_errors = []
 
-        def attempt(operation):
+        def attempt(operation, label, command=False):
+            exit_code = None
             try:
-                operation()
+                value = operation()
+                if command and type(value) is int:
+                    exit_code = value
+                    if value:
+                        raise RuntimeError('PRODUCT_UI_DISPOSABLE_CLEANUP_COMMAND_FAILED')
             except Exception as cleanup_error:
                 cleanup_errors.append(type(cleanup_error).__name__)
+                failure = {'operation': label, 'category': type(cleanup_error).__name__}
+                if exit_code is not None:
+                    failure['exit_code'] = exit_code
+                result.setdefault('cleanup_failures', []).append(failure)
                 result.update(status='FAIL', cleanup='FAILED',
                               cleanup_failure_categories=sorted(set(cleanup_errors)))
 
         result['companion_metro_switches'] = list(metro.events)
-        attempt(save)
+        attempt(save, 'EVIDENCE_SAVE')
         # Stop/reap every recorded child before device and private-log removal,
         # including the newest child when its readiness/warmup failed.
-        attempt(metro.close)
+        attempt(metro.close, 'OWNED_METRO_CLOSE')
         if server:
-            attempt(server.shutdown)
-            attempt(server.server_close)
+            attempt(server.shutdown, 'FIXTURE_SERVER_SHUTDOWN')
+            attempt(server.server_close, 'FIXTURE_SERVER_CLOSE')
 
-        def cleanup(args):
-            def execute():
-                if subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                  timeout=30, check=False).returncode:
-                    raise RuntimeError('PRODUCT_UI_DISPOSABLE_CLEANUP_COMMAND_FAILED')
-            attempt(execute)
+        def cleanup(args, label):
+            attempt(lambda: subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                           timeout=30, check=False).returncode, label, command=True)
 
         if device and h.PLATFORM == 'IOS':
             for action in ('shutdown', 'delete'):
-                cleanup(['xcrun', 'simctl', action, device])
+                cleanup(['xcrun', 'simctl', action, device], 'OWNED_SIMULATOR_' + action.upper())
         elif device and device.startswith('emulator-'):
-            cleanup(['adb', '-s', device, 'uninstall', h.APP_IDS[h.PLATFORM]])
+            cleanup(['adb', '-s', device, 'uninstall', h.APP_IDS[h.PLATFORM]], 'OWNED_ANDROID_APP_UNINSTALL')
             for port in sorted(reverse_ports):
-                cleanup(['adb', '-s', device, 'reverse', '--remove', 'tcp:' + port])
-        attempt(lambda: shutil.rmtree(private))
+                cleanup(['adb', '-s', device, 'reverse', '--remove', 'tcp:' + port], 'OWNED_ANDROID_REVERSE_REMOVE')
+        attempt(lambda: shutil.rmtree(private), 'PRIVATE_OUTPUT_PURGE')
         # Foundation command metadata is safe/nonsecret; its process logs from
         # this suite are not retained even on the ephemeral runner.
         def remove_command_logs():
             for index in range(first_private_command, len(h.read().get('commands', [])) + 1):
                 (h.PRIVATE / ('command-%03d.log' % index)).unlink(missing_ok=True)
-        attempt(remove_command_logs)
-        attempt(save)
+        attempt(remove_command_logs, 'PRIVATE_COMMAND_LOG_PURGE')
+        attempt(save, 'FINAL_EVIDENCE_SAVE')
         if cleanup_errors and not original_failed:
             raise RuntimeError('PRODUCT_UI_DISPOSABLE_CLEANUP_FAILED')
 

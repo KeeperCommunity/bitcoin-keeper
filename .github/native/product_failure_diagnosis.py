@@ -37,7 +37,33 @@ SELECTORS = {**{f'id: {key}': value for key, value in IDS.items()},
              '"Skip for Now"': 'skip_recovery_backup',
              '"Continue Without Backup?"': 'confirm_skip_backup',
              '"Skip Backup"': 'skip_backup',
-             'id: home_visible_wallet_count_1': 'one_wallet_home'}
+             '"Mobile Wallet"': 'mobile_wallet',
+             'id: home_visible_wallet_count_1': 'one_wallet_home',
+             'id: key_1': 'fixture_pin_digit', '"Create"': 'create_control',
+             '"Continue"': 'continue_control', '"Cancel"': 'cancel_control',
+             '"Proceed"': 'proceed_control',
+             'id: home_tab_more': 'more_tab', 'id: home_tab_wallets': 'wallets_tab',
+             'id: home_tab_keys': 'keys_tab', 'id: btn_back': 'back_control',
+             'id: btn_setting_App Settings': 'app_settings_entry',
+             'id: btn_setting_Version History': 'version_history_entry',
+             'id: text_installedAppVersionLabel': 'installed_version_label',
+             '"Installed app version"': 'installed_version_label',
+             'id: text_installedAppVersion': 'installed_version_value',
+             'id: view_VersionHistoryList': 'version_history_list',
+             '"Initially installed"': 'initial_history_row',
+             'id: manage_keys_actions': 'manage_keys_entry',
+             'id: header_title': 'manage_keys_title', '"Manage Keys"': 'manage_keys_title',
+             '"Delete"': 'delete_control',
+             '"^Something went wrong$"': 'setup_error_title',
+             '"^Please check your internet connection and try again\\.$"': 'setup_error_body',
+             '"^Retry$"': 'retry', '"^Next$"': 'wallet_next'}
+# Runtime version values are source-generated numeric regexes, never arbitrary
+# text. Keep only their fixed selector label; unsupported descriptions stay unknown.
+_VERSION = r'\^' + r'[0-9]{1,3}' + re.escape(r'\.') + r'[0-9]{1,3}' + re.escape(r'\.') + r'[0-9]{1,3}'
+_BUILD = re.escape(r'\(') + r'[0-9]{1,10}' + re.escape(r'\)$')
+VERSION_SELECTORS = ((r'"' + _VERSION + _BUILD + r'"', 'version_history_value'),
+                     (r'"' + _VERSION + ' ' + _BUILD + r'"', 'installed_version_value'),
+                     (r'id: text_installedAppVersion, text: "' + _VERSION + ' ' + _BUILD + r'"', 'installed_version_value'))
 FAULTS = {'JS_TYPE_ERROR': r'\bTypeError\b', 'JS_REFERENCE_ERROR': r'\bReferenceError\b',
     'JS_SYNTAX_ERROR': r'\bSyntaxError\b', 'MODULE_RESOLUTION_ERROR': r'Unable to resolve module|\bUnableToResolveError\b',
     'TRANSFORM_ERROR': r'\bTransformError\b', 'APP_NOT_REGISTERED': r'has not been registered',
@@ -105,9 +131,15 @@ def junit(directory, flow):
         for selector, label in SELECTORS.items():
             if first == ['Assertion is false: ' + selector + ' is visible']:
                 result.update(failed_selector=label, failure_kind='ASSERT_VISIBLE')
+            elif first == ['Assertion is false: ' + selector + ' is not visible']:
+                result.update(failed_selector=label, failure_kind='ASSERT_NOT_VISIBLE')
             elif first == ['Element not found: ' + ('Id matching regex: ' + selector[4:]
                          if selector.startswith('id: ') else 'Text matching regex: ' + selector[1:-1])]:
                 result.update(failed_selector=label, failure_kind='ELEMENT_NOT_FOUND')
+        if result['failed_selector'] is None:
+            for selector, label in VERSION_SELECTORS:
+                if re.fullmatch(r'Assertion is false: ' + selector + r' is visible', first[0]):
+                    result.update(failed_selector=label, failure_kind='ASSERT_VISIBLE')
     except (OSError, ValueError, TypeError, ET.ParseError):
         pass
     return result

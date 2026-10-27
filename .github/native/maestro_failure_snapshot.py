@@ -25,6 +25,8 @@ SCOPE = 'POST_FAILED_ASSERT_OUTCOME_NOT_TAP_TIME'
 FLOWS = {'product_first_wallet.yaml': 'Full app startup first wallet and cold persistence',
          'product_retry.yaml': 'Full app controlled setup disconnect Retry and cold persistence'}
 STATUSES = ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'WARNED', 'SKIPPED')
+POST_WALLET_TARGETS = {'one_wallet_home': ('idRegex', 'home_visible_wallet_count_1'),
+                       'mobile_wallet': ('textRegex', 'Mobile Wallet')}
 
 
 def unknown(reason='UNAVAILABLE'):
@@ -117,7 +119,7 @@ def commands_file(root):
     return found[0]
 
 
-def target(command):
+def target(command, selector='start_new_tile'):
     if type(command) is not dict or set(command) != {'assertConditionCommand'}:
         return False
     assertion = command['assertConditionCommand']
@@ -132,11 +134,15 @@ def target(command):
     if type(condition) is not dict or set(condition) != {'visible'}:
         return False
     visible = condition['visible']
-    return (type(visible) is dict and set(visible) <= {'idRegex', 'optional'} and
-            visible.get('idRegex') == 'view_startNewTile' and visible.get('optional', False) is False)
+    expected = ('idRegex', 'view_startNewTile') if selector == 'start_new_tile' else POST_WALLET_TARGETS.get(selector)
+    if expected is None:
+        return False
+    key, value = expected
+    return (type(visible) is dict and set(visible) <= {key, 'optional'} and
+            visible.get(key) == value and visible.get('optional', False) is False)
 
 
-def failed_step(rows):
+def failed_step(rows, selector='start_new_tile'):
     if type(rows) is not list or not 1 <= len(rows) <= STEP_LIMIT:
         reject()
     candidates, previous, artifact_paths = [], -1, set()
@@ -174,8 +180,8 @@ def failed_step(rows):
             if artifact['path'] in artifact_paths:
                 reject()
             artifact_paths.add(artifact['path'])
-        if metadata['status'] == 'FAILED' and target(command):
-            if 'evaluatedCommand' in metadata and not target(metadata['evaluatedCommand']):
+        if metadata['status'] == 'FAILED' and target(command, selector):
+            if 'evaluatedCommand' in metadata and not target(metadata['evaluatedCommand'], selector):
                 reject()
             candidates.append((sequence, artifacts))
     if len(candidates) != 1:
@@ -186,7 +192,7 @@ def failed_step(rows):
         reject()
     path = snapshots[0]
     parts = PurePosixPath(path).parts
-    match = re.fullmatch(r'screen-hierarchy/step-([0-9]{3,6})(?:-[A-Za-z0-9_.-]{1,40})?\.json', path)
+    match = re.fullmatch(r'screen-hierarchy/step-([0-9]{3,6})(?:-[A-Za-z0-9_.-]{1,80})?\.json', path)
     if (not match or len(parts) != 2 or any(part in ('.', '..') for part in parts) or
             int(match[1]) != sequence + 1):
         reject()
@@ -243,24 +249,69 @@ def project_skip(nodes):
     return result
 
 
+def project_post_wallet(tree):
+    # snapshot() has already validated the entire exact failed-outcome tree.
+    # Public fixture labels/count test IDs only; no wallet/key/account values.
+    text = {'Protect Your Recovery Key': 'education', 'Continue Without Backup?': 'warning',
+            'Skip for Now': 'skip_for_now', 'Skip Backup': 'skip_backup',
+            'Mobile Wallet': 'mobile_wallet'}
+    observed, counts, pending = dict.fromkeys(text.values(), False), set(), [tree]
+    while pending:
+        node = pending.pop()
+        attrs = node.get('attributes', {})
+        resource = attrs.get('resource-id', '').removeprefix('io.hexawallet.keeper.development:id/')
+        match = re.fullmatch(r'home_visible_wallet_count_(0|[1-9][0-9]{0,3})', resource)
+        if match:
+            counts.add(int(match[1]))
+        for key in ('text', 'accessibilityText', 'title', 'value'):
+            label = text.get(attrs.get(key, '').strip())
+            if label:
+                observed[label] = True
+        pending.extend(node.get('children', []))
+    return {'flags': observed,
+            'wallet_count_id_state': 'ABSENT' if not counts else 'ONE_VALUE' if len(counts) == 1 else 'CONFLICTING_VALUES',
+            'wallet_count_id_value': next(iter(counts)) if len(counts) == 1 else None,
+            'scope': SCOPE}
+
+
 def collect(directory, flow, failure):
     result = unknown('UNBOUND_FAILED_ASSERTION')
     if (flow not in FLOWS or type(failure) is not dict or
-            failure.get('state') != 'ERROR_RECORDED' or
-            failure.get('failure_kind') != 'ASSERT_VISIBLE' or
-            failure.get('failed_selector') != 'start_new_tile'):
+            failure.get('state') != 'ERROR_RECORDED'):
+        return result
+    selector = failure.get('failed_selector')
+    unclassified = selector is None and failure.get('failure_kind') is None
+    if not unclassified and (failure.get('failure_kind') != 'ASSERT_VISIBLE' or
+                            selector not in ('start_new_tile', *POST_WALLET_TARGETS)):
         return result
     try:
         root = Path(directory).absolute()
         commands = commands_file(root)
         if commands.parent != root / FLOWS[flow]:
             reject()
-        sequence, relative = failed_step(read_json(commands, root))
+        rows = read_json(commands, root)
+        if unclassified:
+            # Unknown JUnit text can be bound only to one exact post-wallet
+            # assertion in the same configured flow; never adopt onboarding.
+            matches = []
+            for candidate in POST_WALLET_TARGETS:
+                try:
+                    matches.append((candidate, *failed_step(rows, candidate)))
+                except ValueError:
+                    pass
+            if len(matches) != 1:
+                reject()
+            selector, sequence, relative = matches[0]
+        else:
+            sequence, relative = failed_step(rows, selector)
         tree = read_json(commands.parent / relative, root)
         count, nodes = snapshot(tree)
         result.update(binding_state='BOUND', reason='FAILED_ASSERTION_OUTCOME', node_count=count,
-                      failed_assertion={'kind': 'ASSERT_VISIBLE', 'selector': 'start_new_tile',
+                      failed_assertion={'kind': 'ASSERT_VISIBLE', 'selector': selector,
                                         'sequence_number': sequence}, skip=project_skip(nodes))
+        if selector in POST_WALLET_TARGETS:
+            result['junit_selector_binding'] = 'UNCLASSIFIED_FIRST_LINE' if unclassified else 'MATCHED'
+            result['post_wallet'] = project_post_wallet(tree)
     except Exception:
         pass
     return result

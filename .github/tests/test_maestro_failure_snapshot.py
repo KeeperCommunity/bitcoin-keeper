@@ -94,6 +94,65 @@ class FailedSnapshot(unittest.TestCase):
         self.write(tree=node)
         self.assertEqual(self.collect()['skip']['exact_resource_id_count'], 1)
 
+    def test_post_wallet_outcome_binds_count_or_label_without_exporting_other_values(self):
+        for label, (key, value) in projection.POST_WALLET_TARGETS.items():
+            row = assertion()
+            row['command']['assertConditionCommand']['condition']['visible'] = {key: value, 'optional': False}
+            tree = {'children': [
+                {'attributes': {'resource-id': 'home_visible_wallet_count_1', 'text': 'PRIVATE_SENTINEL'}},
+                {'attributes': {'text': 'Mobile Wallet'}},
+                {'attributes': {'text': 'Continue Without Backup?'}},
+                {'attributes': {'text': 'Skip Backup'}},
+            ]}
+            self.write(rows=[row], tree=tree)
+            for failure in ({'state': 'ERROR_RECORDED', 'failed_selector': label, 'failure_kind': 'ASSERT_VISIBLE'},
+                            {'state': 'ERROR_RECORDED', 'failed_selector': None, 'failure_kind': None}):
+                result = self.collect(failure=failure)
+                self.assertEqual(result['binding_state'], 'BOUND')
+                self.assertEqual(result['failed_assertion']['selector'], label)
+                self.assertEqual(result['post_wallet']['wallet_count_id_value'], 1)
+                self.assertTrue(result['post_wallet']['flags']['mobile_wallet'])
+                self.assertTrue(result['post_wallet']['flags']['warning'])
+                self.assertTrue(result['post_wallet']['flags']['skip_backup'])
+                self.assertEqual(result['visible_to_user'], 'NOT_RECORDED')
+
+    def test_unknown_junit_never_adopts_onboarding_or_conflicting_failed_assertions(self):
+        failure = {'state': 'ERROR_RECORDED', 'failed_selector': None, 'failure_kind': None}
+        self.write()
+        self.assertEqual(self.collect(failure=failure)['binding_state'], 'UNKNOWN')
+        rows = []
+        for sequence, (key, value) in enumerate(projection.POST_WALLET_TARGETS.values(), 2):
+            row = assertion(sequence)
+            row['command']['assertConditionCommand']['condition']['visible'] = {key: value}
+            rows.append(row)
+        self.write(rows=rows)
+        self.assertEqual(self.collect(failure=failure)['binding_state'], 'UNKNOWN')
+
+    def test_post_wallet_tree_conflicting_absent_and_foreign_count_ids_are_explicit(self):
+        row = assertion()
+        row['command']['assertConditionCommand']['condition']['visible'] = {'textRegex': 'Mobile Wallet'}
+        failure = {'state': 'ERROR_RECORDED', 'failed_selector': 'mobile_wallet', 'failure_kind': 'ASSERT_VISIBLE'}
+        for ids, state, count in [([], 'ABSENT', None),
+                (['foreign:id/home_visible_wallet_count_1'], 'ABSENT', None),
+                (['home_visible_wallet_count_0'], 'ONE_VALUE', 0),
+                (['home_visible_wallet_count_2'], 'ONE_VALUE', 2),
+                (['home_visible_wallet_count_1', 'home_visible_wallet_count_2'], 'CONFLICTING_VALUES', None)]:
+            self.write(rows=[row], tree={'children': [{'attributes': {'resource-id': value}} for value in ids]})
+            observed = self.collect(failure=failure)['post_wallet']
+            self.assertEqual((observed['wallet_count_id_state'], observed['wallet_count_id_value']), (state, count))
+
+    def test_post_wallet_expanded_filename_stays_sequence_owned_and_bounded(self):
+        path = 'screen-hierarchy/step-003-assertCondition-home_visible_wallet_count_1.json'
+        row = assertion(path=path)
+        row['command']['assertConditionCommand']['condition']['visible'] = {'idRegex': 'home_visible_wallet_count_1'}
+        self.write(rows=[row])
+        (self.bundle / path).write_text('{}')
+        failure = {'state': 'ERROR_RECORDED', 'failed_selector': 'one_wallet_home', 'failure_kind': 'ASSERT_VISIBLE'}
+        self.assertEqual(self.collect(failure=failure)['binding_state'], 'BOUND')
+        row['metadata']['artifacts'][0]['path'] = 'screen-hierarchy/step-004-assertCondition-home_visible_wallet_count_1.json'
+        self.write(rows=[row])
+        self.assertEqual(self.collect(failure=failure)['binding_state'], 'UNKNOWN')
+
     def test_no_snapshot_is_inferred_for_completed_skip_or_unrelated_junit_failure(self):
         row = {'command': {'tapOnElement': {'selector': {'idRegex': 'btn_skip'}}},
                'metadata': {'status': 'COMPLETED', 'sequenceNumber': 1}}
