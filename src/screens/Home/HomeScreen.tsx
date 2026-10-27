@@ -279,54 +279,49 @@ function NewHomeScreen({ route }) {
         }}
       />
 
-      {/* Education Sheet */}
+      {/* Keep education and its warning in one native modal presentation. */}
       <KeeperModal
-        visible={recoveryKeyFlowState === 'education'}
-        close={() => setRecoveryKeyFlowState('idle')}
-        title={homeTranslation.educationSheetTitle}
-        subTitle={''}
+        visible={recoveryKeyFlowState !== 'idle'}
+        close={() =>
+          setRecoveryKeyFlowState(recoveryKeyFlowState === 'skipWarning' ? 'education' : 'idle')
+        }
+        title={
+          recoveryKeyFlowState === 'skipWarning'
+            ? homeTranslation.skipWarningTitle
+            : homeTranslation.educationSheetTitle
+        }
+        subTitle={recoveryKeyFlowState === 'skipWarning' ? homeTranslation.skipWarningBody : ''}
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
         buttonBackground={`${colorMode}.pantoneGreen`}
         showCloseIcon={false}
-        buttonText={homeTranslation.backUpNow}
+        buttonText={
+          recoveryKeyFlowState === 'skipWarning'
+            ? homeTranslation.backUpRecoveryKey
+            : homeTranslation.backUpNow
+        }
         buttonCallback={() => {
           setRecoveryKeyFlowState('idle');
           dispatch(setRecoveryKeyStatus({ appId: id, status: 'viewed' }));
           navigation.navigate('ViewRecoveryKeyScreen');
         }}
         buttonTextColor={`${colorMode}.buttonText`}
-        secondaryButtonText={homeTranslation.skipForNow}
-        secondaryCallback={() => setRecoveryKeyFlowState('skipWarning')}
-        Content={EducationSheetContent}
-      />
-
-      {/* Skip Warning Sheet */}
-      <KeeperModal
-        visible={recoveryKeyFlowState === 'skipWarning'}
-        close={() => setRecoveryKeyFlowState('education')}
-        title={homeTranslation.skipWarningTitle}
-        subTitle={homeTranslation.skipWarningBody}
-        subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        modalBackground={`${colorMode}.modalWhiteBackground`}
-        textColor={`${colorMode}.textGreen`}
-        showCloseIcon={false}
-        buttonBackground={`${colorMode}.pantoneGreen`}
-        buttonText={homeTranslation.backUpRecoveryKey}
-        buttonCallback={() => {
-          setRecoveryKeyFlowState('idle');
-          dispatch(setRecoveryKeyStatus({ appId: id, status: 'viewed' }));
-          navigation.navigate('ViewRecoveryKeyScreen');
-        }}
-        buttonTextColor={`${colorMode}.buttonText`}
-        secondaryButtonText={homeTranslation.continueWithoutBackup}
+        secondaryButtonText={
+          recoveryKeyFlowState === 'skipWarning'
+            ? homeTranslation.continueWithoutBackup
+            : homeTranslation.skipForNow
+        }
         secondaryCallback={() => {
+          if (recoveryKeyFlowState === 'education') {
+            setRecoveryKeyFlowState('skipWarning');
+            return;
+          }
           dispatch(setRecoveryKeyStatus({ appId: id, status: 'skipped' }));
           setRecoveryKeyFlowState('idle');
         }}
-        Content={SkipWarningContent}
-        subTitleWidth={wp(270)}
+        Content={recoveryKeyFlowState === 'skipWarning' ? SkipWarningContent : EducationSheetContent}
+        subTitleWidth={recoveryKeyFlowState === 'skipWarning' ? wp(270) : undefined}
       />
     </Box>
   );

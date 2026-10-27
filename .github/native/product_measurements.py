@@ -29,6 +29,8 @@ SAMPLE_COUNT = 5
 PIN_MARKERS = ('confirm_passcode_visible', 'confirmation_digits_tapped', 'create_tapped',
                'continue_visible', 'continue_tapped', 'cancel_visible', 'cancel_tapped',
                'skip_visible', 'skip_tapped', 'start_new_visible')
+WALLET_MARKERS = ('next_tapped', 'education_visible', 'skip_for_now_tapped',
+                  'warning_visible', 'skip_backup_tapped')
 
 
 def native_module(name):
@@ -120,6 +122,7 @@ class Receipt:
             self.retry, self.stages = retry, RETRY_STAGES if retry else STAGES
             self.dropped, self.acknowledged, self.unexpected = 0, 0, 0
             self.pin_marker_count = 0
+            self.wallet_marker_count = 0
 
     def create_attempt(self):
         with self.lock:
@@ -151,6 +154,14 @@ class Receipt:
             self.pin_marker_count += 1
             return True
 
+    def mark_wallet(self, marker):
+        with self.lock:
+            if (type(marker) is not str or self.wallet_marker_count >= len(WALLET_MARKERS)
+                    or marker != WALLET_MARKERS[self.wallet_marker_count]):
+                return False
+            self.wallet_marker_count += 1
+            return True
+
     def snapshot(self, passed=False):
         with self.lock:
             pin_progress = {
@@ -158,6 +169,12 @@ class Receipt:
                 'completed_markers': list(PIN_MARKERS[:self.pin_marker_count]),
                 'next_marker': PIN_MARKERS[self.pin_marker_count] if self.pin_marker_count < len(PIN_MARKERS) else None,
                 'complete': self.pin_marker_count == len(PIN_MARKERS),
+            }
+            wallet_progress = {
+                'scope': 'Host marker acknowledgements only; missing markers do not identify an app defect.',
+                'completed_markers': list(WALLET_MARKERS[:self.wallet_marker_count]),
+                'next_marker': WALLET_MARKERS[self.wallet_marker_count] if self.wallet_marker_count < len(WALLET_MARKERS) else None,
+                'complete': self.wallet_marker_count == len(WALLET_MARKERS),
             }
             if self.retry:
                 if passed and (len(self.times) != len(RETRY_STAGES) or
@@ -168,6 +185,7 @@ class Receipt:
                         'scenario': 'CONTROLLED_DISCONNECT_BEFORE_COMMIT_NOT_WAN_OFFLINE',
                         'completed_stages': stages, 'create_new_app_calls': self.create_calls,
                         'pin_onboarding_progress': pin_progress,
+                        'wallet_recovery_progress': wallet_progress,
                         'transport_requests_dropped_without_commit': self.dropped,
                         'acknowledged_create_responses': self.acknowledged,
                         'unexpected_create_attempts': self.unexpected,
@@ -190,6 +208,7 @@ class Receipt:
             return {'sample': self.sample, 'status': 'PASS' if passed else 'FAIL',
                     'completed_stages': list(STAGES[:len(self.times)]), 'raw_durations': durations,
                     'pin_onboarding_progress': pin_progress,
+                    'wallet_recovery_progress': wallet_progress,
                     'create_new_app_calls': self.create_calls, 'other_backend_calls_rejected': self.blocked_calls,
                     'visible_wallet_count_before_relaunch': 1 if 'home_ready' in stamps else None,
                     'visible_wallet_count_after_relaunch': 1 if 'relaunch_home' in stamps else None,
@@ -214,9 +233,10 @@ def make_server(receipt, port=PORT):
         def do_POST(self):
             try:
                 length = int(self.headers.get('Content-Length', '0'))
-                if self.path == '/pin-progress' and not 0 < length <= 128:
+                if self.path in ('/pin-progress', '/wallet-progress') and not 0 < length <= 128:
                     self.close_connection = True
-                    return self.reply(413, {'error': 'FIXED_PIN_PROGRESS_REJECTED'})
+                    error = 'FIXED_PIN_PROGRESS_REJECTED' if self.path == '/pin-progress' else 'FIXED_WALLET_PROGRESS_REJECTED'
+                    return self.reply(413, {'error': error})
                 if not 0 < length <= 8192:
                     self.close_connection = True
                     return self.reply(413, {'error': 'FIXTURE_BODY_REJECTED'})
@@ -235,7 +255,9 @@ def make_server(receipt, port=PORT):
                         self.connection.close()
                         return
                     return self.reply(200, {'created': True})
-                if self.path == '/pin-progress':
+                if self.path in ('/pin-progress', '/wallet-progress'):
+                    accept = receipt.mark_pin if self.path == '/pin-progress' else receipt.mark_wallet
+                    error = 'FIXED_PIN_PROGRESS_REJECTED' if self.path == '/pin-progress' else 'FIXED_WALLET_PROGRESS_REJECTED'
                     def unique_object(pairs):
                         if len(pairs) != len({key for key, _ in pairs}):
                             raise ValueError('Duplicate fields')
@@ -243,11 +265,11 @@ def make_server(receipt, port=PORT):
                     try:
                         marker = json.loads(raw, object_pairs_hook=unique_object)
                         if (type(marker) is dict and set(marker) == {'marker'} and
-                                receipt.mark_pin(marker['marker'])):
+                                accept(marker['marker'])):
                             return self.reply(200, {'accepted': True})
                     except (ValueError, TypeError):
                         pass
-                    return self.reply(422, {'error': 'FIXED_PIN_PROGRESS_REJECTED'})
+                    return self.reply(422, {'error': error})
                 if self.path == '/metric' and length <= 128:
                     metric = json.loads(raw)
                     if (isinstance(metric, dict) and set(metric) == {'stage'} and

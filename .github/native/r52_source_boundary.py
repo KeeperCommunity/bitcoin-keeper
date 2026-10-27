@@ -25,6 +25,9 @@ def owned_device(candidate, platform):
 
 def require_free_metro_port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        # Match Node's reusable TCP bind: a closed owned server's TIME_WAIT
+        # tuple is not a live listener. An active listener still rejects bind.
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             listener.bind(('127.0.0.1', 8081))
         except OSError as error:

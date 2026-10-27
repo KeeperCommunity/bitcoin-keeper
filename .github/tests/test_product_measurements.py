@@ -128,6 +128,48 @@ class FixtureTests(unittest.TestCase):
             self.assertFalse(result['pin_onboarding_progress']['complete'])
             self.assertEqual(result['create_new_app_calls'], 0)
 
+    def test_wallet_progress_is_ordered_and_cannot_change_product_or_backend_evidence(self):
+        before = self.receipt.snapshot()
+        for index, marker in enumerate(product.WALLET_MARKERS):
+            self.assertEqual(self.post('/wallet-progress', {'marker': marker})[0], 200)
+            self.assertEqual(self.post('/wallet-progress', {'marker': marker})[0], 422)
+            observed = self.receipt.snapshot()
+            progress = observed.pop('wallet_recovery_progress')
+            expected = dict(before); expected.pop('wallet_recovery_progress')
+            self.assertEqual(observed, expected)
+            self.assertEqual(progress['completed_markers'], list(product.WALLET_MARKERS[:index + 1]))
+        self.assertTrue(self.receipt.snapshot()['wallet_recovery_progress']['complete'])
+        self.assertEqual(self.receipt.snapshot()['status'], 'FAIL')
+
+    def test_wallet_progress_rejects_private_out_of_order_and_malformed_data(self):
+        bad = [{'marker': 'DO_NOT_RETAIN'}, {'marker': product.WALLET_MARKERS[1]},
+               {'marker': product.WALLET_MARKERS[0], 'private': 'DO_NOT_RETAIN'},
+               {'marker': ['DO_NOT_RETAIN']}, {'marker': True}, ['DO_NOT_RETAIN'],
+               b'{"marker":"next_tapped","marker":"DO_NOT_RETAIN"}',
+               b'{"marker":"DO_NOT_RETAIN"', b'\xffDO_NOT_RETAIN']
+        for payload in bad:
+            with self.subTest(payload=payload):
+                status, reply = self.post('/wallet-progress', payload)
+                self.assertEqual((status, reply), (422, {'error': 'FIXED_WALLET_PROGRESS_REJECTED'}))
+                state = self.receipt.snapshot()
+                self.assertEqual(state['wallet_recovery_progress']['completed_markers'], [])
+                self.assertEqual(state['other_backend_calls_rejected'], 0)
+                self.assertNotIn('DO_NOT_RETAIN', json.dumps((state, reply)))
+
+    def test_wallet_progress_size_limit_and_reset_preserve_both_fixture_modes(self):
+        first = json.dumps({'marker': product.WALLET_MARKERS[0]}).encode()
+        self.assertEqual(self.post('/wallet-progress', first + b' ' * (128 - len(first)))[0], 200)
+        before = self.receipt.snapshot()
+        self.assertEqual(self.post('/wallet-progress', b'{"marker":"DO_NOT_RETAIN"}' + b' ' * 129),
+                         (413, {'error': 'FIXED_WALLET_PROGRESS_REJECTED'}))
+        self.assertEqual(self.receipt.snapshot(), before)
+        for sample, retry in ((6, True), (1, False)):
+            self.receipt.reset(sample, retry=retry)
+            progress = self.receipt.snapshot()['wallet_recovery_progress']
+            self.assertEqual(progress['completed_markers'], [])
+            self.assertEqual(progress['next_marker'], product.WALLET_MARKERS[0])
+            self.assertFalse(progress['complete'])
+
     def test_out_of_order_and_duplicate_markers_are_rejected(self):
         self.assertEqual(self.post('/metric', {'stage': 'wallet_ready'})[0], 422)
         self.assertEqual(self.post('/metric', {'stage': 'startup_start'})[0], 200)
