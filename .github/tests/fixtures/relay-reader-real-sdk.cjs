@@ -34,7 +34,8 @@ module.exports = async function verify(Octokit) {
     return new Response(JSON.stringify(body), { status: u.pathname.endsWith('/access_tokens') ? 201 : 200,
       headers: { 'content-type': 'application/json' } });
   };
-  const reader = relay.client(new Octokit(), { appId: 10, installationId: 20,
+  const MockOctokit = Octokit.defaults({ request: { fetch: mockFetch } });
+  const reader = relay.client(new MockOctokit(), { appId: 10, installationId: 20,
     privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }) }, { fetchImpl: mockFetch, clock: () => now });
   const args = { owner: 'KeeperCommunity', repo: 'bitcoin-keeper-relay' };
   assert.equal((await reader.rest.repos.get(args)).data.id, relay.REPOSITORY_ID);
