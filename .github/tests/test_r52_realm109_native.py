@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('realm109', Path(__file__).parents[1] / 'native/r52_realm109_native.py')
 fixture = importlib.util.module_from_spec(spec)
@@ -113,16 +113,23 @@ class NativeReceiptContracts(unittest.TestCase):
                     def read(self): return data
                     def save(self, value): saved.append(value)
                     def artifact_identity(self): return data['built_artifact']
+                    def warm_metro_bundle(self, _suite): pass
                     def command(self, args, *_args, **_kwargs):
                         if args[0] == 'node':
                             return json.dumps(dict(config_sha256='f' * 64, generated_modules=16, historical_files=17))
                         return candidate if args[0] in ['adb', 'xcrun'] else ''
+                metro = Mock(); metro.poll.side_effect = [None, None, 0]
+                response = Mock(); response.__enter__ = Mock(return_value=response); response.__exit__ = Mock(return_value=False)
+                response.read.return_value = b'packager-status:running'
                 with patch.dict('os.environ', dict(GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
                                 GITHUB_REPOSITORY='KeeperCommunity/bitcoin-keeper-private', KEEPER_SOURCE_SHA='a' * 40)), \
                      patch.object(fixture.subprocess, 'check_output', return_value='a' * 40), \
                      patch.object(fixture, 'verify_source'), patch.object(fixture, 'require_free_metro_port'), \
                      patch.object(fixture, 'verify_generated', return_value=config), \
-                     patch.object(fixture.subprocess, 'run') as cleanup:
+                     patch.object(fixture.subprocess, 'run') as cleanup, \
+                     patch.object(fixture.subprocess, 'Popen', return_value=metro), \
+                     patch.object(fixture.os, 'killpg'), \
+                     patch.object(fixture.urllib.request, 'urlopen', return_value=response):
                     with self.assertRaisesRegex(RuntimeError, 'OWNED_DEVICE'):
                         fixture.run(Harness())
                     cleanup.assert_not_called()

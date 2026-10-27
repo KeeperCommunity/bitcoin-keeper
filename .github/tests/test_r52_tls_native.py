@@ -6,7 +6,7 @@ import json
 import socket
 import subprocess
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import importlib.util
 from pathlib import Path
 import unittest
@@ -88,6 +88,7 @@ class EvidenceControls(unittest.TestCase):
                     def read(self): return data
                     def save(self, value): saved.append(value)
                     def artifact_identity(self): return data['built_artifact']
+                    def warm_metro_bundle(self, _suite): pass
                     def command(self, args, *_args, **_kwargs):
                         commands.append(args)
                         return candidate if args[0] in ['adb', 'xcrun'] else ''
@@ -98,7 +99,11 @@ class EvidenceControls(unittest.TestCase):
                     def poll(self): return self.returncode
                     def wait(self, **_kwargs):
                         generated.unlink(missing_ok=True); self.returncode = 0; return 0
-                def spawn(*_args, **_kwargs):
+                metro = Mock(); metro.poll.side_effect = [None, None, 0]
+                response = Mock(); response.__enter__ = Mock(return_value=response); response.__exit__ = Mock(return_value=False)
+                response.read.return_value = b'packager-status:running'
+                def spawn(args, **_kwargs):
+                    if not any(arg.endswith('r52_tls_fixture.cjs') for arg in args): return metro
                     generated.write_text(json.dumps(config)); return Fixture()
                 ready = dict(ready=True, ports=[31000, 31001, 31002, 31003], config_sha256=hashlib.sha256(json.dumps(config).encode()).hexdigest())
                 with patch.dict('os.environ', dict(GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
@@ -107,7 +112,9 @@ class EvidenceControls(unittest.TestCase):
                      patch.object(matrix.subprocess, 'Popen', side_effect=spawn), \
                      patch.object(matrix, 'receive', return_value=ready), \
                      patch.object(matrix, 'verify_source'), patch.object(matrix, 'require_free_metro_port'), \
-                     patch.object(matrix.subprocess, 'run') as cleanup:
+                     patch.object(matrix.subprocess, 'run') as cleanup, \
+                     patch.object(matrix.os, 'killpg'), \
+                     patch.object(matrix.urllib.request, 'urlopen', return_value=response):
                     with self.assertRaisesRegex(RuntimeError, 'TLS_OWNED_DEVICE_REQUIRED'):
                         matrix.run(Harness())
                     cleanup.assert_not_called()

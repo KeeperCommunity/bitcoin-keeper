@@ -122,6 +122,58 @@ def _run(h, retained=None):
     if retained is not None:
         result.update(retained.result_binding())
     error = None
+    def start_and_warm_metro():
+        nonlocal metro
+        metro = subprocess.Popen(['node', 'node_modules/react-native/cli.js', 'start', '--port', '8081',
+                                  '--config', '.github/native/r52_tls_metro.cjs'], cwd=h.ROOT,
+                                 stdout=metro_log, stderr=subprocess.STDOUT, start_new_session=True)
+        for _ in range(60):
+            if metro.poll() is not None:
+                raise RuntimeError('TLS_METRO_EXITED')
+            try:
+                with urllib.request.urlopen('http://127.0.0.1:8081/status', timeout=2) as response:
+                    if response.read(1024) == b'packager-status:running':
+                        break
+            except OSError:
+                time.sleep(1)
+        else:
+            raise RuntimeError('TLS_METRO_TIMEOUT')
+        before = len(h.read().get('commands', []))
+        try:
+            h.warm_metro_bundle('r52_tls')
+        finally:
+            if h.PLATFORM == 'IOS':
+                capture_warm_order(before)
+
+    def capture_warm_order(before):
+        try:
+            state = h.read(); rows = state['commands']; row = rows[-1]; details = state['r52_tls_bundle']
+            if (len(rows) != before + 1 or row.get('label') != 'Warm IOS development bundle (setup only)'
+                    or row.get('timeout_seconds') != 250 or type(row.get('exit_code')) is not int
+                    or details.get('request_profile') not in ('PLATFORM_DEV_MINIFY', 'OBSERVED_RN_IOS_APP_REQUEST_OPTIONS_FF3CC6')
+                    or details.get('timeout_seconds') != 240 or details.get('result') not in ('PASS', 'FAIL')
+                    or type(details.get('duration_seconds')) not in (int, float)
+                    or not 0 <= details['duration_seconds'] <= 280):
+                raise ValueError('IOS_WARM_ORDER_UNAVAILABLE')
+            result['ios_warm_before_device'] = dict(state='PRESENT',
+                scope='IOS_METRO_WARM_BEFORE_OWNED_DEVICE_SETUP_ONLY', warm_command_index=len(rows),
+                device_create_command_index=None, request_profile=details['request_profile'],
+                request_profile_scope='REPORTED_PROFILE_ONLY_NOT_URL_VALIDATION',
+                duration_seconds=details['duration_seconds'], timeout_seconds=240,
+                result=details['result'], native_acceptance=False)
+        except BaseException:
+            result['ios_warm_before_device'] = dict(state='UNAVAILABLE', native_acceptance=False)
+
+    def record_device_create_order():
+        try:
+            row = result['ios_warm_before_device']; commands = h.read()['commands']
+            if (row['state'] != 'PRESENT' or commands[-1].get('label') != 'Create owned TLS simulator'
+                    or row['warm_command_index'] >= len(commands)):
+                raise ValueError('IOS_WARM_ORDER_UNAVAILABLE')
+            row['device_create_command_index'] = len(commands)
+        except BaseException:
+            result['ios_warm_before_device'] = dict(state='UNAVAILABLE', native_acceptance=False)
+
     try:
         fixture = subprocess.Popen(['node', '.github/native/r52_tls_fixture.cjs', h.PLATFORM, str(generated)],
                                    cwd=h.ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -142,9 +194,11 @@ def _run(h, retained=None):
         if retained is None:
             context.register_generated(h, 'tls', ready['config_sha256'])
         if h.PLATFORM == 'IOS':
+            start_and_warm_metro()
             candidate = h.command(['xcrun', 'simctl', 'create', 'Keeper-r52-tls-disposable',
                                 'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
                                 'com.apple.CoreSimulator.SimRuntime.iOS-18-5'], 'Create owned TLS simulator', capture=True)
+            record_device_create_order()
             device = owned_device(candidate, h.PLATFORM)
             h.command(['xcrun', 'simctl', 'boot', device], 'Boot owned TLS simulator')
             h.command(['xcrun', 'simctl', 'bootstatus', device, '-b'], 'Wait for owned TLS simulator', timeout=240)
@@ -178,21 +232,8 @@ def _run(h, retained=None):
             if cleared != 'Success':
                 raise RuntimeError('TLS_EMPTY_DISPOSABLE_APP_REQUIRED')
         h.verify_installed_artifact(device)
-        metro = subprocess.Popen(['node', 'node_modules/react-native/cli.js', 'start', '--port', '8081',
-                                  '--config', '.github/native/r52_tls_metro.cjs'], cwd=h.ROOT,
-                                 stdout=metro_log, stderr=subprocess.STDOUT, start_new_session=True)
-        for _ in range(60):
-            if metro.poll() is not None:
-                raise RuntimeError('TLS_METRO_EXITED')
-            try:
-                with urllib.request.urlopen('http://127.0.0.1:8081/status', timeout=2) as response:
-                    if response.read(1024) == b'packager-status:running':
-                        break
-            except OSError:
-                time.sleep(1)
-        else:
-            raise RuntimeError('TLS_METRO_TIMEOUT')
-        h.warm_metro_bundle('r52_tls')
+        if h.PLATFORM == 'ANDROID':
+            start_and_warm_metro()
         report = output / 'junit.xml'
         h.command([data['maestro']['binary'], '--device', device, 'test', '--env', 'APP_ID=' + h.APP_IDS[h.PLATFORM],
                    '--flatten-debug-output', '--debug-output', str(output), '--test-output-dir', str(output),
@@ -235,7 +276,7 @@ def _run(h, retained=None):
             result['binding'] = context.result_binding(h)
             result['raw_evidence'] = dict(configuration_json=configuration_json, app_payload=payload, server_witnesses=witness)
         result.update(status='PASS', installed_bytes_verified=True, fixture_sha256=ready['config_sha256'])
-    except Exception as exc:
+    except BaseException as exc:
         error = exc
         raise
     finally:
@@ -243,7 +284,7 @@ def _run(h, retained=None):
         def attempt(label, action):
             try:
                 action()
-            except Exception:
+            except BaseException:
                 cleanup.append(label)
         if metro and metro.poll() is None:
             attempt('metro_stop', lambda: os.killpg(metro.pid, signal.SIGTERM))
@@ -271,11 +312,16 @@ def _run(h, retained=None):
                     check=True, capture_output=True, timeout=10))
             attempt('device_uninstall', lambda: subprocess.run(['adb', '-s', device, 'uninstall', h.APP_IDS[h.PLATFORM]],
                                                               check=True, capture_output=True, timeout=30))
-        fixture_log.close(); metro_log.close()
-        if error or cleanup:
+        attempt('fixture_log', fixture_log.close)
+        attempt('metro_log', metro_log.close)
+        if error is not None or cleanup:
             result['status'] = 'FAIL'
         result['cleanup'] = 'FAIL' if cleanup else 'PASS'
         result['cleanup_failures'] = cleanup
-        current = h.read(); current['r52_tls_native'] = result; h.save(current)
+        try:
+            current = h.read(); current['r52_tls_native'] = result; h.save(current)
+        except BaseException:
+            if error is None:
+                raise
         if cleanup and error is None:
             raise RuntimeError('TLS_CLEANUP_FAILED')

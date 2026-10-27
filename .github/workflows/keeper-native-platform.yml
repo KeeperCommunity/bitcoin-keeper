@@ -61,7 +61,6 @@ jobs:
       with:
         distribution: temurin
         java-version: '17'
-        cache: gradle
     - name: Set up Android command-line tools
       uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
       with:
@@ -167,7 +166,6 @@ jobs:
       with:
         distribution: temurin
         java-version: '17'
-        cache: gradle
     - name: Set up Ruby
       if: inputs.platform == 'IOS'
       uses: ruby/setup-ruby@675dd7ba1b06c8786a1480d89c384f5620a42647

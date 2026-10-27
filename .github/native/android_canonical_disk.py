@@ -52,7 +52,7 @@ def context(env):
 
 
 def prepare(env):
-    context(env)
+    admitted=context(env)
     policy=load('android_runner_disk');extra=load('android_runtime_stock_codeql')
     require(policy.TARGET==extra.TARGET==TARGET and policy.RESERVE==extra.RESERVE==RESERVE)
     candidates=(*policy.TOOLS,*extra.EXTRA)
@@ -70,6 +70,16 @@ def prepare(env):
     identities={label:identity(label,path) for label,path in candidates}
     existing=[path for label,path in candidates if identities[label] is not None]
     sizes=extra.allocated_bytes(existing) if existing else {}
+    # Retain only fixed labels/numbers and the already-admitted job identity.
+    # A capacity rejection occurs before deletion and before normal metadata exists.
+    observation={'schema':1,'scope':'ADMITTED_ANDROID_CAPACITY_BEFORE_FIXED_CLEANUP',
+        **{key:admitted[key] for key in ('source_sha','run_id','run_attempt','role','current_job_id')},
+        'before_free_bytes':before,'fixed_stock_reclaim_bytes':sum(sizes.values()),
+        'fixed_stock_bytes':{label:sizes.get(path,0) for label,path in candidates},
+        'target_bytes':TARGET,'reserve_bytes':RESERVE,
+        'capacity_sufficient':before+sum(sizes.values())>=TARGET,'native_acceptance':False}
+    try:print('KEEPER_ANDROID_DISK_CAPACITY '+json.dumps(observation,sort_keys=True),flush=True)
+    except Exception:pass  # Observation I/O cannot replace the original capacity failure; interrupts still stop.
     require(before+sum(sizes.values())>=TARGET)
     result['measured_reclaim_bytes']={str(p):n for p,n in sizes.items()}
     for label,path in candidates:
