@@ -328,11 +328,12 @@ test('actual account change during a held signed read retains committed A while 
   const entered = deferred(), release = deferred();
   server.armFault({ path: '/backup/v3/snapshot', beforeReply() { entered.resolve(); return release.promise; } });
   const upgrading = f.upgrade();
-  let beforeB, primaryFailure;
+  let beforeB, beforeBVersion, primaryFailure;
   try {
     await boundedArrival(entered.promise);
     assertLocalUpgrade(f);
     await f.selectAccount(otherAppId);
+    beforeBVersion = f.dbManager.getObjectById(f.RealmSchema.KeeperApp, otherAppId).version;
     beforeB = await f.repair.captureBackupImage();
   } catch (error) { primaryFailure = error; throw error; }
   finally {
@@ -347,7 +348,8 @@ test('actual account change during a held signed read retains committed A while 
   }
   assert.equal(await upgrading, false);
   assert.equal(f.selected(), otherAppId);
-  assert.equal(f.dbManager.getObjectById(f.RealmSchema.KeeperApp, otherAppId).version, installedVersion);
+  assert.equal(f.dbManager.getObjectById(f.RealmSchema.KeeperApp, otherAppId).version, beforeBVersion,
+    'The old account must preserve B\'s pre-existing version after the held read returns');
   assert.equal(f.dbManager.getCollection(f.RealmSchema.VersionHistory).length, 0);
   assert.equal(await f.image.compareImages(beforeB, await f.repair.captureBackupImage()), 'matched');
   assert.equal(f.store.getState().storage.appVersion, f.previousVersion,
