@@ -38,7 +38,7 @@ class Custody(unittest.TestCase):
    **{k:'NOT RUN' for k in ('smoke','native_keychain','native_probe','r5_features','hardware','signing')},
    'configuration_overlays':overlays,'nodeify_overlay':{'path':'package.json','allowed_fields':['browser','react-native','browserify'],
     'before_sha256':hashlib.sha256(original).hexdigest(),'after_sha256':hashlib.sha256((self.root/'package.json').read_bytes()).hexdigest()},
-   'commands':[{'label':'Build debug-key-only development APK','command':['./gradlew',':app:assembleDevelopmentDebug','--no-daemon','--max-workers=2','-PreactNativeArchitectures=x86_64','-Pandroid.buildOnlyTargetAbi=true','-Pandroid.injected.build.abi=x86_64','-Pandroid.injected.testOnly=false','-Pandroid.injected.apk.location='+str(self.root/'android/app/build/outputs/apk'),'--info','--console=plain'],'exit_code':0,'timeout_seconds':2100,'duration_seconds':1}],
+   'commands':[{'label':'Build debug-key-only development APK','command':['./gradlew',':app:assembleDevelopmentDebug','--no-daemon','--max-workers=2','-PreactNativeArchitectures=x86_64','-Pandroid.buildOnlyTargetAbi=true','-Pandroid.injected.build.abi=x86_64','-Pandroid.injected.testOnly=false','-Pandroid.injected.apk.location='+str(self.root/'android/app/build/outputs/apk'),'--info','--console=plain'],'exit_code':0,'timeout_seconds':3000,'duration_seconds':1}],
    'built_artifact':{'path':m.APK,'sha256':hashlib.sha256(self.apk).hexdigest()}}
   self.write(m.APK,self.apk);self.write_json(m.META,self.metadata)
   (self.temp/'keeper-android-compile-origin.json').write_text(json.dumps(self.origin))
@@ -67,6 +67,30 @@ class Custody(unittest.TestCase):
   self.assertEqual(state['android_compile_custody']['producer_job_id'],13)
   self.assertTrue(state['android_compile_custody']['raw_zip_purged'])
   self.assertTrue(all(state[k]=='NOT RUN' for k in ('smoke','native_keychain','native_probe','r5_features')))
+ def test_actual_builder_record_is_accepted_by_checkpoint_and_runtime_custody(self):
+  spec=importlib.util.spec_from_file_location('actual_cold_builder',ROOT/'.github/native/hosted_native.py')
+  native=importlib.util.module_from_spec(spec);spec.loader.exec_module(native)
+  pending=copy.deepcopy(self.metadata);pending['build']='NOT RUN';pending['commands']=[];pending['toolchain']={}
+  self.write_json(m.META,pending)
+  def command(args,label,timeout=120,capture=False,**options):
+   value=native.read();value['commands'].append({'command':args,'label':label,'timeout_seconds':timeout,'exit_code':0,'duration_seconds':1});native.save(value)
+   return 'SYNTHETIC_GRADLE_VERSION' if capture else None
+  with patch.multiple(native,ROOT=self.root,EVIDENCE=self.root/m.META,PLATFORM='ANDROID'), \
+    patch.object(native,'disk_preflight'),patch.object(native,'command',side_effect=command), \
+    patch.object(native,'artifact_identity',return_value=self.metadata['built_artifact']):
+   native.build()
+  actual=m.document(self.root/m.META)
+  produced=m.metadata(actual,self.origin,'PASS')
+  self.assertEqual(produced['timeout_seconds'],3000)
+  self.metadata=actual
+  self.archive();m.restore(self.env)
+  restored=m.document(self.root/m.META)
+  self.assertEqual(restored['android_compile_custody']['producer_build'],produced)
+  self.assertEqual((self.root/m.APK).read_bytes(),self.apk)
+ def test_old_or_unbounded_compile_budget_is_not_accepted_as_current_profile(self):
+  for budget in (2100,3001,999999,True):
+   value=copy.deepcopy(self.metadata);value['commands'][0]['timeout_seconds']=budget
+   with self.subTest(budget=budget),self.assertRaises(ValueError):m.metadata(value,self.origin,'PASS')
  def test_hidden_assume_unchanged_raw_source_edit_is_rejected_before_packaging(self):
   self.git('update-index','--assume-unchanged','src/input.ts');self.write('src/input.ts',b'mutated\n')
   with self.assertRaises(ValueError):self.package()

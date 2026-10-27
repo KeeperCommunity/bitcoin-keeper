@@ -16,7 +16,7 @@ function attach(metadata, request, producer, profile, caller, worker) {
     producer_build: { command: ['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon', '--max-workers=2',
       '-PreactNativeArchitectures=x86_64', '-Pandroid.buildOnlyTargetAbi=true', '-Pandroid.injected.build.abi=x86_64',
       '-Pandroid.injected.testOnly=false', '-Pandroid.injected.apk.location=/runner/app/android/app/build/outputs/apk', '--info', '--console=plain'],
-      label: 'Build debug-key-only development APK', exit_code: 0, timeout_seconds: 2100, duration_seconds: 20 } };
+      label: 'Build debug-key-only development APK', exit_code: 0, timeout_seconds: 3000, duration_seconds: 20 } };
   return { id: artifact.id, name: artifact.name, digest: 'sha256:' + artifact.sha256, size_in_bytes: artifact.size_bytes,
     expired: false, workflow_run: { id: request.runId, head_sha: request.sourceSha,
       repository_id: profile.repositoryId, head_repository_id: profile.repositoryId } };

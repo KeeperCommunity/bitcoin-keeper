@@ -118,6 +118,42 @@ function collect(f, output) {
   return driver.collect(f.github, f.context, f.request, output, raw => raw, { pinReader: f.pinReader });
 }
 
+test('actual Android builder command passes the JavaScript same-run custody validator', async () => {
+  // Execute the real build function; fake only Gradle execution and APK bytes.
+  const program = `import copy,importlib.util,json,pathlib,sys
+s=importlib.util.spec_from_file_location('builder',sys.argv[1])
+h=importlib.util.module_from_spec(s);s.loader.exec_module(h)
+state={'commands':[],'toolchain':{},'build':'NOT RUN'}
+h.ROOT=pathlib.Path('/runner/app');h.PLATFORM='ANDROID'
+h.read=lambda:copy.deepcopy(state)
+def save(value):
+ state.clear();state.update(copy.deepcopy(value))
+h.save=save;h.disk_preflight=lambda *a:None
+def command(args,label,timeout=120,capture=False,**options):
+ value=h.read();value['commands'].append({'command':args,'label':label,'timeout_seconds':timeout,'exit_code':0,'duration_seconds':1});h.save(value)
+ return 'SYNTHETIC_GRADLE_VERSION' if capture else None
+h.command=command;h.artifact_identity=lambda:{'path':'android/app/build/outputs/apk/development/debug/app-development-debug.apk','sha256':'0'*64}
+h.build()
+print(json.dumps(next(row for row in state['commands'] if row['label']=='Build debug-key-only development APK')))
+`;
+  const row = JSON.parse(execFileSync('python3', ['-B', '-c', program, path.join(__dirname, '../native/hosted_native.py')], { encoding: 'utf8' }));
+  const f = fixture();
+  f.metadata.ANDROID.android_compile_custody.producer_build = row;
+  const artifact = await driver.androidCustody(f.github, f.context, f.request, f.run,
+    { ANDROID_PRODUCER: f.jobs[2] }, f.metadata.ANDROID);
+  assert.equal(row.timeout_seconds, 3000);
+  assert.equal(artifact.id, 103);
+});
+
+test('current Android custody rejects obsolete and unbounded build profiles', async () => {
+  for (const budget of [2100, 3001, 999999, true]) {
+    const f = fixture();
+    f.metadata.ANDROID.android_compile_custody.producer_build.timeout_seconds = budget;
+    await assert.rejects(() => driver.androidCustody(f.github, f.context, f.request, f.run,
+      { ANDROID_PRODUCER: f.jobs[2] }, f.metadata.ANDROID), /CANONICAL_ANDROID_PRODUCER_BUILD_INVALID/);
+  }
+});
+
 test('installed public proof comes only from complete fresh raw collection and is immutable', async () => {
   const f = fixture();
   const proof = await driver.collectInstalledPublicEvidence(f.github, f.context, f.request, raw => raw, { pinReader: f.pinReader });

@@ -87,7 +87,7 @@ def metadata(value, origin, built):
     require(all(value.get(k,'NOT RUN') == 'NOT RUN' for k in ('smoke','native_keychain','native_probe','r5_features','hardware','signing')))
     if built == 'PASS':
         rows = [r for r in value.get('commands',[]) if r.get('label') == 'Build debug-key-only development APK']
-        require(len(rows)==1 and type(rows[0].get('exit_code')) is int and rows[0]['exit_code']==0 and rows[0].get('timeout_seconds')==2100)
+        require(len(rows)==1 and type(rows[0].get('exit_code')) is int and rows[0]['exit_code']==0 and rows[0].get('timeout_seconds')==3000)
         expected=['./gradlew',':app:assembleDevelopmentDebug','--no-daemon','--max-workers=2','-PreactNativeArchitectures=x86_64','-Pandroid.buildOnlyTargetAbi=true','-Pandroid.injected.build.abi=x86_64','-Pandroid.injected.testOnly=false']
         argv=rows[0].get('command');require(type(argv) is list and len(argv)==11 and argv[:8]==expected and argv[9:]==['--info','--console=plain'] and
             type(argv[8]) is str and argv[8].startswith('-Pandroid.injected.apk.location=/') and argv[8].endswith('/android/app/build/outputs/apk'))

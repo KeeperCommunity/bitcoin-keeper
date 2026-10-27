@@ -190,7 +190,7 @@ async function androidCustody(github, context, request, run, jobs, metadata, { c
   const build = c.producer_build, argv = build?.command;
   demand(build?.label === 'Build debug-key-only development APK' && build.exit_code === 0 &&
     Number.isFinite(build.duration_seconds) && build.duration_seconds >= 0 &&
-    build.timeout_seconds === 2100 &&
+    build.timeout_seconds === 3000 &&
     Array.isArray(argv) && argv.length === 11 &&
     JSON.stringify(argv.slice(0, 8)) === JSON.stringify(['./gradlew', ':app:assembleDevelopmentDebug', '--no-daemon', '--max-workers=2',
       '-PreactNativeArchitectures=x86_64', '-Pandroid.buildOnlyTargetAbi=true', '-Pandroid.injected.build.abi=x86_64', '-Pandroid.injected.testOnly=false']) &&
