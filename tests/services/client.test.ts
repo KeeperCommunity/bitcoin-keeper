@@ -20,6 +20,7 @@ jest.mock('electrum-client', () => ({
         return ['fixture-server', '1.4'];
       }),
       close: jest.fn(),
+      onClose: jest.fn(),
       onError: null,
       server_ping: jest.fn(async () => undefined),
       server_features: jest.fn(async () => ({
