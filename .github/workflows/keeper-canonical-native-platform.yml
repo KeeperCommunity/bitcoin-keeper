@@ -79,7 +79,8 @@ jobs:
     - name: Install immutable native dependencies
       run: python3 .github/native/hosted_native.py prepare
     - name: Build development app
-      run: python3 .github/native/hosted_native.py build
+      id: android-compile
+      run: python3 .github/native/android_compile_producer.py build
     - name: Record official Android compile producer
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
       with:
@@ -95,6 +96,19 @@ jobs:
         path: artifacts/android-build-checkpoint/
         if-no-files-found: error
         retention-days: 1
+    - name: Project bounded Android compile observation
+      if: always()
+      env:
+        KEEPER_ANDROID_BUILD_STEP_OUTCOME: ${{ steps.android-compile.outcome }}
+      run: python3 .github/native/android_compile_producer.py project
+    - name: Retain bounded Android compile observation
+      if: always()
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      with:
+        name: keeper-android-compile-observation-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: artifacts/android-compile-observation/metadata.json
+        if-no-files-found: error
+        retention-days: 7
   native:
     name: Canonical ${{ inputs.platform }} build and features
     if: always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/sprint' && inputs.source_sha == github.sha) && (inputs.platform

@@ -118,6 +118,7 @@ class SessionPolicy(unittest.TestCase):
             selected = Path(os.environ['PATH'].split(os.pathsep)[0]) / 'openssl'
             return str(selected) if selected.is_symlink() else default['path']
         old = os.environ['PATH']; seen = []
+        old_tmpdir_present,old_tmpdir='TMPDIR' in os.environ,os.environ.get('TMPDIR')
         with mock.patch.dict(os.environ, {'RUNNER_TEMP': str(base)}), mock.patch.object(m, 'BREW', brew), \
             mock.patch.object(m, 'identity', side_effect=identity), mock.patch.object(m.shutil, 'which', side_effect=which), \
             mock.patch.object(m.subprocess, 'check_output', return_value=b'fixed probe'), \
@@ -127,11 +128,22 @@ class SessionPolicy(unittest.TestCase):
                 with m.session(native, compare=compare, select=select) as value:
                     seen.append(value['selection'])
                     if not select: self.assertEqual(os.environ['PATH'], old)
+                    if select:
+                        runtime=Path(os.environ['TMPDIR'])
+                        self.assertEqual(runtime.resolve(strict=True),runtime)
+                        self.assertTrue(runtime.is_relative_to(base))
+                        self.assertEqual(runtime.stat().st_uid,os.getuid())
+                    else:
+                        self.assertEqual('TMPDIR' in os.environ,old_tmpdir_present)
+                        self.assertEqual(os.environ.get('TMPDIR'),old_tmpdir)
                     if primary: raise primary
-            except RuntimeError as error:
+            except BaseException as error:
                 if primary: self.assertIs(error, primary)
+                elif not isinstance(error,RuntimeError): raise
                 elif cleanup == 'PASS' and (default_capable or alt_capable and alt_version.startswith('3.')): raise
             self.assertEqual(os.environ['PATH'], old)
+            self.assertEqual('TMPDIR' in os.environ,old_tmpdir_present)
+            self.assertEqual(os.environ.get('TMPDIR'),old_tmpdir)
         self.assertEqual(state[m.FIELD]['temporary_cleanup'], 'PASS')
         self.assertFalse(state[m.FIELD]['native_acceptance'])
         return state[m.FIELD], seen
@@ -157,6 +169,14 @@ class SessionPolicy(unittest.TestCase):
         value, seen = self.exercise(compare=True, select=False)
         self.assertEqual(len(value['attempts']), 2)
         self.assertEqual(seen, ['READINESS_ONLY_NO_RUNTIME_TOOL_SELECTION'])
+
+    def test_runtime_tmpdir_restores_exact_absence_empty_alias_value_and_interrupt(self):
+        for value in (None,'','/SYNTHETIC/aliased/tmp'):
+            for error in (None,RuntimeError('CONTROLLED'),KeyboardInterrupt()):
+                with self.subTest(value=value,error=type(error).__name__),mock.patch.dict(os.environ):
+                    if value is None:os.environ.pop('TMPDIR',None)
+                    else:os.environ['TMPDIR']=value
+                    self.exercise(primary=error)
 
 
 if __name__ == '__main__': unittest.main()

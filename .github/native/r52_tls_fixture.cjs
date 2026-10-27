@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const tls = require('node:tls');
 const readline = require('node:readline');
+const { execFileSync } = require('node:child_process');
 const { certificates, publicKeyCertificates } = require('../../tests/electrum/fixtures.cjs');
 const { createRpcFixture } = require('./r52_rpc_fixture.cjs');
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -62,6 +63,17 @@ async function createMatrix(platform) {
       ca: anchor === null ? null : new crypto.X509Certificate(anchor).toString(), expected });
   }
   try {
+    if (platform === 'IOS') {
+      // The positive self-signed identity is a TLS server leaf. Preserve its
+      // existing private key, CN and SAN; a CA-only profile fails iOS EKU policy.
+      execFileSync('openssl', ['req', '-x509', '-new', '-key', path.join(fixture.dir, 'selfsigned.key'),
+        '-out', path.join(fixture.dir, 'selfsigned.pem'), '-days', '2', '-subj', '/CN=selfsigned',
+        '-addext', 'basicConstraints=critical,CA:FALSE',
+        '-addext', 'keyUsage=critical,digitalSignature,keyEncipherment',
+        '-addext', 'extendedKeyUsage=serverAuth',
+        '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'],
+        { stdio: 'pipe', timeout: 30000, maxBuffer: 65536 });
+    }
     // Both the actual RN adapter and exact Objective-C PEM parser consume one
     // certificate, never OpenSSL's human-readable ca dump. Normalize only owned
     // generated certificate files; DER, key material and validity stay identical.

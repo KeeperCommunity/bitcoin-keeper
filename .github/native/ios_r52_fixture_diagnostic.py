@@ -170,6 +170,7 @@ def session(native, compare=False, select=True):
         'attempts': [], 'selection': 'NONE', 'ca_or_trust_environment_changed': False,
         'cli_guards': {'state': 'UNAVAILABLE', 'fixed_target': '.github/native/.generated/r52_tls_fixture.json'}}
     temporary, prior_path, primary = None, os.environ.get('PATH', ''), None
+    tmpdir_present, prior_tmpdir = 'TMPDIR' in os.environ, os.environ.get('TMPDIR')
     try:
         record['cli_guards'] = cli_guards(root)
         require(record['cli_guards']['state'] == 'PASS')
@@ -201,6 +202,9 @@ def session(native, compare=False, select=True):
             shim = temporary / 'selected'; shim.mkdir(mode=0o700); (shim / 'openssl').symlink_to(selected['path'])
             os.environ['PATH'] = str(shim) + os.pathsep + prior_path
             require(identity(Path(shutil.which('openssl'))) == selected)
+            runtime = temporary / 'runtime'; runtime.mkdir(mode=0o700); directory(runtime)
+            os.environ['TMPDIR'] = str(runtime)
+            record['runtime_tmpdir_scope'] = 'CANONICAL_OWNED_SESSION_CHILD'
         record.update(status='PASS', selection=('DEFAULT_CAPABLE' if selected == default else 'MEASURED_EXISTING_HOMEBREW_OPENSSL3')
             if select else 'READINESS_ONLY_NO_RUNTIME_TOOL_SELECTION', selected_tool=selected)
         data = native.read(); data[FIELD] = record; native.save(data)
@@ -211,6 +215,8 @@ def session(native, compare=False, select=True):
         raise
     finally:
         os.environ['PATH'] = prior_path
+        if tmpdir_present: os.environ['TMPDIR'] = prior_tmpdir
+        else: os.environ.pop('TMPDIR', None)
         if temporary is not None:
             try: directory(temporary); shutil.rmtree(temporary); record['temporary_cleanup'] = 'PASS'
             except Exception: record['temporary_cleanup'] = 'FAIL'; record['status'] = 'FAIL'

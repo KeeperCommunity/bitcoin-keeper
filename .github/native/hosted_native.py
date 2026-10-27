@@ -568,7 +568,8 @@ def record_startup_failure(report, device, startup_started_ms=None):
 @contextlib.contextmanager
 def watched_android_command_signals():
     """Unwind the active command before the watcher terminates its Python owner."""
-    if PLATFORM != 'ANDROID' or os.environ.get('KEEPER_ANDROID_BUILD_WATCHED') != '1':
+    if PLATFORM != 'ANDROID' or (os.environ.get('KEEPER_ANDROID_BUILD_WATCHED') != '1'
+            and os.environ.get('KEEPER_ANDROID_CUSTODY_ROLE') != 'producer'):
         yield
         return
     previous = {}
@@ -615,6 +616,9 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
     started = time.monotonic()
     output_file = PRIVATE / ('command-%03d.log' % len(data['commands']))
     print(label, flush=True)
+    observe_compile = (PLATFORM == 'ANDROID' and os.environ.get('KEEPER_ANDROID_CUSTODY_ROLE') == 'producer'
+                       and label == 'Build debug-key-only development APK')
+    proc, termination, host_signal = None, 'NOT_STARTED', None
     try:
         with output_file.open('wb') as output, watched_android_command_signals():
             proc = None
@@ -623,7 +627,9 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
                                         start_new_session=True, env=child_env)
                 try:
                     code = proc.wait(timeout=timeout)
+                    termination = 'CHILD_SIGNAL' if code < 0 else 'CHILD_EXIT'
                 except subprocess.TimeoutExpired:
+                    termination = 'COMMAND_TIMEOUT'
                     os.killpg(proc.pid, signal.SIGKILL)
                     proc.wait()
                     code = 124
@@ -638,6 +644,27 @@ def command(args, label, timeout=120, cwd=ROOT, capture=False, error_details=Tru
                     proc.wait(timeout=5)
     except OSError:
         code = 127
+        termination = 'PROCESS_IO_ERROR'
+    except BaseException as error:
+        termination = 'HOST_SIGNAL' if isinstance(error, SystemExit) and error.code in (130, 143) else 'EXECUTION_INTERRUPTED'
+        if termination == 'HOST_SIGNAL':
+            host_signal = error.code - 128
+        raise
+    finally:
+        if observe_compile:
+            # Only fixed categories/numbers; no exception text, argv or private path.
+            entry['android_compile_process'] = {
+                'termination': termination, 'host_signal': host_signal,
+                'child_exit_code': proc.returncode if proc is not None else None,
+                'duration_seconds': round(time.monotonic() - started, 1),
+                'budget_seconds': timeout,
+                'cleanup': 'NOT_STARTED' if proc is None else 'OWNED_CHILD_REAPED' if proc.returncode is not None else 'UNVERIFIED',
+            }
+            # Observation failure cannot replace a command exception or interruption.
+            try:
+                save(data)
+            except Exception:
+                pass
     entry['exit_code'] = code
     entry['duration_seconds'] = round(time.monotonic() - started, 1)
     if code:
@@ -1235,7 +1262,7 @@ def build():
                      '-Pandroid.injected.build.abi=x86_64', '-Pandroid.injected.testOnly=false',
                      '-Pandroid.injected.apk.location=' + str(ROOT / 'android/app/build/outputs/apk'),
                      '--info', '--console=plain'],
-                    'Build debug-key-only development APK', timeout=2100, cwd=ROOT / 'android')
+                    'Build debug-key-only development APK', timeout=3000, cwd=ROOT / 'android')
         except Exception:
             try:
                 data = read()
@@ -1264,7 +1291,7 @@ def warm_metro_bundle(suite='startup'):
         raise ValueError('Unsupported native bundle platform.')
     url = 'http://127.0.0.1:8081/index.bundle?platform=%s&dev=true&minify=false' % bundle_platform
     profile = 'PLATFORM_DEV_MINIFY'
-    if PLATFORM == 'IOS' and suite == 'startup':
+    if PLATFORM == 'IOS' and suite in ('startup', 'r52_tls', 'r52_realm109'):
         # Exact option tuple observed from this pinned RN iOS app in the
         # ff3cc6 run. Warm its lazy graph before the unchanged native UI wait.
         url += ('&lazy=true&excludeSource=true&modulesOnly=false&runModule=true'

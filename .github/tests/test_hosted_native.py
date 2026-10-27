@@ -29,6 +29,25 @@ class HostedNativeHarnessTest(unittest.TestCase):
         self.addCleanup(self.patches.stop)
         native.save({'commands': [], 'build': 'NOT RUN', 'smoke': 'NOT RUN'})
 
+    def test_ios_security_warmups_match_the_original_native_client_request(self):
+        native.PRIVATE.mkdir(parents=True, exist_ok=True)
+        for suite in ('startup', 'r52_tls', 'r52_realm109'):
+            with self.subTest(suite=suite), mock.patch.object(native, 'PLATFORM', 'IOS'):
+                def request(args, label, **options):
+                    self.assertEqual(args[args.index('--max-time') + 1], '240')
+                    self.assertEqual(options, {'timeout': 250, 'capture': True})
+                    self.assertEqual(args[-1], 'http://127.0.0.1:8081/index.bundle?platform=ios&dev=true&minify=false'
+                        '&lazy=true&excludeSource=true&modulesOnly=false&runModule=true'
+                        '&sourcePaths=url-server&app=io.hexawallet.hexakeeper.dev')
+                    Path(args[args.index('--output') + 1]).write_bytes(b'SYNTHETIC_COMPLETE_HTTP200_BODY')
+                    return '200'
+                with mock.patch.object(native, 'command', side_effect=request) as called:
+                    native.warm_metro_bundle(suite)
+                self.assertEqual(called.call_count, 1)
+                key = 'metro_warmup' if suite == 'startup' else suite + '_bundle'
+                self.assertEqual(native.read()[key]['result'], 'PASS')
+                self.assertEqual(native.read()['build'], 'NOT RUN')
+
     def test_metadata_records_the_current_run_attempt_without_native_credit(self):
         source = 'a' * 40
         for attempt in ['1', '2']:

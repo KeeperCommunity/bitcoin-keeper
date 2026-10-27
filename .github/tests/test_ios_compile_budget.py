@@ -73,9 +73,9 @@ class CompileBudgets(unittest.TestCase):
             self.assertNotIn('PRIVATE_SENTINEL', json.dumps(result.get('ios_build_progress')))
             return calls, result
 
-    def test_real_build_calls_apply_larger_budget_only_to_Intel_iOS_compile(self):
+    def test_real_build_calls_preserve_ios_architecture_and_android_cold_compile_budgets(self):
         for platform, architecture, expected in [('IOS', 'x86_64', 3600),
-                ('IOS', 'arm64', 2400), ('ANDROID', 'x86_64', 2100)]:
+                ('IOS', 'arm64', 2400), ('ANDROID', 'x86_64', 3000)]:
             with self.subTest(platform=platform, architecture=architecture):
                 calls, result = self.exercise(platform, architecture)
                 label = LABEL if platform == 'IOS' else 'Build debug-key-only development APK'

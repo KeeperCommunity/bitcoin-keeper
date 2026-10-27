@@ -148,7 +148,7 @@ class AndroidBuildFailureTest(unittest.TestCase):
                 '-Pandroid.injected.build.abi=x86_64', '-Pandroid.injected.testOnly=false',
                 '-Pandroid.injected.apk.location=' + str(self.root / 'android/app/build/outputs/apk'),
                 '--info', '--console=plain'])
-            self.assertEqual(kwargs, {'timeout': 2100, 'cwd': self.root / 'android'})
+            self.assertEqual(kwargs, {'timeout': 3000, 'cwd': self.root / 'android'})
             (self.private / 'command-002.log').write_text('> Task :app:compileDevelopmentDebugKotlin\n')
             raise RuntimeError('ORIGINAL_BUILD_TIMEOUT')
         with mock.patch.multiple(native, ROOT=self.root, PRIVATE=self.private,
