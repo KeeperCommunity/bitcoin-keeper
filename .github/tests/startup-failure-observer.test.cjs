@@ -25,6 +25,8 @@ function store({ getState = () => ({ account: { allAccounts: [] } }), read, obse
     require(name) {
       if (name === 'react-native-keychain') return { getGenericPassword(options) { calls.push(options); return read(options); } };
       if (name === 'src/store/store') return { store: { getState } };
+      if (name === 'src/services/backup/transport') return { currentBackupAccountSession() { throw new Error('Startup probe must not inspect credential-write sessions'); } };
+      if (name === 'src/store/reducers/account') return { updatePasscodeHash() { throw new Error('Startup probe must not mutate credential metadata'); } };
       if (name === './startup-failure-observer') return h.exports;
       if (name === 'node-rsa') return function NodeRSA() {};
       if (name === '../utils/service-utilities/config') return {};
