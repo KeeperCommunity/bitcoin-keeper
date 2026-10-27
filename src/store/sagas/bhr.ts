@@ -15,6 +15,7 @@ import { RealmSchema } from 'src/storage/realm/enum';
 import Relay from 'src/services/backend/Relay';
 import {
   HealthCheckDetails,
+  OneKeyDeviceBinding,
   Signer,
   Vault,
   VaultSigner,
@@ -33,6 +34,7 @@ import {
   DerivationPurpose,
   EntityKind,
   NetworkType,
+  SignerType,
   VaultType,
   WalletType,
 } from 'src/services/wallets/enums';
@@ -93,6 +95,7 @@ import { addToUaiStackWorker, uaiActionedWorker } from './uai';
 import { addAccount, saveDefaultWalletState, setRecoveryKeyBackedUp } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
+import { mergeOneKeyDeviceBindings } from 'src/services/onekeyBle/deviceConstants';
 
 export function* updateAppImageWorker({
   payload,
@@ -681,12 +684,14 @@ function* recoverApp(
   yield put(setAppCreated(true));
 }
 
-function* healthCheckSatutsUpdateWorker({
+export function* healthCheckSatutsUpdateWorker({
   payload,
+  onComplete,
 }: {
   payload: {
-    signerUpdates: { signerId: string; status: hcStatusType }[];
+    signerUpdates: { signerId: string; status: hcStatusType; keyId?: string; oneKeyDevice?: OneKeyDeviceBinding }[];
   };
+  onComplete?: (error?: string) => void;
 }) {
   try {
     const HcSuccessTypes = [
@@ -697,6 +702,36 @@ function* healthCheckSatutsUpdateWorker({
     ];
     const { signerUpdates } = payload;
     for (const signerUpdate of signerUpdates) {
+      if (signerUpdate.oneKeyDevice) {
+        const { keyId, oneKeyDevice } = signerUpdate;
+        if (!keyId || !oneKeyDevice.serialNo || signerUpdate.status !== hcStatusType.HEALTH_CHECK_SUCCESSFULL) {
+          throw new Error('Invalid OneKey health check result.');
+        }
+        const stored = yield call(dbManager.getObjectById, RealmSchema.Signer, keyId);
+        if (!stored) throw new Error('The OneKey key is no longer available.');
+        const signer = getJSONFromRealmObject(stored) as unknown as Signer;
+        if (signer.type !== SignerType.ONEKEY || signer.masterFingerprint !== signerUpdate.signerId) {
+          throw new Error('The OneKey key changed during verification.');
+        }
+        const date = new Date();
+        const devices = mergeOneKeyDeviceBindings(signer, [{ ...oneKeyDevice, lastHealthCheck: date.toISOString() }]);
+        const changes = {
+          extraData: { ...signer.extraData, oneKeyDevices: devices, bleConnectId: oneKeyDevice.bleConnectId },
+          signerDescription: devices.map((device) => device.name).join(' · '),
+          lastHealthCheck: date,
+          healthCheckDetails: [...signer.healthCheckDetails, {
+            type: signerUpdate.status,
+            actionDate: date,
+            extraData: { serialNo: oneKeyDevice.serialNo },
+          }],
+        };
+        const response = yield call(updateAppImageWorker, { payload: { signers: [{ ...signer, ...changes }] } });
+        if (!response.updated) throw new Error('Could not save the OneKey health check. Please try again.');
+        const saved = yield call(dbManager.updateObjectById, RealmSchema.Signer, keyId, changes);
+        if (!saved) throw new Error('Could not save the OneKey device connection. Please try again.');
+        yield put(uaiActioned({ entityId: keyId, action: true }));
+        continue;
+      }
       const signersRealm: Signer[] = dbManager.getObjectByField(
         RealmSchema.Signer,
         signerUpdate.signerId,
@@ -723,7 +758,9 @@ function* healthCheckSatutsUpdateWorker({
         }
       }
     }
+    onComplete?.();
   } catch (err) {
+    onComplete?.(err?.message || 'Failed to save health check');
     console.log(err);
   }
 }

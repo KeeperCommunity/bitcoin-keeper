@@ -9,6 +9,7 @@ import useSigners from 'src/hooks/useSigners';
 import { uaiType } from 'src/models/interfaces/Uai';
 import { SDIcons } from 'src/screens/Vault/SigningDeviceIcons';
 import { SignerType } from 'src/services/wallets/enums';
+import { getOneKeyDeviceBindings } from 'src/services/onekeyBle/deviceConstants';
 import { getKeyUID } from 'src/utils/utilities';
 import { windowWidth, wp } from 'src/constants/responsive';
 import HardwareModalMap, { InteracationMode } from 'src/screens/Vault/HardwareModalMap';
@@ -22,15 +23,19 @@ const SignerList = ({ navigation }) => {
   const { colorMode } = useColorMode();
   const [showSSModal, setShowSSModal] = useState(false);
 
-  const list = signers.filter((signer) => !signer.hidden);
+  const list = signers.filter((signer) => !signer.hidden).flatMap((signer) => {
+    const devices = signer.type === SignerType.ONEKEY ? getOneKeyDeviceBindings(signer) : [];
+    return devices.length ? devices.map((device) => ({ signer, device })) : [{ signer, device: undefined }];
+  });
   const { typeBasedIndicator } = useIndicatorHook({
     types: [uaiType.SIGNING_DEVICES_HEALTH_CHECK, uaiType.RECOVERY_PHRASE_HEALTH_CHECK],
   });
 
-  const handleCardSelect = (signer) => {
+  const handleCardSelect = (signer, device) => {
     navigation.dispatch(
       CommonActions.navigate('SigningDeviceDetails', {
         signerId: getKeyUID(signer),
+        ...(device ? { oneKeyDeviceId: device.serialNo || device.bleConnectId } : {}),
       })
     );
   };
@@ -45,27 +50,37 @@ const SignerList = ({ navigation }) => {
       <Box style={styles.wrapper}>
         <Box style={styles.addedSignersContainer}>
           {list.map((item) => {
-            const signer = item;
+            const { signer, device } = item;
             if (!signer || signer.archived) {
               return null;
             }
 
             const showDot =
               signer.type !== SignerType.MY_KEEPER &&
-              typeBasedIndicator?.[uaiType.SIGNING_DEVICES_HEALTH_CHECK]?.[item.id];
+              typeBasedIndicator?.[uaiType.SIGNING_DEVICES_HEALTH_CHECK]?.[signer.id];
+
+            const cardName =
+              signer.type === SignerType.ONEKEY && signer.signerName
+                ? signer.signerName
+                : getSignerNameFromType(signer.type, signer.isMock, false);
+            const cardDescription =
+              signer.type === SignerType.ONEKEY &&
+              signer.extraData?.bleConnectId &&
+              signer.signerDescription
+                ? signer.signerDescription.replace(
+                    /^OneKey(?: (?:Classic(?: 1S(?: Pure)?)?|Touch|Pro(?: 2)?|Neo))? · /,
+                    ''
+                  )
+                : getSignerDescription(signer);
 
             return (
               <SignerCard
-                key={getKeyUID(signer)}
+                key={`${getKeyUID(signer)}:${device?.serialNo || device?.bleConnectId || ''}`}
                 onCardSelect={() => {
-                  handleCardSelect(signer);
+                  handleCardSelect(signer, device);
                 }}
-                name={
-                  !signer.isBIP85
-                    ? getSignerNameFromType(signer.type, signer.isMock, false)
-                    : `${getSignerNameFromType(signer.type, signer.isMock, false)} +`
-                }
-                subtitle={getSignerDescription(signer)}
+                name={device?.name || (signer.isBIP85 ? `${cardName} +` : cardName)}
+                subtitle={device?.serialNo ? `Serial: ${device.serialNo}` : cardDescription}
                 icon={SDIcons({ type: signer.type, light: true }).Icon}
                 image={signer?.extraData?.thumbnailPath}
                 showSelection={false}

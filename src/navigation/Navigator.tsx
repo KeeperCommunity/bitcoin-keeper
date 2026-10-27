@@ -47,8 +47,10 @@ import DustReportScreen from 'src/screens/DustReport/DustReportScreen';
 import Colors from 'src/theme/Colors';
 import NodeSettings from 'src/screens/AppSettings/Node/NodeSettings';
 import ConnectChannel from 'src/screens/Channel/ConnectChannel';
+import SignMessageOneKeyBle from 'src/screens/OneKey/SignMessageOneKeyBle';
 import RegisterWithChannel from 'src/screens/QRScreens/RegisterWithChannel';
 import SignWithChannel from 'src/screens/QRScreens/SignWithChannel';
+import SignWithOneKeyBle from 'src/screens/SignTransaction/SignWithOneKeyBle';
 import UTXOLabeling from 'src/screens/UTXOManagement/UTXOLabeling';
 import UTXOManagement from 'src/screens/UTXOManagement/UTXOManagement';
 import ImportWalletDetailsScreen from 'src/screens/ImportWalletDetailsScreen/ImportWalletDetailsScreen';
@@ -211,6 +213,7 @@ function LoginStack() {
       <Stack.Screen options={{ gestureEnabled: false }} name="ScanQR" component={ScanQR} />
       {/* Channel Based SDs */}
       <Stack.Screen name="ConnectChannel" component={ConnectChannel} />
+      <Stack.Screen name="SignMessageOneKeyBle" component={SignMessageOneKeyBle} />
       {/* Mobile Key, Seed Key */}
       <Stack.Screen name="EnterSeedScreen" component={EnterSeedScreen} />
       <Stack.Screen name="UnlockTapsigner" component={UnlockTapsigner} />
@@ -323,9 +326,11 @@ function AppStack() {
         <Stack.Screen name="ScanNode" component={ScanNode} />
         <Stack.Screen name="PrivacyAndDisplay" component={PrivacyAndDisplay} />
         <Stack.Screen name="ConnectChannel" component={ConnectChannel} />
+        <Stack.Screen name="SignMessageOneKeyBle" component={SignMessageOneKeyBle} />
         <Stack.Screen name="RegisterWithChannel" component={RegisterWithChannel} />
         <Stack.Screen name="SetupOtherSDScreen" component={SetupOtherSDScreen} />
         <Stack.Screen name="SignWithChannel" component={SignWithChannel} />
+        <Stack.Screen name="SignWithOneKeyBle" component={SignWithOneKeyBle} />
         <Stack.Screen name="CosignerDetails" component={CosignerDetails} />
         <Stack.Screen name="AdditionalDetails" component={AdditionalDetails} />
         <Stack.Screen name="KeyHistory" component={KeyHistory} />

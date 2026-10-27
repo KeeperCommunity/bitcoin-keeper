@@ -1,3 +1,4 @@
+import { getOneKeyDeviceBindings } from 'src/services/onekeyBle/deviceConstants';
 import React, { useContext, useEffect, useState } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, Vibration } from 'react-native';
 import { Box, Center, useColorMode } from '@gluestack-ui/themed-native-base';
@@ -231,6 +232,14 @@ const getSignerContent = (type: SignerType) => {
         description: signerTranslations.kruxDesc,
         FAQ: 'https://selfcustody.github.io/krux/faq/',
       };
+    case SignerType.ONEKEY:
+      return {
+        title: 'OneKey',
+        subTitle: 'Connect OneKey hardware wallet via Bluetooth',
+        assert: <ThemedSvg name={'onekey_illustration'} />,
+        description: 'OneKey hardware wallet over Bluetooth',
+        FAQ: 'https://help.onekey.so',
+      };
     default:
       return {
         title: '',
@@ -256,7 +265,7 @@ function SigningDeviceDetails({ route }) {
   const { colorMode } = useColorMode();
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { vaultKey, vaultId, isInheritanceKey, isEmergencyKey, signerId, vaultSigners, isUaiFlow } =
+  const { vaultKey, vaultId, isInheritanceKey, isEmergencyKey, signerId, vaultSigners, isUaiFlow, oneKeyDeviceId } =
     route.params;
   const { signers } = useSigners();
   const currentSigner =
@@ -264,6 +273,12 @@ function SigningDeviceDetails({ route }) {
     signers.find((signer) => signer.masterFingerprint === signerId);
   const { signerMap } = useSignerMap();
   const signer: Signer = currentSigner || signerMap[getKeyUID(vaultKey)];
+  const selectedOneKeyDevice = signer?.type === SignerType.ONEKEY && oneKeyDeviceId
+    ? getOneKeyDeviceBindings(signer).find((device) => device.serialNo === oneKeyDeviceId || device.bleConnectId === oneKeyDeviceId)
+    : undefined;
+  const healthCheckSigner = oneKeyDeviceId
+    ? { ...signer, extraData: { ...signer.extraData, bleConnectId: selectedOneKeyDevice?.bleConnectId } }
+    : signer;
   const [detailModal, setDetailModal] = useState(false);
   const [details, setDetails] = useState('');
 
@@ -823,10 +838,10 @@ function SigningDeviceDetails({ route }) {
           learnBackgroundColor={manage_signer_backGround}
           learnTextColor={`${colorMode}.buttonText`}
           mediumTitle
-          title={signer?.signerName === 'Signing Server' ? 'Server Key' : signer?.signerName}
+          title={selectedOneKeyDevice?.name || (signer?.signerName === 'Signing Server' ? 'Server Key' : signer?.signerName)}
           titleColor={`${colorMode}.headerWhite`}
           subTitleColor={`${colorMode}.headerWhite`}
-          subtitle={getSignerDescription(signer)}
+          subtitle={selectedOneKeyDevice?.serialNo ? `Serial: ${selectedOneKeyDevice.serialNo}` : getSignerDescription(signer)}
           icon={
             <CircleIconWrapper
               backgroundColor={signing_CircleIconWrapper}
@@ -899,7 +914,7 @@ function SigningDeviceDetails({ route }) {
               type={signer?.type}
               visible={visible}
               close={() => setVisible(false)}
-              signer={signer}
+              signer={healthCheckSigner}
               skipHealthCheckCallBack={() => {
                 setVisible(false);
                 setSkipHealthCheckModalVisible(true);

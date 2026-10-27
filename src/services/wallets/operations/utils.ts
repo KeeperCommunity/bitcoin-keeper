@@ -26,6 +26,7 @@ import {
   NetworkType,
   PaymentInfoKind,
   ScriptTypes,
+  SignerType,
   XpubTypes,
 } from '../enums';
 import { OutputUTXOs } from '../interfaces';
@@ -1173,35 +1174,22 @@ export default class WalletUtilities {
 
   static getKeyForScheme = (isMultisig, signer, msXpub, ssXpub, amfXpub) => {
     const { bitcoinNetworkType } = store.getState().settings;
-    if (amfXpub) {
-      return {
-        ...amfXpub,
-        masterFingerprint: signer.masterFingerprint,
-        xfp: this.getFingerprintFromExtendedKey(
-          amfXpub.xpub,
-          this.getNetworkByType(bitcoinNetworkType)
-        ),
-      };
+    const network = this.getNetworkByType(bitcoinNetworkType);
+    const key = amfXpub || (isMultisig ? msXpub : ssXpub);
+    let { xpub } = key;
+    // Existing OneKey records may still contain the device's SLIP-132 version.
+    if (signer.type === SignerType.ONEKEY) {
+      if (this.getNetworkFromPrefix(xpub.slice(0, 4)) !== bitcoinNetworkType) {
+        throw new Error('OneKey key does not match the selected Bitcoin network');
+      }
+      xpub = this.getXpubFromExtendedKey(xpub, network);
     }
-    if (isMultisig) {
-      return {
-        ...msXpub,
-        masterFingerprint: signer.masterFingerprint,
-        xfp: this.getFingerprintFromExtendedKey(
-          msXpub.xpub,
-          this.getNetworkByType(bitcoinNetworkType)
-        ),
-      };
-    } else {
-      return {
-        ...ssXpub,
-        masterFingerprint: signer.masterFingerprint,
-        xfp: this.getFingerprintFromExtendedKey(
-          ssXpub.xpub,
-          this.getNetworkByType(bitcoinNetworkType)
-        ),
-      };
-    }
+    return {
+      ...key,
+      xpub,
+      masterFingerprint: signer.masterFingerprint,
+      xfp: this.getFingerprintFromExtendedKey(xpub, network),
+    };
   };
 
   static extractKeysFromBsms = (

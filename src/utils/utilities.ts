@@ -14,6 +14,7 @@ import {
 import { Signer, Vault, VaultSigner } from 'src/services/wallets/interfaces/vault';
 import * as bitcoin from 'bitcoinjs-lib';
 import { isTestnet } from 'src/constants/Bitcoin';
+import WalletUtilities from 'src/services/wallets/operations/utils';
 
 import ecc from 'src/services/wallets/operations/taproot-utils/noble_ecc';
 import BIP32Factory from 'bip32';
@@ -345,7 +346,11 @@ export const generateDataFromPSBT = (base64Str: string, signer: Signer) => {
           signersList.push(data);
           if (data.masterFingerprint.toLowerCase() === signer.masterFingerprint.toLowerCase()) {
             // validating further by matching public key
-            const xPub = signer.signerXpubs[XpubTypes.P2WSH][0].xpub; // to enable for taproot in future
+            const accountKey = signer.signerXpubs[XpubTypes.P2WSH][0]; // to enable for taproot in future
+            const xPub =
+              signer.type === SignerType.ONEKEY
+                ? WalletUtilities.getKeyForScheme(true, signer, accountKey, null, null).xpub
+                : accountKey.xpub;
             const pubkey = getPubKeyFromXpub(xPub, data.derivationPath);
             if (data.pubKey == pubkey) signerMatched = true;
           }

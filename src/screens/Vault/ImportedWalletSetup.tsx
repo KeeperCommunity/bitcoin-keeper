@@ -18,18 +18,23 @@ import { useDispatch } from 'react-redux';
 import { resetSignersUpdateState } from 'src/store/reducers/bhr';
 import useSignerMap from 'src/hooks/useSignerMap';
 import { SignerType } from 'src/services/wallets/enums';
+import { Signer } from 'src/services/wallets/interfaces/vault';
+import useToastMessage from 'src/hooks/useToastMessage';
+import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 
 export const ImportedWalletSetup = ({ navigation, route }) => {
   const { vaultConfig } = route?.params;
   const { colorMode } = useColorMode();
   const { createVault } = useConfigRecovery();
-  const { common, wallet: walletText, importWallet } = useContext(LocalizationContext).translations;
+  const { common, wallet: walletText, importWallet, error: errorText } =
+    useContext(LocalizationContext).translations;
   const [vaultDetails, setVaultDetails] = useState(null);
   const [vaultName, setVaultName] = useState('Imported wallet');
   const [vaultDesc, setVaultDesc] = useState('Secure your sats');
   const isSmallDevice = useIsSmallDevices();
   const [signers, setSigners] = useState([]);
   const { signerMap } = useSignerMap();
+  const { showToast } = useToastMessage();
 
   const dispatch = useDispatch();
 
@@ -45,7 +50,13 @@ export const ImportedWalletSetup = ({ navigation, route }) => {
   }, []);
 
   const updateSignerType = (selectedSigner) => {
-    if (!selectedSigner.isTemp) return;
+    if (!selectedSigner?.isTemp) {
+      showToast(
+        (errorText as any).keyAlreadyAdded || 'This key has already been added',
+        <ToastErrorIcon />
+      );
+      return;
+    }
     dispatch(resetSignersUpdateState());
     navigation.dispatch(
       CommonActions.navigate({
@@ -54,11 +65,13 @@ export const ImportedWalletSetup = ({ navigation, route }) => {
           parentNavigation: navigation,
           signer: selectedSigner,
           isImportFlow: true,
-          onTypeSelection: (type) => {
+          onTypeSelection: (type, signerUpdates: Partial<Signer> = {}) => {
             const updatedSigners = signers.map((signer) => {
               if (signer.id === selectedSigner.id) {
+                Object.assign(signer, signerUpdates);
                 signer.type = type;
-                signer.signerName = getSignerNameFromType(type, signer.isMock);
+                signer.signerName =
+                  signerUpdates.signerName || getSignerNameFromType(type, signer.isMock);
               }
               return signer;
             });
@@ -125,8 +138,7 @@ export const ImportedWalletSetup = ({ navigation, route }) => {
                     isFullText
                     colorVarient="green"
                     colorMode={colorMode}
-                    onCardSelect={(signer) => updateSignerType(signer)}
-                    isSelected={signer}
+                    onCardSelect={() => updateSignerType(signer)}
                   />
                 );
               })}

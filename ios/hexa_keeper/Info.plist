@@ -81,6 +81,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allow Keeper to scan and connect to your OneKey hardware wallet over Bluetooth</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Allow Keeper to scan and connect to your OneKey hardware wallet over Bluetooth</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Please allow camera access for QR scanner</string>
 	<key>NSContactsUsageDescription</key>

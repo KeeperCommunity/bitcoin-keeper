@@ -1,4 +1,4 @@
-import { Signer, Vault } from 'src/services/wallets/interfaces/vault';
+import { OneKeyDeviceBinding, Signer, Vault } from 'src/services/wallets/interfaces/vault';
 
 export const UPDATE_APP_IMAGE = 'UPDATE_APP_IMAGE';
 export const GET_APP_IMAGE = 'GET_APP_IMAGE';
@@ -75,11 +75,15 @@ export const healthCheckSigner = (signers: Signer[]) => ({
   },
 });
 
-export const healthCheckStatusUpdate = (signerUpdates: { signerId: string; status: string }[]) => ({
+export const healthCheckStatusUpdate = (
+  signerUpdates: { signerId: string; status: string; keyId?: string; oneKeyDevice?: OneKeyDeviceBinding }[],
+  onComplete?: (error?: string) => void
+) => ({
   type: HEALTH_CHECK_STATUS_UPDATE,
   payload: {
     signerUpdates,
   },
+  ...(onComplete ? { onComplete } : {}),
 });
 
 export const backupBsmsOnCloud = () => ({

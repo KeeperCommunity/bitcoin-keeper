@@ -29,6 +29,7 @@ import CVVInputsView from 'src/components/HealthCheck/CVVInputsView';
 import DeleteIcon from 'src/assets/images/deleteBlack.svg';
 import RecoverImage from 'src/assets/images/recover_white.svg';
 import KeeperModal from 'src/components/KeeperModal';
+import OneKeyBleModal from 'src/components/OneKeyBleModal';
 import KeyPadView from 'src/components/AppNumPad/KeyPadView';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import { Signer, VaultSigner } from 'src/services/wallets/interfaces/vault';
@@ -542,6 +543,18 @@ const getSignerContent = (
         subTitle: ledger.SetupDescription,
         options: [],
       };
+    case SignerType.ONEKEY:
+      return {
+        type: SignerType.ONEKEY,
+        Illustration: <ThemedSvg name={'onekey_illustration'} />,
+        Instructions: [
+          'Unlock your OneKey device and enable Bluetooth.',
+          'Keep the device nearby and tap Proceed to connect.',
+        ],
+        title: isHealthcheck ? `${common.verify} OneKey` : `${signerText.settingUp} OneKey`,
+        subTitle: 'Connect OneKey hardware wallet via Bluetooth',
+        options: [],
+      };
     case SignerType.SEED_WORDS:
       return {
         type: SignerType.SEED_WORDS,
@@ -1052,6 +1065,7 @@ function HardwareModalMap({
   const data = useQuery(RealmSchema.BackupHistory);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [openSetup, setOpenSetup] = useState(false);
+  const [onekeyBleModalVisible, setOnekeyBleModalVisible] = useState(false);
 
   const getNfcSupport = async () => {
     const isSupported = await NFC.isNFCSupported();
@@ -1332,6 +1346,7 @@ function HardwareModalMap({
       })
     );
   };
+
 
   const importSeedWordsBasedKey = (mnemonic, remember = false) => {
     try {
@@ -2021,7 +2036,8 @@ function HardwareModalMap({
       signerType === SignerType.PASSPORT ||
       signerType === SignerType.SEED_WORDS ||
       signerType === SignerType.KEEPER ||
-      signerType === SignerType.KRUX
+      signerType === SignerType.KRUX ||
+      signerType === SignerType.ONEKEY
     ) {
       return (
         <Box style={styles.modalContainer}>
@@ -2165,6 +2181,10 @@ function HardwareModalMap({
         return navigateToSetupWithOtherSD();
       case SignerType.PORTAL:
         return navigateToPortalSetup();
+      case SignerType.ONEKEY:
+        close();
+        setOnekeyBleModalVisible(true);
+        return;
       default:
         return null;
     }
@@ -2447,6 +2467,35 @@ function HardwareModalMap({
       />
       <NfcPrompt visible={nfcVisible} close={closeNfc} />
       {inProgress && <ActivityIndicatorView visible={inProgress} />}
+      <OneKeyBleModal
+        visible={onekeyBleModalVisible}
+        close={() => setOnekeyBleModalVisible(false)}
+        mode={
+          isHealthcheck
+            ? 'health-check'
+            : mode === InteracationMode.RECOVERY
+            ? 'recovery'
+            : 'setup'
+        }
+        signer={signer}
+        isMultisig={isMultisig}
+        addSignerFlow={addSignerFlow}
+        accountNumber={accountNumber}
+        onSignerAdded={(addedSigner) => {
+          setOnekeyBleModalVisible(false);
+          if (mode === InteracationMode.RECOVERY) {
+            dispatch(setSigningDevices(addedSigner));
+            navigation.dispatch(
+              CommonActions.navigate('LoginStack', { screen: 'VaultRecoveryAddSigner' })
+            );
+            return;
+          }
+          const navigationState = addSignerFlow
+            ? { name: 'Home', params: { selectedOption: 'Keys', addedSigner } }
+            : { name: 'AddSigningDevice', merge: true, params: { addedSigner } };
+          navigation.dispatch(CommonActions.navigate(navigationState));
+        }}
+      />
     </>
   );
 }

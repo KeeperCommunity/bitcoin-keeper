@@ -150,6 +150,7 @@ import SatochipSetupSVG from 'src/assets/images/SatochipSetup.svg';
 import PrivateSatochipIllustration from 'src/assets/privateImages/satochip-illustration.svg';
 import PortalIllustration from 'src/assets/images/portal_illustration.svg';
 import PrivatePortalIllustration from 'src/assets/privateImages/portal-illustration.svg';
+import OneKeyIllustration from 'src/assets/images/onekey_illustration.svg';
 import WalletRecoveryIcon from 'src/assets/images/walletRecoveryIcon.svg';
 import PrivateWalletRecovery from 'src/assets/privateImages/wallet-recovery-illlustration.svg';
 import OrganizationIcon from 'src/assets/images/organizationIcon.svg';
@@ -766,6 +767,12 @@ const themeIcons = {
     LIGHT: PortalIllustration,
     PRIVATE: PrivatePortalIllustration,
     PRIVATE_LIGHT: PrivatePortalIllustration,
+  },
+  onekey_illustration: {
+    DARK: OneKeyIllustration,
+    LIGHT: OneKeyIllustration,
+    PRIVATE: OneKeyIllustration,
+    PRIVATE_LIGHT: OneKeyIllustration,
   },
 
   wallet_Recovery_icon: {

@@ -451,18 +451,28 @@ function SignersList({
               (signer.type !== SignerType.MY_KEEPER &&
                 typeBasedIndicator?.[uaiType.SIGNING_DEVICES_HEALTH_CHECK]?.[item.id]);
 
+            const cardName =
+              signer.type === SignerType.ONEKEY && signer.signerName
+                ? signer.signerName
+                : getSignerNameFromType(signer.type, signer.isMock, false);
+            const cardDescription =
+              signer.type === SignerType.ONEKEY &&
+              signer.extraData?.bleConnectId &&
+              signer.signerDescription
+                ? signer.signerDescription.replace(
+                    /^OneKey(?: (?:Classic(?: 1S(?: Pure)?)?|Touch|Pro(?: 2)?|Neo))? · /,
+                    ''
+                  )
+                : getSignerDescription(signer);
+
             return (
               <SignerCard
                 key={getKeyUID(signer)}
                 onCardSelect={() => {
                   handleCardSelect(signer, item);
                 }}
-                name={
-                  !signer.isBIP85
-                    ? getSignerNameFromType(signer.type, signer.isMock, false)
-                    : `${getSignerNameFromType(signer.type, signer.isMock, false)} +`
-                }
-                description={getSignerDescription(signer)}
+                name={signer.isBIP85 ? `${cardName} +` : cardName}
+                description={cardDescription}
                 icon={SDIcons({ type: signer.type, light: true }).Icon}
                 image={signer?.extraData?.thumbnailPath}
                 showSelection={false}

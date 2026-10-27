@@ -8,6 +8,13 @@ import ColdCard from 'src/assets/images/coinkite-image.svg';
 import Passport from 'src/assets/images/foundation-passport-icon.svg';
 import Legder from 'src/assets/images/Ledger-icon.svg';
 import Trezor from 'src/assets/images/TREZOR-icon.svg';
+import { Image, ImageStyle } from 'react-native';
+
+const OnekeyDevice = ({ width, height }: { width: number; height: number }) => (
+  <Image source={require('src/assets/images/onekey-shop-device.png')} style={{ width, height } as ImageStyle} resizeMode="contain" />
+);
+import FlagHongKong from 'src/assets/images/flag-hongkong.svg';
+import FlagJapan from 'src/assets/images/flag-japan.svg';
 import FlagCanada from 'src/assets/images/flag-canada.svg';
 import FlagUSA from 'src/assets/images/flag-usa.svg';
 import FlagSwizerland from 'src/assets/images/flag-swizerland.svg';
@@ -80,6 +87,16 @@ const HardwareDevices = ({ sellers }) => {
       flagIcon: <FlagRepublic />,
       country: walletText.hardwareTrezorCountry,
       onPress: () => setIsOpen(true),
+      subscribeText: '',
+      unSubscribeText: '',
+    },
+    {
+      id: 6,
+      title: 'OneKey',
+      image: <OnekeyDevice width={hp(90)} height={hp(100)} />,
+      flagIcon: <><FlagHongKong width={18} height={12} /><FlagJapan width={18} height={12} /></>,
+      country: 'HK & Japan',
+      link: getSellerLink('onekey'),
       subscribeText: '',
       unSubscribeText: '',
     },

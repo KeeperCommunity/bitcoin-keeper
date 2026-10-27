@@ -88,6 +88,7 @@ const SigningDeviceList = () => {
       SignerType.KEYSTONE,
       SignerType.KRUX,
       SignerType.LEDGER,
+      SignerType.ONEKEY,
       SignerType.PASSPORT,
       SignerType.PORTAL,
       SignerType.SATOCHIP,
