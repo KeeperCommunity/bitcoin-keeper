@@ -30,7 +30,7 @@ const TEST_POLICIES = new Set([
   // Reviewed union keeps the existing tests and adds the Node22.23.4 runtime guard.
   'f1bcced79e60159b105efa93c63f88d31349bf00f459c22b03fa3e24abd404ca',
 ]);
-const PRIVATE_V3_POLICY = '202911034ffc8c94d455dfac3a3872f55de4012a3d55d051550b04b8e758865d';
+const PRIVATE_V3_POLICY = '5c58469a1e7de4f7864921f95893ba6a6633f1935664ccd35febd302b8302dfc';
 const CODEQL_POLICY = 'c71898e2855d2089a7a4a6ce04cbe381c685e580e09cdcbf489bf61ca1e72ca9';
 const TEST_JOBS = ['Lint', 'Tests', 'Automatic backup native Realm and Relay'];
 const TEST_STEPS = ['Run tests', 'Run recovery regression tests',

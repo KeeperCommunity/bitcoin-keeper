@@ -131,7 +131,7 @@ for (const [name, mutate, error] of [
 test('reviewed complete v3 CI union is recognized while any byte edit remains unreviewed', async () => {
   const crypto = require('node:crypto'), f = fixture(), item = f.content['test.yml'];
   assert.equal(crypto.createHash('sha256').update(Buffer.from(item.content, 'base64')).digest('hex'),
-    '202911034ffc8c94d455dfac3a3872f55de4012a3d55d051550b04b8e758865d');
+    '5c58469a1e7de4f7864921f95893ba6a6633f1935664ccd35febd302b8302dfc');
   await f.collect();
   const bytes = Buffer.from(Buffer.from(item.content, 'base64').toString() + '\n# unreviewed');
   item.content = bytes.toString('base64'); item.size = bytes.length;
