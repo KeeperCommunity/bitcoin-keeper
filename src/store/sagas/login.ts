@@ -69,7 +69,6 @@ import {
   setBiometricEnabledAppId,
   setTempDetails,
   updateOneTimeBackupStatus,
-  updatePasscodeHash,
 } from '../reducers/account';
 import { REALM_FILE } from 'src/storage/realm/realm';
 import { loadConciergeUserOnLogin, saveBackupMethodByAppId } from '../sagaActions/account';
@@ -398,32 +397,44 @@ export const credentialsAuthWatcher = createWatcher(credentialsAuthWorker, CREDS
 
 function* changeAuthCredWorker({ payload }) {
   const { oldPasscode, newPasscode } = payload;
+  const originSession = currentBackupAccountSession();
   try {
+    const appId = yield select((state) => state.storage.appId);
+    const { allAccounts } = yield select((state) => state.account);
+    const currentAccount = allAccounts.find((account) => account.appId === appId);
+    if (!currentAccount) throw new Error('Current account unavailable');
+    const isCurrent = (expectedHash = currentAccount.hash) => {
+      const state = store.getState();
+      const account = state.account.allAccounts.find((entry) => entry.appId === appId);
+      return originSession === currentBackupAccountSession() && state.storage.appId === appId &&
+        account?.accountIdentifier === currentAccount.accountIdentifier &&
+        account?.realmId === currentAccount.realmId && account?.hash === expectedHash;
+    };
+    if (!isCurrent()) return;
     const hash = yield call(hash512, oldPasscode);
-    const encryptedKey = yield call(SecureStore.fetch, hash);
+    const encryptedKey = yield call(SecureStore.fetchSpecific, hash, appId);
+    if (!isCurrent()) return;
     const decryptedKey = yield call(decrypt, hash, encryptedKey);
+    if (typeof decryptedKey !== 'string' || decryptedKey.length !== 64) throw new Error('Encryption key unavailable');
     const newHash = yield call(hash512, newPasscode);
     const newEncryptedKey = yield call(encrypt, newHash, decryptedKey);
-    // pass current accounts identifier
-    const appId = yield select((state: RootState) => state.storage.appId);
-    const { allAccounts } = yield select((state: RootState) => state.account);
-    const currentAccount = allAccounts.find((account) => account.appId === appId);
-    if (
-      !(yield call(SecureStore.store, newHash, newEncryptedKey, currentAccount.accountIdentifier))
-    ) {
+    if (!isCurrent()) return;
+    const saved = yield call(SecureStore.store, newHash, newEncryptedKey, currentAccount.accountIdentifier);
+    if (!isCurrent(saved === true ? newHash : currentAccount.hash)) return;
+    if (saved !== true) {
+      yield put(pinChangedFailed(true));
+      yield put(credsChanged('not-changed'));
       return;
     }
-    yield call(SecureStore.store, newHash, newEncryptedKey, currentAccount.accountIdentifier);
-    yield put(updatePasscodeHash({ newHash, appId }));
+    yield put(setPinHash(newHash));
     yield put(credsChanged('changed'));
   } catch (err) {
-    console.log({
-      err,
-    });
+    if (originSession !== currentBackupAccountSession()) return;
     yield put(pinChangedFailed(true));
     yield put(credsChanged('not-changed'));
   }
 }
+
 export const changeAuthCredWatcher = createWatcher(changeAuthCredWorker, CHANGE_AUTH_CRED);
 
 function* changeLoginMethodWorker({
@@ -431,13 +442,30 @@ function* changeLoginMethodWorker({
 }: {
   payload: { method: LoginMethod; pubKey: string };
 }) {
+  const originSession = currentBackupAccountSession();
+  const initial = store.getState();
+  const requestedAppId = initial.storage.appId;
+  const requestedAccount = requestedAppId
+    ? initial.account.allAccounts.find((entry) => entry.appId === requestedAppId)
+    : initial.account.allAccounts.length === 0 ? initial.account.tempDetails : undefined;
+  const isCurrent = () => {
+    const state = store.getState();
+    const account = requestedAppId ? state.account.allAccounts.find((entry) => entry.appId === requestedAppId) :
+      state.account.allAccounts.length === 0 ? state.account.tempDetails : undefined;
+    return !!requestedAccount && originSession === currentBackupAccountSession() &&
+      state.storage.appId === requestedAppId && account?.accountIdentifier === requestedAccount.accountIdentifier &&
+      account?.realmId === requestedAccount.realmId && account?.hash === requestedAccount.hash;
+  };
   try {
     const { method, pubKey } = payload;
     const keeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+    if (!isCurrent() || (keeperApp?.id ?? '') !== requestedAppId) return;
     if (method === LoginMethod.BIOMETRIC) {
       const savePubKey = yield call(SecureStore.storeBiometricPubKey, pubKey, keeperApp?.id);
+      if (!isCurrent()) return;
       if (savePubKey) {
         yield put(setLoginMethod(method));
+        if (!isCurrent()) return;
         if (keeperApp?.id) yield put(setBiometricEnabledAppId(keeperApp?.id));
       }
     } else {

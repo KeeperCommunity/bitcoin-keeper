@@ -1,5 +1,7 @@
 import * as Keychain from 'react-native-keychain';
 import NodeRSA from 'node-rsa';
+import { currentBackupAccountSession } from 'src/services/backup/transport';
+import { updatePasscodeHash } from 'src/store/reducers/account';
 import config from '../utils/service-utilities/config';
 import { store as reduxStore } from 'src/store/store';
 import {
@@ -8,38 +10,67 @@ import {
   StartupFailurePhase,
 } from './startup-failure-observer';
 
+// One process-local tail covers only the two credential read/modify/write operations.
+// It does not claim native durability or cross-process exclusion.
+let credentialWrite = Promise.resolve();
+const runCredentialWrite = <T>(work: () => Promise<T>): Promise<T> => {
+  const result = credentialWrite.then(work);
+  credentialWrite = result.then(() => undefined, () => undefined);
+  return result;
+};
+
 export const store = async (hash: string, enc_key: string, identifier: string) => {
-  try {
-    // unique pin check
-    const allAccounts = reduxStore.getState().account.allAccounts;
-    for (const index in allAccounts) {
-      const identifier = allAccounts[index].accountIdentifier;
-      let credentials;
-      credentials = await Keychain.getGenericPassword({
-        service: identifier == '' ? undefined : identifier,
-      });
-      if (credentials) {
-        const password = JSON.parse(credentials.password);
-        if (hash === password.hash) {
-          return 'Passcode already exists';
-        }
+  const session = currentBackupAccountSession();
+  return runCredentialWrite(async () => {
+    try {
+      if (typeof identifier !== 'string') return false;
+      const initial = reduxStore.getState();
+      const selectedAppId = initial.storage.appId;
+      const allAccounts = initial.account.allAccounts;
+      const owner = allAccounts.find((account) => account.accountIdentifier === identifier);
+      if (owner && owner.appId !== selectedAppId) return false;
+      const isCurrent = (expectedHash = owner?.hash) => {
+        const state = reduxStore.getState();
+        const current = state.account.allAccounts.find((account) => account.accountIdentifier === identifier);
+        return session === currentBackupAccountSession() && state.storage.appId === selectedAppId &&
+          (owner ? current?.appId === owner.appId && current?.realmId === owner.realmId &&
+            current?.hash === expectedHash : !current);
+      };
+      // Keep the existing cross-account PIN uniqueness check.
+      for (const account of allAccounts) {
+        const credentials = await Keychain.getGenericPassword({
+          service: account.accountIdentifier === '' ? undefined : account.accountIdentifier,
+        });
+        if (!isCurrent()) return false;
+        if (credentials && hash === JSON.parse(credentials.password).hash) return 'Passcode already exists';
       }
-    }
-    await Keychain.setGenericPassword(
-      config.ENC_KEY_STORAGE_IDENTIFIER,
-      JSON.stringify({
-        hash,
-        enc_key,
-      }),
-      {
-        service: identifier == '' ? undefined : identifier,
+      const service = identifier === '' ? undefined : identifier;
+      const previous = await Keychain.getGenericPassword({ service });
+      if (!isCurrent() || (previous && !owner)) return false;
+      const username = previous ? previous.username : config.ENC_KEY_STORAGE_IDENTIFIER;
+      const result = await Keychain.setGenericPassword(username, JSON.stringify({ hash, enc_key }), {
+        service,
         accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
+        keeperPreserveExisting: true,
+      });
+      if (!result) return false;
+      const readback = await Keychain.getGenericPassword({ service });
+      if (!readback || readback.username !== username) return false;
+      const saved = JSON.parse(readback.password);
+      if (saved.hash !== hash || saved.enc_key !== enc_key) return false;
+      if (owner) {
+        // A confirmed write belongs to its captured owner even after switching to B.
+        // Reconcile only unchanged A metadata; never select A or create an account.
+        const current = reduxStore.getState().account.allAccounts.find((account) =>
+          account.appId === owner.appId && account.accountIdentifier === identifier);
+        if (!current || current.realmId !== owner.realmId || current.hash !== owner.hash) return false;
+        reduxStore.dispatch(updatePasscodeHash({ newHash: hash, appId: owner.appId }));
       }
-    );
-    return true;
-  } catch (error) {
-    return false;
-  }
+      return isCurrent(hash);
+    } catch (error) {
+      return false;
+    }
+  });
 };
 
 export const fetch = async (hash_current: string) => {
@@ -134,29 +165,47 @@ export const remove = async (key) => {
 };
 
 export const storeBiometricPubKey = async (pubKey: string, appId) => {
-  try {
-    const allAccounts = reduxStore.getState().account.allAccounts;
-    const identifier =
-      allAccounts.find((account) => account.appId === appId)?.accountIdentifier || undefined;
-    const credentials = await Keychain.getGenericPassword({ service: identifier });
-    const password = JSON.parse(credentials.password);
-    const reset = await Keychain.resetGenericPassword({ service: identifier });
-    if (reset) {
-      const pass = {
-        ...password,
-        pubKey,
+  const session = currentBackupAccountSession();
+  return runCredentialWrite(async () => {
+    try {
+      const initial = reduxStore.getState();
+      const selectedAppId = initial.storage.appId;
+      // Unknown requested accounts must never fall through to the default service.
+      // Before the first KeeperApp exists, bind only its explicit pending setup record.
+      const account = appId
+        ? initial.account.allAccounts.find((entry) => entry.appId === appId)
+        : !selectedAppId && initial.account.allAccounts.length === 0 ? initial.account.tempDetails : undefined;
+      if (!account || typeof account.accountIdentifier !== 'string' || !account.realmId ||
+          (appId && selectedAppId !== appId)) return false;
+      const identifier = account.accountIdentifier;
+      const isCurrent = () => {
+        const state = reduxStore.getState();
+        const current = appId ? state.account.allAccounts.find((entry) => entry.appId === appId) :
+          !state.storage.appId && state.account.allAccounts.length === 0 ? state.account.tempDetails : undefined;
+        return session === currentBackupAccountSession() && state.storage.appId === selectedAppId &&
+          current?.accountIdentifier === identifier && current?.realmId === account.realmId &&
+          current?.hash === account.hash;
       };
-      await Keychain.setGenericPassword(config.ENC_KEY_STORAGE_IDENTIFIER, JSON.stringify(pass), {
+      const service = identifier === '' ? undefined : identifier;
+      const credentials = await Keychain.getGenericPassword({ service });
+      if (!isCurrent() || !credentials) return false;
+      const password = JSON.parse(credentials.password);
+      if (!password || typeof password.hash !== 'string' || typeof password.enc_key !== 'string' ||
+          password.hash !== account.hash) return false;
+      const result = await Keychain.setGenericPassword(credentials.username, JSON.stringify({ ...password, pubKey }), {
         accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
-        service: identifier,
+        service,
+        keeperPreserveExisting: true,
       });
-      return true;
+      if (!result || !isCurrent()) return false;
+      const readback = await Keychain.getGenericPassword({ service });
+      if (!isCurrent() || !readback || readback.username !== credentials.username) return false;
+      const saved = JSON.parse(readback.password);
+      return saved.hash === password.hash && saved.enc_key === password.enc_key && saved.pubKey === pubKey;
+    } catch (error) {
+      return false;
     }
-    return false;
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+  });
 };
 
 export const verifyBiometricAuth = async (signature: string, payload: string) => {

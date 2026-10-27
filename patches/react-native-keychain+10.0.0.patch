@@ -1,0 +1,120 @@
+--- a/node_modules/react-native-keychain/ios/RNKeychainManager/RNKeychainManager.m
++++ b/node_modules/react-native-keychain/ios/RNKeychainManager/RNKeychainManager.m
+@@ -448,19 +448,84 @@
+                   resolver:(RCTPromiseResolveBlock)resolve
+                   rejecter:(RCTPromiseRejectBlock)reject)
+ {
++  // Preserve upstream behavior for unrelated library callers, including default accessibility.
++  if (![options[@"keeperPreserveExisting"] isEqual:@(YES)]) {
++    NSString *service = serviceValue(options);
++    CFBooleanRef cloudSync = cloudSyncValue(options);
++    NSDictionary *attributes = attributes = @{
++      (__bridge NSString *)kSecClass: (__bridge id)(kSecClassGenericPassword),
++      (__bridge NSString *)kSecAttrService: service,
++      (__bridge NSString *)kSecAttrAccount: username,
++      (__bridge NSString *)kSecAttrSynchronizable: (__bridge id)(cloudSync),
++      (__bridge NSString *)kSecValueData: [password dataUsingEncoding:NSUTF8StringEncoding]
++    };
++  
++    [self deletePasswordsForOptions:options];
++  
++    [self insertKeychainEntry:attributes withOptions:options resolver:resolve rejecter:reject];
++    return;
++  }
++  // Keeper preservation-only contract: the app uses these generic-record options only.
++  // Reject other policies before mutation; never delete/recreate a live record.
++  NSSet *allowed = [NSSet setWithArray:@[@"service", @"accessible", @"authenticationPrompt", @"keeperPreserveExisting"]];
++  for (NSString *name in options) {
++    if (![allowed containsObject:name]) {
++      return rejectWithError(reject, [NSError errorWithDomain:NSOSStatusErrorDomain code:errSecParam userInfo:nil]);
++    }
++  }
++  if (accessibleValue(options) != kSecAttrAccessibleWhenUnlocked ||
++      username.length == 0 || password.length == 0) {
++    return rejectWithError(reject, [NSError errorWithDomain:NSOSStatusErrorDomain code:errSecParam userInfo:nil]);
++  }
+   NSString *service = serviceValue(options);
+-  CFBooleanRef cloudSync = cloudSyncValue(options);
+-  NSDictionary *attributes = attributes = @{
+-    (__bridge NSString *)kSecClass: (__bridge id)(kSecClassGenericPassword),
++  NSMutableDictionary *identity = [@{
++    (__bridge NSString *)kSecClass: (__bridge id)kSecClassGenericPassword,
+     (__bridge NSString *)kSecAttrService: service,
+-    (__bridge NSString *)kSecAttrAccount: username,
+-    (__bridge NSString *)kSecAttrSynchronizable: (__bridge id)(cloudSync),
+-    (__bridge NSString *)kSecValueData: [password dataUsingEncoding:NSUTF8StringEncoding]
+-  };
+-
+-  [self deletePasswordsForOptions:options];
+-
+-  [self insertKeychainEntry:attributes withOptions:options resolver:resolve rejecter:reject];
++    (__bridge NSString *)kSecAttrSynchronizable: (__bridge id)kCFBooleanFalse
++  } mutableCopy];
++  if (@available(macOS 10.15, iOS 13.0, *)) {
++    identity[(__bridge NSString *)kSecUseDataProtectionKeychain] = @(YES);
++  }
++  NSMutableDictionary *lookup = identity.mutableCopy;
++  lookup[(__bridge NSString *)kSecReturnAttributes] = @(YES);
++  lookup[(__bridge NSString *)kSecMatchLimit] = (__bridge id)kSecMatchLimitAll;
++  CFTypeRef found = NULL;
++  OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)lookup, &found);
++  if (status == noErr) {
++    if (!found || CFGetTypeID(found) != CFArrayGetTypeID()) {
++      if (found) CFRelease(found);
++      return rejectWithError(reject, [NSError errorWithDomain:NSOSStatusErrorDomain code:errSecParam userInfo:nil]);
++    }
++    NSArray *matches = CFBridgingRelease(found);
++    // Getter is service-scoped. Do not introduce a second account under that service,
++    // change access protection, or overwrite an ambiguous legacy service mapping.
++    if (matches.count != 1 ||
++        ![matches[0][(__bridge NSString *)kSecAttrAccount] isEqual:username] ||
++        ![matches[0][(__bridge NSString *)kSecAttrAccessible] isEqual:(__bridge id)kSecAttrAccessibleWhenUnlocked] ||
++        matches[0][(__bridge NSString *)kSecAttrAccessControl] != nil) {
++      return rejectWithError(reject, [NSError errorWithDomain:NSOSStatusErrorDomain code:errSecParam userInfo:nil]);
++    }
++    identity[(__bridge NSString *)kSecAttrAccount] = username;
++    NSDictionary *changes = @{
++      (__bridge NSString *)kSecValueData: [password dataUsingEncoding:NSUTF8StringEncoding]
++    };
++    status = SecItemUpdate((__bridge CFDictionaryRef)identity, (__bridge CFDictionaryRef)changes);
++    // In particular, no add fallback after an existing item disappears or update fails.
++  } else if (status == errSecItemNotFound) {
++    if (found) CFRelease(found);
++    NSMutableDictionary *attributes = identity.mutableCopy;
++    attributes[(__bridge NSString *)kSecAttrAccount] = username;
++    attributes[(__bridge NSString *)kSecAttrAccessible] = (__bridge id)kSecAttrAccessibleWhenUnlocked;
++    attributes[(__bridge NSString *)kSecValueData] = [password dataUsingEncoding:NSUTF8StringEncoding];
++    status = SecItemAdd((__bridge CFDictionaryRef)attributes, NULL);
++    // A competing add/duplicate is an error, never a reason to delete the other item.
++  } else if (found) {
++    CFRelease(found);
++  }
++  if (status != noErr) {
++    return rejectWithError(reject, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:nil]);
++  }
++  return resolve(@{@"service": service, @"storage": @"keychain"});
+ }
+ 
+ RCT_EXPORT_METHOD(getGenericPasswordForOptions:(NSDictionary * __nullable)options
+--- a/node_modules/react-native-keychain/src/types.ts
++++ b/node_modules/react-native-keychain/src/types.ts
+@@ -44,6 +44,8 @@
+ };
+ 
+ export type SetOptions = {
++  /** Keeper-only opt-in: preserve same-record generic-password updates on iOS. */
++  keeperPreserveExisting?: boolean;
+   /** Specifies when a keychain item is accessible.
+    * @platform iOS, visionOS
+    * @default ACCESSIBLE.AFTER_FIRST_UNLOCK
+--- a/node_modules/react-native-keychain/lib/typescript/types.d.ts
++++ b/node_modules/react-native-keychain/lib/typescript/types.d.ts
+@@ -35,6 +35,8 @@
+     accessGroup?: string;
+ };
+ export type SetOptions = {
++  /** Keeper-only opt-in: preserve same-record generic-password updates on iOS. */
++  keeperPreserveExisting?: boolean;
+     /** Specifies when a keychain item is accessible.
+      * @platform iOS, visionOS
+      * @default ACCESSIBLE.AFTER_FIRST_UNLOCK
