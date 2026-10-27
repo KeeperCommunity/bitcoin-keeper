@@ -14,8 +14,13 @@ const { createProtectedServer, createProtectedRealmClient } = require('./protect
 const installedVersion = require('../../package.json').version;
 const installedBuild = fs.readFileSync(path.join(__dirname, '../../android/app/build.gradle'), 'utf8')
   .match(/versionCode\s+(\d+)/)[1];
-assert.equal(installedVersion, '2.6.4', 'Use the existing R4-derived installation; allocate no R5 version');
-assert.equal(installedBuild, '627');
+// Use the explicitly declared candidate tuple; this proof never allocates or changes versions.
+const releaseManifest = require('../../release/version.json');
+const { validateIntent } = require('../../scripts/release-version.cjs');
+assert.equal(validateIntent(releaseManifest, { requireEvidence: false }).length, 0,
+  'Use a valid explicit candidate release intent');
+assert.equal(installedVersion, releaseManifest.version, 'Installed version must match the candidate intent');
+assert.equal(installedBuild, String(releaseManifest.androidVersionCode), 'Installed build must match the candidate intent');
 const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const seed = require('bip39').mnemonicToSeedSync(mnemonic);
 const appId = crypto.createHash('sha256').update(seed).digest('hex');
