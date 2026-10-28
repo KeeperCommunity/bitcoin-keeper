@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const tls = require('node:tls');
 const http = require('node:http');
 const readline = require('node:readline');
+const { execFileSync } = require('node:child_process');
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const STAGES = ['baseline', 'custom_saved', 'failed_update_preserved', 'cold_reopen',
   'disconnected', 'reconnected', 'untrusted_peer_rejected', 'selfsigned_saved', 'fixture_nodes_removed'];
@@ -124,6 +125,19 @@ async function createFixture(platform, httpPort = 8768) {
     finally { identity.cleanup(); }
   }
   try {
+    if (platform === 'IOS') {
+      // iOS requires the positive self-signed identity to be a TLS server leaf.
+      // Preserve the generated key, CN and SAN; a CA-only profile fails EKU policy.
+      const certificate = path.join(identity.dir, 'selfsigned.pem');
+      execFileSync('openssl', ['req', '-x509', '-new', '-key', path.join(identity.dir, 'selfsigned.key'),
+        '-out', certificate, '-days', '2', '-subj', '/CN=selfsigned',
+        '-addext', 'basicConstraints=critical,CA:FALSE',
+        '-addext', 'keyUsage=critical,digitalSignature,keyEncipherment',
+        '-addext', 'extendedKeyUsage=serverAuth',
+        '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'],
+        { stdio: 'pipe', timeout: 30000, maxBuffer: 65536 });
+      fs.writeFileSync(certificate, new crypto.X509Certificate(fs.readFileSync(certificate)).toString());
+    }
     const a = await endpoint('a', 'custom-leaf.pem', 'custom.pem', 'leaf.key');
     // B would succeed if A's CA leaked to another port. C independently exercises self-signed trust.
     const b = await endpoint('b', 'custom-leaf.pem', 'custom.pem', 'leaf.key');

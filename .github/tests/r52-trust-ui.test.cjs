@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const tls = require('node:tls');
 const crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
 const { createFixture, verifyStage, validateObservation, STAGES } = require('../native/r52_trust_ui_fixture.cjs');
 const sha = s => crypto.createHash('sha256').update(s).digest('hex');
 const copy = v => JSON.parse(JSON.stringify(v));
@@ -62,6 +63,9 @@ function rpc(endpoint, ca) {
 test('real loopback TLS RPC and absent/wrong anchors produce independent connection witnesses', async () => {
   const fixture = await createFixture('ANDROID', 0);
   try {
+    const androidCertificate = new crypto.X509Certificate(fixture.config.c.ca);
+    assert.equal(androidCertificate.ca, true);
+    assert.equal(androidCertificate.keyUsage, undefined);
     assert.equal(Object.hasOwn(fixture.config, 'metricToken'), false);
     const reply = await rpc(fixture.config.a, fixture.config.a.ca);
     assert.equal(reply.result[1], '1.4'); assert.ok(reply.result[0].includes(fixture.config.nonce));
@@ -77,6 +81,24 @@ test('real loopback TLS RPC and absent/wrong anchors produce independent connect
     const rejected = await fetch(`http://127.0.0.1:${fixture.httpPort}/metric`, {
       method: 'POST', body: JSON.stringify({ stage: 'baseline', token: 'wrong' }) });
     assert.equal(rejected.status, 409); assert.deepEqual(fixture.snapshot().stages, []);
+  } finally { await fixture.close(); }
+});
+test('iOS self-signed UI endpoint uses a trusted server leaf with the required extensions', async () => {
+  const fixture = await createFixture('IOS', 0);
+  try {
+    const certificate = new crypto.X509Certificate(fixture.config.c.ca);
+    const details = execFileSync('openssl', ['x509', '-noout', '-text'], {
+      input: fixture.config.c.ca, encoding: 'utf8' });
+    assert.equal(certificate.ca, false);
+    assert.equal(certificate.subject, 'CN=selfsigned');
+    assert.match(certificate.subjectAltName, /DNS:localhost/);
+    assert.match(certificate.subjectAltName, /IP Address:127\.0\.0\.1/);
+    assert.deepEqual(certificate.keyUsage, ['1.3.6.1.5.5.7.3.1']);
+    assert.match(details, /X509v3 Key Usage: critical\s*\n\s*Digital Signature, Key Encipherment/);
+    await assert.rejects(rpc(fixture.config.c));
+    const reply = await rpc(fixture.config.c, fixture.config.c.ca);
+    assert.equal(reply.result[1], '1.4');
+    assert.equal(fixture.snapshot().witness.c.versions, 1);
   } finally { await fixture.close(); }
 });
 test('pinned Electrum client batch reads are served without destabilizing normal product UI', async () => {
