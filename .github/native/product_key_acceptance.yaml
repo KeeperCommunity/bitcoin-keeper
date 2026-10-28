@@ -18,7 +18,7 @@ name: Normal app unused key deletion PIN rejection and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 60000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_key_metric.js
     env:
@@ -177,7 +177,7 @@ name: Normal app unused key deletion PIN rejection and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_key_metric.js
     env:
@@ -212,7 +212,7 @@ name: Normal app unused key deletion PIN rejection and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 60000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - tapOn:
     id: home_tab_keys
 - extendedWaitUntil:
@@ -238,7 +238,7 @@ name: Normal app unused key deletion PIN rejection and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_key_metric.js
     env:

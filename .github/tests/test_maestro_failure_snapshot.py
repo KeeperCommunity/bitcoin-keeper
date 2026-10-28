@@ -409,5 +409,17 @@ class FailedSnapshot(unittest.TestCase):
         self.assertNotIn('PRIVATE_SENTINEL', json.dumps(state['product_ui']))
 
 
+
+class GroupedWalletSelector(unittest.TestCase):
+    def test_only_legacy_and_observed_grouped_selector_bind(self):
+        for value, expected in [('Mobile Wallet', True), ('(?:Hot Wallet, Single-Key, )?Mobile Wallet', True), ('.*Mobile Wallet.*', False), ('Other Wallet', False)]:
+            row = assertion()
+            row['command']['assertConditionCommand']['condition']['visible'] = {'textRegex': value}
+            self.assertEqual(projection.target(row['command'], 'mobile_wallet'), expected)
+    def test_observed_grouped_card_projects_only_fixed_wallet_flag(self):
+        result = projection.project_post_wallet({'attributes': {'accessibilityText': 'Hot Wallet, Single-Key, Mobile Wallet'}})
+        self.assertTrue(result['flags']['mobile_wallet'])
+        self.assertNotIn('Hot Wallet', json.dumps(result))
+
 if __name__ == '__main__':
     unittest.main()

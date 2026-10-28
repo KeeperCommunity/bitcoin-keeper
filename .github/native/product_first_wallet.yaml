@@ -64,7 +64,7 @@ name: Full app startup first wallet and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_metric.js
     env:
@@ -92,7 +92,7 @@ name: Full app startup first wallet and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 60000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_metric.js
     env:
@@ -105,7 +105,7 @@ name: Full app startup first wallet and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - tapOn:
     id: home_tab_more
 - scrollUntilVisible:
@@ -178,7 +178,7 @@ name: Full app startup first wallet and cold persistence
     visible:
       id: home_visible_wallet_count_1
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_metric.js
     env:

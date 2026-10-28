@@ -9,4 +9,4 @@ appId: ${APP_ID}
     visible:
       id: home_visible_wallet_count_${WALLET_COUNT}
     timeout: 60000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'

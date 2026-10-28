@@ -139,7 +139,7 @@ def target(command, selector='start_new_tile'):
         return False
     key, value = expected
     return (type(visible) is dict and set(visible) <= {key, 'optional'} and
-            visible.get(key) == value and visible.get('optional', False) is False)
+            visible.get(key) in ({value, '(?:Hot Wallet, Single-Key, )?Mobile Wallet'} if selector == 'mobile_wallet' else {value}) and visible.get('optional', False) is False)
 
 
 def failed_step(rows, selector='start_new_tile'):
@@ -254,7 +254,7 @@ def project_post_wallet(tree):
     # Public fixture labels/count test IDs only; no wallet/key/account values.
     text = {'Protect Your Recovery Key': 'education', 'Continue Without Backup?': 'warning',
             'Skip for Now': 'skip_for_now', 'Skip Backup': 'skip_backup',
-            'Mobile Wallet': 'mobile_wallet'}
+            'Mobile Wallet': 'mobile_wallet', 'Hot Wallet, Single-Key, Mobile Wallet': 'mobile_wallet'}
     observed, counts, pending = dict.fromkeys(text.values(), False), set(), [tree]
     while pending:
         node = pending.pop()

@@ -111,7 +111,7 @@ name: Real visible hidden and archived Vault Mobile key references
     visible:
       id: home_visible_wallet_count_2
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - assertVisible: R5 Reference Vault
 - runScript:
     file: product_vault_metric.js
@@ -156,7 +156,7 @@ name: Real visible hidden and archived Vault Mobile key references
     visible:
       id: home_visible_wallet_count_1
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - assertNotVisible: R5 Reference Vault
 - stopApp
 - runFlow:
@@ -372,7 +372,7 @@ name: Real visible hidden and archived Vault Mobile key references
     visible:
       id: home_visible_wallet_count_3
     timeout: 30000
-- assertVisible: Mobile Wallet
+- assertVisible: '(?:Hot Wallet, Single-Key, )?Mobile Wallet'
 - runScript:
     file: product_vault_metric.js
     env:
