@@ -88,6 +88,40 @@ appId: ${APP_ID}
       - assertVisible: Trusted certificate \(optional PEM\)
 - tapOn:
     id: input_node-ca
-- inputText: ${NODE_CA}
+- runFlow:
+    when:
+      platform: Android
+      true: ${NODE_CA.length > 0}
+    commands:
+      - evalScript: ${output.caLines = NODE_CA.split(String.fromCharCode(10)); output.caIndex = 0}
+      - repeat:
+          times: 512
+          while:
+            true: ${output.caIndex < output.caLines.length}
+          commands:
+            - runFlow:
+                when:
+                  true: ${output.caLines[output.caIndex].length > 0}
+                commands:
+                  - inputText: ${output.caLines[output.caIndex]}
+            - runFlow:
+                when:
+                  true: ${output.caIndex < output.caLines.length - 1}
+                commands:
+                  - pressKey: enter
+            - evalScript: ${output.caIndex = output.caIndex + 1}
+      - assertTrue:
+          condition: ${output.caIndex === output.caLines.length}
+          label: All certificate lines entered
+      - copyTextFrom:
+          id: input_node-ca
+      - assertTrue:
+          condition: ${maestro.copiedText === NODE_CA}
+          label: Android certificate field equals full fixture PEM
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - inputText: ${NODE_CA}
 - hideKeyboard
 - tapOn: Connect to Server

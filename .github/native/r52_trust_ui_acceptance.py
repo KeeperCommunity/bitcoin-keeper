@@ -99,7 +99,8 @@ def run_companion(h, data, device, private, backend_receipt, switch_entrypoint):
                 '--flatten-debug-output', '--debug-output', str(output),
                 '--test-output-dir', str(output), '--format', 'junit', '--output', str(report),
                 '.github/native/r52_trust_ui.yaml']
-        h.command(args, 'Normal trust UI probe save cold reopen and reconnect', timeout=720, error_details=False)
+        h.command(args, 'Normal trust UI probe save cold reopen and reconnect',
+                  timeout=1200 if h.PLATFORM == 'ANDROID' else 720, error_details=False)
         h.successful_junit(report)
         fixture.stdin.write('snapshot\n')
         fixture.stdin.flush()
