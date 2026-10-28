@@ -59,9 +59,19 @@ name: Normal app unused key deletion PIN rejection and cold persistence
 - tapOn:
     id: keys_add_key
 - extendedWaitUntil:
-    visible: Add a software key
+    visible: 'Add a software key(?:, In-app or external software signers)?'
     timeout: 30000
-- tapOn: Add a software key
+- tapOn: 'Add a software key(?:, In-app or external software signers)?'
+- extendedWaitUntil:
+    visible:
+      id: text_modal_title
+      text: Signing Devices
+    timeout: 30000
+- assertVisible:
+    id: btn_primaryText
+    text: Okay
+- tapOn:
+    id: btn_primaryText
 - extendedWaitUntil:
     visible:
       id: btn_MY_KEEPER

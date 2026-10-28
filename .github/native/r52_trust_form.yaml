@@ -1,12 +1,46 @@
 appId: ${APP_ID}
 ---
 - tapOn: Add Server
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Server Selection
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: Private Electrum
 - tapOn: Private Electrum
 - tapOn: Host
 - inputText: 127.0.0.1
 - tapOn: e.g 8080
 - inputText: ${NODE_PORT}
-- hideKeyboard
+- assertVisible: Port Number
+- runFlow:
+    when:
+      visible: Type English and Hindi
+    commands:
+      - assertVisible: Continue
+      - tapOn: Continue
+- assertNotVisible: Type English and Hindi
+- assertVisible: Trusted certificate \(optional PEM\)
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        id: inputView
+    commands:
+      - assertVisible:
+          id: inputView
+      - tapOn: Trusted certificate \(optional PEM\)
+      - extendedWaitUntil:
+          notVisible:
+            id: inputView
+          timeout: 10000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - scrollUntilVisible:
     element:
       id: input_node-ca

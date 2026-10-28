@@ -25,7 +25,21 @@ name: Real visible hidden and archived Vault Mobile key references
     id: btn_back
 - tapOn:
     id: keys_add_key
-- tapOn: Add a software key
+- tapOn: 'Add a software key(?:, In-app or external software signers)?'
+- runFlow:
+    when:
+      visible:
+        id: text_modal_title
+        text: Signing Devices
+    commands:
+      - assertVisible:
+          id: text_modal_title
+          text: Signing Devices
+      - assertVisible:
+          id: btn_primaryText
+          text: Okay
+      - tapOn:
+          id: btn_primaryText
 - extendedWaitUntil:
     visible:
       id: btn_MY_KEEPER
@@ -48,7 +62,7 @@ name: Real visible hidden and archived Vault Mobile key references
 - tapOn: Cancel
 - tapOn:
     id: keys_add_key
-- tapOn: Add a software key
+- tapOn: 'Add a software key(?:, In-app or external software signers)?'
 - runFlow:
     file: product_vault_public_seed.yaml
     env:
@@ -236,7 +250,21 @@ name: Real visible hidden and archived Vault Mobile key references
 - tapOn: Change Key
 - tapOn:
     id: btn_add_new_key
-- tapOn: Add a software key
+- tapOn: 'Add a software key(?:, In-app or external software signers)?'
+- runFlow:
+    when:
+      visible:
+        id: text_modal_title
+        text: Signing Devices
+    commands:
+      - assertVisible:
+          id: text_modal_title
+          text: Signing Devices
+      - assertVisible:
+          id: btn_primaryText
+          text: Okay
+      - tapOn:
+          id: btn_primaryText
 - runFlow:
     file: product_vault_public_seed.yaml
     env:

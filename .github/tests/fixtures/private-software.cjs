@@ -7,9 +7,23 @@ const { syntheticParent } = require('./parent-software.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function zip(members) {
   const encoded = Object.fromEntries(Object.entries(members).map(([name, bytes]) => [name, bytes.toString('base64')]));
-  return execFileSync('python3', ['-B', '-c',
-    'import base64,io,json,sys,zipfile; values=json.load(sys.stdin); out=io.BytesIO(); z=zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED); [z.writestr(k,base64.b64decode(v)) for k,v in values.items()]; z.close(); sys.stdout.buffer.write(out.getvalue())'],
-  { input: JSON.stringify(encoded), maxBuffer: 12 * 1024 * 1024,
+  const input = Buffer.from(JSON.stringify(encoded), 'utf8');
+  const digest = hash(input);
+  const python = [
+    'import base64,io,json,sys,zipfile,hashlib',
+    'expected=int(sys.argv[1])',
+    'raw=sys.stdin.buffer.read(expected)',
+    'if len(raw)!=expected: raise ValueError("truncated private archive fixture input")',
+    'if hashlib.sha256(raw).hexdigest()!=sys.argv[2]: raise ValueError("private archive fixture input digest mismatch")',
+    'values=json.loads(raw.decode("utf8"))',
+    'out=io.BytesIO()',
+    'z=zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED)',
+    '[z.writestr(k,base64.b64decode(v)) for k,v in values.items()]',
+    'z.close()',
+    'sys.stdout.buffer.write(out.getvalue())',
+  ].join('\n');
+  return execFileSync('python3', ['-B', '-c', python, String(input.length), digest],
+  { input, maxBuffer: 12 * 1024 * 1024,
     env: { PATH: process.env.PATH, PYTHONDONTWRITEBYTECODE: '1', PYTHONNOUSERSITE: '1' } });
 }
 function fixtureSoftware({ appTree, appProfile } = {}) {

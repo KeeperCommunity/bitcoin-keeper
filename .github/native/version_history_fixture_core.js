@@ -33,14 +33,18 @@ function replaceHistory(db, rows) {
   check(same(rowsOf(db), normalized(rows)), 'history-write-readback-failed');
 }
 async function runFixture({ phase, storage, fixtureStorage, Keychain, cryptoJS, Realm, schema,
-  DeviceInfo, config, development, now = () => Date.now() }) {
+  DeviceInfo, config, development, platform, releaseManifest, now = () => Date.now() }) {
   check(development === true && config.ENVIRONMENT === 'DEVELOPMENT' &&
     config.RELAY === 'http://127.0.0.1:8765/' &&
     config.ENC_KEY_STORAGE_IDENTIFIER === 'KEEPER-HOSTED-DISPOSABLE', 'disposable-build-required');
   check(PHASES.includes(phase), 'phase-rejected');
   const current = owner(storage);
   const version = DeviceInfo.getVersion(), build = DeviceInfo.getBuildNumber();
-  check(version === '2.6.4' && /^(620|627)$/.test(build) && current.sharedVersion === version,
+  const buildField = platform === 'ios' ? 'iosBuildNumber' :
+    platform === 'android' ? 'androidVersionCode' : null;
+  check(buildField && releaseManifest && version === releaseManifest.version &&
+    Number.isInteger(releaseManifest[buildField]) &&
+    build === String(releaseManifest[buildField]) && current.sharedVersion === version,
     'expected-current-installed-version-required');
   const key = `${version}(${build})`;
   const credential = await Keychain.getGenericPassword({ service: undefined });
@@ -50,11 +54,12 @@ async function runFixture({ phase, storage, fixtureStorage, Keychain, cryptoJS, 
   check(parsed.hash === current.hash && parsed.hash === cryptoJS.SHA512('1111').toString(cryptoJS.enc.Hex) &&
     typeof parsed.enc_key === 'string' && !!parsed.enc_key, 'matching-disposable-pin-required');
   const clearKey = cryptoJS.AES.decrypt(parsed.enc_key, parsed.hash).toString(cryptoJS.enc.Utf8);
-  check(/^[a-f0-9]{64}$/.test(clearKey), 'valid-native-realm-key-required');
+  check(typeof clearKey === 'string' && /^[\x20-\x7E]{64}$/.test(clearKey),
+    'valid-native-realm-key-required');
   const encryptionKey = Uint8Array.from(clearKey, (c) => c.codePointAt(0));
   // A missing database is rejected before open; this helper never creates an account.
-  check(await Realm.schemaVersion(current.realmId, encryptionKey) === 109, 'existing-schema-required');
-  const db = await Realm.open({ path: current.realmId, encryptionKey, schema, schemaVersion: 109 });
+  check(await Realm.schemaVersion(current.realmId, encryptionKey) === 110, 'existing-schema-required');
+  const db = await Realm.open({ path: current.realmId, encryptionKey, schema, schemaVersion: 110 });
   try {
     const apps = Array.from(db.objects('KeeperApp'));
     const walletIds = Array.from(db.objects('Wallet'), (w) => w.id).sort();

@@ -173,22 +173,18 @@ function NodeSelection() {
       currentBackupAccountSession() === originBackupAccountSession;
     if (!originAppId || !isCurrent()) return;
     let nodes = Node.getAllNodes();
-    if (
-      currentlySelectedNode &&
-      selectedNode.id !== currentlySelectedNode.id &&
-      currentlySelectedNode.isConnected
-    ) {
-      // disconnect currently selected node(if connected)
-      await Node.disconnect(currentlySelectedNode);
+    // Saving a private node enters here without a UI-selected public node.
+    // Clear persisted connection flags so cold startup cannot choose the old peer.
+    const otherConnectedNodes = nodes.filter(
+      (item) => item.isConnected && item.id !== selectedNode.id
+    );
+    for (const connectedNode of otherConnectedNodes) {
+      await Node.disconnect(connectedNode);
       if (!isCurrent()) return;
-      currentlySelectedNode.isConnected = false;
-      Node.update(currentlySelectedNode, { isConnected: currentlySelectedNode.isConnected });
-
-      nodes = nodes.map((item) => {
-        if (item.id === currentlySelectedNode.id) return { ...currentlySelectedNode };
-        return item;
-      });
-
+      Node.update(connectedNode, { isConnected: false });
+    }
+    if (otherConnectedNodes.length) {
+      nodes = Node.getAllNodes();
       setCurrentlySelectedNodeItem(null);
     }
 

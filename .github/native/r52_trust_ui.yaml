@@ -23,6 +23,32 @@ name: R52 normal custom trust save probe reopen and reconnect
     file: r52_trust_metric.js
     env:
       STAGE: custom_saved
+- extendedWaitUntil:
+    notVisible:
+      id: modal_loading
+    timeout: 45000
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Server Settings
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${PORT_A}
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: ${PORT_A}
+- extendedWaitUntil:
+    visible:
+      id: btn_disconnetNode
+      text: Disconnect
+    timeout: 45000
+- assertVisible: Add Server
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertNotVisible:
+    id: modal_loading
 - runFlow:
     file: r52_trust_form.yaml
     env:

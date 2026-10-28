@@ -15,9 +15,22 @@ const sources = Object.entries(WORKER_SOURCES).map(([name, names]) => {
     size: bytes.length, content: bytes.toString('base64'), sha: crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') } };
 });
 function archiveBytes(raw, platform) {
-  return execFileSync('python3', ['-B', '-c',
-    'import io,sys,zipfile; raw=sys.stdin.buffer.read(); b=io.BytesIO(); z=zipfile.ZipFile(b,"w",zipfile.ZIP_DEFLATED); z.writestr(sys.argv[1].lower()+"/metadata.json",raw); z.close(); sys.stdout.buffer.write(b.getvalue())', platform],
-  { input: raw, maxBuffer: 1024 * 1024 });
+  if (!Buffer.isBuffer(raw)) throw new TypeError('Archive fixture requires exact Buffer input');
+  const digest = crypto.createHash('sha256').update(raw).digest('hex');
+  const python = [
+    'import io,sys,zipfile,hashlib',
+    'expected=int(sys.argv[2])',
+    'raw=sys.stdin.buffer.read(expected)',
+    'if len(raw)!=expected: raise ValueError("truncated archive fixture input")',
+    'if hashlib.sha256(raw).hexdigest()!=sys.argv[3]: raise ValueError("archive fixture input digest mismatch")',
+    'b=io.BytesIO()',
+    'z=zipfile.ZipFile(b,"w",zipfile.ZIP_DEFLATED)',
+    'z.writestr(sys.argv[1].lower()+"/metadata.json",raw)',
+    'z.close()',
+    'sys.stdout.buffer.write(b.getvalue())',
+  ].join('\n');
+  return execFileSync('python3', ['-B', '-c', python, platform, String(raw.length), digest],
+    { input: raw, maxBuffer: 1024 * 1024 });
 }
 function archive(value) { return archiveBytes(Buffer.from(JSON.stringify(value)), value.platform); }
 function metadata(platform, input) {

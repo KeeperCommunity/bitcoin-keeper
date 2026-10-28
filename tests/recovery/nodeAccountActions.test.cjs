@@ -132,3 +132,76 @@ test('node disconnect switching accounts cannot update the new Realm', async () 
   assert.equal(f.state.updated, 0);
   assert.equal(f.state.dispatched, 0);
 });
+
+
+function connectedNodeFixture({ switchAccountDuringDisconnect = false } = {}) {
+  const selectedFile = 'src/screens/AppSettings/Node/NodeSelection.tsx';
+  const selectedSource = ts.createSourceFile(selectedFile,
+    fs.readFileSync(path.join(__dirname, '../..', selectedFile), 'utf8'),
+    ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const selectedComponent = selectedSource.statements.find((statement) =>
+    ts.isFunctionDeclaration(statement) && statement.name?.text === 'NodeSelection');
+  const callback = selectedComponent.body.statements.find((statement) =>
+    ts.isVariableStatement(statement) && statement.declarationList.declarations.some((declaration) =>
+      declaration.name.getText(selectedSource) === 'onConnectToNode'));
+  const state = {
+    activeAppId: 'A', session: 1,
+    nodes: [
+      { id: 1, host: 'public-one', port: '50002', isConnected: true },
+      { id: 2, host: 'public-two', port: '50002', isConnected: true },
+      { id: 3, host: 'private', port: '50002', isConnected: false },
+    ],
+    disconnected: [], updated: [], connects: 0, navigatedBack: 0,
+  };
+  const scope = {
+    renderedAppId: 'A', renderedAccountSession: 1, currentlySelectedNode: null,
+    currentBackupAccountSession: () => state.session,
+    Node: {
+      isAccountActive: (id) => state.activeAppId === id,
+      getAllNodes: () => state.nodes.map((node) => ({ ...node })),
+      disconnect: async (node) => {
+        state.disconnected.push(node.id);
+        if (switchAccountDuringDisconnect) { state.activeAppId = 'B'; state.session++; }
+      },
+      update: (node, props) => {
+        state.updated.push([node.id, props.isConnected]);
+        Object.assign(state.nodes.find((item) => item.id === node.id), props);
+      },
+      connectToSelectedNode: async () => {
+        state.connects++;
+        return { connected: true, connectedTo: 'private' };
+      },
+    },
+    dispatch: () => {}, setLoading: () => {}, setNodeList: () => {},
+    setCurrentlySelectedNodeItem: () => {},
+    electrumClientConnectionInitiated: () => ({}),
+    electrumClientConnectionExecuted: () => ({}),
+    showToast: () => {}, errorTranslations: { ConnectedTo: 'Connected to' },
+    TickIcon: () => null, React: { createElement: () => null },
+    navigation: { goBack: () => { state.navigatedBack++; } },
+  };
+  vm.runInNewContext(ts.transpileModule(
+    `${callback.getText(selectedSource)};globalThis.connect = onConnectToNode;`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React } }
+  ).outputText, scope);
+  return { state, connect: scope.connect };
+}
+
+test('custom-node save clears persisted prior connection flags even without a UI-selected node', async () => {
+  const f = connectedNodeFixture();
+  await f.connect({ id: 3, host: 'private', port: '50002', isConnected: false });
+  assert.deepEqual(f.state.disconnected, [1, 2]);
+  assert.deepEqual(f.state.updated.map(([id, connected]) => [id, connected]),
+    [[1, false], [2, false], [3, true]]);
+  assert.deepEqual(f.state.nodes.filter((node) => node.isConnected).map((node) => node.id), [3]);
+  assert.equal(f.state.connects, 1);
+  assert.equal(f.state.navigatedBack, 1);
+});
+
+test('account switch during prior-node disconnect cannot write flags into the new account', async () => {
+  const f = connectedNodeFixture({ switchAccountDuringDisconnect: true });
+  await f.connect({ id: 3, host: 'private', port: '50002', isConnected: false });
+  assert.deepEqual(f.state.disconnected, [1]);
+  assert.deepEqual(f.state.updated, []);
+  assert.equal(f.state.connects, 0);
+});
