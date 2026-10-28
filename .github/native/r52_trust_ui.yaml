@@ -100,6 +100,32 @@ name: R52 normal custom trust save probe reopen and reconnect
     file: r52_trust_metric.js
     env:
       STAGE: reconnected
+- extendedWaitUntil:
+    notVisible:
+      id: modal_loading
+    timeout: 45000
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Server Settings
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${PORT_A}
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: ${PORT_A}
+- extendedWaitUntil:
+    visible:
+      id: btn_disconnetNode
+      text: Disconnect
+    timeout: 45000
+- assertVisible: Add Server
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertNotVisible:
+    id: modal_loading
 - runFlow:
     file: r52_trust_form.yaml
     env:
@@ -114,6 +140,32 @@ name: R52 normal custom trust save probe reopen and reconnect
       STAGE: untrusted_peer_rejected
 - tapOn:
     id: btn_back
+- extendedWaitUntil:
+    notVisible:
+      id: modal_loading
+    timeout: 45000
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Server Settings
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${PORT_A}
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: ${PORT_A}
+- extendedWaitUntil:
+    visible:
+      id: btn_disconnetNode
+      text: Disconnect
+    timeout: 45000
+- assertVisible: Add Server
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertNotVisible:
+    id: modal_loading
 - runFlow:
     file: r52_trust_form.yaml
     env:
@@ -126,11 +178,34 @@ name: R52 normal custom trust save probe reopen and reconnect
     file: r52_trust_metric.js
     env:
       STAGE: selfsigned_saved
+- extendedWaitUntil:
+    notVisible:
+      id: modal_loading
+    timeout: 45000
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Server Settings
+    timeout: 30000
 - scrollUntilVisible:
     element:
       text: ${PORT_C}
     direction: DOWN
     timeout: 30000
+- assertVisible:
+    text: ${PORT_C}
+- extendedWaitUntil:
+    visible:
+      id: btn_disconnetNode
+      text: Disconnect
+    timeout: 45000
+- assertVisible:
+    id: btn_deleteNode
+- assertVisible: Add Server
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertNotVisible:
+    id: modal_loading
 - tapOn:
     id: btn_deleteNode
     below:
@@ -142,16 +217,45 @@ name: R52 normal custom trust save probe reopen and reconnect
 - tapOn:
     id: btn_primaryText
     text: Disconnect
+- extendedWaitUntil:
+    notVisible: Disconnecting from Server
+    timeout: 30000
+- extendedWaitUntil:
+    notVisible:
+      text: ${PORT_C}
+    timeout: 30000
+- extendedWaitUntil:
+    notVisible:
+      id: modal_loading
+    timeout: 45000
+- extendedWaitUntil:
+    visible:
+      id: header_title
+      text: Server Settings
+    timeout: 30000
 - scrollUntilVisible:
     element:
       text: ${PORT_A}
     direction: DOWN
     timeout: 30000
+- assertVisible:
+    text: ${PORT_A}
+- assertVisible:
+    id: btn_deleteNode
+- assertVisible: Add Server
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertNotVisible:
+    id: modal_loading
 - tapOn:
     id: btn_deleteNode
     below:
       text: ${PORT_A}
     index: 0
+- extendedWaitUntil:
+    notVisible:
+      text: ${PORT_A}
+    timeout: 30000
 - runScript:
     file: r52_trust_metric.js
     env:
