@@ -1,0 +1,12 @@
+# A skipped Recovery Key remains unconfirmed. Home shows this education sheet
+# once per new app session after successful PIN login; complete its real UI flow.
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: Protect Your Recovery Key
+    timeout: 30000
+- tapOn: Skip for Now
+- extendedWaitUntil:
+    visible: Continue Without Backup?
+    timeout: 30000
+- tapOn: Skip Backup

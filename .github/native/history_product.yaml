@@ -12,6 +12,7 @@ name: Current history observation after ordinary cold login
       - tapOn:
           id: key_1
 - tapOn: Proceed
+- runFlow: product_dismiss_recovery_reminder.yaml
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_1

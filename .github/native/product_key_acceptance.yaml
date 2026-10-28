@@ -14,6 +14,7 @@ name: Normal app unused key deletion PIN rejection and cold persistence
       - tapOn:
           id: key_1
 - tapOn: Proceed
+- runFlow: product_dismiss_recovery_reminder.yaml
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_1
@@ -208,6 +209,7 @@ name: Normal app unused key deletion PIN rejection and cold persistence
       - tapOn:
           id: key_1
 - tapOn: Proceed
+- runFlow: product_dismiss_recovery_reminder.yaml
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_1

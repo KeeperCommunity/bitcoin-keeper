@@ -95,6 +95,7 @@ name: Full app controlled setup disconnect Retry and cold persistence
       - tapOn:
           id: key_1
 - tapOn: Proceed
+- runFlow: product_dismiss_recovery_reminder.yaml
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_1

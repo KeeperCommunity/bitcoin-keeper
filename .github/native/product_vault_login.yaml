@@ -5,6 +5,7 @@ appId: ${APP_ID}
     visible: Enter your passcode
     timeout: 60000
 - runFlow: product_vault_pin.yaml
+- runFlow: product_dismiss_recovery_reminder.yaml
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_${WALLET_COUNT}
