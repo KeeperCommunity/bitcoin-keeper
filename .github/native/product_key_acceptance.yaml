@@ -37,7 +37,18 @@ name: Normal app unused key deletion PIN rejection and cold persistence
       id: header_title
       text: Manage Keys
     timeout: 30000
-- assertVisible: All the keys are hidden
+# Home creates an initial Mobile Key for future Vaults. Hide that task-owned
+# unused signer through the UI, then create/delete a distinct visible key.
+- extendedWaitUntil:
+    visible:
+      id: manage_key_type_MY_KEEPER
+    timeout: 30000
+- assertVisible: Mobile Key
+- tapOn:
+    id: btnHide
+- extendedWaitUntil:
+    visible: All the keys are hidden
+    timeout: 30000
 - assertNotVisible: Delete
 - runScript:
     file: product_key_metric.js

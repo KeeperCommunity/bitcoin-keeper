@@ -5,7 +5,14 @@ appId: ${APP_ID}
 - extendedWaitUntil:
     visible: Protect Your Recovery Key
     timeout: 30000
-- tapOn: Skip for Now
+# RNModal can still move the footer after the title becomes visible.
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: btn_secondaryText
+    text: Skip for Now
+- tapOn:
+    id: btn_secondaryText
 - extendedWaitUntil:
     visible: Continue Without Backup?
     timeout: 30000
