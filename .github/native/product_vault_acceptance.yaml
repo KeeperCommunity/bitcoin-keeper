@@ -121,6 +121,35 @@ name: Real visible hidden and archived Vault Mobile key references
     visible: No Thanks
     timeout: 15000
 - tapOn: No Thanks
+# Android can show the real Recovery Key sheet over new Vault details.
+# Dismiss only that sheet before checking the newly created Vault name.
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    when:
+      visible:
+        id: text_modal_title
+        text: Protect Your Recovery Key
+    commands:
+      - assertVisible:
+          id: text_modal_title
+          text: Protect Your Recovery Key
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - assertVisible:
+          id: btn_secondaryText
+          text: Skip for Now
+      - tapOn:
+          id: btn_secondaryText
+      - extendedWaitUntil:
+          visible: Continue Without Backup?
+          timeout: 30000
+      - assertVisible: Skip Backup
+      - tapOn: Skip Backup
+      - extendedWaitUntil:
+          notVisible: Continue Without Backup?
+          timeout: 30000
+- assertNotVisible: Protect Your Recovery Key
 - assertVisible: R5 Reference Vault
 - tapOn:
     id: wallet_details_back

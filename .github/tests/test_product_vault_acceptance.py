@@ -67,6 +67,24 @@ class ReceiptTests(unittest.TestCase):
         self.assertIn('- assertVisible:\n    id: btn_Mobile Key', flow)
         self.assertIn('- assertVisible:\n    id: btn_Seed Key', flow)
 
+    def test_vault_details_dismisses_real_backup_reminder_before_name_check(self):
+        flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
+        self.assertEqual(flow.count('- tapOn: No Thanks\n'), 1)
+        early = flow.split('- tapOn: No Thanks\n', 1)[1].split(
+            '- assertVisible: R5 Reference Vault\n', 1)[0]
+        ordered = [
+            'waitForAnimationToEnd:',
+            'when:\n      visible:\n        id: text_modal_title\n        text: Protect Your Recovery Key',
+            'id: btn_secondaryText\n          text: Skip for Now',
+            'visible: Continue Without Backup?',
+            'tapOn: Skip Backup',
+            'notVisible: Continue Without Backup?',
+            'assertNotVisible: Protect Your Recovery Key',
+        ]
+        positions = [early.index(item) for item in ordered]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('Back Up Now', early)
+
     def test_vault_home_return_handles_only_real_backup_reminder_before_count_two(self):
         flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
         home = (NATIVE.parents[1] / 'src/screens/Home/HomeScreen.tsx').read_text()
