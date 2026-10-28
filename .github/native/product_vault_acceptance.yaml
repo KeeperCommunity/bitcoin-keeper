@@ -124,6 +124,35 @@ name: Real visible hidden and archived Vault Mobile key references
 - assertVisible: R5 Reference Vault
 - tapOn:
     id: wallet_details_back
+- waitForAnimationToEnd:
+    timeout: 10000
+# First Home return can show the real Recovery Key education sheet over both
+# visible wallets. Dismiss only that exact sheet through its existing warning.
+- runFlow:
+    when:
+      visible:
+        id: text_modal_title
+        text: Protect Your Recovery Key
+    commands:
+      - assertVisible:
+          id: text_modal_title
+          text: Protect Your Recovery Key
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - assertVisible:
+          id: btn_secondaryText
+          text: Skip for Now
+      - tapOn:
+          id: btn_secondaryText
+      - extendedWaitUntil:
+          visible: Continue Without Backup?
+          timeout: 30000
+      - assertVisible: Skip Backup
+      - tapOn: Skip Backup
+      - extendedWaitUntil:
+          notVisible: Continue Without Backup?
+          timeout: 30000
+- assertNotVisible: Protect Your Recovery Key
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_2

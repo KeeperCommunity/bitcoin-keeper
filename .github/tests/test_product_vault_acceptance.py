@@ -67,6 +67,30 @@ class ReceiptTests(unittest.TestCase):
         self.assertIn('- assertVisible:\n    id: btn_Mobile Key', flow)
         self.assertIn('- assertVisible:\n    id: btn_Seed Key', flow)
 
+    def test_vault_home_return_handles_only_real_backup_reminder_before_count_two(self):
+        flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
+        home = (NATIVE.parents[1] / 'src/screens/Home/HomeScreen.tsx').read_text()
+        self.assertEqual(flow.count('id: wallet_details_back'), 1)
+        segment = flow.split('id: wallet_details_back', 1)[1].split(
+            'STAGE: real_two_of_two_vault_created', 1)[0]
+        ordered = [
+            'waitForAnimationToEnd:',
+            'when:\n      visible:\n        id: text_modal_title\n        text: Protect Your Recovery Key',
+            'id: btn_secondaryText\n          text: Skip for Now',
+            'visible: Continue Without Backup?',
+            'tapOn: Skip Backup',
+            'notVisible: Continue Without Backup?',
+            'assertNotVisible: Protect Your Recovery Key',
+            'id: home_visible_wallet_count_2',
+            "assertVisible: '(?:Multi-key, )?2(?: of |-of-)2, R5 Reference Vault'",
+        ]
+        positions = [segment.index(item) for item in ordered]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("setRecoveryKeyFlowState('skipWarning')", home)
+        self.assertIn("status: 'skipped'", home)
+        self.assertIn('hasShownEducationSheetRef.current', home)
+        self.assertNotIn('Back Up Now', segment)
+
     def test_public_seed_field_ids_match_all_twelve_app_ordinals(self):
         helper = (NATIVE / 'product_vault_public_seed.yaml').read_text()
         root = NATIVE.parents[1]
