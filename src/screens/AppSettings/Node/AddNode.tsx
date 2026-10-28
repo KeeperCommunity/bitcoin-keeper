@@ -46,6 +46,7 @@ const AddNode = ({
             <Box>
               <Text color={`${colorMode}.secondaryText`}>{common.URL}</Text>
               <KeeperTextInput
+                testID="node-host"
                 placeholder={settings.host}
                 value={host}
                 autoCorrect={false}
@@ -58,6 +59,7 @@ const AddNode = ({
             <Box>
               <Text color={`${colorMode}.secondaryText`}>{common.portNumber}</Text>
               <KeeperTextInput
+                testID="node-port"
                 placeholder={settings.portNumberPlaceholder}
                 keyboardType="number-pad"
                 value={port}

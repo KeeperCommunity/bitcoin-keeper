@@ -10,10 +10,41 @@ appId: ${APP_ID}
     timeout: 5000
 - assertVisible: Private Electrum
 - tapOn: Private Electrum
-- tapOn: Host
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: input_node-host
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: Host
 - inputText: 127.0.0.1
-- tapOn: e.g 8080
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: input_node-host
+          text: 127\.0\.0\.1
+      - hideKeyboard
+      - tapOn:
+          id: input_node-port
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: e.g 8080
 - inputText: ${NODE_PORT}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: input_node-port
+          text: ${NODE_PORT}
 - assertVisible: Port Number
 - runFlow:
     when:
@@ -22,7 +53,11 @@ appId: ${APP_ID}
       - assertVisible: Continue
       - tapOn: Continue
 - assertNotVisible: Type English and Hindi
-- assertVisible: Trusted certificate \(optional PEM\)
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: Trusted certificate \(optional PEM\)
 - runFlow:
     when:
       platform: iOS
@@ -46,6 +81,11 @@ appId: ${APP_ID}
       id: input_node-ca
     direction: DOWN
     timeout: 30000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: Trusted certificate \(optional PEM\)
 - tapOn:
     id: input_node-ca
 - inputText: ${NODE_CA}
