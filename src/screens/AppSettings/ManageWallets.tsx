@@ -553,17 +553,14 @@ function ManageWallets() {
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={() => (
-          <PasscodeVerifyModal
-            forcedMode={passwordMode === PasswordMode.SHOWALL && isOnL2Above}
-            useBiometrics={false}
-            close={() => {
-              setConfirmPassVisible(false);
-            }}
-            onSuccess={onProceed}
-            onForceSuccess={onForceProceed}
-          />
-        )}
+        Content={PasscodeVerifyModal}
+        contentProps={{
+          forcedMode: passwordMode === PasswordMode.SHOWALL && isOnL2Above,
+          useBiometrics: false,
+          close: () => setConfirmPassVisible(false),
+          onSuccess: onProceed,
+          onForceSuccess: onForceProceed,
+        }}
       />
       <KeeperModal
         visible={confirmPasscodeVisible}
@@ -575,15 +572,12 @@ function ManageWallets() {
         modalBackground={`${colorMode}.modalWhiteBackground`}
         textColor={`${colorMode}.textGreen`}
         subTitleColor={`${colorMode}.modalSubtitleBlack`}
-        Content={() => (
-          <PasscodeVerifyModal
-            useBiometrics={false}
-            close={() => {
-              setConfirmPasscodeVisible(false);
-            }}
-            onSuccess={deleteSelectedEntity}
-          />
-        )}
+        Content={PasscodeVerifyModal}
+        contentProps={{
+          useBiometrics: false,
+          close: () => setConfirmPasscodeVisible(false),
+          onSuccess: deleteSelectedEntity,
+        }}
       />
       {selectedWallet && (
         <MiniscriptPathSelector

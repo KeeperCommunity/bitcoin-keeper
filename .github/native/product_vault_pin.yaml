@@ -6,4 +6,9 @@ appId: ${APP_ID}
     commands:
       - tapOn:
           id: key_1
-- tapOn: Proceed
+- assertVisible:
+    id: btn_primaryText
+    text: Proceed
+    enabled: true
+- tapOn:
+    id: btn_primaryText

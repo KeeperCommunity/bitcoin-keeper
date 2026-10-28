@@ -116,6 +116,73 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual([row[0] for row in generated], expected)
         self.assertEqual([row[0] for row in generated], [row[1] for row in generated])
 
+    def test_vault_settings_ids_match_shared_cards_and_footer(self):
+        root = NATIVE.parents[1]
+        flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
+        settings = (root / 'src/screens/Home/components/Settings/Component/SettingCard.tsx').read_text()
+        footer = (root / 'src/components/KeeperFooter.tsx').read_text()
+        self.assertIn('testID={`btn_setting_${item.title}`}', settings)
+        self.assertIn('testID={`btn_${item.text}`}', footer)
+        for label, expected in [('Hide wallet', 2), ('Archived wallet versions', 4),
+                                ('Change Key', 2)]:
+            prefix = 'btn_' if label == 'Change Key' else 'btn_setting_'
+            self.assertEqual(flow.count('id: ' + prefix + label), expected)
+        self.assertNotIn('element: Hide wallet', flow)
+        self.assertNotIn('element: Change Key', flow)
+        self.assertNotIn('element: Archived wallet versions', flow)
+        self.assertNotIn('tapOn: Hide wallet', flow)
+        self.assertNotIn('tapOn: Change Key', flow)
+        self.assertNotIn('tapOn: Archived wallet versions', flow)
+
+    def test_separate_unhide_pin_prompts_require_four_digits_and_callback(self):
+        flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
+        pin = (NATIVE / 'product_vault_pin.yaml').read_text()
+        self.assertIn('times: 4', pin)
+        self.assertEqual(pin.count('id: key_1'), 1)
+        self.assertIn('id: btn_primaryText\n    text: Proceed\n    enabled: true', pin)
+        self.assertNotIn('retryTapIfNoChange', pin)
+        self.assertNotIn('times: 8', pin)
+        section = flow.split('STAGE: hidden_reference_blocks_without_name_after_relaunch', 1)[1].split(
+            'STAGE: vault_unhidden_with_correct_native_pin', 1)[0]
+        ordered = ['tapOn: Show hidden wallets', 'runFlow: product_vault_pin.yaml',
+                   'notVisible:\n      id: modal_passcode_verify',
+                   'visible:\n      id: btnUnhide', 'tapOn:\n    id: btnUnhide',
+                   'visible:\n      id: modal_passcode_verify',
+                   'runFlow: product_vault_pin.yaml', 'visible: Wallet is now unhidden',
+                   'notVisible:\n      id: btnUnhide', '- stopApp', "WALLET_COUNT: '2'"]
+        cursor = 0
+        for item in ordered:
+            cursor = section.index(item, cursor) + len(item)
+        self.assertEqual(section.count('runFlow: product_vault_pin.yaml'), 2)
+
+    def test_rotation_success_and_archived_key_evidence_remain_strict(self):
+        flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
+        rotate = flow.split('- tapOn: Replace Key', 1)[1].split(
+            'STAGE: zero_balance_rotation_retained_original_archive', 1)[0]
+        ordered = ['visible: Key Replaced Successfully', 'tapOn: View Wallet',
+                   'text: Protect Your Recovery Key', 'id: btn_setting_Archived wallet versions',
+                   'text: Archived Vaults', 'assertVisible: Reinstate']
+        cursor = 0
+        for item in ordered:
+            cursor = rotate.index(item, cursor) + len(item)
+        self.assertIn('when:\n      visible:\n        id: text_modal_title\n        text: Protect Your Recovery Key', rotate)
+        self.assertIn('visible: Continue Without Backup?', rotate)
+        self.assertIn('tapOn: Skip Backup', rotate)
+        archived = flow.split('STAGE: zero_balance_rotation_retained_original_archive', 1)[1].split(
+            'STAGE: archived_only_mobile_logically_archived', 1)[0]
+        self.assertIn('visible: Confirm passcode to delete key', archived)
+        self.assertIn('runFlow: product_vault_pin.yaml', archived)
+        self.assertIn('notVisible: Mobile Key', archived)
+        self.assertIn('assertVisible: Seed Key', archived)
+        self.assertNotIn('Key Deleted Successfully', archived)
+        self.assertNotIn('tapOn: Continue', archived)
+        cold = flow.split('STAGE: archived_only_mobile_logically_archived', 1)[1].split(
+            'STAGE: archived_vault_reinstated_after_cold_restart', 1)[0]
+        self.assertIn("WALLET_COUNT: '2'", cold)
+        self.assertIn('assertNotVisible: Mobile Key', cold)
+        self.assertIn('tapOn: Reinstate', cold)
+        self.assertIn("WALLET_COUNT: '3'", cold)
+
     def test_all_stages_are_required_in_order_and_pass_remains_scoped(self):
         receipt = product.Receipt()
         self.assertFalse(receipt.mark(product.STAGES[-1]))
@@ -168,7 +235,8 @@ class ReceiptTests(unittest.TestCase):
         helper = (NATIVE / 'product_vault_public_seed.yaml').read_text()
         self.assertEqual(re.findall(r'STAGE: ([a-z_]+)', flow), list(product.STAGES))
         for action in ['id: btn_MY_KEEPER', 'id: btn_Seed Key', 'id: btn_decreaseValue',
-                       'tapOn: Replace Key', 'tapOn: Archived wallet versions', 'tapOn: Reinstate',
+                       'tapOn: Replace Key', 'id: btn_Change Key',
+                       'id: btn_setting_Archived wallet versions', 'tapOn: Reinstate',
                        'WALLET_COUNT: \'3\'',
                        "assertNotVisible: '.*R5 Reference Vault'"]:
             self.assertIn(action, flow)

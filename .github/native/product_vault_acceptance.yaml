@@ -201,10 +201,12 @@ name: Real visible hidden and archived Vault Mobile key references
 - tapOn:
     id: wallet_details_settings
 - scrollUntilVisible:
-    element: Hide wallet
+    element:
+      id: btn_setting_Hide wallet
     direction: DOWN
     timeout: 30000
-- tapOn: Hide wallet
+- tapOn:
+    id: btn_setting_Hide wallet
 - extendedWaitUntil:
     visible:
       id: home_visible_wallet_count_1
@@ -254,16 +256,39 @@ name: Real visible hidden and archived Vault Mobile key references
     timeout: 30000
 - runFlow: product_vault_pin.yaml
 - extendedWaitUntil:
+    notVisible:
+      id: modal_passcode_verify
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 10000
+- extendedWaitUntil:
     visible: R5 Reference Vault
     timeout: 30000
 # This is the only hidden row; Mobile Wallet remained visible throughout.
+- extendedWaitUntil:
+    visible:
+      id: btnUnhide
+    timeout: 30000
+- assertNotVisible:
+    id: modal_passcode_verify
 - tapOn:
     id: btnUnhide
 - extendedWaitUntil:
     visible:
       id: modal_passcode_verify
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible:
+    id: modal_passcode_verify
 - runFlow: product_vault_pin.yaml
+- extendedWaitUntil:
+    visible: Wallet is now unhidden
+    timeout: 30000
+- extendedWaitUntil:
+    notVisible:
+      id: modal_passcode_verify
+    timeout: 30000
 - extendedWaitUntil:
     notVisible:
       id: btnUnhide
@@ -288,10 +313,12 @@ name: Real visible hidden and archived Vault Mobile key references
 - tapOn:
     id: btn_Mobile Key
 - scrollUntilVisible:
-    element: Change Key
+    element:
+      id: btn_Change Key
     direction: DOWN
     timeout: 30000
-- tapOn: Change Key
+- tapOn:
+    id: btn_Change Key
 - tapOn:
     id: btn_add_new_key
 - tapOn: 'Add a software key(?:, In-app or external software signers)?'
@@ -324,14 +351,45 @@ name: Real visible hidden and archived Vault Mobile key references
     visible: Key Replaced Successfully
     timeout: 120000
 - tapOn: View Wallet
+- waitForAnimationToEnd:
+    timeout: 10000
+# Rotation can return through Home and show the real Recovery Key education.
+# Dismiss only that exact two-step warning after the success modal was proved.
+- runFlow:
+    when:
+      visible:
+        id: text_modal_title
+        text: Protect Your Recovery Key
+    commands:
+      - assertVisible:
+          id: text_modal_title
+          text: Protect Your Recovery Key
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - assertVisible:
+          id: btn_secondaryText
+          text: Skip for Now
+      - tapOn:
+          id: btn_secondaryText
+      - extendedWaitUntil:
+          visible: Continue Without Backup?
+          timeout: 30000
+      - assertVisible: Skip Backup
+      - tapOn: Skip Backup
+      - extendedWaitUntil:
+          notVisible: Continue Without Backup?
+          timeout: 30000
+- assertNotVisible: Protect Your Recovery Key
 - assertVisible: R5 Reference Vault
 - tapOn:
     id: wallet_details_settings
 - scrollUntilVisible:
-    element: Archived wallet versions
+    element:
+      id: btn_setting_Archived wallet versions
     direction: DOWN
     timeout: 30000
-- tapOn: Archived wallet versions
+- tapOn:
+    id: btn_setting_Archived wallet versions
 - extendedWaitUntil:
     visible:
       id: header_title
@@ -368,13 +426,13 @@ name: Real visible hidden and archived Vault Mobile key references
     timeout: 30000
 - assertNotVisible: Key Used in Wallet
 - runFlow: product_vault_pin.yaml
-- extendedWaitUntil:
-    visible: Key Deleted Successfully
-    timeout: 60000
-- tapOn: Continue
+# Archived Vault references keep the signer record. The archive worker gives
+# no deletion-success modal; prove the visible row left and survived a restart.
 - extendedWaitUntil:
     notVisible: Mobile Key
     timeout: 30000
+- assertNotVisible:
+    id: modal_passcode_verify
 - assertVisible: Seed Key
 - runScript:
     file: product_vault_metric.js
@@ -402,10 +460,12 @@ name: Real visible hidden and archived Vault Mobile key references
 - tapOn:
     id: wallet_details_settings
 - scrollUntilVisible:
-    element: Archived wallet versions
+    element:
+      id: btn_setting_Archived wallet versions
     direction: DOWN
     timeout: 30000
-- tapOn: Archived wallet versions
+- tapOn:
+    id: btn_setting_Archived wallet versions
 - tapOn: R5 Reference Vault
 - tapOn: More\s+Options
 - tapOn: Reinstate

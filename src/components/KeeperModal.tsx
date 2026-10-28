@@ -34,6 +34,7 @@ type ModalProps = {
   subTitleColor?: string;
   DarkCloseIcon?: any;
   Content?: any;
+  contentProps?: Record<string, unknown>;
   dismissible?: boolean;
   learnMoreButton?: boolean;
   learnMoreButtonPressed?: () => void;
@@ -69,6 +70,7 @@ function KeeperModal(props: ModalProps) {
     secondaryCallback = () => {},
     DarkCloseIcon = false,
     Content = () => null,
+    contentProps = {},
     learnMoreButton = false,
     learnMoreButtonPressed = () => {},
     learnMoreButtonText = null,
@@ -187,7 +189,7 @@ function KeeperModal(props: ModalProps) {
           showsVerticalScrollIndicator={false}
         >
           <Modal.Body>
-            <Content />
+            <Content {...contentProps} />
           </Modal.Body>
           {buttonText && (
             <Box

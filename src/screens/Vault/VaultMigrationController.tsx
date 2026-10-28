@@ -278,7 +278,7 @@ function VaultMigrationController({
           ],
         };
         navigation.dispatch(CommonActions.reset(navigationState));
-      } else if (relayVaultUpdate) {
+      } else if (relayVaultUpdate && !vaultId) {
         navigation.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'Home' }] }));
         dispatch(resetRealyVaultState());
         setCreating(false);
