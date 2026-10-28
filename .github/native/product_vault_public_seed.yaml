@@ -25,13 +25,14 @@ appId: ${APP_ID}
 - repeat:
     times: 12
     commands:
+      - evalScript: "${output.wordId = 'input_seedWord' + (output.wordIndex + 1) + (output.wordIndex === 0 ? 'st' : output.wordIndex === 1 ? 'nd' : output.wordIndex === 2 ? 'rd' : 'th')}"
       - scrollUntilVisible:
           element:
-            id: input_seedWord${output.wordIndex + 1}
+            id: ${output.wordId}
           direction: DOWN
           timeout: 30000
       - tapOn:
-          id: input_seedWord${output.wordIndex + 1}
+          id: ${output.wordId}
       - inputText: ${output.publicWords[output.wordIndex]}
       - extendedWaitUntil:
           visible:

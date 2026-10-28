@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 import threading
 import types
@@ -21,6 +22,31 @@ NATIVE = Path(__file__).resolve().parents[1] / 'native'
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_public_seed_field_ids_match_all_twelve_app_ordinals(self):
+        helper = (NATIVE / 'product_vault_public_seed.yaml').read_text()
+        root = NATIVE.parents[1]
+        screen = (root / 'src/screens/Recovery/EnterSeedScreen.tsx').read_text()
+        utilities = (root / 'src/utils/utilities.ts').read_text()
+        self.assertIn('testID={`input_seedWord${getPlaceholder(index)}`}', screen)
+        app_function = re.search(
+            r'export const getPlaceholder = \(index: number\) => \{(.*?)\n\};', utilities, re.S)
+        flow_expression = re.search(
+            r'^\s*- evalScript: "\$\{(output\.wordId = [^\n]+)\}"\s*$', helper, re.M)
+        self.assertIsNotNone(app_function)
+        self.assertIsNotNone(flow_expression)
+        self.assertEqual(helper.count('id: ${output.wordId}'), 2)
+        script = ('const getPlaceholder = (index) => {' + app_function.group(1) + '\n};\n'
+                  'const output = {}; const result = [];\n'
+                  'for (let i = 0; i < 12; i++) { output.wordIndex = i; '
+                  + flow_expression.group(1) + '; '
+                  "result.push([output.wordId, 'input_seedWord' + getPlaceholder(i)]); }\n"
+                  'process.stdout.write(JSON.stringify(result));')
+        generated = json.loads(subprocess.check_output(['node', '-e', script], text=True))
+        expected = ['input_seedWord' + str(i) + ('st' if i == 1 else 'nd' if i == 2
+                    else 'rd' if i == 3 else 'th') for i in range(1, 13)]
+        self.assertEqual([row[0] for row in generated], expected)
+        self.assertEqual([row[0] for row in generated], [row[1] for row in generated])
+
     def test_all_stages_are_required_in_order_and_pass_remains_scoped(self):
         receipt = product.Receipt()
         self.assertFalse(receipt.mark(product.STAGES[-1]))
