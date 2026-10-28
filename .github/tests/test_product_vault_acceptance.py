@@ -22,6 +22,51 @@ NATIVE = Path(__file__).resolve().parents[1] / 'native'
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_vault_ui_selectors_match_grouped_cards_and_mobile_row_controls(self):
+        root = NATIVE.parents[1]
+        flow = (NATIVE / 'product_vault_acceptance.yaml').read_text()
+        home = (root / 'src/screens/Home/components/Wallet/HomeWallet.tsx').read_text()
+        translations = json.loads((root / 'src/context/Localization/language/en.json').read_text())
+        self.assertIn('title: walletText.createWallet', home)
+        self.assertIn('subtitle: walletText.createWalletDesc', home)
+        create_label = (translations['wallet']['createWallet'] + ', ' +
+                        translations['wallet']['createWalletDesc'])
+        create_pattern = re.search(r"- tapOn: '(Create Wallet[^']+)'", flow)
+        self.assertIsNotNone(create_pattern)
+        self.assertIsNotNone(re.fullmatch(create_pattern.group(1), create_label))
+        self.assertIsNotNone(re.fullmatch(create_pattern.group(1), 'Create Wallet'))
+        self.assertIsNone(re.fullmatch(create_pattern.group(1), 'Import Wallet'))
+
+        home_label = 'Multi-key, 2 of 2, R5 Reference Vault'
+        home_legacy_label = 'Multi-key, 2-of-2, R5 Reference Vault'
+        self.assertIn('`${wallet.scheme.m} of ${wallet.scheme.n}`',
+                      (root / 'src/hooks/useWalletAsset.ts').read_text())
+        strict_scheme = '(?:Multi-key, )?2(?: of |-of-)2, R5 Reference Vault'
+        self.assertIn("- assertVisible: '" + strict_scheme + "'", flow)
+        self.assertIsNotNone(re.fullmatch(strict_scheme, home_label))
+        self.assertIsNotNone(re.fullmatch(strict_scheme, home_legacy_label))
+        self.assertIsNone(re.fullmatch(strict_scheme, 'Multi-key, 2 of 3, R5 Reference Vault'))
+        home_card = re.search(r"- tapOn: '([^']*R5 Reference Vault)'", flow)
+        self.assertIsNotNone(home_card)
+        self.assertIsNotNone(re.fullmatch(home_card.group(1), home_label))
+        self.assertIsNotNone(re.fullmatch(home_card.group(1), home_legacy_label))
+        self.assertIsNotNone(re.fullmatch(home_card.group(1), 'R5 Reference Vault'))
+        hidden_name = '.*R5 Reference Vault'
+        self.assertEqual(flow.count("- assertNotVisible: '" + hidden_name + "'"), 3)
+        self.assertIsNotNone(re.fullmatch(hidden_name, home_label))
+        self.assertIsNotNone(re.fullmatch(hidden_name, 'Multi-key, 2 of 3, R5 Reference Vault'))
+        self.assertIsNotNone(re.fullmatch(hidden_name, 'R5 Reference Vault'))
+
+        self.assertIn('testID={`manage_key_type_${signer.type}`}',
+                      (root / 'src/screens/SigningDevices/DeleteKeys.tsx').read_text())
+        mobile_delete = ('- tapOn:\n    id: btnDelete\n    below:\n'
+                         '      id: manage_key_type_MY_KEEPER\n    index: 0')
+        self.assertEqual(flow.count(mobile_delete), 4)
+        self.assertNotIn('childOf:\n      id: manage_key_type_MY_KEEPER', flow)
+        self.assertIn('- assertVisible: Confirm your wallet details', flow)
+        self.assertIn('- assertVisible:\n    id: btn_Mobile Key', flow)
+        self.assertIn('- assertVisible:\n    id: btn_Seed Key', flow)
+
     def test_public_seed_field_ids_match_all_twelve_app_ordinals(self):
         helper = (NATIVE / 'product_vault_public_seed.yaml').read_text()
         root = NATIVE.parents[1]
@@ -100,7 +145,8 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(re.findall(r'STAGE: ([a-z_]+)', flow), list(product.STAGES))
         for action in ['id: btn_MY_KEEPER', 'id: btn_Seed Key', 'id: btn_decreaseValue',
                        'tapOn: Replace Key', 'tapOn: Archived wallet versions', 'tapOn: Reinstate',
-                       'WALLET_COUNT: \'3\'', 'assertNotVisible: R5 Reference Vault']:
+                       'WALLET_COUNT: \'3\'',
+                       "assertNotVisible: '.*R5 Reference Vault'"]:
             self.assertIn(action, flow)
         for action in ['takeScreenshot:', 'copyTextFrom:', 'setClipboard:', 'clearKeychain:',
                        'clearState:', 'openLink:', 'tapOn: Send', 'tapOn: Receive',
