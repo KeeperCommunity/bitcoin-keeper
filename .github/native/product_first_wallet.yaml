@@ -160,9 +160,15 @@ name: Full app startup first wallet and cold persistence
       id: header_title
       text: Manage Keys
     timeout: 30000
-# The only fresh signer is Recovery Key, excluded by DeleteKeys' production
-# filters. Check safe discovery/back navigation; never create a deletion intent.
-- assertNotVisible: Delete
+# Home also creates one Mobile Key for future Vaults. Its visible Delete action
+# is PIN-gated; this discovery flow never selects it. The Recovery Key stays hidden.
+- extendedWaitUntil:
+    visible:
+      id: manage_key_type_MY_KEEPER
+    timeout: 30000
+- assertVisible:
+    id: btnDelete
+- assertNotVisible: Recovery Key
 - tapOn:
     id: btn_back
 - extendedWaitUntil:
