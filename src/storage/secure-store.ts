@@ -2,6 +2,7 @@ import * as Keychain from 'react-native-keychain';
 import NodeRSA from 'node-rsa';
 import { currentBackupAccountSession } from 'src/services/backup/transport';
 import { updatePasscodeHash } from 'src/store/reducers/account';
+import type { Account } from 'src/store/reducers/account';
 import config from '../utils/service-utilities/config';
 import { store as reduxStore } from 'src/store/store';
 import {
@@ -73,24 +74,28 @@ export const store = async (hash: string, enc_key: string, identifier: string) =
   });
 };
 
-export const fetch = async (hash_current: string) => {
+export const fetch = async (hash_current: string): Promise<{
+  encryptedKey: string;
+  account?: Account;
+}> => {
   try {
-    let allAccounts = reduxStore.getState().account.allAccounts;
-    if (!allAccounts.length) {
-      allAccounts = [{ accountIdentifier: undefined }];
-    }
-    for (const index in allAccounts) {
-      const identifier =
-        allAccounts[index].accountIdentifier == ''
-          ? undefined
-          : allAccounts[index].accountIdentifier;
+    const allAccounts = reduxStore.getState().account.allAccounts;
+    // Legacy installations have only the default service and no account catalog.
+    const owners: (Account | undefined)[] = allAccounts.length ? allAccounts : [undefined];
+    for (const account of owners) {
+      if (account && typeof account.accountIdentifier !== 'string')
+        throw new Error('Saved account service is unavailable');
+      const identifier = account?.accountIdentifier || undefined;
       const credentials = await Keychain.getGenericPassword({
         service: identifier,
       });
       if (credentials) {
         const password = JSON.parse(credentials.password);
-        if (hash_current === password.hash) {
-          return password.enc_key;
+        if (hash_current === password.hash && typeof password.enc_key === 'string') {
+          // A native PIN replacement can commit before its JS acknowledgement
+          // or catalog update. Route by the service that supplied the key, not
+          // by a possibly stale PIN hash in the account catalog.
+          return { encryptedKey: password.enc_key, account: account ? { ...account } : undefined };
         }
       }
     }
@@ -211,7 +216,10 @@ export const storeBiometricPubKey = async (pubKey: string, appId) => {
 export const verifyBiometricAuth = async (signature: string, payload: string) => {
   try {
     const allAccounts = reduxStore.getState().account.allAccounts;
-    let identifier = allAccounts.find((account) => account.appId === payload)?.accountIdentifier;
+    const account = allAccounts.find((entry) => entry.appId === payload);
+    if (!account || typeof account.accountIdentifier !== 'string')
+      throw new Error('Saved account service is unavailable');
+    let identifier = account.accountIdentifier;
     if (identifier == '') identifier = undefined;
     const keychain = await Keychain.getGenericPassword({ service: identifier });
     if (!keychain) {
@@ -227,6 +235,7 @@ export const verifyBiometricAuth = async (signature: string, payload: string) =>
         success: true,
         encryptedKey: credentials.enc_key,
         hash: credentials.hash,
+        account: { ...account },
       };
     }
     return {

@@ -69,7 +69,9 @@ import {
   setBiometricEnabledAppId,
   setTempDetails,
   updateOneTimeBackupStatus,
+  updatePasscodeHash,
 } from '../reducers/account';
+import type { Account } from '../reducers/account';
 import { REALM_FILE } from 'src/storage/realm/realm';
 import { loadConciergeUserOnLogin, saveBackupMethodByAppId } from '../sagaActions/account';
 
@@ -158,10 +160,15 @@ function* credentialsAuthWorker({ payload }) {
     yield put(setupLoading('authenticating'));
     let hash;
     let encryptedKey;
+    let credentialAccount: Account | undefined;
     if (method === LoginMethod.PIN) {
       hash = yield call(hash512, payload.passcode);
       if (payload.reLogin) encryptedKey = yield call(SecureStore.fetchSpecific, hash, appId);
-      else encryptedKey = yield call(SecureStore.fetch, hash);
+      else {
+        const credential = yield call(SecureStore.fetch, hash);
+        encryptedKey = credential.encryptedKey;
+        credentialAccount = credential.account;
+      }
     } else if (method === LoginMethod.BIOMETRIC) {
       let res;
       if (payload.reLogin)
@@ -170,11 +177,10 @@ function* credentialsAuthWorker({ payload }) {
       if (!res.success) throw new Error('Biometric Auth Failed');
       hash = res.hash;
       encryptedKey = res.encryptedKey;
+      credentialAccount = res.account;
     }
     key = yield call(decrypt, hash, encryptedKey);
     if (originSession !== currentBackupAccountSession()) return;
-    yield put(setKey(key));
-    yield put(setPinHash(hash));
 
     if (!key) throw new Error('Encryption key is missing');
     // case: login
@@ -182,15 +188,30 @@ function* credentialsAuthWorker({ payload }) {
       const { allAccounts, biometricEnabledAppId, backupMethodByAppId } = yield select(
         (state: RootState) => state.account
       );
-      const currentAccount = allAccounts.find((account) => account.hash === hash);
+      const currentAccount = credentialAccount;
+      const accountStillMatches = (expectedHash = currentAccount?.hash) => {
+        const accounts = store.getState().account.allAccounts;
+        if (!currentAccount) return accounts.length === 0;
+        if (!currentAccount.appId || !currentAccount.realmId ||
+            typeof currentAccount.accountIdentifier !== 'string') return false;
+        const matches = accounts.filter((account) =>
+          account.appId === currentAccount.appId ||
+          account.realmId === currentAccount.realmId ||
+          account.accountIdentifier === currentAccount.accountIdentifier);
+        return matches.length === 1 && matches[0].appId === currentAccount.appId &&
+          matches[0].realmId === currentAccount.realmId &&
+          matches[0].accountIdentifier === currentAccount.accountIdentifier &&
+          matches[0].hash === expectedHash;
+      };
+      if (!accountStillMatches()) throw new Error('Saved account changed during authentication');
       const uint8array = yield call(stringToArrayBuffer, key);
-      if (originSession !== currentBackupAccountSession()) return;
+      if (originSession !== currentBackupAccountSession() || !accountStillMatches()) return;
       const { success, error } = yield call(
         dbManager.initializeRealm,
         uint8array,
         currentAccount?.realmId
       );
-      if (originSession !== currentBackupAccountSession()) return;
+      if (originSession !== currentBackupAccountSession() || !accountStillMatches()) return;
 
       if (!success) {
         throw Error(`Failed to load the database: ${error}`);
@@ -201,9 +222,17 @@ function* credentialsAuthWorker({ payload }) {
 
       // setting correct app id from realm at login
       const keeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-      if (originSession !== currentBackupAccountSession()) return;
-      if (currentAccount && !keeperApp?.id)
-        throw new Error('Saved account has no KeeperApp record');
+      if (originSession !== currentBackupAccountSession() || !accountStillMatches()) return;
+      if (currentAccount && keeperApp?.id !== currentAccount.appId)
+        throw new Error('Saved account does not match the opened KeeperApp');
+      if (currentAccount && currentAccount.hash !== hash) {
+        // Reconcile only this authenticated service/Realm owner after a durable
+        // native write whose acknowledgement or catalog update was interrupted.
+        yield put(updatePasscodeHash({ newHash: hash, appId: currentAccount.appId }));
+      }
+      if (originSession !== currentBackupAccountSession() || !accountStillMatches(hash)) return;
+      yield put(setKey(key));
+      yield put(setPinHash(hash));
       if (keeperApp?.id) {
         const onlyKnownAccount =
           allAccounts.length <= 1 &&
@@ -332,6 +361,8 @@ function* credentialsAuthWorker({ payload }) {
       } else yield put(credsAuthenticated(true)); // TODO: Should remove and throw an error if not needed in any scenario
     } else {
       if (originSession !== currentBackupAccountSession()) return;
+      yield put(setKey(key));
+      yield put(setPinHash(hash));
       yield put(credsAuthenticated(true));
     }
   } catch (err) {

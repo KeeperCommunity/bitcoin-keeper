@@ -54,7 +54,7 @@ function fixture(options = {}) {
       defaultWalletCreated: {},
     },
     account: {
-      allAccounts: [{ hash: 'fixture-hash', appId: 'A', realmId: 'fixture.realm' }],
+      allAccounts: [{ hash: 'fixture-hash', appId: 'A', realmId: 'fixture.realm', accountIdentifier: '' }],
       backupMethodByAppId: {},
     },
   };
@@ -103,7 +103,7 @@ function fixture(options = {}) {
     LoginMethod: { PIN: 'PIN' },
     hash512: () => 'fixture-hash',
     decrypt: () => 'fixture-key',
-    SecureStore: { fetch: () => 'fixture-ciphertext' },
+    SecureStore: { fetch: () => ({ encryptedKey: 'fixture-ciphertext', account: { ...state.account.allAccounts[0] } }) },
     stringToArrayBuffer: () => new Uint8Array([1]),
     DeviceInfo: { getVersion: () => '2.6.4', getBuildNumber: () => options.build ?? '620' },
     console: { log() {} },

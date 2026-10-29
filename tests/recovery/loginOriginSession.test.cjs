@@ -39,6 +39,7 @@ function fixture(pauseAt, options = {}) {
         appId: 'A',
         hash: 'disposable-hash',
         realmId: 'A.realm',
+        accountIdentifier: '',
       },
     ],
     appVersion = '2.5.0',
@@ -68,7 +69,10 @@ function fixture(pauseAt, options = {}) {
     LoginMethod: { PIN: 'PIN' },
     hash512: () => 'disposable-hash',
     decrypt: () => 'disposable-key',
-    SecureStore: { fetch: () => (pauseAt === 'credential' ? gate('cipher') : 'cipher') },
+    SecureStore: { fetch: () => {
+      const result = { encryptedKey: 'cipher', account: allAccounts[0] ? { ...allAccounts[0] } : undefined };
+      return pauseAt === 'credential' ? gate(result) : result;
+    } },
     stringToArrayBuffer: () => new Uint8Array([1]),
     dbManager: {
       initializeRealm: (_key, realmId) => {
