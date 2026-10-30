@@ -1,6 +1,6 @@
 --- a/node_modules/react-native-keychain/ios/RNKeychainManager/RNKeychainManager.m
 +++ b/node_modules/react-native-keychain/ios/RNKeychainManager/RNKeychainManager.m
-@@ -448,19 +448,84 @@
+@@ -448,19 +448,87 @@
                    resolver:(RCTPromiseResolveBlock)resolve
                    rejecter:(RCTPromiseRejectBlock)reject)
  {
@@ -68,11 +68,14 @@
 +    // change access protection, or overwrite an ambiguous legacy service mapping.
 +    if (matches.count != 1 ||
 +        ![matches[0][(__bridge NSString *)kSecAttrAccount] isEqual:username] ||
-+        ![matches[0][(__bridge NSString *)kSecAttrAccessible] isEqual:(__bridge id)kSecAttrAccessibleWhenUnlocked] ||
-+        matches[0][(__bridge NSString *)kSecAttrAccessControl] != nil) {
++        ![matches[0][(__bridge NSString *)kSecAttrAccessible] isEqual:(__bridge id)kSecAttrAccessibleWhenUnlocked]) {
 +      return rejectWithError(reject, [NSError errorWithDomain:NSOSStatusErrorDomain code:errSecParam userInfo:nil]);
 +    }
 +    identity[(__bridge NSString *)kSecAttrAccount] = username;
++    // Security may return kSecAttrAccessControl for an ordinary WhenUnlocked item.
++    // Its presence is not evidence of an unsupported policy. Update only the value;
++    // keep the existing accessibility and access-control object untouched so
++    // Security continues to enforce the record's original protection.
 +    NSDictionary *changes = @{
 +      (__bridge NSString *)kSecValueData: [password dataUsingEncoding:NSUTF8StringEncoding]
 +    };
