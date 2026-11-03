@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<common:repository xmlns:common="http://schemas.android.com/repository/android/common/02"
+            xmlns:generic="http://schemas.android.com/repository/android/generic/02"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <localPackage path="ndk;27.1.12297006" obsolete="false">
+    <type-details xsi:type="generic:genericDetailsType"/>
+    <revision><major>27</major><minor>1</minor><micro>12297006</micro></revision>
+    <display-name>NDK (Side by side) 27.1.12297006</display-name>
+  </localPackage>
+</common:repository>

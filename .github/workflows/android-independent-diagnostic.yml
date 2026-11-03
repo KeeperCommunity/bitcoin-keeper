@@ -1,0 +1,60 @@
+name: Android independent diagnostic
+
+on:
+  push:
+    branches:
+      - 'codex/android-repro*'
+  pull_request:
+    branches:
+      - 'release/**'
+      - sprint
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-independent-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build diagnostic APK and AAB from a digest-pinned JDK base
+        run: |
+          bash reproducibility/android-diagnostic.sh \
+            --source-commit "$GITHUB_SHA" \
+            --output-dir "$RUNNER_TEMP/keeper-android-diagnostic"
+
+      - name: Verify diagnostic output manifest
+        run: |
+          cd "$RUNNER_TEMP/keeper-android-diagnostic"
+          sha256sum --check SHA256SUMS
+          cat SHA256SUMS
+          test -s Bitcoin_Keeper_DIAGNOSTIC.apk
+          test -s Bitcoin_Keeper_DIAGNOSTIC.aab
+          test -s ZIP_ENTRY_SHA256.json
+          test -s APK_CONTAINER.json
+          test -s SOURCE_INPUT_AUDIT.json
+          test -s APT_PACKAGE_SHA256SUMS
+          test -s DPKG_PACKAGES.tsv
+          echo 'Diagnostic build only; no distributed binary comparison or reproducibility verdict.'
+
+      - name: Retain diagnostic hashes and input evidence for repeat-build checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-diagnostic-entry-hashes-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/keeper-android-diagnostic/ZIP_ENTRY_SHA256.json
+            ${{ runner.temp }}/keeper-android-diagnostic/APK_CONTAINER.json
+            ${{ runner.temp }}/keeper-android-diagnostic/SOURCE_INPUT_AUDIT.json
+            ${{ runner.temp }}/keeper-android-diagnostic/APT_PACKAGE_SHA256SUMS
+            ${{ runner.temp }}/keeper-android-diagnostic/DPKG_PACKAGES.tsv
+            ${{ runner.temp }}/keeper-android-diagnostic/SHA256SUMS
+          retention-days: 7

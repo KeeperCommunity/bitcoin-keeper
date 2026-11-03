@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<common:repository xmlns:common="http://schemas.android.com/repository/android/common/02"
+            xmlns:generic="http://schemas.android.com/repository/android/generic/02"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <localPackage path="platform-tools" obsolete="false">
+    <type-details xsi:type="generic:genericDetailsType"/>
+    <revision><major>37</major><minor>0</minor><micro>1</micro></revision>
+    <display-name>Android SDK Platform-Tools</display-name>
+  </localPackage>
+</common:repository>

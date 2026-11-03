@@ -1,0 +1,120 @@
+diff --git a/node_modules/realm/prebuilds/android/arm64-v8a/share/cmake/Realm/AcquireRealmDependency.cmake b/node_modules/realm/prebuilds/android/arm64-v8a/share/cmake/Realm/AcquireRealmDependency.cmake
+--- a/node_modules/realm/prebuilds/android/arm64-v8a/share/cmake/Realm/AcquireRealmDependency.cmake
++++ b/node_modules/realm/prebuilds/android/arm64-v8a/share/cmake/Realm/AcquireRealmDependency.cmake
+@@ -31,1 +31,22 @@
++    # Pin Android OpenSSL downloads outside Gradle dependency verification.
++    # These are independently observed archive hashes, not historical release provenance.
++    set(_realm_download_verification_args)
++    if(ANDROID AND dep_name STREQUAL "openssl")
++        if(NOT dep_version STREQUAL "3.3.1")
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency version")
++        endif()
++        if(_target_architecture STREQUAL "armeabi-v7a")
++            set(_realm_expected_sha256 "f7ca33cda546c05ad9c258add4f98b6f8f9764d0883d868d93579b1bc2a80ac4")
++        elseif(_target_architecture STREQUAL "arm64-v8a")
++            set(_realm_expected_sha256 "54e4581c4b123d7f04842a6cec3f153838e8a52c9b162b2a2233efd868247610")
++        elseif(_target_architecture STREQUAL "x86")
++            set(_realm_expected_sha256 "f03642845c924a4f4c5e934494b10e3658dbaab5874339a0fe37b661e80adce8")
++        elseif(_target_architecture STREQUAL "x86_64")
++            set(_realm_expected_sha256 "ff64787be7ee2e29fef1d8341ff543f6d8aaa291a8fc7c2e3849d82a8c2ae6fa")
++        else()
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency architecture")
++        endif()
++        set(_realm_download_verification_args EXPECTED_HASH "SHA256=${_realm_expected_sha256}")
++    endif()
++
+     if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/include.cmake)
+@@ -33,2 +54,2 @@
+         message(STATUS "Getting ${DEP_URL}...")
+-        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" STATUS download_status)
++        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" ${_realm_download_verification_args} STATUS download_status)
+diff --git a/node_modules/realm/prebuilds/android/armeabi-v7a/share/cmake/Realm/AcquireRealmDependency.cmake b/node_modules/realm/prebuilds/android/armeabi-v7a/share/cmake/Realm/AcquireRealmDependency.cmake
+--- a/node_modules/realm/prebuilds/android/armeabi-v7a/share/cmake/Realm/AcquireRealmDependency.cmake
++++ b/node_modules/realm/prebuilds/android/armeabi-v7a/share/cmake/Realm/AcquireRealmDependency.cmake
+@@ -31,1 +31,22 @@
++    # Pin Android OpenSSL downloads outside Gradle dependency verification.
++    # These are independently observed archive hashes, not historical release provenance.
++    set(_realm_download_verification_args)
++    if(ANDROID AND dep_name STREQUAL "openssl")
++        if(NOT dep_version STREQUAL "3.3.1")
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency version")
++        endif()
++        if(_target_architecture STREQUAL "armeabi-v7a")
++            set(_realm_expected_sha256 "f7ca33cda546c05ad9c258add4f98b6f8f9764d0883d868d93579b1bc2a80ac4")
++        elseif(_target_architecture STREQUAL "arm64-v8a")
++            set(_realm_expected_sha256 "54e4581c4b123d7f04842a6cec3f153838e8a52c9b162b2a2233efd868247610")
++        elseif(_target_architecture STREQUAL "x86")
++            set(_realm_expected_sha256 "f03642845c924a4f4c5e934494b10e3658dbaab5874339a0fe37b661e80adce8")
++        elseif(_target_architecture STREQUAL "x86_64")
++            set(_realm_expected_sha256 "ff64787be7ee2e29fef1d8341ff543f6d8aaa291a8fc7c2e3849d82a8c2ae6fa")
++        else()
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency architecture")
++        endif()
++        set(_realm_download_verification_args EXPECTED_HASH "SHA256=${_realm_expected_sha256}")
++    endif()
++
+     if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/include.cmake)
+@@ -33,2 +54,2 @@
+         message(STATUS "Getting ${DEP_URL}...")
+-        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" STATUS download_status)
++        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" ${_realm_download_verification_args} STATUS download_status)
+diff --git a/node_modules/realm/prebuilds/android/x86/share/cmake/Realm/AcquireRealmDependency.cmake b/node_modules/realm/prebuilds/android/x86/share/cmake/Realm/AcquireRealmDependency.cmake
+--- a/node_modules/realm/prebuilds/android/x86/share/cmake/Realm/AcquireRealmDependency.cmake
++++ b/node_modules/realm/prebuilds/android/x86/share/cmake/Realm/AcquireRealmDependency.cmake
+@@ -31,1 +31,22 @@
++    # Pin Android OpenSSL downloads outside Gradle dependency verification.
++    # These are independently observed archive hashes, not historical release provenance.
++    set(_realm_download_verification_args)
++    if(ANDROID AND dep_name STREQUAL "openssl")
++        if(NOT dep_version STREQUAL "3.3.1")
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency version")
++        endif()
++        if(_target_architecture STREQUAL "armeabi-v7a")
++            set(_realm_expected_sha256 "f7ca33cda546c05ad9c258add4f98b6f8f9764d0883d868d93579b1bc2a80ac4")
++        elseif(_target_architecture STREQUAL "arm64-v8a")
++            set(_realm_expected_sha256 "54e4581c4b123d7f04842a6cec3f153838e8a52c9b162b2a2233efd868247610")
++        elseif(_target_architecture STREQUAL "x86")
++            set(_realm_expected_sha256 "f03642845c924a4f4c5e934494b10e3658dbaab5874339a0fe37b661e80adce8")
++        elseif(_target_architecture STREQUAL "x86_64")
++            set(_realm_expected_sha256 "ff64787be7ee2e29fef1d8341ff543f6d8aaa291a8fc7c2e3849d82a8c2ae6fa")
++        else()
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency architecture")
++        endif()
++        set(_realm_download_verification_args EXPECTED_HASH "SHA256=${_realm_expected_sha256}")
++    endif()
++
+     if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/include.cmake)
+@@ -33,2 +54,2 @@
+         message(STATUS "Getting ${DEP_URL}...")
+-        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" STATUS download_status)
++        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" ${_realm_download_verification_args} STATUS download_status)
+diff --git a/node_modules/realm/prebuilds/android/x86_64/share/cmake/Realm/AcquireRealmDependency.cmake b/node_modules/realm/prebuilds/android/x86_64/share/cmake/Realm/AcquireRealmDependency.cmake
+--- a/node_modules/realm/prebuilds/android/x86_64/share/cmake/Realm/AcquireRealmDependency.cmake
++++ b/node_modules/realm/prebuilds/android/x86_64/share/cmake/Realm/AcquireRealmDependency.cmake
+@@ -31,1 +31,22 @@
++    # Pin Android OpenSSL downloads outside Gradle dependency verification.
++    # These are independently observed archive hashes, not historical release provenance.
++    set(_realm_download_verification_args)
++    if(ANDROID AND dep_name STREQUAL "openssl")
++        if(NOT dep_version STREQUAL "3.3.1")
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency version")
++        endif()
++        if(_target_architecture STREQUAL "armeabi-v7a")
++            set(_realm_expected_sha256 "f7ca33cda546c05ad9c258add4f98b6f8f9764d0883d868d93579b1bc2a80ac4")
++        elseif(_target_architecture STREQUAL "arm64-v8a")
++            set(_realm_expected_sha256 "54e4581c4b123d7f04842a6cec3f153838e8a52c9b162b2a2233efd868247610")
++        elseif(_target_architecture STREQUAL "x86")
++            set(_realm_expected_sha256 "f03642845c924a4f4c5e934494b10e3658dbaab5874339a0fe37b661e80adce8")
++        elseif(_target_architecture STREQUAL "x86_64")
++            set(_realm_expected_sha256 "ff64787be7ee2e29fef1d8341ff543f6d8aaa291a8fc7c2e3849d82a8c2ae6fa")
++        else()
++            message(FATAL_ERROR "Unreviewed Android Realm OpenSSL dependency architecture")
++        endif()
++        set(_realm_download_verification_args EXPECTED_HASH "SHA256=${_realm_expected_sha256}")
++    endif()
++
+     if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/include.cmake)
+@@ -33,2 +54,2 @@
+         message(STATUS "Getting ${DEP_URL}...")
+-        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" STATUS download_status)
++        file(DOWNLOAD "${DEP_URL}" "${CMAKE_CURRENT_BINARY_DIR}/${dep_name}/${dep_name}.tar.gz" ${_realm_download_verification_args} STATUS download_status)
