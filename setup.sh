@@ -1,9 +1,6 @@
-# enabling node core modules
-# adding node core modules support in react-native
+#!/bin/sh
+set -eu
+
+# Yarn's prepare hook runs on Android-only machines too. Keep it platform neutral;
+# CocoaPods and the Android SDK are configured explicitly in dev/local-backend/README.md.
 rn-nodeify --install buffer,events,process,stream,inherits,path,assert,crypto --hack --yarn
-
-# ios dependency installation
-cd ios && RCT_NEW_ARCH_ENABLED=1 pod install
-
-# android SDK location configuration
-cd ../android && touch local.properties && echo "sdk.dir = /Users/$(whoami)/Library/Android/sdk" >local.properties
