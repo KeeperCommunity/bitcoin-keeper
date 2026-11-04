@@ -21,6 +21,7 @@ import {
   HelpChatMetadata,
   HelpChatResponse,
   HelpEscalationCard,
+  ScreenshotAsset,
 } from 'src/models/interfaces/HelpAi';
 import Relay from 'src/services/backend/Relay';
 import { useQuery } from '@realm/react';
@@ -165,6 +166,7 @@ const HelpAiChat = ({ navigation, route }) => {
   const [typing, setTyping] = useState(false);
   const [lastFailedText, setLastFailedText] = useState<string | null>(null);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const lastScreenshotUrlsRef = useRef<ScreenshotAsset[]>([]);
 
   useEffect(() => {
     dispatch(createHelpAiThread({ conversationId }));
@@ -296,8 +298,9 @@ const HelpAiChat = ({ navigation, route }) => {
     }
   };
 
-  const submitDraftIssue = async () => {
+  const submitDraftIssue = async (screenshots: ScreenshotAsset[] = []) => {
     if (!draft || !chatMeta) return;
+    lastScreenshotUrlsRef.current = screenshots;
     if (!appId) {
       showToast('Missing app id. Please restart the app and try again.');
       return;
@@ -324,6 +327,7 @@ const HelpAiChat = ({ navigation, route }) => {
           platform: chatMeta.platform,
           device: chatMeta.device,
         },
+        screenshots: screenshots.length > 0 ? screenshots : undefined,
       });
 
       dispatch(incrementHelpAiIssueCount({ conversationId }));
@@ -524,7 +528,7 @@ const HelpAiChat = ({ navigation, route }) => {
                         setHelpAiDraftStatus({ conversationId, draftStatus: 'pending_review' })
                       )
                     }
-                    onRetry={submitDraftIssue}
+                    onRetry={() => submitDraftIssue(lastScreenshotUrlsRef.current)}
                   />
                 )}
               </>
