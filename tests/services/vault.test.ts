@@ -945,7 +945,10 @@ describe('Miniscript Vault: 2-of-3 w/ Inheritance Key', () => {
 });
 
 describe('Descriptor Parsing and Generation', () => {
-  const generateVaultFromDescriptor = async (descriptor: string) => {
+  const generateVaultFromDescriptor = async (
+    descriptor: string,
+    networkType: NetworkType = NetworkType.TESTNET
+  ) => {
     const parsed = parseTextforVaultConfig(descriptor);
 
     const vaultSigners: VaultSigner[] = [];
@@ -984,7 +987,7 @@ describe('Descriptor Parsing and Generation', () => {
       vaultDescription: vaultInfo.vaultDetails.description,
       scheme: vaultInfo.vaultScheme,
       signers: vaultSigners,
-      networkType: NetworkType.TESTNET,
+      networkType,
     });
 
     return vault;
@@ -1008,6 +1011,24 @@ describe('Descriptor Parsing and Generation', () => {
         },
       ],
     });
+  });
+
+  test('should parse BSMS derivation paths in h and apostrophe notation', () => {
+    const bsms =
+      "[ABCD1234/48h/1h/0h/2h]tpubexample [EF567890/m/84'/1'/0']tpubexample2";
+
+    expect(WalletUtilities.extractKeysFromBsms(bsms)).toEqual([
+      {
+        masterFingerprint: 'ABCD1234',
+        derivationPath: "m/48'/1'/0'/2'",
+        xpub: 'tpubexample',
+      },
+      {
+        masterFingerprint: 'EF567890',
+        derivationPath: "m/84'/1'/0'",
+        xpub: 'tpubexample2',
+      },
+    ]);
   });
 
   test('should return null for an invalid descriptor', () => {
@@ -1077,5 +1098,59 @@ describe('Descriptor Parsing and Generation', () => {
       'tb1qe52qy39s7p7uu4zyhljqx56x4wpze63h5n2hc6xt33zp9fzfvptsw3eavt'
     );
     expect(generateOutputDescriptors(vault)).toBe(descriptor);
+  });
+
+  test('should create a multi-sig vault with mixed derivation paths (e.g. m/48 and m/84)', async () => {
+    const mnemonics = [
+      'result pink oyster iron journey social winter pattern cricket core leader behave',
+      'frozen myself eternal matter attract frost slogan buffalo liberty another private twelve',
+      'keen credit hold warfare nasty address poverty roast novel ranch system nasty',
+      'absent beauty three bronze reduce runway oil girl decide juice point cruel',
+      'galaxy wealth badge cloud educate inquiry member timber shaft promote symptom sting',
+      'congress judge talent affair client lift dash canal utility among spin tube',
+      'grass journey few toilet rhythm day provide decline position weapon pave monitor',
+    ];
+    const keyExpressions = mnemonics.map((mnemonic, index) => {
+      const key = generateSeedWordsKey(
+        mnemonic,
+        NetworkType.TESTNET,
+        index !== mnemonics.length - 1
+      );
+      return `[${key.masterFingerprint}/${key.derivationPath
+        .substring(2)
+        .replaceAll("'", 'h')}]${key.xpub}/<0;1>/*`;
+    });
+    const descriptor = `wsh(sortedmulti(4,${keyExpressions.join(',')}))`;
+
+    const vault = await generateVaultFromDescriptor(descriptor);
+    expect(vault.signers.length).toEqual(7);
+    expect(vault.isMultiSig).toEqual(true);
+    expect(vault.signers.some((signer) => signer.derivationPath === "m/84'/1'/0'")).toBe(true);
+    expect(generateOutputDescriptors(vault, false, false)).toBe(descriptor);
+  });
+
+  test('should reject a non-standard derivation path for a single-sig vault', async () => {
+    const key = generateSeedWordsKey(
+      'midnight auction hello stereo such fault legal outdoor manual recycle derive like',
+      NetworkType.TESTNET,
+      false
+    );
+
+    await expect(
+      generateVault({
+        type: VaultType.SINGE_SIG,
+        vaultName: 'Imported wallet',
+        vaultDescription: 'Imported wallet',
+        scheme: { m: 1, n: 1 },
+        signers: [
+          {
+            ...key,
+            xfp: key.masterFingerprint,
+            derivationPath: "m/49'/1'/0'",
+          },
+        ],
+        networkType: NetworkType.TESTNET,
+      })
+    ).rejects.toThrow('Invalid derivation path for signer');
   });
 });
