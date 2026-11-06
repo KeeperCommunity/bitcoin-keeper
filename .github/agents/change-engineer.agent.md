@@ -133,6 +133,13 @@ git commit -m "chore: archive <name>"
 and moves the change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Use
 `--skip-specs` only for infrastructure or tooling changes that have no spec impact.
 
+Read and follow [the pull request review policy](../REVIEW_POLICY.md). Use the PR template to choose
+Skip provider review / Lite / Balanced from actual severity, uncertainty, scope and cost. Cloud review
+replaces mandatory human developer approval when warranted; humans remain optional. Use independent
+coverage only when actual risk/findings require it and installed scope/budget permit. Record the
+decision, checks, actual reviewed SHA/coverage and findings/dispositions. Retain required checks,
+security/native validation and operation-specific owner authorization; do not waive substantive concerns.
+
 Then open the PR:
 - Title: `feat: <description>` or `fix: <description> (closes #<N>)`
 - Body: link to the issue + paste the archived `proposal.md` Intent and Scope (or the

@@ -4,6 +4,12 @@ This repository uses a **ChatGPT → Codex Cloud → Codex Local (Mac)** workflo
 
 Repository: `KeeperCommunity/bitcoin-keeper`. Use `sprint` as the PR base unless the task explicitly specifies another base.
 
+## Review and contribution requirements
+
+Read and follow [.github/REVIEW_POLICY.md](.github/REVIEW_POLICY.md) before opening or updating a pull request. Use the PR template to choose Skip provider review / Lite / Balanced from actual severity, uncertainty, scope and cost. Cloud review replaces mandatory human developer approval when warranted; independent coverage is needed only when actual risk/findings require it and installed scope/budget permit. Record checks, the reason for skipping or the actual reviewed SHA/effort/coverage, and findings/dispositions. Do not turn drafts or every push into repeated provider requests; report unavailable routes and unresolved substantive security concerns honestly.
+
+Preserve existing repository conventions and user work. Complete feasible verification before delivery, scaled to the change; documentation changes require link, formatting and diff checks. Retain all required checks before merge; human developer review is optional. Product owner signoff and retrospective owner phone/Desktop/hardware acceptance remain separate from the exact-commit Codex Local validation required below.
+
 ## Codex Cloud: implement and prepare handoff
 
 1. Work in a task-specific branch; investigate, implement, add or update tests, and run suitable checks (for example, `npm run test` and `npm run lint`). Report actual pass/fail results; do not claim a native simulator was run unless it really was.
