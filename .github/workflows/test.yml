@@ -11,6 +11,7 @@ on:
       - sprint
       - dev
       - main
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -49,7 +50,14 @@ jobs:
         with:
           node-version: '22'
 
+      # Draft PRs must not invoke package.json prepare -> setup.sh -> CocoaPods.
+      # Keep the normal required Tests job; install/test errors still fail it.
+      - name: Install draft dependencies without lifecycle scripts
+        if: github.event_name == 'pull_request' && toJSON(github.event.pull_request.draft) != 'false'
+        run: yarn install --frozen-lockfile --ignore-scripts
+
       - name: Install dependencies
+        if: github.event_name != 'pull_request' || toJSON(github.event.pull_request.draft) == 'false'
         run: yarn install
 
       - name: Run tests

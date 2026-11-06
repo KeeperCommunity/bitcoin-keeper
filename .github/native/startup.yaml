@@ -1,0 +1,22 @@
+# Intentionally stop before persisting a PIN or generating any recovery material.
+appId: ${APP_ID}
+name: Disposable startup and passcode input
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible: Create a passcode
+    timeout: 180000
+- assertNotVisible: Confirm your passcode
+- tapOn:
+    id: key_1
+- tapOn:
+    id: key_2
+- tapOn:
+    id: key_3
+- tapOn:
+    id: key_4
+- assertVisible: Confirm your passcode
+- stopApp
