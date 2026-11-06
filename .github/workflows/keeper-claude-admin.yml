@@ -1,0 +1,110 @@
+name: Keeper Claude administrator preflight
+
+# Dormant until separately approved trusted installation on sprint. This
+# workflow never calls Anthropic, verifies production, or activates review.
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Read-only preflight or first inactive legacy-ledger initialization
+        type: choice
+        required: true
+        default: preflight
+        options:
+          - preflight
+          - initialize
+
+permissions:
+  contents: read
+
+jobs:
+  authorize-administrator:
+    if: >-
+      github.repository == 'KeeperCommunity/bitcoin-keeper' &&
+      github.ref == 'refs/heads/sprint' &&
+      vars.KEEPER_CLAUDE_REVIEW_ENABLED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      authorized: ${{ steps.authorize.outputs.authorized }}
+    steps:
+      - name: Checkout immutable trusted administrator code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: true
+      - name: Reject repository and organization credential fallbacks
+        # This job has NO environment. Only presence booleans enter the shell.
+        # Protected environment secrets must not also be available here.
+        run: |
+          if [ "$CREDENTIAL_FALLBACK_PRESENT" != 'false' ]; then
+            echo 'Remove repository/organization review-secret fallbacks before protected preflight.'
+            exit 1
+          fi
+        env:
+          CREDENTIAL_FALLBACK_PRESENT: >-
+            ${{ secrets.ANTHROPIC_API_KEY != '' ||
+                secrets.KEEPER_CLAUDE_API_KEY != '' ||
+                secrets.KEEPER_CLAUDE_STATE_KEY != '' ||
+                secrets.KEEPER_CLAUDE_LEDGER_APP_PRIVATE_KEY != '' }}
+      - name: Check current administrator and rerun-caller permissions
+        id: authorize
+        run: python3 -I -B .github/scripts/claude_review_admin.py --authorize
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          KEEPER_CLAUDE_REVIEW_ENABLED: ${{ vars.KEEPER_CLAUDE_REVIEW_ENABLED }}
+
+  protected-preflight:
+    needs: authorize-administrator
+    if: needs.authorize-administrator.outputs.authorized == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: keeper-claude-administrator
+      cancel-in-progress: false
+    environment: keeper-claude-review
+    steps:
+      - name: Checkout the same immutable administrator code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: true
+      - name: Recheck current administrators and protected branch policy
+        run: |
+          python3 -I -B .github/scripts/claude_review_admin.py --authorize
+          python3 -I -B .github/scripts/claude_review.py --check-environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          KEEPER_CLAUDE_REVIEW_ENABLED: ${{ vars.KEEPER_CLAUDE_REVIEW_ENABLED }}
+      - name: Mint token for only the separate ledger repository
+        id: ledger-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: 5313951 # Canonical Keeper Review Ledger App; configuration cannot substitute it.
+          private-key: ${{ secrets.KEEPER_CLAUDE_LEDGER_APP_PRIVATE_KEY }}
+          owner: KeeperCommunity
+          repositories: KeeperCommunity-keeper-review-ledger
+          permission-contents: write
+          permission-administration: read
+      - name: Check saved configuration or initialize inactive historical debt
+        # The choice is data passed through env, never interpolated into code.
+        # The API key's value is never bound; presence cannot prove key validity.
+        run: |
+          case "$ADMIN_OPERATION" in
+            preflight) python3 -I -B .github/scripts/claude_review_admin.py --preflight ;;
+            initialize) python3 -I -B .github/scripts/claude_review_admin.py --initialize ;;
+            *) echo 'Invalid administrator operation'; exit 1 ;;
+          esac
+        env:
+          ADMIN_OPERATION: ${{ inputs.operation }}
+          GITHUB_TOKEN: ${{ github.token }}
+          KEEPER_CLAUDE_REVIEW_ENABLED: ${{ vars.KEEPER_CLAUDE_REVIEW_ENABLED }}
+          KEEPER_CLAUDE_API_KEY_PRESENT: ${{ secrets.KEEPER_CLAUDE_API_KEY != '' }}
+          KEEPER_CLAUDE_STATE_KEY: ${{ secrets.KEEPER_CLAUDE_STATE_KEY }}
+          KEEPER_CLAUDE_LEDGER_TOKEN: ${{ steps.ledger-token.outputs.token }}
+          KEEPER_CLAUDE_LEDGER_EPOCH: ${{ vars.KEEPER_CLAUDE_LEDGER_EPOCH }}
+          KEEPER_CLAUDE_LEDGER_APP_ID: ${{ vars.KEEPER_CLAUDE_LEDGER_APP_ID }}

@@ -1,0 +1,25 @@
+name: Claude reviewer safety tests
+
+on:
+  pull_request:
+    branches: [sprint]
+    paths:
+      - '.github/scripts/claude_review*.py'
+      - '.github/scripts/test_claude_review*.py'
+      - '.github/scripts/claude_review_legacy.json'
+      - '.github/workflows/keeper-claude-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reviewer-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Test hostile PR data and payment state without credentials
+        run: python3 -I -m unittest discover -s .github/scripts -p 'test_claude_review*.py' -v

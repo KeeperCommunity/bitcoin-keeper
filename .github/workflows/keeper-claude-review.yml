@@ -1,0 +1,101 @@
+name: Keeper independent Claude review
+
+# Privileged workflow comes from sprint, never the PR's merge ref.
+# synchronize catches documentation-only PRs that subsequently add code.
+on:
+  pull_request_target:
+    branches: [sprint]
+    types: [opened, reopened, ready_for_review, synchronize, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  authorize-review:
+    name: Authorize review without credentials
+    if: >-
+      vars.KEEPER_CLAUDE_REVIEW_ENABLED == 'true' &&
+      ((github.event_name == 'pull_request_target' &&
+       !github.event.pull_request.draft &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+       startsWith(github.event.comment.body, '/claude-review ')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      authorized: ${{ steps.authorize.outputs.authorized }}
+    steps:
+      - name: Checkout trusted authorization code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: true
+      - name: Reconcile current maintainer permissions before environment access
+        id: authorize
+        run: python3 -I .github/scripts/claude_review.py --authorize
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  independent-review:
+    name: Independent Claude code review
+    needs: authorize-review
+    if: needs.authorize-review.outputs.authorized == 'true'
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: keeper-claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+      # Only eligible jobs enter the lock; preserve any in-flight paid request.
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Configure this environment to allow ONLY the sprint branch, no tags.
+    # Keep all three keys here; never use repository/organization fallbacks.
+    environment: keeper-claude-review
+    steps:
+      - name: Checkout trusted reviewer only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Both events use their immutable trusted branch SHA. PR.base.sha
+          # can remain stale after sprint advances; never select code from it.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: true
+
+      - name: Verify protected credential environment before secret use
+        run: python3 -I .github/scripts/claude_review.py --check-environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Mint narrowly scoped protected payment-state token
+        id: ledger-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: 5313951 # Canonical Keeper Review Ledger App; configuration cannot substitute it.
+          private-key: ${{ secrets.KEEPER_CLAUDE_LEDGER_APP_PRIVATE_KEY }}
+          owner: KeeperCommunity
+          repositories: KeeperCommunity-keeper-review-ledger
+          permission-contents: write
+          # Read-only rule inspection; never grant administration write.
+          # Verify full bypass-actor visibility with this exact App token.
+          permission-administration: read
+
+      - name: Review immutable PR data with tool-free Claude Sonnet 5.5
+        # No PR strings enter shell code. Only trusted Python reads the event.
+        run: python3 -I .github/scripts/claude_review.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.KEEPER_CLAUDE_API_KEY }}
+          KEEPER_CLAUDE_STATE_KEY: ${{ secrets.KEEPER_CLAUDE_STATE_KEY }}
+          KEEPER_CLAUDE_LEDGER_TOKEN: ${{ steps.ledger-token.outputs.token }}
+          KEEPER_CLAUDE_LEDGER_EPOCH: ${{ vars.KEEPER_CLAUDE_LEDGER_EPOCH }}
+          KEEPER_CLAUDE_LEDGER_APP_ID: ${{ vars.KEEPER_CLAUDE_LEDGER_APP_ID }}

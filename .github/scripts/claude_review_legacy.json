@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "repository": "KeeperCommunity/bitcoin-keeper",
+  "epoch": "fd24ddf2e3336ed75c3ef376a8a14f8c",
+  "app_id": 5313951,
+  "initial_main": "a330fe03b8169c31e05dabf3401a2a0c41cf17ab",
+  "attempts": [
+    {
+      "id": "451e9b890bcbddf3538c11fe1437f85c",
+      "pr": 7049,
+      "request": "audit-75d5c994211cdc0528bdc19907b566d2e917a31f",
+      "head": null,
+      "base": null,
+      "status": "started",
+      "run": "38207447420",
+      "reservation": "3.00",
+      "legacy": true
+    },
+    {
+      "id": "0d3d68ad6663434ba3981fb760abc59a",
+      "pr": 7049,
+      "request": "audit-50bc84dac23bd56d13d8644e2073b803c3f213ad",
+      "head": null,
+      "base": null,
+      "status": "started",
+      "run": "38207549379",
+      "reservation": "3.00",
+      "legacy": true
+    },
+    {
+      "id": "ce09d7acde2c2282547cb6226a00c68e",
+      "pr": 7049,
+      "request": "audit-a5777476025d4cdafed7b9aefe30b119e9de52d1",
+      "head": null,
+      "base": null,
+      "status": "started",
+      "run": "38207785685",
+      "reservation": "3.00",
+      "legacy": true
+    },
+    {
+      "id": "c98f1c81cb123ff9d3af536ce9b8a7f7",
+      "pr": 7049,
+      "request": "audit-1f2d88771eab7103c25a37799c36b0f6f7a113bc",
+      "head": "d4a7c5a8998e6bde18e3b7855405c16a2264068f",
+      "base": "53f0ddd01e594c63e3c8d38824a6c2fc2e05c101",
+      "status": "started",
+      "run": "38212999038",
+      "reservation": "3.00",
+      "legacy": true
+    },
+    {
+      "id": "0708c5de1983b3f9bf08264ded9285b3",
+      "pr": 7049,
+      "request": "audit-db3b698f48c3eeb9fe10e701a0e89e3a46c079c1",
+      "head": "35d6886be4a51c6317b65ce4e4d8256c15be651e",
+      "base": "53f0ddd01e594c63e3c8d38824a6c2fc2e05c101",
+      "status": "started",
+      "run": "38213428947",
+      "reservation": "3.00",
+      "legacy": true
+    },
+    {
+      "id": "87125839ca3769ea9ed84444d6819573",
+      "pr": 7049,
+      "request": "audit-68d872888bc0c6e30e0e41c2ecb25e65818d3fc8",
+      "head": "9723f0e72889c7a56a39d4b5cb3539d1b4e60ade",
+      "base": "53f0ddd01e594c63e3c8d38824a6c2fc2e05c101",
+      "status": "started",
+      "run": "38214221834",
+      "reservation": "3.00",
+      "legacy": true
+    },
+    {
+      "id": "2675f53e3939e9f023471d8f4ee68dd5",
+      "pr": 7049,
+      "request": "audit-baf84c688aa6f8aadb63ad9852df8bc9c5b05c73",
+      "head": "bec965afc8f388429e4080625dfebf8fea09cd52",
+      "base": "53f0ddd01e594c63e3c8d38824a6c2fc2e05c101",
+      "status": "started",
+      "run": "38216234718",
+      "reservation": "3.00",
+      "legacy": true
+    }
+  ],
+  "excluded_no_call_runs": [
+    "38214836557"
+  ],
+  "evidence": {
+    "basis": "Conservative reservation import, not billing authentication or proof of completed review.",
+    "uncertain_legacy": "The first three tool-enabled runs lack captured historical base tips; neither head nor base is asserted for them.",
+    "snapshot_claims": "Four tool-free snapshots are corroborated by immutable fixed-head harnesses and public output; old HMAC signatures and provider billing remain unverified.",
+    "excluded_no_call": "Run 38214836557 executes immutable aa335f138de92a2667a106ca75e08edd48912ea2, rejects every Anthropic-origin request, asserts deduplicated reuse of run 38214221834, and succeeds.",
+    "runs": [
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38207447420",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38207549379",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38207785685",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38212999038",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38213428947",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38214221834",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38214836557",
+      "https://github.com/KeeperCommunity/bitcoin-keeper/actions/runs/38216234718"
+    ],
+    "exclusion_source": "https://github.com/KeeperCommunity/bitcoin-keeper/blob/aa335f138de92a2667a106ca75e08edd48912ea2/.github/workflows/keeper-claude-review-smoke.yml",
+    "historical_cost_limit": "These $3 reservations do not establish a $3 cap for prior unsafe agent-action runs; actual repeats/turns may require additional debt reconciliation before production verification."
+  }
+}

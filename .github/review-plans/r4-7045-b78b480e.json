@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "status": "BLOCKED_UNTIL_PRODUCTION_VERIFIED",
+  "kind": "PROPOSAL_ONLY_NOT_REVIEW_EVIDENCE",
+  "repository": "KeeperCommunity/bitcoin-keeper",
+  "pr": 7045,
+  "head": "b78b480eb4223390b2d17073387f9887d2e35f95",
+  "base_tip": "53f0ddd01e594c63e3c8d38824a6c2fc2e05c101",
+  "diff_merge_base": "53f0ddd01e594c63e3c8d38824a6c2fc2e05c101",
+  "head_tree": "9a05ca435c99459ee54058ce194010488e1142b8",
+  "reviewer_candidate_pr": 7049,
+  "reviewer_candidate_head": "bec965afc8f388429e4080625dfebf8fea09cd52",
+  "model": "claude-sonnet-5-5",
+  "draft": true,
+  "total_commits": 142,
+  "changed_file_count": 269,
+  "raw_patch_utf8_bytes": 1234024,
+  "full_diff_json_bytes": 1321004,
+  "system_bytes": 942,
+  "full_diff_plus_system_bytes": 1321946,
+  "batch_count": 7,
+  "batch_planning_diff_plus_system_bytes_cap": 300000,
+  "production_input_bytes_cap": 400000,
+  "production_changed_files_cap": 200,
+  "production_changed_source_bytes_cap": 100000,
+  "per_run_usd_cap": 3,
+  "first_pass_runs": 7,
+  "first_pass_usd_ceiling": 21,
+  "budget_note": "Seven first-pass fixed-head batches are a coverage proposal, not seven retries or spending authorization. Each needs exact free-token-count/request-envelope validation before an authorized paid run. No paid call, activation or review has occurred in preparing this manifest. $21 is the planning ceiling at seven times $3, not permission to spend it. Retries and follow-up rounds need explicit, bounded session intent and preserved append-only claims.",
+  "eligibility_blockers": [
+    "Production credential isolation/setup and trusted trigger behavior remain unverified; PR #7049 must not be activated.",
+    "Current production reviewer rejects draft PRs and >200-file full comparisons; direct commands cannot review this 269-file draft.",
+    "No trusted immutable manifest/batch runner currently exists. Do not mark R4 ready or raise the global file/input cap merely to bypass eligibility.",
+    "Seven batches exceed the fixed normal two/head and three/PR payment caps. No scoped grant or trusted batch runner is implemented; ordinary commands cannot authorize or run this plan."
+  ],
+  "gates_before_paid_review": [
+    "Administrator rotated environment-only credentials, protected sprint-only environment, secret exposure cleanup and durable ledger/spending controls independently verified.",
+    "User approves any future deployment/switch required for activation. This request does not authorize merge, release or disabling Copilot.",
+    "After activation, separately review a minimal trusted fixed-source batch/session path retaining tool-free execution, pinned actions, exact immutable source and no PR code execution.",
+    "Before first payment, verify live R4 head/base still equal this manifest; recompute patch hashes, source blob SHAs and disjoint exhaustive membership. Invalidate/regenerate this manifest for any changed head/base.",
+    "Freeze one authorized seven-batch first-pass session with explicit cumulative spend ceiling, unique per-batch claims and no automatic paid retries. Keep Copilot enabled.",
+    "Review complete exact patches and targeted immutable cross-batch context within each envelope; report source omissions without claiming full-source inspection.",
+    "Record each batch as complete/incomplete/stale with head/base/manifest/batch identity, model, token usage, reservation/cost and finding dispositions.",
+    "Resolve significant findings in source, then run appropriate Cloud regressions and independent focused re-review of changed source before another local-validation attempt. Changed code produces a new SHA and requires refreshed exact-head coverage/handoff."
+  ],
+  "context_plan": {
+    "01_backup_restore_consent": [
+      "src/store/sagas/bhr.ts",
+      "src/services/backup/image.ts",
+      "src/services/backup/repair.ts",
+      "src/services/backup/restore.ts",
+      "src/services/backup/transport.ts"
+    ],
+    "02_wallet_lifecycle_faucet_collaborative": [
+      "src/store/sagas/wallets.ts",
+      "src/hooks/useCollaborativeWalletHandoff.ts",
+      "src/components/KeeperModal.tsx"
+    ],
+    "cross_batch_note": "Backup/account and wallet/faucet ownership must be checked together using captured immutable context; vault signer, channel and store interactions likewise require explicit context or an independent integration follow-up. Context sizes above are not paid prompt measurements; exact JSON-encoded bytes and token count must be rechecked."
+  },
+  "source_context_omissions": [
+    {
+      "path": "ios/Podfile.lock",
+      "bytes": 108801,
+      "reason": "Head source exceeds the existing 100KB optional-source cap. Full patch is present in its assigned batch; neighboring/full unchanged content needs separate human review or a reviewed bounded context plan."
+    },
+    {
+      "path": "src/context/Localization/language/en.json",
+      "bytes": 159536,
+      "reason": "Head source exceeds the existing 100KB optional-source cap. Full patch is present in its assigned batch; neighboring/full unchanged content needs separate human review or a reviewed bounded context plan."
+    },
+    {
+      "path": "src/context/Localization/language/es.json",
+      "bytes": 158588,
+      "reason": "Head source exceeds the existing 100KB optional-source cap. Full patch is present in its assigned batch; neighboring/full unchanged content needs separate human review or a reviewed bounded context plan."
+    },
+    {
+      "path": "yarn.lock",
+      "bytes": 627240,
+      "reason": "Head source exceeds the existing 100KB optional-source cap. Full patch is present in its assigned batch; neighboring/full unchanged content needs separate human review or a reviewed bounded context plan."
+    }
+  ],
+  "human_review_limits": [
+    "269 changed files have complete non-empty API patches with addition/deletion counts matching metadata; all appear exactly once in this proposal.",
+    "No patch exclusion is proposed. Full-source omissions above and unchanged neighboring files are explicit coverage limitations.",
+    "Advisory Claude results do not satisfy native/hardware acceptance, source approvals, local-validation or release authority."
+  ],
+  "native_validation": {
+    "state": "BLOCKED",
+    "head": "b78b480eb4223390b2d17073387f9887d2e35f95",
+    "status_context": "keeper/local-validation",
+    "status": "failure",
+    "latest_comment": "https://github.com/KeeperCommunity/bitcoin-keeper/pull/7045#issuecomment-6120010043",
+    "summary": "Current local attempt failed to produce/install either app after disk/dependency interruptions; no native scenarios or physical signer checks passed. Docker/service and phone/signer availability remain blocked. Do not attempt native validation again before significant independent review findings are resolved."
+  },
+  "provenance": {
+    "compare_url": "https://api.github.com/repos/KeeperCommunity/bitcoin-keeper/compare/53f0ddd01e594c63e3c8d38824a6c2fc2e05c101...b78b480eb4223390b2d17073387f9887d2e35f95",
+    "head_tree_url": "https://api.github.com/repos/KeeperCommunity/bitcoin-keeper/git/trees/9a05ca435c99459ee54058ce194010488e1142b8?recursive=1",
+    "file_inventory": "GitHub pull/7045 files pages 1..3, 100 per page; head/base/draft rechecked unchanged after inventory; immutable tree SHA/modes/blob SHAs validated.",
+    "measurement": "UTF-8 raw patch bytes and Python json.dumps(ensure_ascii=True) compatible formatting of production collect() diff records, including context_unavailable placeholders, plus the candidate SYSTEM. Batch/session metadata and optional source will add bytes; each proposal remains below 300KB before those additions.",
+    "patch_hash_encoding": "SHA-256 of exact GitHub API patch string encoded as UTF-8, without an added trailing newline.",
+    "check_timestamp": "2026-10-12",
+    "inventory_layout": "Each batch files_manifest is relative to this plan and bound by SHA-256 of exact UTF-8 file bytes. Verify all seven artifacts and their shared immutable snapshot before use. Split inventories avoid GitHub omitting oversized individual patches."
+  },
+  "batches": [
+    {
+      "name": "01_backup_restore_consent",
+      "count": 36,
+      "patchBytes": 283953,
+      "diffJsonBytes": 297797,
+      "totalInputBytes": 298739,
+      "scope": "Recovery serialization/restore/repair, per-account registration/consent, asynchronous account ownership and corresponding tests.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/01_backup_restore_consent.json",
+      "files_manifest_sha256": "9101df071e8780f1465ef24e560e348b6fa4a7c27067253c3c079b207283b7c4"
+    },
+    {
+      "name": "02_wallet_lifecycle_faucet_collaborative",
+      "count": 61,
+      "patchBytes": 259131,
+      "diffJsonBytes": 278132,
+      "totalInputBytes": 279074,
+      "scope": "Fresh onboarding, faucet receipt, wallet/UTXO refresh, PIN/session boundaries, collaborative modal handoff and account isolation.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/02_wallet_lifecycle_faucet_collaborative.json",
+      "files_manifest_sha256": "09fa40cc764a748b2e9299e10d7d167db14d117381d628fd2f214248d342215c"
+    },
+    {
+      "name": "03_vault_inheritance",
+      "count": 24,
+      "patchBytes": 110897,
+      "diffJsonBytes": 118474,
+      "totalInputBytes": 119416,
+      "scope": "Vault policy, inheritance/emergency/reserve timelocks, migration, signing-device boundaries and release inheritance acceptance plan.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/03_vault_inheritance.json",
+      "files_manifest_sha256": "6baa8da57f1cb1344ab15f65826a4ca044f0c95b799396157c11176255c701cc"
+    },
+    {
+      "name": "04_channel_node_network",
+      "count": 31,
+      "patchBytes": 101518,
+      "diffJsonBytes": 110765,
+      "totalInputBytes": 111707,
+      "scope": "Desktop/mobile channel crypto, QR/deep links, Electrum/Tor/custom node failover and request configuration.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/04_channel_node_network.json",
+      "files_manifest_sha256": "c90e41b359c945b7ea46212d69c12b7f2df19f819b4312aba99152562b347dc2"
+    },
+    {
+      "name": "05_usdt_swap_ask_navigation",
+      "count": 32,
+      "patchBytes": 149898,
+      "diffJsonBytes": 161437,
+      "totalInputBytes": 162379,
+      "scope": "USDT pause/history/confirmed chain state, swap removal, Ask Keeper/navigation and localized copy.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/05_usdt_swap_ask_navigation.json",
+      "files_manifest_sha256": "3855c0e8af58c705b70284c8b4420e759823ab8ad4ad4cc30192bf63e81095aa"
+    },
+    {
+      "name": "06_native_release_dependencies",
+      "count": 44,
+      "patchBytes": 182479,
+      "diffJsonBytes": 197678,
+      "totalInputBytes": 198620,
+      "scope": "iOS/Android build/config/permissions, dependency lockfiles, channel/artifact/release preflight and reproducibility tooling.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/06_native_release_dependencies.json",
+      "files_manifest_sha256": "cdb305ba3f5de36ac1123efa9ab3c55b966925dfee9eb51699bc41a33af013b7"
+    },
+    {
+      "name": "07_contributor_backend_ci",
+      "count": 41,
+      "patchBytes": 146148,
+      "diffJsonBytes": 157777,
+      "totalInputBytes": 158719,
+      "scope": "Contributor setup, pinned disposable backend/CI, workflow/policy and backup design/evidence documents.",
+      "first_pass_attempt_limit": 1,
+      "per_run_usd_cap": 3,
+      "files_manifest": "r4-7045-b78b480e/07_contributor_backend_ci.json",
+      "files_manifest_sha256": "c6330d01a83f5b7e8e052bad2f581e7b979e36355ac4686f5e85ad51e5457d8c"
+    }
+  ],
+  "reviewer_candidate_head_note": "Starting audited candidate; this proposal travels in the fixing PR #7049. Use its final approved exact infrastructure SHA before future execution."
+}
