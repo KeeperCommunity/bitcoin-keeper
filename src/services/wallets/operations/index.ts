@@ -107,11 +107,10 @@ const updateInputsForFeeCalculation = (
         // Match only top-level placeholders that aren't signatures
         let witnessKeyCount = (asm.replace(/<sig\([^)]+\)>/g, '').match(/<[^>]+>/g) || []).length;
 
-        const cleanAsm = asm
-          .replace(/<[^>]+>/g, '')
-          .replace(/[()>]/g, '')
-          .trim();
-        const addedElements = cleanAsm.split(' ').filter((x) => x).length;
+        // The satisfier emits literal 0/1 selectors as complete space-separated tokens.
+        const addedElements = asm
+          .split(' ')
+          .filter((element) => element === '0' || element === '1').length;
 
         if (isTaproot || isNativeSegwit) {
           const miniscript = (wallet as Vault).scheme?.miniscriptScheme.miniscript;
