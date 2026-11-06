@@ -1,6 +1,6 @@
 # Bitcoin Keeper: Codex workflow
 
-This repository uses a **ChatGPT → Codex Cloud → Codex Local (Mac)** workflow for coding tasks. The GitHub pull request is the durable handoff between stages. Do **not** rely on one agent having access to another agent's conversation, unpushed changes, machine, or installed tools.
+This repository uses a **Cloud code complete → hosted native validation → short Mac session for physical checks/signing after approval → release review** workflow. Local native testing remains a fallback when hosted validation is unavailable. The GitHub pull request is the durable handoff between stages. Do **not** rely on one agent having access to another agent's conversation, unpushed changes, machine, or installed tools.
 
 Repository: `KeeperCommunity/bitcoin-keeper`. Use `sprint` as the PR base unless the task explicitly specifies another base.
 
@@ -26,7 +26,7 @@ Repository: `KeeperCommunity/bitcoin-keeper`. Use `sprint` as the PR base unless
    ```
 
 4. For app/code changes, `Required local checks` must list one or more of `IOS`, `ANDROID`, `HARDWARE` (comma-separated). Use both iOS and Android for cross-platform changes; add hardware for signer/device interactions. If no Mac tests are necessary, explain why, but the GitHub gate exempts only documentation and `.github/` changes. The handoff must name the actual PR head commit SHA after the final cloud push.
-5. Return the PR URL/number and state `NEEDS_LOCAL` to the user so ChatGPT can generate the exact local handoff prompt. Continue unrelated cloud tasks while waiting for a Mac.
+5. Return the PR URL/number and actual platform `PASS`/`FAIL`/`NOT RUN` results for the current head. Use `NEEDS_LOCAL` for remaining native or physical requirements; successful trusted hosted evidence may satisfy `IOS`/`ANDROID` without a Mac login. Continue unrelated cloud tasks while waiting for a Mac. Follow [hosted native validation](docs/hosted-native-validation.md) for trust, bootstrap, scope and artifact limitations.
 6. If a task needs only code review, explicitly state why local testing is not required rather than silently skipping it.
 
 ## Codex Local (Mac): validate the PR
@@ -84,6 +84,6 @@ A known critical defect is not eligible for post-release deferral. In particular
 
 ## GitHub merge gate
 
-The `.github/workflows/keeper-local-validation.yml` workflow posts commit status `keeper/local-validation` for the current PR head SHA. For code changes, it remains failing until a repository collaborator posts a `Codex local validation` comment with `State: LOCAL_PASSED`, the **exact current commit SHA**, and `pass` for every platform named by `Required local checks`, except `HARDWARE` when the exact-SHA owner decision above defers unrun physical checks. New commits invalidate previous local sign-off and deferral. Documentation and `.github/`-only PRs are exempt from Mac tests.
+The `.github/workflows/keeper-local-validation.yml` workflow posts commit status `keeper/local-validation` for the current PR head SHA. For code changes, it requires a trusted exact-head Cloud handoff. Each required `IOS`/`ANDROID` platform needs either a genuine successful hosted native build **and** disposable UI smoke from `.github/workflows/keeper-hosted-native.yml`, or a repository collaborator's exact-head `LOCAL_PASSED` report. A hosted run is trusted only when its workflow and complete `.github/native/` harness match the protected current base and the run's original base; PR-authored check names, comments and artifacts alone are not CI evidence. New or changed CI infrastructure must first be reviewed and merged before it can provide authoritative native evidence. The latest run/attempt must contain successful build and smoke steps for that platform; stale, skipped, cancelled, pending, build-only or untrusted evidence supplies no hosted pass. A latest explicit local failure remains blocking. `HARDWARE` still requires the existing local physical result or exact-SHA owner decision and subsequent honest local report above. New commits invalidate previous native evidence, local sign-off and deferral. Documentation and `.github/`-only PRs are exempt from Mac tests.
 
 This workflow **reports** a status; to **enforce** it, repository administrators must require the `keeper/local-validation` commit status for merges to `sprint` in GitHub Rulesets or branch protection. Require the existing `Tests` CI check as well. This is a review/test gate, not a guarantee that tests were actually executed; agents must report actual results truthfully. Release signing, TestFlight, Play Store, and production deployment remain separate and require explicit user approval.

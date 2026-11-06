@@ -7,21 +7,25 @@ on:
     types: [opened, reopened, synchronize, edited, ready_for_review]
   issue_comment:
     types: [created, edited, deleted]
+  workflow_run:
+    workflows: [Keeper hosted native validation]
+    types: [completed, requested, in_progress]
 
 permissions:
   contents: read
   issues: read
   pull-requests: read
+  actions: read
   statuses: write
 
 concurrency:
-  group: keeper-local-validation-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: keeper-local-validation-${{ github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
   keeper-local-validation:
     name: Keeper local validation gate
-    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request != null
+    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request != null || github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Verify local validation for exact PR commit
@@ -30,7 +34,9 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const pull_number = context.payload.pull_request?.number ?? context.issue.number;
+            const pull_number = context.payload.pull_request?.number ??
+              context.payload.workflow_run?.pull_requests?.[0]?.number ?? context.issue.number;
+            if (!pull_number) return;
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
             if (pr.base.ref !== 'sprint') {
               core.info('Only PRs targeting sprint use this validation gate.');
@@ -87,6 +93,75 @@ jobs:
               return allowed;
             };
 
+            // PR workflows are editable by the PR author. A successful check name
+            // alone is NOT evidence. All executable CI files must match both the
+            // protected current base and the base used by that particular run.
+            // This intentionally rejects this infrastructure PR's bootstrap runs.
+            const hostedPasses = async () => {
+              const passed = new Set();
+              try {
+                const workflowPath = '.github/workflows/keeper-hosted-native.yml';
+                const repository = owner + '/' + repo;
+                if (pr.head.repo?.full_name !== repository) return passed;
+                const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                  owner, repo, workflow_id: 'keeper-hosted-native.yml',
+                  head_sha: sha, event: 'pull_request', per_page: 100
+                });
+                // Do not fall back to an older success after a failed/cancelled
+                // rerun or while newer evidence is pending.
+                const run = runs.sort((a, b) => b.id - a.id)[0];
+                if (!run || run.head_sha !== sha || run.event !== 'pull_request' ||
+                    run.path !== workflowPath || run.head_branch !== pr.head.ref ||
+                    run.head_repository?.full_name !== repository ||
+                    run.status !== 'completed' || !['success', 'failure'].includes(run.conclusion)) {
+                  return passed;
+                }
+                const linked = run.pull_requests?.find(p => p.number === pull_number);
+                if (!linked || linked.head?.sha !== sha || linked.head?.ref !== pr.head.ref ||
+                    linked.base?.ref !== 'sprint' || !linked.base?.sha ||
+                    linked.head?.repo?.id !== pr.head.repo.id ||
+                    linked.base?.repo?.id !== pr.base.repo?.id ||
+                    !pr.head.repo.id || !pr.base.repo?.id ||
+                    !Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1) return passed;
+                const fingerprint = async ref => {
+                  const { data } = await github.rest.git.getTree({ owner, repo, tree_sha: ref, recursive: '1' });
+                  if (data.truncated) throw new Error('Truncated trusted CI tree');
+                  const entries = data.tree.filter(e => e.path === workflowPath ||
+                    e.path.startsWith('.github/native/'));
+                  if (!entries.some(e => e.path === workflowPath) ||
+                      !entries.some(e => e.path.startsWith('.github/native/') && e.type === 'blob')) {
+                    throw new Error('Hosted native infrastructure not present in trusted base');
+                  }
+                  return JSON.stringify(entries.map(e => [e.path, e.mode, e.type, e.sha])
+                    .sort((a, b) => a[0].localeCompare(b[0])));
+                };
+                const [headFiles, baseFiles, runBaseFiles] = await Promise.all([
+                  fingerprint(sha), fingerprint(pr.base.sha), fingerprint(linked.base.sha)
+                ]);
+                if (headFiles !== baseFiles || headFiles !== runBaseFiles) return passed;
+                const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt, {
+                  owner, repo, run_id: run.id, attempt_number: run.run_attempt, per_page: 100
+                });
+                for (const [platform, name] of [['IOS', 'Hosted iOS simulator'],
+                  ['ANDROID', 'Hosted Android emulator']]) {
+                  const matches = jobs.filter(j => j.name === name);
+                  if (matches.length !== 1) continue;
+                  const job = matches[0];
+                  if (job.head_sha !== sha || job.run_id !== run.id || job.run_attempt !== run.run_attempt ||
+                      job.status !== 'completed' || job.conclusion !== 'success') continue;
+                  const steps = ['Build development app', 'Run disposable startup smoke'];
+                  if (steps.every(name => job.steps?.filter(s => s.name === name &&
+                      s.status === 'completed' && s.conclusion === 'success').length === 1)) {
+                    passed.add(platform);
+                    core.info(platform + ' hosted evidence: ' + run.html_url + ', attempt ' + run.run_attempt);
+                  }
+                }
+              } catch (err) {
+                core.warning('Hosted evidence unavailable; local fallback retained: ' + err.message);
+              }
+              return passed;
+            };
+
             let state = 'failure';
             let description = 'Awaiting local Mac validation';
             if (docsOnly) {
@@ -129,6 +204,7 @@ jobs:
                 if (malformed) {
                   description = 'Specify Required local checks: IOS, ANDROID, HARDWARE';
                 } else {
+                  const hosted = await hostedPasses();
                   // Only the release owner can defer unrun physical checks. Keep
                   // every original handoff intact, and bind the newest owner
                   // decision to this PR and this exact head commit.
@@ -165,9 +241,7 @@ jobs:
                       break;
                     }
                   }
-                  if (!report) {
-                    description = 'Awaiting trusted Mac validation of current SHA';
-                  } else if (field(report, 'State') !== 'LOCAL_PASSED') {
+                  if (report && field(report, 'State') !== 'LOCAL_PASSED') {
                     description = 'Latest local validation is not LOCAL_PASSED';
                   } else {
                     const reportFields = {
@@ -179,10 +253,12 @@ jobs:
                     const hardwareDeferred = required.has('HARDWARE') && hardwareDeferral &&
                       reportIndex > ownerDecisionIndex &&
                       /^(not run|deferred)\b/i.test(hardwareResult);
-                    const notPassed = [...required].filter(x =>
-                      !/^pass\b/i.test(field(report, reportFields[x])) &&
-                      !(x === 'HARDWARE' && hardwareDeferred)
-                    );
+                    const notPassed = [...required].filter(x => {
+                      const result = field(report, reportFields[x]);
+                      if (/^fail(?:ed)?\b/i.test(result)) return true;
+                      return !/^pass\b/i.test(result) && !hosted.has(x) &&
+                        !(x === 'HARDWARE' && hardwareDeferred);
+                    });
                     if (hardwareDeferred && !required.has('IOS') && !required.has('ANDROID')) {
                       description = 'IOS or ANDROID required before HARDWARE deferral';
                     } else if (notPassed.length) {
@@ -190,9 +266,10 @@ jobs:
                     } else {
                       state = 'success';
                       const passed = [...required].filter(x =>
-                        /^pass\b/i.test(field(report, reportFields[x]))
+                        /^pass\b/i.test(field(report, reportFields[x])) || hosted.has(x)
                       );
                       description = 'Validated at current SHA: ' + passed.join(', ') +
+                        (hosted.size ? '; hosted ' + [...hosted].join(', ') : '') +
                         (hardwareDeferred ? '; owner-deferred HARDWARE' : '');
                     }
                   }
@@ -200,6 +277,13 @@ jobs:
               }
             }
 
+            // API reads above can take time. Never post a success for a head that
+            // changed while evidence was being collected.
+            const { data: current } = await github.rest.pulls.get({ owner, repo, pull_number });
+            if (current.head.sha !== sha) {
+              core.setFailed('PR head changed during validation; awaiting new-head evaluation');
+              return;
+            }
             await github.rest.repos.createCommitStatus({
               owner, repo, sha, state,
               context: contextName,
