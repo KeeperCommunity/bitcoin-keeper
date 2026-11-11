@@ -227,6 +227,7 @@
     "youEnteredIncorrectPasscode": "The passcode you entered is incorrect. Please try again. If you’ve forgotten your passcode, you can recover your wallet using the Forgot Passcode flow with your recovery key.",
     "checkinternetConnection": "Please check your internet connection and try again.",
     "forgotPasscode": "Forgot passcode?",
+    "retryPasscodeIn": "Please try again in {0}.",
     "resetPasscodeTitle": "Reset Passcode",
     "resetPasscodeDec1": "For your security, passcode resets are verified with your recovery key.",
     "resetPasscodeDec2": "Please have your recovery key ready before continuing."

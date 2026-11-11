@@ -46,9 +46,11 @@ import {
 } from 'src/store/reducers/storage';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import BounceLoader from 'src/components/BounceLoader';
-import { formatCoolDownTime, PasswordTimeout } from 'src/utils/PasswordTimeout';
+import { PasswordTimeout } from 'src/utils/PasswordTimeout';
 import Buttons from 'src/components/Buttons';
 import PinDotView from 'src/components/AppPinInput/PinDotView';
+import PinCooldownMessage from 'src/components/AppPinInput/PinCooldownMessage';
+import { getRemainingPinCooldown } from 'src/utils/pinCooldown';
 import { setAutomaticCloudBackup, setBackupType } from 'src/store/reducers/bhr';
 import Relay from 'src/services/backend/Relay';
 import { setAccountManagerDetails } from 'src/store/reducers/concierge';
@@ -92,6 +94,7 @@ function LoginScreen({ navigation, route }) {
   const login_button_text_color = ThemedColor({ name: 'login_button_text_color' });
 
   const [canLogin, setCanLogin] = useState(false);
+  const showCooldown = !canLogin && getRemainingPinCooldown(failedAttempts, lastLoginFailedAt) > 0;
   const {
     isAuthenticated,
     authenticationFailed,
@@ -141,7 +144,7 @@ function LoginScreen({ navigation, route }) {
 
       setTimeout(() => {
         setLoginError(true);
-        setErrMessage(`Please try after ${formatCoolDownTime(PasswordTimeout(failedAttempts))}`);
+        setErrMessage('');
         setCanLogin(false);
       }, 100);
 
@@ -446,14 +449,21 @@ function LoginScreen({ navigation, route }) {
               </Box>
             </Box>
             <Box>
-              {loginError && (
+              {showCooldown ? (
+                <PinCooldownMessage
+                  failedAttempts={failedAttempts}
+                  lastLoginFailedAt={lastLoginFailedAt}
+                  color={`${colorMode}.error`}
+                  style={styles.errorMessage}
+                />
+              ) : loginError ? (
                 <Text style={styles.errorMessage} color={`${colorMode}.error`}>
                   {errMessage}
                 </Text>
-              )}
+              ) : null}
             </Box>
           </Box>
-          {!canLogin && (
+          {showCooldown && (
             <Box style={styles.forgotCtr}>
               <Pressable style={styles.forgotTxt} onPress={() => setForgotModal(true)}>
                 <Text fontSize={14} medium color={login_text_color}>
