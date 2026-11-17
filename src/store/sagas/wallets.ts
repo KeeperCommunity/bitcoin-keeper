@@ -133,6 +133,7 @@ import { updateDelayedPolicyUpdate } from '../reducers/storage';
 import { accountNoFromDerivationPath } from 'src/utils/service-utilities/utils';
 import { classifyDustByAddress } from 'src/services/wallets/operations/dustClassification';
 import { setPendingDustToast } from '../reducers/utxos';
+import { getOneKeyDeviceBindings, mergeOneKeyDeviceBindings } from 'src/services/onekeyBle/deviceConstants';
 
 export interface NewVaultDetails {
   name?: string;
@@ -386,15 +387,31 @@ export function* addSigningDeviceWorker({
       return;
     }
 
-    const keysMatch = (type, newSigner, existingSigner) =>
-      !!newSigner.signerXpubs[type]?.[0] &&
-      !!existingSigner.signerXpubs[type]?.[0] &&
-      newSigner.signerXpubs[type]?.[0]?.xpub === existingSigner.signerXpubs[type]?.[0]?.xpub;
+    const keysMatch = (type, newSigner, existingSigner) => {
+      const newKey = newSigner.signerXpubs[type]?.[0]?.xpub;
+      const existingKey = existingSigner.signerXpubs[type]?.[0]?.xpub;
+      if (!newKey || !existingKey) return false;
+      if (newKey === existingKey) return true;
+      if (
+        newSigner.type !== SignerType.ONEKEY ||
+        existingSigner.type !== SignerType.ONEKEY ||
+        newSigner.networkType !== existingSigner.networkType ||
+        WalletUtilities.getNetworkFromPrefix(newKey.slice(0, 4)) !== newSigner.networkType ||
+        WalletUtilities.getNetworkFromPrefix(existingKey.slice(0, 4)) !== existingSigner.networkType
+      ) {
+        return false;
+      }
+      const network = WalletUtilities.getNetworkByType(newSigner.networkType);
+      return (
+        WalletUtilities.getXpubFromExtendedKey(newKey, network) ===
+        WalletUtilities.getXpubFromExtendedKey(existingKey, network)
+      );
+    };
 
     const keysDifferent = (type, newSigner, existingSigner) =>
       !!newSigner.signerXpubs[type]?.[0] &&
       !!existingSigner.signerXpubs[type]?.[0] &&
-      newSigner.signerXpubs[type][0].xpub !== existingSigner.signerXpubs[type][0].xpub;
+      !keysMatch(type, newSigner, existingSigner);
 
     for (const newSigner of signers) {
       if (!checkSignerAccountsMatch(newSigner)) {
@@ -427,6 +444,11 @@ export function* addSigningDeviceWorker({
       const singleSigMatch = keysMatch(XpubTypes.P2WPKH, newSigner, existingSigner);
       const multiSigMatch = keysMatch(XpubTypes.P2WSH, newSigner, existingSigner);
       const taprootMatch = keysMatch(XpubTypes.P2TR, newSigner, existingSigner);
+      const isOneKeyMerge = existingSigner.type === SignerType.ONEKEY && newSigner.type === SignerType.ONEKEY;
+      if (isOneKeyMerge && Object.values(XpubTypes).some((type) => keysDifferent(type, newSigner, existingSigner))) {
+        yield put(relaySignersUpdateFail('OneKey public keys do not match the existing key. The device was not added.'));
+        continue;
+      }
       const signerMergeCondition = // if the new signer has one of the keys missing or has the same xpubs as the existing signer, then update the type and xpubs
         (missingMsKey && newMsKey) ||
         (missingSsKey && newSsKey) ||
@@ -436,6 +458,15 @@ export function* addSigningDeviceWorker({
         taprootMatch;
 
         if (signerMergeCondition) {
+          const devices = isOneKeyMerge
+            ? mergeOneKeyDeviceBindings(existingSigner, getOneKeyDeviceBindings(newSigner))
+            : [];
+          const preferred = getOneKeyDeviceBindings(existingSigner).find(
+            (device) => device.bleConnectId === existingSigner.extraData?.bleConnectId
+          );
+          const preferredAddress = preferred?.serialNo
+            ? devices.find((device) => device.serialNo === preferred.serialNo)?.bleConnectId
+            : existingSigner.extraData?.bleConnectId;
           const { type, signerName } = [SignerType.UNKOWN_SIGNER, SignerType.OTHER_SD].includes(
             existingSigner.type
           )
@@ -446,6 +477,19 @@ export function* addSigningDeviceWorker({
             type,
             signerXpubs: _.merge(existingSigner.signerXpubs, newSigner.signerXpubs),
             signerName,
+            ...(isOneKeyMerge && devices.length
+              ? {
+                  signerName: devices.length > 1 ? existingSigner.signerName : newSigner.signerName,
+                  signerDescription: devices.length > 1
+                    ? devices.map((device) => device.name).join(' · ')
+                    : newSigner.signerDescription,
+                  extraData: {
+                    ...existingSigner.extraData,
+                    oneKeyDevices: devices,
+                    bleConnectId: preferredAddress || newSigner.extraData?.bleConnectId,
+                  },
+                }
+              : {}),
           });
           continue;
         }

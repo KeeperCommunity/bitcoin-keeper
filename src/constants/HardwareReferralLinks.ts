@@ -39,6 +39,11 @@ export const sellers = [
     link: 'https://affil.trezor.io/aff_c?offer_id=134&aff_id=35017',
     id: '67befce7bb95d55d985d844a',
   },
+  {
+    identifier: 'onekey',
+    link: 'https://onekey.so/zh_CN/products/onekey-pro/',
+    id: 'onekey_pro',
+  },
 ];
 export const resellers = [
   {

@@ -44,6 +44,7 @@ const SignerContent = ({ navigation, handleModalClose }) => {
       background: 'headerWhite',
       isTrue: false,
     },
+    { type: SignerType.ONEKEY, background: 'pantoneGreen', isTrue: true },
   ];
 
   const hardwareSnippet = hardwareSigners.map(({ type, background, isTrue }) => ({

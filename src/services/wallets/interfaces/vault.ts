@@ -78,12 +78,22 @@ export type signerXpubs = {
   [key in XpubTypes as string]: { xpub: string; derivationPath: string; xpriv?: string }[];
 };
 
+export type OneKeyDeviceBinding = {
+  serialNo?: string; // Absent only for legacy bindings not yet verified on-device.
+  bleConnectId: string;
+  name: string;
+  deviceType?: string;
+  lastHealthCheck?: string;
+};
+
 export type SignerExtraData = {
   instanceNumber?: number;
   givenName?: string;
   familyName?: string;
   recordID?: string;
   thumbnailPath?: string;
+  bleConnectId?: string; // OneKey BLE connectId for direct reconnection
+  oneKeyDevices?: OneKeyDeviceBinding[];
 };
 
 export interface HealthCheckDetails {

@@ -95,6 +95,7 @@ export enum SignerType {
   MY_KEEPER = 'MY_KEEPER',
   TREZOR = 'TREZOR',
   LEDGER = 'LEDGER',
+  ONEKEY = 'ONEKEY',
   COLDCARD = 'COLDCARD',
   PASSPORT = 'PASSPORT',
   JADE = 'JADE',

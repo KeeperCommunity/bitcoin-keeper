@@ -5,6 +5,8 @@ import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import Next from 'src/assets/images/icon_arrow.svg';
 import ScreenWrapper from 'src/components/ScreenWrapper';
 import ActivityIndicatorView from 'src/components/AppActivityIndicator/ActivityIndicatorView';
+import { getOneKeyDeviceBindings } from 'src/services/onekeyBle/deviceConstants';
+import type { Signer } from 'src/services/wallets/interfaces/vault';
 import { SDIcons } from '../Vault/SigningDeviceIcons';
 import { getSignerNameFromType } from 'src/hardware';
 import moment from 'moment';
@@ -181,9 +183,15 @@ const styles = StyleSheet.create({
   },
 });
 
-const SignerCard = ({ onPress, signer }) => {
+const SignerCard = ({ onPress, signer }: { onPress: () => void; signer: Signer }) => {
   const { colorMode } = useColorMode();
   const signerName = getSignerNameFromType(signer.type, signer.isMock, false);
+  const signerDescription =
+    signer.type === SignerType.ONEKEY
+      ? getOneKeyDeviceBindings(signer).find(
+          (device) => device.bleConnectId === signer.extraData?.bleConnectId
+        )?.name || signer.signerDescription
+      : signer.signerDescription;
 
   return (
     <TouchableOpacity testID={`btn_transactionSigner`} onPress={onPress}>
@@ -207,9 +215,9 @@ const SignerCard = ({ onPress, signer }) => {
               <Text color={`${colorMode}.textBlack`} fontSize={14}>
                 {`${signerName} (${signer.masterFingerprint})`}
               </Text>
-              {signer.signerDescription ? (
+              {signerDescription ? (
                 <Text numberOfLines={1} color={`${colorMode}.greenText`} fontSize={12}>
-                  {signer.signerDescription}
+                  {signerDescription}
                 </Text>
               ) : (
                 <Text color={`${colorMode}.GreyText`} fontSize={12}>

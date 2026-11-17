@@ -33,7 +33,7 @@ type IProps = {
       vault: Vault;
       signer: Signer;
       isImportFlow?: boolean;
-      onTypeSelection?: (type: SignerType) => void;
+      onTypeSelection?: (type: SignerType, signerUpdates?: Partial<Signer>) => void;
     };
   };
 };
@@ -81,6 +81,7 @@ function AssignSignerType({ route }: IProps) {
     SignerType.KEYSTONE,
     SignerType.KRUX,
     SignerType.LEDGER,
+    SignerType.ONEKEY,
     SignerType.PASSPORT,
     SignerType.PORTAL,
     SignerType.SATOCHIP,

@@ -1,3 +1,17 @@
+jest.mock('src/services/electrum/client', () => ({}));
+const mockCanaryDispatch = jest.fn();
+jest.mock('react-redux', () => ({ useDispatch: () => mockCanaryDispatch }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
+jest.mock('src/store/hooks', () => ({
+  useAppSelector: (selector) =>
+    selector({ ...require('src/store/store').store.getState(), bhr: {} }),
+}));
+jest.mock('src/hooks/useToastMessage', () => () => ({ showToast: jest.fn() }));
+jest.mock('src/context/Localization/LocContext', () => ({
+  LocalizationContext: require('react').createContext({
+    translations: { wallet: {}, error: {}, common: {}, home: {} },
+  }),
+}));
 jest.mock('src/store/store', () => ({
   store: {
     getState: jest.fn(() => ({
@@ -30,12 +44,203 @@ import {
   setupMobileKey,
   setupKeeperSigner,
   setupSeedWordsBasedKey,
+  setupUSBSigner,
 } from 'src/hardware/signerSetup';
 
 import { URRegistryDecoder } from 'src/services/qr/bc-ur-registry';
 import { decodeURBytes } from 'src/services/qr';
 import { SignerType, XpubTypes, NetworkType } from 'src/services/wallets/enums';
 import { getCosignerDetails } from 'src/services/wallets/factories/WalletFactory';
+import BIP32Factory from 'bip32';
+import * as bitcoin from 'bitcoinjs-lib';
+import ecc from 'src/services/wallets/operations/taproot-utils/noble_ecc';
+import WalletUtilities from 'src/services/wallets/operations/utils';
+import { store } from 'src/store/store';
+import React from 'react';
+import { act, create } from 'react-test-renderer';
+import useCanaryWalletSetup from 'src/hooks/UseCanaryWalletSetup';
+import { generateDataFromPSBT } from 'src/utils/utilities';
+import { Signer } from 'src/services/wallets/interfaces/vault';
+
+describe.each([NetworkType.MAINNET, NetworkType.TESTNET])(
+  'OneKey %s public keys',
+  (networkType) => {
+    const network = WalletUtilities.getNetworkByType(networkType);
+    const coinType = networkType === NetworkType.TESTNET ? 1 : 0;
+    const bip32 = BIP32Factory(ecc);
+    const seed = Buffer.alloc(32, 1); // Deterministic test-only seed.
+    const accountKey = (path: string, version = network.bip32.public) =>
+      bip32
+        .fromSeed(seed, { ...network, bip32: { ...network.bip32, public: version } })
+        .derivePath(path)
+        .neutered()
+        .toBase58();
+    const exportData = (account = 0) => {
+      const singleSigPath = `m/84'/${coinType}'/${account}'`;
+      const multiSigPath = `m/48'/${coinType}'/${account}'/2'`;
+      const taprootPath = `m/86'/${coinType}'/${account}'`;
+      return {
+        mfp: '1234ABCD',
+        singleSigPath,
+        multiSigPath,
+        taprootPath,
+        singleSigXpub: accountKey(singleSigPath, coinType ? 0x045f1cf6 : 0x04b24746),
+        multiSigXpub: accountKey(multiSigPath, coinType ? 0x02575483 : 0x02aa7ed3),
+        taprootXpub: accountKey(taprootPath),
+      };
+    };
+
+    beforeEach(() => {
+      (store.getState as jest.Mock).mockReturnValue({
+        settings: { bitcoinNetworkType: networkType },
+      });
+    });
+    afterEach(() => {
+      (store.getState as jest.Mock).mockReturnValue({
+        settings: { bitcoinNetworkType: NetworkType.TESTNET },
+      });
+    });
+
+    test.each([0, 2])(
+      'imports canonical single-sig, multisig and taproot keys for account %s',
+      (account) => {
+        const data = exportData(account);
+        for (const isMultisig of [false, true]) {
+          const { signer, key } = setupUSBSigner(SignerType.ONEKEY, data, isMultisig);
+          for (const type of [XpubTypes.P2WPKH, XpubTypes.P2WSH, XpubTypes.P2TR]) {
+            const storedKey = signer.signerXpubs[type][0];
+            expect(storedKey.xpub).toBe(accountKey(storedKey.derivationPath));
+            expect(() => bip32.fromBase58(storedKey.xpub, network)).not.toThrow();
+          }
+          expect(key.xpub).toBe(accountKey(isMultisig ? data.multiSigPath : data.singleSigPath));
+        }
+      }
+    );
+
+    test.each([false, true])(
+      'selects an existing SLIP-132 key (multisig: %s) without changing its child key',
+      (isMultisig) => {
+        const data = exportData();
+        const ssKey = { xpub: data.singleSigXpub, derivationPath: data.singleSigPath };
+        const msKey = { xpub: data.multiSigXpub, derivationPath: data.multiSigPath };
+        const selected = WalletUtilities.getKeyForScheme(
+          isMultisig,
+          { type: SignerType.ONEKEY, masterFingerprint: data.mfp },
+          msKey,
+          ssKey,
+          null
+        );
+        const expected = bip32.fromBase58(accountKey(selected.derivationPath), network);
+        const actual = bip32.fromBase58(selected.xpub, network);
+        expect(selected.xfp).toBe(expected.fingerprint.toString('hex').toUpperCase());
+        expect(actual.derivePath('0/3').publicKey).toEqual(expected.derivePath('0/3').publicKey);
+        if (!isMultisig) {
+          expect(
+            bitcoin.payments.p2wpkh({ pubkey: actual.derivePath('0/3').publicKey, network }).address
+          ).toBe(
+            bitcoin.payments.p2wpkh({ pubkey: expected.derivePath('0/3').publicKey, network })
+              .address
+          );
+        }
+        expect(ssKey.xpub).toBe(data.singleSigXpub);
+        expect(msKey.xpub).toBe(data.multiSigXpub);
+      }
+    );
+
+    test('rejects an account key from the other network instead of rewriting its version', () => {
+      const data = exportData();
+      const wrongVersion = coinType ? 0x04b24746 : 0x045f1cf6;
+      data.singleSigXpub = accountKey(data.singleSigPath, wrongVersion);
+      expect(() => setupUSBSigner(SignerType.ONEKEY, data, true)).toThrow();
+      expect(() =>
+        WalletUtilities.getKeyForScheme(
+          false,
+          { type: SignerType.ONEKEY },
+          null,
+          { xpub: data.singleSigXpub, derivationPath: data.singleSigPath },
+          null
+        )
+      ).toThrow();
+    });
+
+    test('creates a Canary wallet from a legacy OneKey single-sig key', () => {
+      const data = exportData();
+      const signer = {
+        type: SignerType.ONEKEY,
+        masterFingerprint: data.mfp,
+        signerXpubs: {
+          [XpubTypes.P2WPKH]: [{ xpub: data.singleSigXpub, derivationPath: data.singleSigPath }],
+        },
+      };
+      let createCanary: ReturnType<typeof useCanaryWalletSetup>['createCreateCanaryWallet'];
+      const Probe = () => {
+        createCanary = useCanaryWalletSetup({}).createCreateCanaryWallet;
+        return null;
+      };
+      let renderer;
+      mockCanaryDispatch.mockClear();
+      try {
+        act(() => {
+          renderer = create(React.createElement(Probe));
+        });
+        let result;
+        act(() => {
+          result = createCanary(signer);
+        });
+        expect(result.vaultSigners[0].xpub).toBe(accountKey(data.singleSigPath));
+        expect(mockCanaryDispatch).toHaveBeenCalledWith(
+          expect.objectContaining({ payload: { newVaultInfo: result } })
+        );
+        expect(signer.signerXpubs[XpubTypes.P2WPKH][0].xpub).toBe(data.singleSigXpub);
+      } finally {
+        act(() => renderer?.unmount());
+      }
+    });
+
+    test('previews an external multisig PSBT with a legacy OneKey key and rejects a different key', () => {
+      const data = exportData();
+      const path = `${data.multiSigPath}/0/3`;
+      const node = bip32.fromSeed(seed, network).derivePath(path);
+      const otherRoot = bip32.fromSeed(Buffer.alloc(32, 2), network);
+      const otherPubkey = otherRoot.derivePath(path).publicKey;
+      const payment = bitcoin.payments.p2wsh({
+        redeem: bitcoin.payments.p2ms({
+          m: 2,
+          pubkeys: [node.publicKey, otherPubkey].sort(Buffer.compare),
+          network,
+        }),
+        network,
+      });
+      const psbt = new bitcoin.Psbt({ network })
+        .addInput({
+          hash: Buffer.alloc(32, 3),
+          index: 0,
+          witnessUtxo: { script: payment.output, value: 10000 },
+          witnessScript: payment.redeem.output,
+          bip32Derivation: [
+            { masterFingerprint: Buffer.from(data.mfp, 'hex'), pubkey: node.publicKey, path },
+          ],
+        })
+        .addOutput({ script: payment.output, value: 9000 });
+      const signer = {
+        type: SignerType.ONEKEY,
+        masterFingerprint: data.mfp,
+        signerXpubs: {
+          [XpubTypes.P2WSH]: [{ xpub: data.multiSigXpub, derivationPath: data.multiSigPath }],
+        },
+      } as unknown as Signer;
+      const preview = generateDataFromPSBT(psbt.toBase64(), signer);
+      expect(preview.signerMatched).toBe(true);
+      expect(preview.fees).toBe(1000);
+      expect(preview.senderAddresses[0].address).toBe(payment.address);
+      signer.signerXpubs[XpubTypes.P2WSH][0].xpub = otherRoot
+        .derivePath(data.multiSigPath)
+        .neutered()
+        .toBase58();
+      expect(generateDataFromPSBT(psbt.toBase64(), signer).signerMatched).toBe(false);
+    });
+  }
+);
 
 jest.setTimeout(30000);
 

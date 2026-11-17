@@ -34,6 +34,7 @@ function IdentifySignerModal({ visible, close, signer, secondaryCallback, vaultI
         name: 'AssignSignerType',
         params: {
           vault: activeVault,
+          signer,
         },
       })
     );

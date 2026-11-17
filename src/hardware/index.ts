@@ -101,7 +101,18 @@ export const generateSignerFromMetaData = ({
     Object.entries(xpubDetails).forEach(([key, xpubDetail]) => {
       let { xpub, xpriv, derivationPath } = xpubDetail;
       signerXpubs[key] = signerXpubs[key] || [];
-      if ([SignerType.JADE, SignerType.SEEDSIGNER, SignerType.SPECTER].includes(signerType)) {
+      if (
+        signerType === SignerType.ONEKEY &&
+        (WalletUtilities.getNetworkFromPrefix(xpub.slice(0, 4)) !== bitcoinNetworkType ||
+          getNetworkTypeFromDerivationPath(derivationPath) !== bitcoinNetworkType)
+      ) {
+        throw new HWError(HWErrorType.INCORRECT_NETWORK);
+      }
+      if (
+        [SignerType.JADE, SignerType.SEEDSIGNER, SignerType.SPECTER, SignerType.ONEKEY].includes(
+          signerType
+        )
+      ) {
         xpub = WalletUtilities.getXpubFromExtendedKey(xpub, network);
       }
       signerXpubs[key].push({ xpub, xpriv, derivationPath: derivationPath.replaceAll('h', "'") });
@@ -182,6 +193,9 @@ export const getSignerNameFromType = (type: SignerType, isMock = false, isAmf = 
       break;
     case SignerType.LEDGER:
       name = 'Ledger';
+      break;
+    case SignerType.ONEKEY:
+      name = 'OneKey';
       break;
     case SignerType.MOBILE_KEY:
       name = 'Recovery Key';
@@ -475,6 +489,9 @@ export const getSDMessage = ({ type }: { type: SignerType }) => {
     }
     case SignerType.TREZOR: {
       return 'Trusted signers from SatoshiLabs';
+    }
+    case SignerType.ONEKEY: {
+      return 'OneKey hardware wallet over Bluetooth';
     }
     case SignerType.OTHER_SD: {
       return 'Varies with different signer';

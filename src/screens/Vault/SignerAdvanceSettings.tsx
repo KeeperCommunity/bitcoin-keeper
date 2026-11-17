@@ -412,14 +412,13 @@ function SignerAdvanceSettings({ route }: any) {
         setCanaryVaultLoading(false);
         setSingleSigModal(true);
       } else {
-        const ssVaultKey: VaultSigner = {
-          ...singleSigSigner,
-          masterFingerprint: signer.masterFingerprint,
-          xfp: WalletUtilities.getFingerprintFromExtendedKey(
-            singleSigSigner.xpub,
-            WalletUtilities.getNetworkByType(bitcoinNetworkType)
-          ),
-        };
+        const ssVaultKey: VaultSigner = WalletUtilities.getKeyForScheme(
+          false,
+          signer,
+          null,
+          singleSigSigner,
+          null
+        );
         const canaryVaultId = generateVaultId([ssVaultKey], CANARY_SCHEME);
         setCanaryWalletId(canaryVaultId);
         const canaryVault = allCanaryVaults.find((vault) => vault.id === canaryVaultId);
@@ -931,6 +930,14 @@ function SignerAdvanceSettings({ route }: any) {
           assert: <ThemedSvg name={'krux_illustration'} />,
           description: signerTranslation.kruxDesc,
           FAQ: 'https://selfcustody.github.io/krux/faq/',
+        };
+      case SignerType.ONEKEY:
+        return {
+          title: 'OneKey',
+          subTitle: 'Connect OneKey hardware wallet via Bluetooth',
+          assert: <ThemedSvg name={'onekey_illustration'} />,
+          description: 'OneKey hardware wallet over Bluetooth',
+          FAQ: 'https://help.onekey.so',
         };
       default:
         return {

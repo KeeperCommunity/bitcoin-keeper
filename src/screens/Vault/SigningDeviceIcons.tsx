@@ -1,6 +1,10 @@
 import React from 'react';
 import { SignerStorage, SignerType } from 'src/services/wallets/enums';
 
+import ONEKEYICON from 'src/assets/images/onekey_icon.svg';
+import ONEKEYICONLIGHT from 'src/assets/images/onekey_icon_light.svg';
+import ONEKEYLOGO from 'src/assets/images/onekey_logo.svg';
+import ONEKEYLOGOWHITE from 'src/assets/images/onekey_logo_white.svg';
 import COLDCARDICON from 'src/assets/images/coldcard_icon.svg';
 import COLDCARDICONLIGHT from 'src/assets/images/coldcard_light.svg';
 import COLDCARDLOGO from 'src/assets/images/coldcard_logo.svg';
@@ -84,6 +88,8 @@ import BITBOXGREENLIGHT from 'src/assets/images/bitbox-green-light.svg';
 import BITBOXGREENDARK from 'src/assets/images/bitbox-green-dark.svg';
 import TREZORGREENLIGHT from 'src/assets/images/trezor-green-light.svg';
 import TREZORGREENDARK from 'src/assets/images/trezor-green-dark.svg';
+import ONEKEYGREENLIGHT from 'src/assets/images/onekey-green-light.svg';
+import ONEKEYGREENDARK from 'src/assets/images/onekey-green-dark.svg';
 import PortalLogo from 'src/assets/images/portalLogo.svg';
 import PortalLogoLight from 'src/assets/images/PortalLogoLight.svg';
 import PortalIcon from 'src/assets/images/portalIcon.svg';
@@ -154,6 +160,12 @@ export const SDIcons = ({ type, light = true, width = 20, height = 20 }: SDIconO
       return {
         Icon: getColouredIcon(<LEDGERICONLIGHT />, <LEDGERICON />, light, width, height),
         Logo: colorMode === 'dark' ? <LEDGERLOGOWHITE /> : <LEDGERLOGO />,
+        type: SignerStorage.COLD,
+      };
+    case SignerType.ONEKEY:
+      return {
+        Icon: getColouredIcon(<ONEKEYICONLIGHT />, <ONEKEYICON />, light, width, height),
+        Logo: colorMode === 'dark' ? <ONEKEYLOGOWHITE /> : <ONEKEYLOGO />,
         type: SignerStorage.COLD,
       };
     case SignerType.MOBILE_KEY:
@@ -310,6 +322,11 @@ export const SDColoredIcons = (type: SignerType, light = true, width = 20, heigh
     case SignerType.LEDGER:
       return {
         Icon: getColouredIcon(<LEDGERGREENLIGHT />, <LEDGERGREENDARK />, light, width, height),
+        type: SignerStorage.COLD,
+      };
+    case SignerType.ONEKEY:
+      return {
+        Icon: getColouredIcon(<ONEKEYGREENLIGHT />, <ONEKEYGREENDARK />, light, width, height),
         type: SignerStorage.COLD,
       };
     case SignerType.MOBILE_KEY:
