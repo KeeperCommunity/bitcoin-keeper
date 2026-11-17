@@ -17,6 +17,7 @@ import {
   signPsbtWithOneKey,
   signMessageWithOneKey,
 } from 'src/services/onekeyBle';
+import { assertOneKeyDeviceSerial } from 'src/services/onekeyBle/deviceConstants';
 
 jest.mock('@onekeyfe/hd-ble-sdk', () => ({
   init: jest.fn().mockResolvedValue(true),
@@ -757,6 +758,103 @@ describe('OneKey health check key verification', () => {
     });
     await expect(verifyOneKeySigner(device, signer, controller.signal)).rejects.toThrow('cancelled');
     expect(sdk.btcGetPublicKey).toHaveBeenCalledTimes(1);
+  });
+  test('with options.keys verifies only the specified derivation path', async () => {
+    sdk.btcGetPublicKey.mockResolvedValueOnce({ success: true, payload: { xpub: 'multi-key' } });
+    await expect(
+      verifyOneKeySigner(device, signer, undefined, {
+        keys: [{ xpub: 'multi-key', derivationPath: "m/48'/1'/2'/2'" }],
+      })
+    ).resolves.toBeUndefined();
+    expect(sdk.btcGetPublicKey).toHaveBeenCalledTimes(1);
+    expect(sdk.btcGetPublicKey).toHaveBeenCalledWith('pro2', 'pro2-id', {
+      path: "m/48'/1'/2'/2'",
+      showOnOneKey: false,
+      useEmptyPassphrase: true,
+    });
+  });
+  test('with options.keys rejects a mismatched public key', async () => {
+    sdk.btcGetPublicKey.mockResolvedValueOnce({ success: true, payload: { xpub: 'wrong-key' } });
+    await expect(
+      verifyOneKeySigner(device, signer, undefined, {
+        keys: [{ xpub: 'multi-key', derivationPath: "m/48'/1'/2'/2'" }],
+      })
+    ).rejects.toThrow('OneKey public key mismatch. Please select the device holding this wallet.');
+    expect(sdk.btcGetPublicKey).toHaveBeenCalledTimes(1);
+  });
+  test.each([
+    { keys: [] },
+    { keys: [{ xpub: 'single-key' }] },
+    { keys: [{ derivationPath: "m/84'/1'/2'" }] },
+    { keys: [{ xpub: '', derivationPath: "m/84'/1'/2'" }] },
+  ])('with options.keys empty or missing fields rejects without calling btcGetPublicKey: %j', async (options) => {
+    await expect(verifyOneKeySigner(device, signer, undefined, options)).rejects.toThrow(
+      'Missing stored OneKey public keys. Please re-import this key.'
+    );
+    expect(sdk.btcGetPublicKey).not.toHaveBeenCalled();
+  });
+  test('with options.keys still checks fingerprint before requesting device keys', async () => {
+    await expect(
+      verifyOneKeySigner(
+        { ...device, masterFingerprint: 'DEADBEEF' },
+        signer,
+        undefined,
+        { keys: [{ xpub: 'multi-key', derivationPath: "m/48'/1'/2'/2'" }] }
+      )
+    ).rejects.toThrow('Fingerprint mismatch');
+    expect(sdk.btcGetPublicKey).not.toHaveBeenCalled();
+  });
+});
+
+describe('OneKey serial verification', () => {
+  const boundSigner = {
+    signerName: 'OneKey Pro 2',
+    extraData: {
+      bleConnectId: 'pro2',
+      oneKeyDevices: [{ serialNo: 'PRO2-SERIAL', bleConnectId: 'pro2', name: 'Pro 2' }],
+    },
+  };
+
+  test('passes when the connected device serial matches the binding', () => {
+    expect(() =>
+      assertOneKeyDeviceSerial({ connectId: 'pro2', serialNo: 'PRO2-SERIAL' }, boundSigner)
+    ).not.toThrow();
+    expect(() =>
+      assertOneKeyDeviceSerial({ connectId: 'pro2', serialNo: ' PRO2-SERIAL ' }, boundSigner)
+    ).not.toThrow();
+  });
+
+  test('rejects when the connected device serial does not match the binding', () => {
+    expect(() =>
+      assertOneKeyDeviceSerial({ connectId: 'pro2', serialNo: 'OTHER-SERIAL' }, boundSigner)
+    ).toThrow('OneKey serial number mismatch. Please select the correct device.');
+  });
+
+  test.each(['', '   ', undefined as unknown as string])(
+    'rejects when the connected device serial is missing or blank (%j)',
+    (serialNo) => {
+      expect(() =>
+        assertOneKeyDeviceSerial({ connectId: 'pro2', serialNo }, boundSigner)
+      ).toThrow('OneKey serial number mismatch. Please select the correct device.');
+    }
+  );
+
+  test('allows legacy bindings without a stored serial number', () => {
+    expect(() =>
+      assertOneKeyDeviceSerial(
+        { connectId: 'pro2', serialNo: 'ANY-SERIAL' },
+        { signerName: 'OneKey', extraData: { bleConnectId: 'pro2' } }
+      )
+    ).not.toThrow();
+    expect(() =>
+      assertOneKeyDeviceSerial(
+        { connectId: 'pro2', serialNo: '' },
+        {
+          signerName: 'OneKey',
+          extraData: { oneKeyDevices: [{ bleConnectId: 'pro2', name: 'Pro 2' }] },
+        }
+      )
+    ).not.toThrow();
   });
 });
 

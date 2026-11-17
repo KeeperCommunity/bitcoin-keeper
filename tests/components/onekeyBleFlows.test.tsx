@@ -11,7 +11,7 @@ import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
 const mockDispatch = jest.fn();
 const mockNavigate = jest.fn();
 const mockShowToast = jest.fn();
-const mockSigner = {
+const mockSigner: any = {
   type: 'ONEKEY',
   masterFingerprint: '1234ABCD',
   extraData: { bleConnectId: 'test-device' },
@@ -159,12 +159,15 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockNavigate.mockReset();
   mockFocused = true;
+  mockSigner.extraData = { bleConnectId: 'test-device' };
   mockParams = {
-    vaultKey: { xfp: '1234ABCD' },
+    vaultKey: { xfp: '1234ABCD', xpub: 'fixture-xpub', derivationPath: "m/84'/0'/0'" },
     signer: mockSigner,
     message: 'fixture message',
     address: 'fixture-address',
     derivationPath: "m/84'/0'/0'/0/0",
+    accountPath: "m/84'/0'/0'",
+    vaultKeyXpub: 'fixture-xpub',
     onSignatureReceived: jest.fn(),
   };
   (oneKey.ensureOneKeyBLEReady as jest.Mock).mockResolvedValue({ ready: true });
@@ -185,7 +188,7 @@ beforeEach(() => {
   });
   mockVault = {
     isMultiSig: false,
-    signers: [{ masterFingerprint: '1234ABCD', derivationPath: "m/84'/0'/0'" }],
+    signers: [{ masterFingerprint: '1234ABCD', derivationPath: "m/84'/0'/0'", xpub: 'fixture-xpub' }],
     specs: { addresses: { external: { 0: 'fixture-address' } } },
   };
 });
@@ -221,7 +224,12 @@ test.each([false, true])(
       await act(async () => options[0].props.onPress());
       expect(mockNavigate).toHaveBeenCalledWith([
         'SignMessageOneKeyBle',
-        expect.objectContaining({ address: 'fixture-address', derivationPath: "m/84'/0'/0'/0/0" }),
+        expect.objectContaining({
+          address: 'fixture-address',
+          derivationPath: "m/84'/0'/0'/0/0",
+          accountPath: "m/84'/0'/0'",
+          vaultKeyXpub: 'fixture-xpub',
+        }),
       ]);
     }
     await act(async () => view.unmount());
@@ -558,4 +566,117 @@ test('import progress stays visible while Pro 2 asks for device confirmation', a
   await act(async () => finish({}));
   jest.clearAllTimers();
   jest.useRealTimers();
+});
+
+describe('OneKey signing verification and connection release', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  test.each([
+    ['SignWithOneKeyBle', SignWithOneKeyBle, () => oneKey.signPsbtWithOneKey],
+    ['SignMessageOneKeyBle', SignMessageOneKeyBle, () => oneKey.signMessageWithOneKey],
+  ])(
+    '%s verifies the vault key before signing and disconnects after success',
+    async (_name, Screen, getSignMock) => {
+      let view: ReactTestRenderer;
+      await act(async () => {
+        view = create(<Screen />);
+      });
+      await act(async () => jest.advanceTimersByTimeAsync(300));
+      const signMock = getSignMock() as jest.Mock;
+      expect(oneKey.verifyOneKeySigner).toHaveBeenCalledWith(
+        expect.objectContaining({ connectId: 'test-device', deviceId: 'test-id' }),
+        mockSigner,
+        expect.anything(),
+        { keys: [{ xpub: 'fixture-xpub', derivationPath: "m/84'/0'/0'" }] }
+      );
+      expect(signMock).toHaveBeenCalledTimes(1);
+      expect((oneKey.verifyOneKeySigner as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+        signMock.mock.invocationCallOrder[0]
+      );
+      expect(oneKey.disconnectOneKey).toHaveBeenCalledTimes(1);
+      expect(signMock.mock.invocationCallOrder[0]).toBeLessThan(
+        (oneKey.disconnectOneKey as jest.Mock).mock.invocationCallOrder[0]
+      );
+      await act(async () => view.unmount());
+      expect(oneKey.disconnectOneKey).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  test.each([
+    ['SignWithOneKeyBle', SignWithOneKeyBle, () => oneKey.signPsbtWithOneKey],
+    ['SignMessageOneKeyBle', SignMessageOneKeyBle, () => oneKey.signMessageWithOneKey],
+  ])(
+    '%s blocks signing and shows an error toast when verifyOneKeySigner rejects',
+    async (_name, Screen, getSignMock) => {
+      (oneKey.verifyOneKeySigner as jest.Mock).mockRejectedValueOnce(
+        new Error('OneKey public key mismatch. Please select the device holding this wallet.')
+      );
+      let view: ReactTestRenderer;
+      await act(async () => {
+        view = create(<Screen />);
+      });
+      await act(async () => jest.advanceTimersByTimeAsync(300));
+      expect(getSignMock()).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'OneKey public key mismatch. Please select the device holding this wallet.',
+        expect.anything()
+      );
+      expect(oneKey.disconnectOneKey).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('goBack');
+      await act(async () => view.unmount());
+    }
+  );
+
+  test.each([
+    ['SignWithOneKeyBle', SignWithOneKeyBle, () => oneKey.signPsbtWithOneKey],
+    ['SignMessageOneKeyBle', SignMessageOneKeyBle, () => oneKey.signMessageWithOneKey],
+  ])('%s blocks signing on serial mismatch', async (_name, Screen, getSignMock) => {
+    mockSigner.extraData = {
+      bleConnectId: 'test-device',
+      oneKeyDevices: [{ serialNo: 'EXPECTED-SERIAL', bleConnectId: 'test-device', name: 'Pro 2' }],
+    };
+    let view: ReactTestRenderer;
+    await act(async () => {
+      view = create(<Screen />);
+    });
+    await act(async () => jest.advanceTimersByTimeAsync(300));
+    expect(oneKey.verifyOneKeySigner).not.toHaveBeenCalled();
+    expect(getSignMock()).not.toHaveBeenCalled();
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'OneKey serial number mismatch. Please select the correct device.',
+      expect.anything()
+    );
+    expect(oneKey.disconnectOneKey).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('goBack');
+    await act(async () => view.unmount());
+  });
+
+  test.each([
+    ['missing vaultKeyXpub', { vaultKeyXpub: undefined }],
+    ['missing accountPath', { accountPath: undefined }],
+    ['mismatched derivationPath', { derivationPath: "m/84'/0'/1'/0/0" }],
+    ['prefix collision without slash', { derivationPath: "m/84'/0'/0'1/0/0" }],
+  ])(
+    'SignMessageOneKeyBle fails closed without device calls on %s',
+    async (_label, overrides) => {
+      mockParams = { ...mockParams, ...overrides };
+      let view: ReactTestRenderer;
+      await act(async () => {
+        view = create(<SignMessageOneKeyBle />);
+      });
+      await act(async () => jest.advanceTimersByTimeAsync(300));
+      expect(oneKey.ensureOneKeyBLEReady).not.toHaveBeenCalled();
+      expect(oneKey.searchOneKeyDevices).not.toHaveBeenCalled();
+      expect(oneKey.getOneKeyDeviceInfo).not.toHaveBeenCalled();
+      expect(oneKey.verifyOneKeySigner).not.toHaveBeenCalled();
+      expect(oneKey.signMessageWithOneKey).not.toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), expect.anything());
+      expect(mockNavigate).toHaveBeenCalledWith('goBack');
+      await act(async () => view.unmount());
+    }
+  );
 });

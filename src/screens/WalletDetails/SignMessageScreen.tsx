@@ -180,6 +180,8 @@ export const SignMessageScreen = ({ route, navigation }) => {
             message: message.trim(),
             address: messageAddress,
             derivationPath: `${oneKeyVaultKey.derivationPath}/0/${addressIndex}`,
+            vaultKeyXpub: oneKeyVaultKey.xpub,
+            accountPath: oneKeyVaultKey.derivationPath,
             signer: oneKeySigner,
             onSignatureReceived: (sig: string, addr: string) => {
               setSignature(sig);

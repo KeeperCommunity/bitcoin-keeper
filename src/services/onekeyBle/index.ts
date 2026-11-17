@@ -564,13 +564,15 @@ export const assertOneKeyFingerprint = (
 
 export const verifyOneKeySigner = async (
   device: OneKeyDeviceInfo,
-  signer: Pick<Signer, 'masterFingerprint' | 'signerXpubs' | 'networkType'>,
-  signal?: AbortSignal
+  signer: Pick<Signer, 'masterFingerprint' | 'networkType'> & Partial<Pick<Signer, 'signerXpubs'>>,
+  signal?: AbortSignal,
+  options?: { keys?: Array<{ xpub?: string; derivationPath?: string }> }
 ): Promise<void> => {
   checkCancellation(signal);
   assertOneKeyFingerprint(device, signer);
-  const keys = Object.values(signer.signerXpubs || {}).flat();
-  if (!keys.length || keys.some((key) => !key.xpub || !key.derivationPath)) {
+  const keys: Array<{ xpub?: string; derivationPath?: string }> =
+    options?.keys !== undefined ? options.keys : Object.values(signer.signerXpubs || {}).flat();
+  if (!keys?.length || keys.some((key) => !key?.xpub?.trim() || !key?.derivationPath?.trim())) {
     throw new Error('Missing stored OneKey public keys. Please re-import this key.');
   }
   const sdk = await getOneKeySdk();

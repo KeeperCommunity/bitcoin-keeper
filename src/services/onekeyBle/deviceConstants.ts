@@ -84,3 +84,16 @@ export const toOneKeyDeviceBinding = (device: OneKeyDeviceInfo): OneKeyDeviceBin
   };
 };
 
+export const assertOneKeyDeviceSerial = (
+  deviceInfo: Pick<OneKeyDeviceInfo, 'connectId' | 'serialNo'>,
+  signer: Pick<Signer, 'extraData' | 'signerName' | 'signerDescription'>
+) => {
+  const expected = getOneKeyDeviceBindings(signer).find(
+    (device) => device.bleConnectId === deviceInfo.connectId
+  );
+  const actualSerial = deviceInfo.serialNo?.trim();
+  if (expected?.serialNo && (!actualSerial || expected.serialNo !== actualSerial)) {
+    throw new Error('OneKey serial number mismatch. Please select the correct device.');
+  }
+};
+

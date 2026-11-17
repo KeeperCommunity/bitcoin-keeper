@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { CommonActions, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
@@ -15,15 +15,17 @@ import { LocalizationContext } from 'src/context/Localization/LocContext';
 import useToastMessage from 'src/hooks/useToastMessage';
 import ToastErrorIcon from 'src/assets/images/toast_error.svg';
 import {
-  assertOneKeyFingerprint,
+  disconnectOneKey,
   ensureOneKeyBLEReady,
   getOneKeyDeviceInfo,
   searchOneKeyDevices,
   signPsbtWithOneKey,
+  verifyOneKeySigner,
   onekeyUIEmitter,
   ONEKEY_UI_EVENT,
   type OneKeyUIEvent,
 } from 'src/services/onekeyBle';
+import { assertOneKeyDeviceSerial } from 'src/services/onekeyBle/deviceConstants';
 import { UI_REQUEST } from '@onekeyfe/hd-core';
 import useSignerFromKey from 'src/hooks/useSignerFromKey';
 import { healthCheckStatusUpdate } from 'src/store/sagaActions/bhr';
@@ -76,6 +78,13 @@ function SignWithOneKeyBle() {
 
   const [statusMessage, setStatusMessage] = useState('Preparing...');
   const [sdkPrompt, setSdkPrompt] = useState('');
+  const connectionOwner = useRef<AbortSignal | null>(null);
+
+  const releaseConnection = async (signal?: AbortSignal) => {
+    if (!signal || connectionOwner.current !== signal) return;
+    connectionOwner.current = null;
+    await disconnectOneKey();
+  };
 
   // Each focused visit owns its timer, SDK listener and pending operations.
   useEffect(() => {
@@ -90,6 +99,7 @@ function SignWithOneKeyBle() {
     return () => {
       clearTimeout(timer);
       controller.abort();
+      releaseConnection(controller.signal).catch(captureError);
       sub.remove();
     };
   }, [isFocused]);
@@ -133,9 +143,16 @@ function SignWithOneKeyBle() {
 
       setSdkPrompt('');
       setStatusMessage('Reading device info...');
+      connectionOwner.current = signal;
       const deviceInfo = await getOneKeyDeviceInfo(storedConnectId, signal);
       if (signal.aborted) return;
-      assertOneKeyFingerprint(deviceInfo, signer);
+      assertOneKeyDeviceSerial(deviceInfo, signer);
+      setSdkPrompt('');
+      setStatusMessage('Verifying wallet key...');
+      await verifyOneKeySigner(deviceInfo, signer, signal, {
+        keys: [{ xpub: vaultKey?.xpub, derivationPath: vaultKey?.derivationPath }],
+      });
+      if (signal.aborted) return;
 
       setSdkPrompt('');
       setStatusMessage('Signing transaction on device...');
@@ -146,6 +163,9 @@ function SignWithOneKeyBle() {
         serializedPSBT: serializedPSBTEnvelop.serializedPSBT,
         signal,
       });
+      if (signal.aborted) return;
+
+      await releaseConnection(signal);
       if (signal.aborted) return;
 
       setSdkPrompt('');
@@ -166,6 +186,7 @@ function SignWithOneKeyBle() {
       dispatch(updatePSBTEnvelops({ signedSerializedPSBT, xfp: vaultKey.xfp }));
       navigation.dispatch(CommonActions.navigate({ name: 'SignTransactionScreen', merge: true }));
     } catch (error) {
+      await releaseConnection(signal).catch(captureError);
       if (signal.aborted) return;
       captureError(error);
       showToast(error?.message || common.somethingWrong, <ToastErrorIcon />);

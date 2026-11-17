@@ -26,6 +26,7 @@ import {
   type OneKeyUIEvent,
 } from 'src/services/onekeyBle';
 import {
+  assertOneKeyDeviceSerial,
   getDeviceImage,
   getDeviceDisplayName,
   getDeviceTypeName,
@@ -430,10 +431,7 @@ function OneKeyBleModal({
       connectionOwner.current = signal;
       const deviceInfo = await getOneKeyDeviceInfo(storedConnectId, signal);
       if (signal.aborted) return;
-      const expected = getOneKeyDeviceBindings(signer).find((device) => device.bleConnectId === storedConnectId);
-      if (expected?.serialNo && expected.serialNo !== deviceInfo.serialNo?.trim()) {
-        throw new Error('OneKey serial number mismatch. Please select the correct device.');
-      }
+      assertOneKeyDeviceSerial(deviceInfo, signer);
       assertOneKeyFingerprint(deviceInfo, signer);
 
       setPhase('connecting');

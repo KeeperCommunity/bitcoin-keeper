@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { Box, useColorMode } from '@gluestack-ui/themed-native-base';
 import { CommonActions, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
@@ -11,15 +11,17 @@ import TickIcon from 'src/assets/images/icon_tick.svg';
 import { useAppSelector } from 'src/store/hooks';
 import { NetworkType } from 'src/services/wallets/enums';
 import {
-  assertOneKeyFingerprint,
+  disconnectOneKey,
   ensureOneKeyBLEReady,
   getOneKeyDeviceInfo,
   searchOneKeyDevices,
   signMessageWithOneKey,
+  verifyOneKeySigner,
   onekeyUIEmitter,
   ONEKEY_UI_EVENT,
   type OneKeyUIEvent,
 } from 'src/services/onekeyBle';
+import { assertOneKeyDeviceSerial } from 'src/services/onekeyBle/deviceConstants';
 import { UI_REQUEST } from '@onekeyfe/hd-core';
 import { captureError } from 'src/services/sentry';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
@@ -34,6 +36,8 @@ type Params = {
   message: string;
   address: string;
   derivationPath: string;
+  vaultKeyXpub?: string;
+  accountPath?: string;
   signer: Signer;
   onSignatureReceived: (signature: string, address: string) => void;
 };
@@ -47,7 +51,15 @@ function SignMessageOneKeyBle() {
   const { translations } = useContext(LocalizationContext);
   const { common } = translations;
 
-  const { message, address, derivationPath, signer, onSignatureReceived } = params as Params;
+  const {
+    message,
+    address,
+    derivationPath,
+    vaultKeyXpub,
+    accountPath,
+    signer,
+    onSignatureReceived,
+  } = (params || {}) as Params;
 
   const { bitcoinNetworkType } = useAppSelector((state) => state.settings);
   const networkType =
@@ -55,6 +67,13 @@ function SignMessageOneKeyBle() {
 
   const [statusMessage, setStatusMessage] = useState('Preparing...');
   const [sdkPrompt, setSdkPrompt] = useState('');
+  const connectionOwner = useRef<AbortSignal | null>(null);
+
+  const releaseConnection = async (signal?: AbortSignal) => {
+    if (!signal || connectionOwner.current !== signal) return;
+    connectionOwner.current = null;
+    await disconnectOneKey();
+  };
 
   // Each focused visit owns its timer, SDK listener and pending operations.
   useEffect(() => {
@@ -69,6 +88,7 @@ function SignMessageOneKeyBle() {
     return () => {
       clearTimeout(timer);
       controller.abort();
+      releaseConnection(controller.signal).catch(captureError);
       sub.remove();
     };
   }, [isFocused]);
@@ -78,6 +98,16 @@ function SignMessageOneKeyBle() {
     try {
       if (!signer || !derivationPath) {
         showToast('Signer not found. Please try again.', <ToastErrorIcon />);
+        navigation.dispatch(CommonActions.goBack());
+        return;
+      }
+
+      if (
+        !vaultKeyXpub?.trim() ||
+        !accountPath?.trim() ||
+        !derivationPath.startsWith(`${accountPath}/`)
+      ) {
+        showToast('Missing stored OneKey public keys. Please try again.', <ToastErrorIcon />);
         navigation.dispatch(CommonActions.goBack());
         return;
       }
@@ -104,9 +134,17 @@ function SignMessageOneKeyBle() {
 
       setStatusMessage('Reading device info...');
       setSdkPrompt('');
+      connectionOwner.current = signal;
       const deviceInfo = await getOneKeyDeviceInfo(storedConnectId, signal);
       if (signal.aborted) return;
-      assertOneKeyFingerprint(deviceInfo, signer);
+      assertOneKeyDeviceSerial(deviceInfo, signer);
+
+      setStatusMessage('Verifying wallet key...');
+      setSdkPrompt('');
+      await verifyOneKeySigner(deviceInfo, signer, signal, {
+        keys: [{ xpub: vaultKeyXpub, derivationPath: accountPath }],
+      });
+      if (signal.aborted) return;
 
       setStatusMessage('Signing message...');
       setSdkPrompt('');
@@ -120,6 +158,9 @@ function SignMessageOneKeyBle() {
       });
       if (signal.aborted) return;
 
+      await releaseConnection(signal);
+      if (signal.aborted) return;
+
       setSdkPrompt('');
       if (address && result.address !== address) {
         showToast('Address mismatch! The signed address does not match.', <ToastErrorIcon />);
@@ -131,6 +172,7 @@ function SignMessageOneKeyBle() {
       onSignatureReceived?.(result.signature, result.address);
       navigation.dispatch(CommonActions.goBack());
     } catch (error) {
+      await releaseConnection(signal).catch(captureError);
       if (signal.aborted) return;
       captureError(error);
       showToast(error?.message || common.somethingWrong, <ToastErrorIcon />);
