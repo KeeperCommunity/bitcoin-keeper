@@ -714,12 +714,29 @@ export const sanitizeSeedKeyForBackup = (signer: Signer) => {
 };
 
 export const sanitizeVaultSignersForSeedKeyBackup = (vault: Vault) => {
-  let updatedVault = _.cloneDeep(vault);
-  let signer = dbManager.getCollection(RealmSchema.Signer);
+  const updatedVault = _.cloneDeep(vault);
+  const signers = dbManager.getCollection(RealmSchema.Signer) as unknown as Signer[];
   updatedVault.signers = updatedVault.signers.map((vaultSigner) => {
-    const selectedSigner = signer.find(
-      (signer) => signer.masterFingerprint === vaultSigner.masterFingerprint
-    );
+    const matches = signers.filter((signer) => {
+      if (signer.masterFingerprint !== vaultSigner.masterFingerprint) return false;
+      // A fingerprint can appear on several accounts/networks. Match the actual
+      // vault key before deciding whether its private material may be backed up.
+      const sameIdentity =
+        signer.type === SignerType.POLICY_SERVER
+          ? signer.networkType === vault.networkType
+          : getKeyUID(signer) === getKeyUID(vaultSigner);
+      return (
+        sameIdentity &&
+        Object.values(signer.signerXpubs).some((keys) =>
+          keys.some(
+            (key) =>
+              key.xpub === vaultSigner.xpub && key.derivationPath === vaultSigner.derivationPath
+          )
+        )
+      );
+    });
+    if (matches.length !== 1) throw new Error('Cannot identify a vault key for backup');
+    const selectedSigner = matches[0];
     if (
       selectedSigner.type === SignerType.SEED_WORDS &&
       selectedSigner.signerName !== RECOVERY_KEY_SIGNER_NAME
@@ -870,9 +887,13 @@ export const manipulateBitcoinPrices = (data) => {
 
 export const validatePSBT = (unsigned, signed, signer, errorText) => {
   if (
-    [SignerType.TAPSIGNER, SignerType.SATOCHIP, SignerType.SPECTER, SignerType.SEEDSIGNER, SignerType.KRUX].includes(
-      signer.type
-    )
+    [
+      SignerType.TAPSIGNER,
+      SignerType.SATOCHIP,
+      SignerType.SPECTER,
+      SignerType.SEEDSIGNER,
+      SignerType.KRUX,
+    ].includes(signer.type)
   )
     return;
   const unsignedHex = bitcoin.Psbt.fromBase64(unsigned).__CACHE.__TX.toHex();

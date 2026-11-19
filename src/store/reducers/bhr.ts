@@ -1,3 +1,4 @@
+import { RepairPhase } from 'src/services/backup/repair';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { BackupType, homeToastMessageType } from 'src/models/enums/BHR';
 import _ from 'lodash';
@@ -43,6 +44,9 @@ const initialState: {
   backupAllFailure: boolean;
 
   pendingAllBackup: boolean;
+  backupRepairCompletedByAppId: Record<string, boolean>;
+  backupRepairStateByAppId: Record<string, RepairPhase>;
+  backupRepairRunningByAppId: Record<string, boolean>;
 
   automaticCloudBackup: boolean;
 
@@ -84,6 +88,9 @@ const initialState: {
   backupAllSuccess: false,
 
   pendingAllBackup: false,
+  backupRepairCompletedByAppId: {},
+  backupRepairStateByAppId: {},
+  backupRepairRunningByAppId: {},
 
   automaticCloudBackup: false,
 
@@ -226,6 +233,19 @@ const bhrSlice = createSlice({
       state.pendingAllBackup = action.payload;
     },
 
+    setBackupRepairState: (state, action: PayloadAction<{ appId: string; phase: RepairPhase }>) => {
+      const { appId, phase } = action.payload;
+      (state.backupRepairStateByAppId ??= {})[appId] = phase;
+      (state.backupRepairCompletedByAppId ??= {})[appId] = phase === 'verified';
+    },
+    setBackupRepairRunning: (state, action: PayloadAction<{ appId: string; running: boolean }>) => {
+      (state.backupRepairRunningByAppId ??= {})[action.payload.appId] = action.payload.running;
+    },
+    invalidateBackupRepair: (state, action: PayloadAction<string>) => {
+      (state.backupRepairCompletedByAppId ??= {})[action.payload] = false;
+      if (state.backupRepairStateByAppId?.[action.payload] === 'verified')
+        state.backupRepairStateByAppId[action.payload] = 'unverified';
+    },
     setAutomaticCloudBackup: (state, action: PayloadAction<boolean>) => {
       state.automaticCloudBackup = action.payload;
     },
@@ -281,6 +301,9 @@ export const {
   setBackupAllFailure,
 
   setPendingAllBackup,
+  setBackupRepairState,
+  setBackupRepairRunning,
+  invalidateBackupRepair,
 
   setAutomaticCloudBackup,
 
@@ -294,6 +317,7 @@ const bhrPersistConfig = {
   key: 'bhr',
   storage: reduxStorage,
   blacklist: [
+    'backupRepairRunningByAppId',
     'isBackupError',
     'backupError',
     'seedConfirmed',

@@ -1,4 +1,4 @@
-import { call, delay, put, race, select } from 'redux-saga/effects';
+import { call, put, select } from 'redux-saga/effects';
 import {
   decrypt,
   encrypt,
@@ -51,14 +51,13 @@ import { createWatcher } from '../utilities';
 import { fetchExchangeRates } from '../sagaActions/send_and_receive';
 import { setLoginMethod } from '../reducers/settings';
 import { setSubscription } from 'src/store/sagaActions/settings';
-import { backupAllSignersAndVaults } from '../sagaActions/bhr';
 import { uaiChecks } from '../sagaActions/uai';
 import { applyUpgradeSequence } from './upgrade';
 import { resetSyncing } from '../reducers/wallets';
+import { autoSyncWallets } from '../sagaActions/wallets';
 import { connectToNode } from '../sagaActions/network';
 import { fetchDelayedPolicyUpdate, fetchSignedDelayedTransaction } from '../sagaActions/storage';
 import { setAutomaticCloudBackup, setBackupType } from '../reducers/bhr';
-import { autoWalletsSyncWorker } from './wallets';
 import {
   addAccount,
   saveDefaultWalletState,
@@ -214,7 +213,7 @@ function* credentialsAuthWorker({ payload }) {
       }
       if (appId) {
         try {
-          const { id, publicId, subscription }: KeeperApp = yield call(
+          const { id }: KeeperApp = yield call(
             dbManager.getObjectByIndex,
             RealmSchema.KeeperApp
           );
@@ -225,16 +224,10 @@ function* credentialsAuthWorker({ payload }) {
           yield put(fetchExchangeRates());
           yield put(fetchSignedDelayedTransaction());
           yield put(fetchDelayedPolicyUpdate());
-          yield race({
-            sync: call(autoWalletsSyncWorker, {
-              payload: {
-                syncAll: false,
-                hardRefresh: false,
-                addNotifications: true,
-              },
-            }),
-            timeout: delay(15000),
-          });
+          // Wallet/node refresh runs through its watcher after local unlock.
+          // Waiting for network work here can hold the success modal for 15s.
+          yield put(resetSyncing());
+          yield put(autoSyncWallets(false, false, true, id));
 
           yield put(
             uaiChecks([
@@ -247,12 +240,6 @@ function* credentialsAuthWorker({ payload }) {
             ])
           );
 
-          yield put(resetSyncing());
-
-          const { pendingAllBackup, automaticCloudBackup } = yield select(
-            (state: RootState) => state.bhr
-          );
-          if (pendingAllBackup && automaticCloudBackup) yield put(backupAllSignersAndVaults());
           if (!allAccounts.length) {
             // upgraded app
             yield put(addAccount(appId));

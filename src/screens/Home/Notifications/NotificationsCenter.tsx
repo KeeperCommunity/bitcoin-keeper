@@ -35,7 +35,6 @@ import { useAppSelector } from 'src/store/hooks';
 import { cachedTxSnapshot } from 'src/store/reducers/cachedTxn';
 import UAIView from '../components/UAIView';
 import { setStateFromSnapshot } from 'src/store/reducers/send_and_receive';
-import { backupAllSignersAndVaults } from 'src/store/sagaActions/bhr';
 import { LocalizationContext } from 'src/context/Localization/LocContext';
 import ThemedSvg from 'src/components/ThemedSvg.tsx/ThemedSvg';
 import Fonts from 'src/constants/Fonts';
@@ -298,7 +297,7 @@ const Card = memo(({ uai }: CardProps) => {
               text: common.View,
               cta: () => {
                 dispatch(uaiActioned({ uaiId: uai.id, action: false }));
-                dispatch(backupAllSignersAndVaults());
+                navigtaion.navigate('AssistedBackupStatus');
               },
             },
           },

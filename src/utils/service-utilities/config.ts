@@ -23,7 +23,7 @@ const DEFAULT_CONFIG = {
   HEXA_ID_MAINNET: 'b01623f1065ba45d68b516efe2873f59bfc9b9b2d8b194f94f989d87d711830a',
   SENTRY_DNS: 'https://25289533edf7432994f58edeaf6541dc@o1388909.ingest.sentry.io/6711631',
   ENVIRONMENT: APP_STAGE.DEVELOPMENT,
-  CHANNEL_URL: 'https://keeper-channel-dev-8d01fa5233d0.herokuapp.com/',
+  CHANNEL_URL: 'http://localhost:4002/',
   LETS_EXCHANGE_AFFILIATE_ID: 'G0BiaS34U81NR3ra',
 };
 

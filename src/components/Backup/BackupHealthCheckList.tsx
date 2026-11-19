@@ -105,7 +105,7 @@ function BackupHealthCheckList({ isUaiFlow }) {
 
 
   useEffect(() => {
-    if (backupAllSuccess || backupAllFailure) {
+    if (backupAllSuccess) {
       if (!automaticCloudBackup) setAsbEnabled(true);
       dispatch(setBackupAllSuccess(false));
       dispatch(setBackupAllFailure(false));
@@ -132,6 +132,7 @@ function BackupHealthCheckList({ isUaiFlow }) {
 
   useEffect(() => {
     if (backupAllFailure && isFocused) {
+      setFailedVerificationModal(true);
       dispatch(setBackupAllFailure(false));
     }
   }, [backupAllFailure]);

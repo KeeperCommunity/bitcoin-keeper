@@ -1,3 +1,4 @@
+import AssistedBackupStatus from 'src/screens/AppSettings/AssistedBackupStatus';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import React, { useContext, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -263,6 +264,7 @@ function AppStack() {
         <Stack.Screen name="DustReport" component={DustReportScreen} />
         <Stack.Screen name="SigningDeviceDetails" component={SigningDeviceDetails} />
         <Stack.Screen name="WalletBackHistory" component={WalletBackHistoryScreen} />
+        <Stack.Screen name="AssistedBackupStatus" component={AssistedBackupStatus} />
         <Stack.Screen name="AppBackupSettings" component={AppBackupSettings} />
         <Stack.Screen name="SignTransactionScreen" component={SignTransactionScreen} />
         <Stack.Screen name="AddSigningDevice" component={AddSigningDevice} />

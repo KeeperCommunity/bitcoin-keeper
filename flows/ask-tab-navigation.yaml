@@ -1,0 +1,46 @@
+# Run on an unlocked disposable app at Home with no Ask conversations.
+# maestro test -e APP_ID=io.hexawallet.keeper flows/ask-tab-navigation.yaml
+appId: ${APP_ID}
+---
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: home_tab_ask
+      - assertVisible: "Something isn't working"
+      - tapOn:
+          id: home_tab_more
+      - assertVisible: More Options
+      - assertNotVisible: "Something isn't working"
+      - assertNotVisible: I have an idea for Keeper
+      - assertNotVisible: Never share seed words or private keys.
+      - assertVisible:
+          id: home_tab_wallets
+      - assertVisible:
+          id: home_tab_keys
+      - assertVisible:
+          id: home_tab_ask
+      - assertVisible:
+          id: home_tab_more
+      - tapOn:
+          id: home_tab_ask
+      - assertVisible: "Something isn't working"
+      - tapOn:
+          id: home_tab_wallets
+      - assertVisible:
+          id: wallet_item_.*
+      - assertNotVisible: "Something isn't working"
+      - tapOn:
+          id: home_tab_ask
+      - assertVisible: "Something isn't working"
+      - tapOn:
+          id: home_tab_keys
+      - assertNotVisible: "Something isn't working"
+      - assertVisible:
+          id: home_tab_wallets
+      - assertVisible:
+          id: home_tab_keys
+      - assertVisible:
+          id: home_tab_ask
+      - assertVisible:
+          id: home_tab_more

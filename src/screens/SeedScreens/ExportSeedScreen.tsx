@@ -107,12 +107,16 @@ function ExportSeedScreen({ route, navigation }) {
   }, [backupMethod]);
 
   useEffect(() => {
-    if (backupAllSuccess || backupAllFailure) {
+    if (backupAllSuccess) {
       if (!automaticCloudBackup) setAsbEnabled(true);
       dispatch(setBackupAllSuccess(false));
       dispatch(setBackupAllFailure(false));
       dispatch(setAutomaticCloudBackup(true));
       setBackupSuccessModal(true);
+    }
+    if (backupAllFailure) {
+      dispatch(setBackupAllFailure(false));
+      showToast(translations.recoveryBackup.unverified.title);
     }
   }, [backupAllSuccess, backupAllFailure]);
 

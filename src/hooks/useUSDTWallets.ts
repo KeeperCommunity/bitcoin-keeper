@@ -23,6 +23,9 @@ import { useDispatch } from 'react-redux';
 import { useAppSelector } from 'src/store/hooks';
 import { updateAppImage } from 'src/store/sagaActions/bhr';
 import Relay from 'src/services/backend/Relay';
+import { canonical, recoveryContent } from 'src/services/backup/image';
+import { markBackupMutation } from 'src/services/backup/transport';
+import { invalidateBackupRepair, setPendingAllBackup } from 'src/store/reducers/bhr';
 
 export interface UseUSDTWalletsOptions {
   getAll?: boolean;
@@ -171,18 +174,45 @@ export const useUSDTWallets = (options: UseUSDTWalletsOptions = {}): UseUSDTWall
   /**
    * Update a wallet in the database
    */
-  const updateWallet = useCallback(async (wallet: USDTWallet): Promise<boolean> => {
-    try {
-      const { id, ...walletUpdateData } = wallet;
-      await dbManager.updateObjectById(RealmSchema.USDTWallet, wallet.id, walletUpdateData); // Remove the primary key 'id' from the update object to avoid Realm primary key change error
+  const updateWallet = useCallback(
+    async (wallet: USDTWallet): Promise<boolean> => {
+      let recoveryChanged = false;
+      try {
+        const previous = dbManager.getObjectById(RealmSchema.USDTWallet, wallet.id);
+        if (!previous) throw new Error('Wallet not found');
+        const previousWallet = previous.toJSON ? previous.toJSON() : previous;
+        recoveryChanged =
+          canonical(recoveryContent('wallets', previousWallet)) !==
+          canonical(recoveryContent('wallets', wallet));
+        const { id, ...walletUpdateData } = wallet;
+        const updated = await dbManager.updateObjectById(
+          RealmSchema.USDTWallet,
+          id,
+          walletUpdateData
+        ); // Realm updates must omit the primary key.
+        if (!updated) throw new Error('Failed to update wallet');
 
-      return true;
-    } catch (err) {
-      setError(err.message || 'Failed to update wallet');
-      captureError(err);
-      return false;
-    }
-  }, []);
+        // Metadata and visibility must survive recovery. Balance/account refreshes
+        // are rebuildable caches and must not cause an upload on every sync.
+        if (recoveryChanged)
+          dispatch(updateAppImage({ wallets: [wallet], signers: null, updateNodes: false }));
+
+        return true;
+      } catch (err) {
+        // The database helper can fail after partially writing fields. Do not
+        // upload the requested state or leave a previous verification trusted.
+        if (recoveryChanged) {
+          markBackupMutation(appId);
+          dispatch(invalidateBackupRepair(appId));
+          dispatch(setPendingAllBackup(true));
+        }
+        setError(err.message || 'Failed to update wallet');
+        captureError(err);
+        return false;
+      }
+    },
+    [appId, dispatch]
+  );
 
   /**
    * Syncs a single wallet account status with latest data

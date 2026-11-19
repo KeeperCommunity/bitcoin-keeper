@@ -107,3 +107,8 @@ export const validateServerBackup = (callback) => ({
   type: VALIDATE_SERVER_BACKUP,
   callback,
 });
+
+export const CHECK_BACKUP_FRESHNESS = 'CHECK_BACKUP_FRESHNESS';
+export const REPAIR_BACKUP = 'REPAIR_BACKUP';
+export const checkBackupFreshness = () => ({ type: CHECK_BACKUP_FRESHNESS });
+export const repairBackup = () => ({ type: REPAIR_BACKUP });

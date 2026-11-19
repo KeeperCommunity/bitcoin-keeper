@@ -33,7 +33,7 @@ import { isVaultUsingBlockHeightTimelock } from 'src/services/wallets/factories/
 function ResetEmergencyKey({ route }) {
   const {
     inheritanceKeys = [],
-    initialTimelockDuration = 0,
+    initialTimelockDuration,
     vault,
   }: { inheritanceKeys; initialTimelockDuration; vault: Vault } = route.params;
   const { colorMode } = useColorMode();
@@ -257,7 +257,7 @@ function ResetEmergencyKey({ route }) {
           key: signer,
           duration: selectedOptions[getKeyUID(signer)]?.label,
         }))}
-        initialTimelockDuration={initialTimelockDuration ?? 0}
+        initialTimelockDuration={initialTimelockDuration}
         currentBlockHeight={currentBlockHeight}
         miniscriptTypes={vault.scheme.miniscriptScheme.usedMiniscriptTypes}
       />

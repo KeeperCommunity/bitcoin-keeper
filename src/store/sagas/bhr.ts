@@ -1,13 +1,13 @@
+import { buffers, END, eventChannel } from 'redux-saga';
+import { inspectBackup, RepairPhase } from 'src/services/backup/repair';
+import { prepareRecoveryImage } from 'src/services/backup/restore';
+import { BackupImage, pauseBackup } from 'src/services/backup/image';
+import { markBackupMutation } from 'src/services/backup/transport';
 import * as bip39 from 'bip39';
 import { Wallet } from 'src/services/wallets/interfaces/wallet';
-import { call, put, select } from 'redux-saga/effects';
+import { call, put, select, takeMaybe, takeEvery } from 'redux-saga/effects';
 import config from 'src/utils/service-utilities/config';
-import {
-  decrypt,
-  encrypt,
-  generateEncryptionKey,
-  hash256,
-} from 'src/utils/service-utilities/encryption';
+import { encrypt, generateEncryptionKey, hash256 } from 'src/utils/service-utilities/encryption';
 import BIP85 from 'src/services/wallets/operations/BIP85';
 import DeviceInfo from 'react-native-device-info';
 import { KeeperApp } from 'src/models/interfaces/KeeperApp';
@@ -51,16 +51,20 @@ import {
   setBackupAllFailure,
   setBackupAllLoading,
   setBackupAllSuccess,
+  setBackupRepairState,
+  setBackupRepairRunning,
+  invalidateBackupRepair,
   setBackupLoading,
   setBackupType,
   setDeleteBackupFailure,
   setDeleteBackupSuccess,
-  setHomeToastMessage,
   setIsCloudBsmsBackupRequired,
   setPendingAllBackup,
   setSeedConfirmed,
 } from '../reducers/bhr';
 import {
+  CHECK_BACKUP_FRESHNESS,
+  REPAIR_BACKUP,
   BACKUP_ALL_SIGNERS_AND_VAULTS,
   BACKUP_BSMS_ON_CLOUD,
   BSMS_CLOUD_HEALTH_CHECK,
@@ -83,14 +87,13 @@ import { RootState } from '../store';
 import { setupRecoveryKeySigningKey } from 'src/hardware/signerSetup';
 import { addNewWalletsWorker, addSigningDeviceWorker, NewWalletInfo } from './wallets';
 import {
-  areSetsEqual,
   getKeyUID,
   sanitizeSeedKeyForBackup,
   sanitizeVaultSignersForSeedKeyBackup,
 } from 'src/utils/utilities';
 import NetInfo from '@react-native-community/netinfo';
 import { addToUaiStackWorker, uaiActionedWorker } from './uai';
-import { addAccount, saveDefaultWalletState, setRecoveryKeyBackedUp } from '../reducers/account';
+import { addAccount, saveDefaultWalletState, setRecoveryKeyStatus } from '../reducers/account';
 import { loadConciergeTickets, loadConciergeUser } from '../reducers/concierge';
 import { USDTWallet } from 'src/services/wallets/factories/USDTWalletFactory';
 
@@ -121,7 +124,8 @@ export function* updateAppImageWorker({
         const encrytedWallet = encrypt(encryptionKey, JSON.stringify(wallet));
         walletsObject[wallet.id] = encrytedWallet;
       }
-    } else if (signers) {
+    }
+    if (signers) {
       for (const signer of signers) {
         const encrytedSigner = encrypt(
           encryptionKey,
@@ -129,12 +133,12 @@ export function* updateAppImageWorker({
         );
         signersObject[getKeyUID(signer)] = encrytedSigner;
       }
-    } else if (updateNodes) {
+    }
+    if (updateNodes) {
       const nodes: NodeDetail[] = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
       if (nodes && nodes.length > 0) {
         for (const index in nodes) {
-          const node = nodes[index];
-          node.isConnected = false;
+          const node = { ...nodes[index], isConnected: false };
           const encrytedNode = encrypt(encryptionKey, JSON.stringify(node));
           nodesList.push(encrytedNode);
         }
@@ -150,7 +154,9 @@ export function* updateAppImageWorker({
       subscription: JSON.stringify(subscription),
       version,
       nodes: nodesList,
+      replaceNodes: !!updateNodes,
     });
+    if (!response?.updated) yield call(setServerBackupFailed);
     return response;
   } catch (err) {
     console.log({ err });
@@ -183,15 +189,6 @@ export function* updateVaultImageWorker({
     JSON.stringify(sanitizeVaultSignersForSeedKeyBackup(vault))
   );
 
-  if (isUpdate) {
-    const response = yield call(Relay.updateVaultImage, {
-      isUpdate,
-      vaultId: vault.id,
-      vault: vaultEncrypted,
-    });
-    return response;
-  }
-
   const signersData: Array<{
     signerId: string;
     xfpHash: string;
@@ -204,6 +201,18 @@ export function* updateVaultImageWorker({
     });
   }
 
+  if (isUpdate) {
+    const response = yield call(Relay.updateVaultImage, {
+      isUpdate,
+      signersData,
+      appId: id,
+      vaultId: vault.id,
+      vault: vaultEncrypted,
+      isArchived: !!vault.archived,
+    });
+    return response;
+  }
+
   // TODO to be removed
   const subscriptionStrings = JSON.stringify(subscription);
 
@@ -213,6 +222,7 @@ export function* updateVaultImageWorker({
       vaultId: vault.id,
       signersData,
       vault: vaultEncrypted,
+      isArchived: !!vault.archived,
       subscription: subscriptionStrings,
       ...(archiveVaultId && { archiveVaultId }),
     });
@@ -353,23 +363,11 @@ function* getAppImageWorker({ payload }) {
     }
 
     const encryptionKey = generateEncryptionKey(primarySeed.toString('hex'));
-    let appImage = { appId: appID, version: null, wallets: {}, signers: {}, nodes: [] };
-    let subscription = null;
-    let labels = [];
-    let allVaultImages = [];
-
-    try {
-      const response = yield call(Relay.getAppImage, appID);
-      if (response) {
-        appImage = response.appImage || appImage;
-        subscription = response.subscription || subscription;
-        labels = response.labels || labels;
-        allVaultImages = response.allVaultImages || allVaultImages;
-      }
-    } catch (err) {
-      console.log('Error retrieving app image from relay:', err);
-      // Continue with empty defaults
-    }
+    const response = yield call(Relay.getAppImage, appID);
+    if (!response?.appImage) throw new Error('Recovery data unavailable');
+    const { appImage } = response;
+    const labels = response.labels === undefined ? [] : response.labels;
+    const allVaultImages = response.allVaultImages === undefined ? [] : response.allVaultImages;
 
     const previousVersion = appImage.version;
 
@@ -417,17 +415,39 @@ function* getAppImageWorker({ payload }) {
           instanceNum: 0,
         },
       };
-      yield call(addNewWalletsWorker, { payload: [defaultWallet] });
+      const created = yield call(addNewWalletsWorker, { payload: [defaultWallet] });
+      if (created !== true) throw new Error('Recovery data unavailable');
     }
 
     const recoveryKeySigner = setupRecoveryKeySigningKey(primaryMnemonic);
     yield call(addSigningDeviceWorker, { payload: { signers: [recoveryKeySigner] } });
+    const recoveredSigners: Signer[] = yield call(dbManager.getCollection, RealmSchema.Signer);
+    const recoveredKey = recoveredSigners.find(
+      (signer) => getKeyUID(signer) === getKeyUID(recoveryKeySigner)
+    );
+    // Key creation/merging can return without throwing after a rejected write.
+    // Verify the required derived key material before exposing recovery success.
+    if (
+      !recoveredKey ||
+      !Object.values(recoveryKeySigner.signerXpubs).some((entries) => entries.length > 0) ||
+      !Object.entries(recoveryKeySigner.signerXpubs).every(([type, entries]) =>
+        entries.every((expected) =>
+          recoveredKey.signerXpubs[type]?.some(
+            (actual) =>
+              actual.xpub === expected.xpub &&
+              actual.derivationPath === expected.derivationPath &&
+              actual.xpriv === expected.xpriv
+          )
+        )
+      )
+    )
+      throw new Error('Recovery data unavailable');
 
     // applying the restore upgrade sequence if required
     const newVersion = DeviceInfo.getVersion();
     if (previousVersion && semver.lt(previousVersion, newVersion)) {
       console.log(`applying restore upgarde sequence - from: ${previousVersion} to ${newVersion}`);
-      yield call(applyUpgradeSequence, { previousVersion, newVersion });
+      yield call(applyUpgradeSequence, { previousVersion, newVersion, isRecovery: true });
       try {
         yield call(Relay.updateAppImage, {
           appId: appImage.appId,
@@ -448,7 +468,8 @@ function* getAppImageWorker({ payload }) {
     yield put(uaiChecks([uaiType.SECURE_VAULT]));
     yield put(loadConciergeUser(null));
     yield put(loadConciergeTickets([]));
-    yield put(setRecoveryKeyBackedUp({ appId: appID, status: true }));
+    yield put(setRecoveryKeyStatus({ appId: appID, status: 'confirmed' }));
+    yield put(setAppCreated(true));
   } catch (err) {
     yield put(setAppImageError(err.message));
   } finally {
@@ -468,6 +489,14 @@ function* recoverApp(
   previousVersion
 ) {
   const { bitcoinNetworkType } = yield select((state: RootState) => state.settings);
+  const recovered: BackupImage = yield call(
+    prepareRecoveryImage,
+    encryptionKey,
+    appID,
+    appImage,
+    allVaultImages,
+    labels
+  );
   const entropy = yield call(
     BIP85.bip39MnemonicToEntropy,
     config.BIP85_IMAGE_ENCRYPTIONKEY_DERIVATION_PATH,
@@ -495,28 +524,25 @@ function* recoverApp(
     networkType: bitcoinNetworkType,
   };
 
-  yield call(dbManager.createObject, RealmSchema.KeeperApp, app);
+  yield call(writeRecoveredObject, RealmSchema.KeeperApp, app);
 
   // Wallet recreation
   if (appImage.wallets) {
-    for (const [key, value] of Object.entries(appImage.wallets)) {
+    for (const decryptedWallet of Object.values(recovered.wallets) as Wallet[]) {
       try {
-        const decryptedWallet: Wallet = JSON.parse(decrypt(encryptionKey, value));
         if (decryptedWallet.entityKind === EntityKind.USDT_WALLET)
-          yield call(dbManager.createObject, RealmSchema.USDTWallet, decryptedWallet);
-        else yield call(dbManager.createObject, RealmSchema.Wallet, decryptedWallet);
+          yield call(writeRecoveredObject, RealmSchema.USDTWallet, decryptedWallet);
+        else yield call(writeRecoveredObject, RealmSchema.Wallet, decryptedWallet);
       } catch (err) {
-        console.log('Error recovering a wallet: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
 
   // Signers recreatin
   if (appImage.signers) {
-    for (const [key, value] of Object.entries(appImage.signers)) {
+    for (const decrytpedSigner of Object.values(recovered.signers) as Signer[]) {
       try {
-        const decrytpedSigner: Signer = JSON.parse(decrypt(encryptionKey, value));
         if (!decrytpedSigner?.id) {
           decrytpedSigner.id = getKeyUID(decrytpedSigner);
         }
@@ -526,20 +552,18 @@ function* recoverApp(
             ? NetworkType.TESTNET
             : NetworkType.MAINNET;
         }
-        yield call(dbManager.createObject, RealmSchema.Signer, decrytpedSigner);
+        yield call(writeRecoveredObject, RealmSchema.Signer, decrytpedSigner);
       } catch (err) {
-        console.log('Error recovering a signer: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
 
   // Vault recreation
   if (allVaultImages.length > 0) {
-    for (const vaultImage of allVaultImages) {
+    // Legacy vaults carry the pre-key-management signer shape until migration.
+    for (const vault of Object.values(recovered.vaults)) {
       try {
-        const vault = JSON.parse(decrypt(encryptionKey, vaultImage.vault));
-
         if (semver.lt(previousVersion, KEY_MANAGEMENT_VERSION)) {
           if (vault?.signers?.length) {
             vault.signers.forEach((signer, index) => {
@@ -590,31 +614,22 @@ function* recoverApp(
                 hidden: false,
                 signerXpubs,
               };
-              yield call(dbManager.createObject, RealmSchema.Signer, signerObject);
+              yield call(writeRecoveredObject, RealmSchema.Signer, signerObject);
             }
           }
-
-          yield call(dbManager.createObject, RealmSchema.Vault, vault);
         }
-        yield call(dbManager.createObject, RealmSchema.Vault, vault);
+        yield call(writeRecoveredObject, RealmSchema.Vault, vault);
       } catch (err) {
-        console.log('Error recovering a vault: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
 
   // Labels Restore
   if (labels) {
-    const restoredLabels = [];
-    for (const label of labels) {
-      try {
-        restoredLabels.push(JSON.parse(decrypt(encryptionKey, label.content)));
-      } catch {
-        console.log('Failed to restore label');
-      }
+    for (const label of Object.values(recovered.labels)) {
+      yield call(writeRecoveredObject, RealmSchema.Tags, label);
     }
-    yield call(dbManager.createObjectBulk, RealmSchema.Tags, restoredLabels);
   }
 
   if (appImage.nodes) {
@@ -625,21 +640,24 @@ function* recoverApp(
     );
     for (const node of existingNodes) {
       if (node && node.id) {
-        yield call(dbManager.deleteObjectById, RealmSchema.NodeConnect, node.id.toString());
+        const deleted = yield call(
+          dbManager.deleteObjectById,
+          RealmSchema.NodeConnect,
+          node.id.toString()
+        );
+        if (deleted !== true) throw new Error('Recovery data unavailable');
       }
     }
-    for (const node of appImage.nodes) {
+    for (const decryptedNode of Object.values(recovered.nodes) as NodeDetail[]) {
       try {
-        const decryptedNode = JSON.parse(decrypt(encryptionKey, node));
         if (!decryptedNode?.networkType) {
           decryptedNode.networkType = config.isDevMode()
             ? NetworkType.TESTNET
             : NetworkType.MAINNET;
         }
-        yield call(dbManager.createObject, RealmSchema.NodeConnect, decryptedNode);
+        yield call(writeRecoveredObject, RealmSchema.NodeConnect, decryptedNode);
       } catch (err) {
-        console.log('Error recovering a node: ', err);
-        continue;
+        throw new Error('Recovery data unavailable');
       }
     }
   }
@@ -650,35 +668,49 @@ function* recoverApp(
     const firstNode = savedNodes[0];
     firstNode.isConnected = true;
 
-    yield call(
+    const connected = yield call(
       dbManager.updateObjectById,
       RealmSchema.NodeConnect,
       firstNode.id.toString(),
       firstNode
     );
+    if (connected !== true) throw new Error('Recovery data unavailable');
   }
 
   // seed confirm for recovery
-  yield call(dbManager.createObject, RealmSchema.BackupHistory, {
+  yield call(writeRecoveredObject, RealmSchema.BackupHistory, {
     title: BackupAction.SEED_BACKUP_CONFIRMED,
     date: moment().unix(),
     confirmed: true,
     subtitle: 'Recovered using backup phrase',
   });
 
-  yield put(setSeedConfirmed(true));
+  // Recovery proves possession of the Recovery Key, but is not consent to
+  // enable Assisted Server Backup. This transient flag triggers a new upload
+  // when the health-check screen mounts; persistent key status is set by the
+  // completed recovery worker instead.
+  yield put(setSeedConfirmed(false));
   yield put(setBackupType(BackupType.SEED));
   yield put(uaiActioned({ uaiType: uaiType.RECOVERY_PHRASE_HEALTH_CHECK, action: true }));
 
   // create/add restored object for version
-  yield call(dbManager.createObject, RealmSchema.VersionHistory, {
+  yield call(writeRecoveredObject, RealmSchema.VersionHistory, {
     version: `${DeviceInfo.getVersion()}(${DeviceInfo.getBuildNumber()})`,
     date: new Date().toString(),
-    title: 'Restored version',
+    title: 'Recovered Wallet',
   });
 
   yield put(setAppId(appID));
-  yield put(setAppCreated(true));
+}
+
+function* writeRecoveredObject(schema: RealmSchema, record: any) {
+  // Realm's adapter returns false/undefined on a rejected write instead of
+  // throwing. Never count that record as recovered or report partial success.
+  const written = yield call(dbManager.createObject, schema, record);
+  if (written !== true) throw new Error('Recovery data unavailable');
+  // Realm writes complete synchronously. Break the saga's synchronous effect
+  // chain between records so a large restore cannot exhaust the JS stack.
+  yield call(pauseBackup);
 }
 
 function* healthCheckSatutsUpdateWorker({
@@ -946,120 +978,90 @@ export const deleteAppImageEntityWatcher = createWatcher(
   DELETE_APP_IMAGE_ENTITY
 );
 
+const backupInspectionOwners = new Map<string, number>();
+
+function* runBackupInspection(repair: boolean) {
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  backupInspectionOwners.set(id, (backupInspectionOwners.get(id) ?? 0) + 1);
+  let finalPhase: RepairPhase = 'unverified';
+  let inspection: Promise<RepairPhase> | undefined;
+  let updates: ReturnType<typeof eventChannel<RepairPhase>> | undefined;
+  try {
+    yield put(setBackupRepairRunning({ appId: id, running: true }));
+    updates = eventChannel<RepairPhase>((emit) => {
+      inspection = inspectBackup(id, repair, (phase) => emit(phase));
+      inspection.then(
+        () => emit(END),
+        () => emit(END)
+      );
+      return () => {};
+    }, buffers.expanding());
+    while (true) {
+      const phase = yield takeMaybe(updates);
+      if (phase === END) break;
+      finalPhase = phase;
+      yield put(setBackupRepairState({ appId: id, phase }));
+    }
+    const current: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+    if (current?.id === id) {
+      yield put(setPendingAllBackup(finalPhase !== 'verified'));
+      if (finalPhase === 'verified') {
+        const notifications = dbManager.getObjectByField(
+          RealmSchema.UAI,
+          uaiType.SERVER_BACKUP_FAILURE,
+          'uaiType'
+        );
+        for (const uai of notifications)
+          yield call(uaiActionedWorker, { payload: { uaiId: uai.id, action: true } });
+      } else if (
+        !dbManager.getObjectByField(RealmSchema.UAI, uaiType.SERVER_BACKUP_FAILURE, 'uaiType')
+          ?.length
+      ) {
+        yield call(addToUaiStackWorker, {
+          payload: {
+            uaiType: uaiType.SERVER_BACKUP_FAILURE,
+            uaiDetails: {
+              heading: 'Check Your Backup',
+              body: 'Your Assisted Server Backup may differ from this device. View details to check it.',
+            },
+          },
+        });
+      }
+    }
+    return finalPhase === 'verified';
+  } finally {
+    updates?.close();
+    // Cancellation closes this listener, but does not stop its shared operation.
+    // Keep ownership until that operation settles, including a queued repair.
+    if (inspection) yield call(() => inspection.catch(() => undefined));
+    const remaining = (backupInspectionOwners.get(id) ?? 1) - 1;
+    if (remaining) backupInspectionOwners.set(id, remaining);
+    else backupInspectionOwners.delete(id);
+    yield put(setBackupRepairRunning({ appId: id, running: remaining > 0 }));
+  }
+}
+
+function* backupFreshnessWorker({ type }) {
+  const { automaticCloudBackup } = yield select((state: RootState) => state.bhr);
+  if (!automaticCloudBackup) return;
+  yield call(runBackupInspection, type === REPAIR_BACKUP);
+}
+
+export function* backupFreshnessWatcher() {
+  yield takeEvery([CHECK_BACKUP_FRESHNESS, REPAIR_BACKUP], backupFreshnessWorker);
+}
+
 function* backupAllSignersAndVaultsWorker() {
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
   yield put(setBackupAllSuccess(false));
   yield put(setBackupAllFailure(false));
   yield put(setBackupAllLoading(true));
   try {
-    // clear backup failure notification
-    const uaiCollection = dbManager.getObjectByField(
-      RealmSchema.UAI,
-      uaiType.SERVER_BACKUP_FAILURE,
-      'uaiType'
-    );
-    for (const uai of uaiCollection) {
-      if (uai.uaiType === uaiType.SERVER_BACKUP_FAILURE) {
-        yield call(uaiActionedWorker, {
-          payload: { uaiId: uai.id, action: false },
-        });
-      }
-    }
-
-    const { primarySeed, id, publicId, subscription, networkType, version }: KeeperApp = yield call(
-      dbManager.getObjectByIndex,
-      RealmSchema.KeeperApp
-    );
-    const encryptionKey = generateEncryptionKey(primarySeed);
-    const walletObject = {};
-    const signersObject = {};
-    const vaultObject = {};
-
-    // update all wallets and signers
-    const btcWallets: Wallet[] = yield call(dbManager.getCollection, RealmSchema.Wallet);
-    const usdtWallets = yield call(dbManager.getObjectByIndex, RealmSchema.USDTWallet, null, true);
-    const wallets = [...btcWallets, ...usdtWallets];
-
-    for (const index in wallets) {
-      const wallet = wallets[index];
-      const encrytedWallet = encrypt(encryptionKey, JSON.stringify(wallet));
-      walletObject[wallet.id] = encrytedWallet;
-    }
-    const signers: Signer[] = yield call(dbManager.getCollection, RealmSchema.Signer);
-    for (const index in signers) {
-      const signer = signers[index];
-      const encrytedSigner = encrypt(
-        encryptionKey,
-        JSON.stringify(sanitizeSeedKeyForBackup(signer))
-      );
-      signersObject[getKeyUID(signer)] = encrytedSigner;
-    }
-    const vaults: Vault[] = yield call(dbManager.getCollection, RealmSchema.Vault);
-    for (const index in vaults) {
-      const vault = vaults[index];
-      const vaultEncrypted = encrypt(
-        encryptionKey,
-        JSON.stringify(sanitizeVaultSignersForSeedKeyBackup(vault))
-      );
-      const signersData: Array<{
-        signerId: string;
-        xfpHash: string;
-      }> = [];
-      for (const signer of vault.signers) {
-        signersData.push({
-          signerId: getKeyUID(signer),
-          xfpHash: hash256(signer.masterFingerprint),
-        });
-      }
-      vaultObject[vault.id] = {
-        vaultId: vault.id,
-        signersData,
-        vault: vaultEncrypted,
-      };
-    }
-
-    const nodes: NodeDetail[] = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
-    const nodesToUpdate = [];
-    if (nodes && nodes.length > 0) {
-      for (const index in nodes) {
-        const node = nodes[index];
-        node.isConnected = false;
-        const encryptedNode = encrypt(encryptionKey, JSON.stringify(node));
-        nodesToUpdate.push(encryptedNode);
-      }
-    }
-
-    const labels = yield call(dbManager.getCollection, RealmSchema.Tags);
-    const tagsToBackup = labels.map((tag) => ({
-      id: hash256(hash256(encryptionKey + tag.id)),
-      content: encrypt(encryptionKey, JSON.stringify(tag)),
-    }));
-
-    yield call(Relay.backupAllSignersAndVaults, {
-      appId: id,
-      publicId,
-      walletObject,
-      signersObject,
-      vaultObject,
-      networkType,
-      subscription: JSON.stringify(subscription),
-      version,
-      nodes: nodesToUpdate,
-      labels: tagsToBackup,
-    });
-    yield put(setBackupAllSuccess(true));
-    yield put(setPendingAllBackup(false));
-    return true;
-  } catch (error) {
-    yield put(setBackupAllFailure(true));
-    yield call(setServerBackupFailed);
-    console.log('🚀 ~ function*backupAllSignersAndVaultsWorker ~ error:', error);
-    yield put(
-      setHomeToastMessage({
-        message: 'Assisted server backup failed. Please try again later.',
-        isError: true,
-      })
-    );
-    return false;
+    const verified = yield call(runBackupInspection, true);
+    const current: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+    if (current?.id === id)
+      yield put(verified ? setBackupAllSuccess(true) : setBackupAllFailure(true));
+    return verified;
   } finally {
     yield put(setBackupAllLoading(false));
   }
@@ -1093,22 +1095,19 @@ function* deleteBackupWorker() {
 export const deleteBackupWatcher = createWatcher(deleteBackupWorker, DELETE_BACKUP);
 
 export function* checkBackupCondition() {
-  const { pendingAllBackup, automaticCloudBackup } = yield select((state: RootState) => state.bhr);
-  const { subscription }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
-  // if (automaticCloudBackup && subscription.level === AppSubscriptionLevel.L1 && !pendingAllBackup) {
-  if (automaticCloudBackup && !pendingAllBackup) {
-    return true;
-  }
+  const { automaticCloudBackup } = yield select((state: RootState) => state.bhr);
   if (!automaticCloudBackup) return true;
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  markBackupMutation(id);
+  yield put(invalidateBackupRepair(id));
   const netInfo = yield call(NetInfo.fetch);
   if (!netInfo.isConnected) {
     yield call(setServerBackupFailed);
     return true;
   }
-  if (pendingAllBackup) {
-    yield call(backupAllSignersAndVaultsWorker);
-    return true;
-  }
+  // Never suppress this incremental write or replace it with a snapshot: wallet
+  // creation invokes us before persisting the new wallet to Realm. An old
+  // mismatch is repaired only after Back Up Now, separately from this mutation.
   return false;
 }
 
@@ -1138,84 +1137,14 @@ export function* setServerBackupFailed() {
 }
 
 function* validateServerBackupWorker({ callback }) {
-  try {
-    const { primarySeed, id }: KeeperApp = yield call(
-      dbManager.getObjectByIndex,
-      RealmSchema.KeeperApp
-    );
-    const encryptionKey = generateEncryptionKey(primarySeed as string);
-    let { allVaultImages, appImage, labels } = yield call(Relay.getAppImage, id);
-    const { nodes, wallets, signers = {} } = appImage;
-
-    // Check for vaults
-    let localVaultIds = yield call(dbManager.getCollection, RealmSchema.Vault);
-    localVaultIds = localVaultIds.map((item) => item.id);
-    let decryptedVaultIds = [];
-    for (const index in allVaultImages) {
-      decryptedVaultIds.push(JSON.parse(decrypt(encryptionKey, allVaultImages[index].vault)).id);
-    }
-    if (!areSetsEqual(new Set(localVaultIds), new Set(decryptedVaultIds)))
-      return callback({ status: false, message: 'Vaults do not match' });
-
-    // Check for labels
-    let localLabelIds: any = yield call(dbManager.getCollection, RealmSchema.Tags);
-    localLabelIds = localLabelIds.map((item) => item.id);
-    if (labels.length !== localLabelIds.length)
-      return callback({ status: false, message: 'Labels do not match' });
-    const decryptedLabelIds = [];
-    for (const index in labels) {
-      decryptedLabelIds.push(JSON.parse(decrypt(encryptionKey, labels[index].content)).id);
-    }
-    if (!areSetsEqual(new Set(localLabelIds), new Set(decryptedLabelIds)))
-      return callback({ status: false, message: 'Labels do not match' });
-
-    //  Check for Signers
-    let localSignerIds: any = yield call(dbManager.getCollection, RealmSchema.Signer);
-    localSignerIds = localSignerIds.map((item) => item.id);
-    if (Object.keys(signers).length !== localSignerIds.length)
-      return callback({ status: false, message: 'Signers do not match' });
-    let decryptedSignerIds = [];
-    for (const index in signers) {
-      decryptedSignerIds.push(JSON.parse(decrypt(encryptionKey, signers[index])).id);
-    }
-    if (!areSetsEqual(new Set(localSignerIds), new Set(decryptedSignerIds)))
-      return callback({ status: false, message: 'Signers do not match' });
-
-    //  Check for Wallets
-    let localWallets: any = yield call(dbManager.getCollection, RealmSchema.Wallet);
-    const walletsBackupLength = Array.isArray(wallets)
-      ? wallets.length
-      : Object.keys(wallets).length;
-    if (walletsBackupLength !== localWallets.length)
-      return callback({ status: false, message: 'Wallets do not match' });
-    const localWalletIds = localWallets.map((item) => item.id);
-    let decryptedWalletIds = [];
-    for (const index in wallets) {
-      decryptedWalletIds.push(JSON.parse(decrypt(encryptionKey, wallets[index])).id);
-    }
-    if (!areSetsEqual(new Set(localWalletIds), new Set(decryptedWalletIds)))
-      return callback({ status: false, message: 'Wallets do not match' });
-
-    //  Check for nodes
-    let localNodes: any = yield call(dbManager.getCollection, RealmSchema.NodeConnect);
-    localNodes = localNodes.map((node) => {
-      node.isConnected = false;
-      return JSON.stringify(node);
-    });
-    if (localNodes.length !== nodes.length)
-      return callback({ status: false, message: 'Nodes do not match' });
-    const decryptedNodes = [];
-    for (const index in nodes) {
-      decryptedNodes.push(JSON.stringify(JSON.parse(decrypt(encryptionKey, nodes[index]))));
-    }
-    const missingNodes = decryptedNodes.filter((item) => !localNodes.includes(item));
-    if (missingNodes.length > 0) return callback({ status: false, message: 'Nodes do not match' });
-
-    return callback({ status: true, message: 'Backup verified successfully.' });
-  } catch (error) {
-    console.log('🚀 ~ function*validateServerBackupWorker ~ error:', error);
-    return callback({ status: false, message: 'Backup verification failed.', error: true });
-  }
+  const matched = yield call(runBackupInspection, false);
+  const { id }: KeeperApp = yield call(dbManager.getObjectByIndex, RealmSchema.KeeperApp);
+  const { backupRepairStateByAppId = {} } = yield select((state: RootState) => state.bhr);
+  callback({
+    status: matched,
+    error: backupRepairStateByAppId[id] === 'unverified',
+    message: matched ? 'Backup verified successfully.' : 'Backup could not be verified.',
+  });
 }
 
 export const validateSeverBackupWatcher = createWatcher(

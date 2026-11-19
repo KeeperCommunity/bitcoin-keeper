@@ -47,20 +47,19 @@ platform :android do
     )
   end
 
-  desc "Push a new live build to Slack and internal track on Play Store"
+  desc "Build explicitly versioned production artifacts and upload to Play internal testing"
   lane :live do
-    file_name = "../../.env"
-    file_url = "https://raw.githubusercontent.com/bithyve/bitcoin-keeper-envs/live/app.live.env"
-    auth_header = "Authorization: token #{ENV["GITHUB_ACCESS_TOKEN"]}"
-    sh(
-      "curl -H '#{auth_header}' -o '#{file_name}' -s '#{file_url}'",
-      step_name: "curl -H '***' -o '#{file_name}' -s '#{file_url}'"
-    )
+    sh("node", File.expand_path("../../scripts/release-version.cjs", __dir__), "release-check")
+    production_env = File.expand_path("../../.env.production", __dir__)
+    UI.user_error!("Missing reviewed .env.production") unless File.file?(production_env)
+    sh("node", File.expand_path("../../scripts/verify-channel-config.cjs", __dir__), production_env)
+    ENV['ENVFILE'] = production_env
     store_password = ENV["STORE_PASSWORD"]
     key_password = ENV["KEY_PASSWORD"]
     key_alias = ENV["KEY_ALIAS"]
-    releaseFilePath = File.join(Dir.pwd, "../app", "release.keystore")
-    bump_version_code()
+    UI.user_error!("Missing Android release signing credentials") if [store_password, key_password, key_alias].any? { |value| value.to_s.empty? }
+    releaseFilePath = ENV["KEEPER_ANDROID_KEYSTORE"] || File.expand_path("../app/release.keystore", __dir__)
+    UI.user_error!("Missing Android release keystore") unless File.file?(releaseFilePath)
     gradle(task: 'clean')
     gradle(
       task: 'bundle',
@@ -73,9 +72,8 @@ platform :android do
         "android.injected.signing.key.password" => key_password,
       }
     )
-    upload_to_play_store(
-      track: 'internal'
-    )
+    aab_path = Actions.lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH].to_s
+    UI.user_error!("Build did not return an AAB path") if aab_path.empty?
     gradle(
       task: 'assemble',
       build_type: 'productionRelease',
@@ -87,21 +85,36 @@ platform :android do
         "android.injected.signing.key.password" => key_password,
       }
     )
+    apk_path = Actions.lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH].to_s
+    UI.user_error!("Build did not return an APK path") if apk_path.empty?
+    verifier = File.expand_path("../../scripts/verify-release-artifact.py", __dir__)
+    sh("python3", verifier, aab_path)
+    sh("python3", verifier, apk_path)
+    upload_to_play_store(
+      track: 'internal',
+      aab: aab_path
+    )
   end
 end
 
 
 after_all do |lane|
   versionCode = android_get_version_code()
-  slack(message: "Build success :rocket:\nVersion Code: " + versionCode.to_s)
+  UI.message("Build success. Version Code: " + versionCode.to_s)
+  if ENV['KEEPER_NOTIFY_SLACK'] == '1'
+    slack(message: "Build success :rocket:\nVersion Code: " + versionCode.to_s)
   end
+end
 
-  error do |lane, exception|
+error do |lane, exception|
+  UI.error("Fastlane failed: " + exception.message.to_s)
+  if ENV['KEEPER_NOTIFY_SLACK'] == '1'
     slack(
       message: exception.message,
       success:false
     )
   end
+end
 
 lane :bump_version_code do
   path = '../app/build.gradle'

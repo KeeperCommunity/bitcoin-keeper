@@ -29,13 +29,15 @@ export const getTestcoins = (testWallet: Wallet) => ({
 export const autoSyncWallets = (
   syncAll?: boolean,
   hardRefresh?: boolean,
-  addNotifications?: boolean
+  addNotifications?: boolean,
+  backupCheckAppId?: string
 ) => ({
   type: AUTO_SYNC_WALLETS,
   payload: {
     syncAll,
     hardRefresh,
     addNotifications,
+    backupCheckAppId,
   },
 });
 
