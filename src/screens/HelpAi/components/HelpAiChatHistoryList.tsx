@@ -4,10 +4,10 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import Fonts from 'src/constants/Fonts';
 import { hp, wp } from 'src/constants/responsive';
+import { HELP_AI_ICON_MAP, getThreadIconType } from 'src/constants/helpAiIcons';
 import { HelpAiThread } from 'src/store/reducers/helpAi';
 import Colors from 'src/theme/Colors';
 import PencilWhite from 'src/assets/images/edit_white.svg';
-import ChatIcon from 'src/assets/images/chat.svg';
 import Fab from 'src/components/Fab';
 
 type HelpAiChatHistoryListProps = {
@@ -43,59 +43,64 @@ const HelpAiChatHistoryList = ({
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.listContent}>
-        {threads.map((thread, idx) => (
-          <Pressable
-            testID={`chat_thread_${idx}`}
-            key={thread.conversationId}
-            onPress={() => onOpenChat(thread.conversationId)}
-            style={({ pressed }) => [styles.itemPressable, { opacity: pressed ? 0.75 : 1 }]}
-          >
-            <View style={[styles.itemCard]}>
-              <View style={styles.iconWrap}>
-                <ChatIcon width={wp(22)} height={wp(22)} />
-              </View>
-              <View style={styles.cardBody}>
-                {/* Icon + header row */}
-                <View style={styles.itemHeader}>
-                  <View style={styles.iconAndTitle}>
+        {threads.map((thread, idx) => {
+          const iconType = getThreadIconType(thread.messages);
+          const ThreadIcon = HELP_AI_ICON_MAP[iconType] || HELP_AI_ICON_MAP.chat;
+
+          return (
+            <Pressable
+              testID={`chat_thread_${idx}`}
+              key={thread.conversationId}
+              onPress={() => onOpenChat(thread.conversationId)}
+              style={({ pressed }) => [styles.itemPressable, { opacity: pressed ? 0.75 : 1 }]}
+            >
+              <View style={[styles.itemCard]}>
+                <View style={styles.iconWrap}>
+                  <ThreadIcon width={wp(22)} height={wp(22)} />
+                </View>
+                <View style={styles.cardBody}>
+                  {/* Icon + header row */}
+                  <View style={styles.itemHeader}>
+                    <View style={styles.iconAndTitle}>
+                      <Text
+                        testID={`chat_thread_title_${idx}`}
+                        style={[
+                          styles.threadTitle,
+                          { color: colorMode === 'dark' ? '#e7e7e7' : '#272421' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {thread.title || 'New chat'}
+                      </Text>
+                    </View>
                     <Text
-                      testID={`chat_thread_title_${idx}`}
+                      testID={`chat_thread_time_${idx}`}
                       style={[
-                        styles.threadTitle,
-                        { color: colorMode === 'dark' ? '#e7e7e7' : '#272421' },
+                        styles.metaText,
+                        { color: colorMode === 'dark' ? '#696969' : '#677e7c' },
                       ]}
-                      numberOfLines={1}
                     >
-                      {thread.title || 'New chat'}
+                      {formatRelativeTime(thread.updatedAt)}
                     </Text>
                   </View>
+
+                  {/* Preview */}
                   <Text
-                    testID={`chat_thread_time_${idx}`}
+                    testID={`chat_thread_preview_${idx}`}
                     style={[
-                      styles.metaText,
-                      { color: colorMode === 'dark' ? '#696969' : '#677e7c' },
+                      styles.previewText,
+                      { color: colorMode === 'dark' ? '#7a7a7a' : '#9a9590' },
                     ]}
+                    numberOfLines={1}
                   >
-                    {formatRelativeTime(thread.updatedAt)}
+                    {thread.lastMessage || 'No messages yet'}
                   </Text>
                 </View>
-
-                {/* Preview */}
-                <Text
-                  testID={`chat_thread_preview_${idx}`}
-                  style={[
-                    styles.previewText,
-                    { color: colorMode === 'dark' ? '#7a7a7a' : '#9a9590' },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {thread.lastMessage || 'No messages yet'}
-                </Text>
               </View>
-            </View>
-            {idx < threads.length - 1 && <View style={styles.spacer} />}
-          </Pressable>
-        ))}
+              {idx < threads.length - 1 && <View style={styles.spacer} />}
+            </Pressable>
+          );
+        })}
       </ScrollView>
       <Fab
         icon={<PencilWhite height={hp(22)} width={wp(22)} />}

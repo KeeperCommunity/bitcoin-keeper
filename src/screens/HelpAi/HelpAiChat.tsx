@@ -62,7 +62,7 @@ import AskKeeperInfo from 'src/assets/images/ask_keeper_info.svg';
 import AskKeeperLock from 'src/assets/images/ask_keeper_lock.svg';
 import LockIcon from 'src/assets/images/lockLightGreen.svg';
 import Fonts from 'src/constants/Fonts';
-import ChatIcon from 'src/assets/images/chat.svg';
+import { HELP_AI_ICON_MAP } from 'src/constants/helpAiIcons';
 import { sanitizeHelpAiReplyLinks, sanitizeHelpAiSources } from 'src/utils/helpAiLinkPolicy';
 import { detectSensitiveInput, detectSensitiveInDraft } from 'src/utils/helpAiSensitiveData';
 
@@ -151,6 +151,7 @@ const HelpAiChat = ({ navigation, route }) => {
     id: 'help-ai-intro',
     type: 'ai',
     text: greetings.current,
+    iconType: 'chat',
   };
   const messages = persistedThread?.messages?.length ? persistedThread.messages : [defaultIntro];
   const rawChatMessages = persistedThread?.rawMessages || [];
@@ -260,6 +261,7 @@ const HelpAiChat = ({ navigation, route }) => {
         id: nowId(),
         type: 'ai',
         text: sanitizedReply,
+        iconType: response.iconType,
         sources: sanitizedSources,
       };
       const escalationRenderMsg: HelpAiRenderMessage | null =
@@ -339,6 +341,7 @@ const HelpAiChat = ({ navigation, route }) => {
         id: nowId(),
         type: 'ai',
         text: response.thankYouMessage,
+        iconType: 'chat',
       });
     } catch (error) {
       dispatch(setHelpAiDraftStatus({ conversationId, draftStatus: 'failed_retryable' }));
@@ -425,6 +428,8 @@ const HelpAiChat = ({ navigation, route }) => {
 
     const isUser = item.type === 'user';
     const sources = item.type === 'ai' ? item.sources : undefined;
+    const iconType = item.type === 'ai' ? item.iconType : undefined;
+    const AvatarIcon = HELP_AI_ICON_MAP[iconType || 'chat'] || HELP_AI_ICON_MAP.chat;
 
     const bubble = (
       <View
@@ -472,7 +477,7 @@ const HelpAiChat = ({ navigation, route }) => {
       return (
         <View style={styles.aiBubbleRow}>
           <View style={styles.aiAvatar}>
-            <ChatIcon width={wp(18)} height={wp(18)} />
+            <AvatarIcon width={wp(18)} height={wp(18)} />
           </View>
           {bubble}
         </View>

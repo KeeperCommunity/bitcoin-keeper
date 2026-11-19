@@ -2,6 +2,7 @@ import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 import { persistReducer } from 'redux-persist';
 import {
   HelpChatMessage,
+  HelpIconType,
   HelpChatMetadata,
   HelpDraft,
   HelpEscalationCard,
@@ -17,7 +18,13 @@ export type HelpAiDraftStatus =
 
 export type HelpAiRenderMessage =
   | { id: string; type: 'user'; text: string }
-  | { id: string; type: 'ai'; text: string; sources?: Array<{ title: string; url: string }> }
+  | {
+      id: string;
+      type: 'ai';
+      text: string;
+      iconType?: HelpIconType;
+      sources?: Array<{ title: string; url: string }>;
+    }
   | { id: string; type: 'escalation'; card: HelpEscalationCard }
   | { id: string; type: 'issue'; issueUrl: string; issueNumber: number; text: string }
   | { id: string; type: 'system_error'; text: string; retryText?: string };
