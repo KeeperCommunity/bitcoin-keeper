@@ -1,0 +1,206 @@
+appId: io.hexawallet.keeper.development
+---
+
+- launchApp
+
+
+##################################
+# Enter Passcode (11111111)
+##################################
+
+- assertVisible:
+    id: "key_1"
+
+- repeat:
+    times: 8
+    commands:
+      - tapOn:
+          id: "key_1"
+
+- assertVisible: "Create"
+- tapOn: "Create"
+
+##################################
+# Remember Passcode Screen
+##################################
+
+- assertVisible: "Remember your passcode"
+- tapOn: "Back"
+
+##################################
+# Back to Create Screen
+##################################
+
+- assertVisible: "Create"
+- tapOn: "Create"
+
+##################################
+# Continue Screen
+##################################
+
+- assertVisible: "Continue"
+- tapOn: "Continue"
+
+##################################
+# Enable Biometric Authentication
+##################################
+
+- assertVisible: "Enable Biometric Authentication"
+- tapOn: "Cancel"
+
+##################################
+# Onboarding Screens
+##################################
+
+- assertVisible: "Create wallets"
+
+- swipe:
+    start: 80%,50%
+    end: 10%,50%
+
+- assertVisible: "Manage keys"
+
+- swipe:
+    start: 80%,50%
+    end: 10%,50%
+
+- assertVisible: "Plan for Inheritance"
+
+##################################
+# FAQs
+##################################
+
+- tapOn: "See FAQs"
+- back
+
+##################################
+# Get Started
+##################################
+
+- assertVisible: "Get Started"
+- tapOn: "Get Started"
+
+##################################
+# Welcome Screen
+##################################
+
+- assertVisible: "Welcome to Bitcoin Keeper"
+- tapOn: "Start New"
+
+##################################
+# Final Modal
+##################################
+
+- assertVisible: "Next"
+- tapOn: "Next"
+
+##################################
+# Home Screen
+##################################
+- assertVisible: "Set Up Wallet Recovery"
+
+
+- assertVisible: "Backup Recovery Key"
+
+
+####################################################
+# MANDATORY BACKUP FLOW
+####################################################
+
+- assertVisible: "Backup Recovery Key"
+- tapOn: "Backup Recovery Key"
+
+##################################
+# Confirm Passcode (1111)
+##################################
+
+- assertVisible: "Confirm Passcode"
+
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: "key_1"
+
+- tapOn:
+    id: "btn_primaryText"
+
+##################################
+# Cancel First Time
+##################################
+
+- assertVisible: "Cancel"
+- tapOn: "Cancel"
+
+##################################
+# Try Switching Tab
+##################################
+
+- tapOn: "Keys"
+
+##################################
+# Mandatory Modal Again
+##################################
+
+- assertVisible: "Set Up Wallet Recovery"
+- tapOn: "Backup Recovery Key"
+
+##################################
+# Confirm Passcode Again
+##################################
+
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: "key_1"
+
+- tapOn:
+    id: "btn_primaryText"
+
+##################################
+# Backup Now
+##################################
+
+- assertVisible: "Backup Now"
+- tapOn: "Backup Now"
+
+##################################
+# Recovery Key Screen
+##################################
+
+- assertVisible: "Recovery Key"
+
+- tapOn: { id: "text_seed_word_0" }
+- tapOn: { id: "text_seed_word_1" }
+- tapOn: { id: "text_seed_word_2" }
+- tapOn: { id: "text_seed_word_3" }
+- tapOn: { id: "text_seed_word_4" }
+- tapOn: { id: "text_seed_word_5" }
+- tapOn: { id: "text_seed_word_6" }
+- tapOn: { id: "text_seed_word_7" }
+- tapOn: { id: "text_seed_word_8" }
+- tapOn: { id: "text_seed_word_9" }
+- tapOn: { id: "text_seed_word_10" }
+- tapOn: { id: "text_seed_word_11" }
+
+- tapOn: "Next"
+
+##################################
+# Confirm Backup
+##################################
+
+- assertVisible: "Confirm Backup"
+
+- tapOn: "Enter seed word"
+
+# ⚠ Replace with actual expected seed word
+- inputText: "example"
+
+- tapOn: "Confirm"
+
+##################################
+# Final Verification
+##################################
+
+- assertVisible: "Keys"
