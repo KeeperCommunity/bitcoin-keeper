@@ -1,0 +1,40 @@
+{
+  "description": "Disposable public AES-GCM protocol vectors; payload strings are not valid or spendable PSBTs.",
+  "key": "0000000000000000000000000000000000000000000000000000000000000000",
+  "request": {
+    "plaintext": {
+      "action": "SIGN_TX",
+      "signerType": "LEDGER",
+      "psbt": {
+        "serializedPSBT": "fixture-only-psbt"
+      },
+      "miniscriptPolicy": null,
+      "walletName": "Disposable Testnet Vault",
+      "hmac": null
+    },
+    "ciphertext": {
+      "iv": "000102030405060708090a0b",
+      "encryptedData": "f3e952317494e097e04270b6b444905300348ab69deee691a1ae965ff4456a4dd6d5f0e0082074ae1afceffadddf3a200e8fb58982ffe4bfc090272676dae0e4d416d0f1f52962d833a9ccb89e36d04e52859462da27a96c15bfc60345ade264c870cf71bbdf77b26686255990581a165c29e365bf4ee4c9009b026998837a8f03e20a4039428b0ab3301fc4974fc101d831992717cc61a830fde80893d92c03af43e6f4",
+      "authTag": "8f6e3b25da67fe3d36a80480936ad896"
+    }
+  },
+  "response": {
+    "plaintext": {
+      "event": "CHANNEL_MESSAGE",
+      "data": {
+        "responseData": {
+          "action": "SIGN_TX",
+          "data": {
+            "signedSerializedPSBT": "fixture-only-signed-psbt",
+            "hmac": null
+          }
+        }
+      }
+    },
+    "ciphertext": {
+      "iv": "000102030405060708090a0b",
+      "encryptedData": "f3e956246593fbdbf85a11adbc4d90491833e5dfecceceb18ae9c829e9547b0ececdc7873e02428c57bebeefeadc3a6316ceecd886eef9b7c3977f7930d9fae1ce6bbe8bb16c38c827afc8b7cb239e4416928965ca56b1325eb3c30456bbe546f242ef03ee9178b867d06a45801919541227af7aba4cfee205db1738c0d51cca52fa08523b02dd01e60816ca9e5cd9",
+      "authTag": "aa74a11d43ab5df18d52ef140b5f92d1"
+    }
+  }
+}

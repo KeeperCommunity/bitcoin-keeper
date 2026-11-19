@@ -713,43 +713,7 @@ export const createDecipheriv = (data: { iv: string; encryptedData: string }, pa
   return JSON.parse(decrypted.toString());
 };
 
-export const createCipherGcm = (data: string, password: string) => {
-  const algorithm = 'aes-256-gcm';
-  const key = Buffer.from(password, 'hex');
-  const iv = crypto.randomBytes(12); // 12 bytes for GCM
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-  const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return {
-    iv: iv.toString('hex'),
-    encryptedData: encrypted.toString('hex'),
-    authTag: authTag.toString('hex'),
-  };
-};
-
-interface DecryptData {
-  iv: string;
-  encryptedData: string;
-  authTag: string;
-}
-
-export const createDecipherGcm = (data: DecryptData, password: string) => {
-  const algorithm = 'aes-256-gcm';
-  const key = Buffer.from(password, 'hex');
-  const iv = Buffer.from(data.iv, 'hex');
-  const encryptedText = Buffer.from(data.encryptedData, 'hex');
-  const authTag = Buffer.from(data.authTag, 'hex');
-  const decipher = crypto.createDecipheriv(algorithm, key, iv);
-  decipher.setAuthTag(authTag);
-  let decrypted: Buffer;
-
-  try {
-    decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
-  } catch (err) {
-    throw new Error(`Failed to decrypt data: ${err.message}`);
-  }
-  return JSON.parse(decrypted.toString('utf-8'));
-};
+export { createCipherGcm, createDecipherGcm } from 'src/services/channel/crypto';
 
 export const getArchivedVaults = (allVaults: Vault[], vault: Vault) => {
   return vault.archived || !vault.archivedId
