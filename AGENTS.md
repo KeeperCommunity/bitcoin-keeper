@@ -4,6 +4,14 @@ This repository uses a **ChatGPT → Codex Cloud → Codex Local (Mac)** workflo
 
 Repository: `KeeperCommunity/bitcoin-keeper`. Use `sprint` as the PR base unless the task explicitly specifies another base.
 
+## Release scope: early warning, not another gate
+
+Before committing to a release scope or adding substantial work, make a **rough** estimate of the expected changed source/test code (tokens, not model usage). Warn the owner if the release is likely to exceed **~20,000 changed tokens** or includes **more than two substantial, independently shippable features**. Suggest a small must-ship scope and move the rest to the next frequent release. These are advisory warning signs, **not** hard limits. Do not spend time measuring tokens precisely.
+
+Once a release candidate is scoped, avoid adding unrelated features, refactors, or tooling/CI projects. Fix release blockers and regressions; defer other work to the next release. If the scope grows unexpectedly, warn once and propose a split before adding more.
+
+Keep the warning in the normal planning conversation or PR; **no new forms, metrics files, CI checks, approvals, or gates**.
+
 ## Codex Cloud: implement and prepare handoff
 
 1. Work in a task-specific branch; investigate, implement, add or update tests, and run suitable checks (for example, `npm run test` and `npm run lint`). Report actual pass/fail results; do not claim a native simulator was run unless it really was.
