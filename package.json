@@ -122,7 +122,7 @@
     "redux-persist": "6.0.0",
     "redux-saga": "1.1.3",
     "rn-qr-generator": "^1.4.4",
-    "satochip-react-native": "git+https://github.com/Toporin/satochip-react-native.git#1076e7c097571d561b5b903f31c6337455def19e",
+    "satochip-react-native": "git+https://github.com/Toporin/satochip-react-native.git#dc934769163d591a2cf43f96fef18af564af0894",
     "semver": "7.3.8",
     "socket.io-client": "4.5.4",
     "stream": "0.0.2",
@@ -202,5 +202,6 @@
   },
   "engines": {
     "node": ">=18"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
